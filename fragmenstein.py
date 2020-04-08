@@ -42,7 +42,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 
 
-class Frankenfragment:
+class Fragmenstein:
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -402,7 +402,7 @@ class Frankenfragment:
 def test():
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in ('x0692', 'x0305', 'x1249')]
     probe = Chem.MolFromSmiles('CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1')
-    Frankenfragment(probe, hits).make_pse('test.pse')
+    Fragmenstein(probe, hits).make_pse('test.pse')
 
 if __name__ == '__main__':
     test()
