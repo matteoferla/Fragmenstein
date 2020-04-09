@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='iso-8859-1'?>
+<svg version='1.1' baseProfile='full'
+              xmlns='http://www.w3.org/2000/svg'
+                      xmlns:rdkit='http://www.rdkit.org/xml'
+                      xmlns:xlink='http://www.w3.org/1999/xlink'
+                  xml:space='preserve'
+width='400px' height='400px' viewBox='0 0 400 400'>
+<!-- END OF HEADER -->
+<rect style='opacity:1.0;fill:#FFFFFF;stroke:none' width='400' height='400' x='0' y='0'> </rect>
+<path class='bond-0' d='M 330.461,200 L 229.405,200' style='fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<path class='bond-0' d='M 229.405,200 L 128.348,200' style='fill:none;fill-rule:evenodd;stroke:#0000FF;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<path class='bond-0' d='M 330.461,156.11 L 229.405,156.11' style='fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<path class='bond-0' d='M 229.405,156.11 L 128.348,156.11' style='fill:none;fill-rule:evenodd;stroke:#0000FF;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<path class='bond-0' d='M 330.461,243.89 L 229.405,243.89' style='fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<path class='bond-0' d='M 229.405,243.89 L 128.348,243.89' style='fill:none;fill-rule:evenodd;stroke:#0000FF;stroke-width:5px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />
+<text dominant-baseline="central" text-anchor="end" x='124.348' y='206' style='font-size:40px;font-style:normal;font-weight:normal;fill-opacity:1;stroke:none;font-family:sans-serif;fill:#0000FF' ><tspan>N</tspan></text>
+<text dominant-baseline="central" text-anchor="middle" x='362.136' y='224.287' style='font-size:40px;font-style:normal;font-weight:normal;fill-opacity:1;stroke:none;font-family:sans-serif;fill:#000000' ><tspan>0</tspan></text>
+<text dominant-baseline="central" text-anchor="middle" x='37.8643' y='206' style='font-size:40px;font-style:normal;font-weight:normal;fill-opacity:1;stroke:none;font-family:sans-serif;fill:#000000' ><tspan>1</tspan></text>
+</svg>

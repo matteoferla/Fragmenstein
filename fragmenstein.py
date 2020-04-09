@@ -71,7 +71,7 @@ class Fragmenstein:
         # derived attributes
         self.scaffold = self.merge_hits()  # merger of hits
         self.chimera = self.make_chimera()  # merger of hits but with atoms made to match the to-be-aligned mol
-        self.positioned_mol = self.place_probe()  # to-be-aligned is aligned!
+        self.positioned_mol = self.place_followup()  # to-be-aligned is aligned!
 
     def merge_hits(self) -> Chem.Mol:
         """
@@ -260,16 +260,16 @@ class Fragmenstein:
                              ringMatchesRingOnly=True)
         common = Chem.MolFromSmarts(mcs.smartsString)
         scaffold_match = self.scaffold.GetSubstructMatch(common)
-        probe_match = self.initial_mol.GetSubstructMatch(common)
-        atomMap = [(probe_at, scaffold_at) for probe_at, scaffold_at in zip(probe_match, scaffold_match)]
-        assert probe_match, 'No matching structure? All dummy atoms'
+        followup_match = self.initial_mol.GetSubstructMatch(common)
+        atomMap = [(followup_at, scaffold_at) for followup_at, scaffold_at in zip(followup_match, scaffold_match)]
+        assert followup_match, 'No matching structure? All dummy atoms'
         if self._debug_draw:
             self.draw_nicely(common)
-        ## make the scaffold more like the probe to avoid weird matches.
+        ## make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
         for i in range(common.GetNumAtoms()):
             if common.GetAtomWithIdx(i).GetSymbol() == '*':  # dummies.
-                wanted = self.initial_mol.GetAtomWithIdx(probe_match[i])
+                wanted = self.initial_mol.GetAtomWithIdx(followup_match[i])
                 owned = self.scaffold.GetAtomWithIdx(scaffold_match[i])
                 chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
                 v = {'C': 4, 'N': 3, 'O': 2, 'S': 2}
@@ -279,7 +279,7 @@ class Fragmenstein:
         chimera.UpdatePropertyCache()
         return chimera
 
-    def place_probe(self) -> Chem.Mol:
+    def place_followup(self) -> Chem.Mol:
         # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
         # prealignment
         sextant = Chem.Mol(self.initial_mol)
@@ -291,15 +291,15 @@ class Fragmenstein:
                              bondCompare=rdFMCS.BondCompare.CompareOrder)
         common = Chem.MolFromSmarts(mcs.smartsString)
         scaffold_match = self.scaffold.GetSubstructMatch(common)
-        probe_match = self.initial_mol.GetSubstructMatch(common)
-        atomMap = [(probe_at, scaffold_at) for probe_at, scaffold_at in zip(probe_match, scaffold_match)]
-        assert probe_match, 'No matching structure? All dummy atoms'
+        followup_match = self.initial_mol.GetSubstructMatch(common)
+        atomMap = [(followup_at, scaffold_at) for followup_at, scaffold_at in zip(followup_match, scaffold_match)]
+        assert followup_match, 'No matching structure? All dummy atoms'
         rdMolAlign.AlignMol(sextant, self.scaffold, atomMap=atomMap, maxIters=500)
         if self._debug_draw:
             self.draw_nicely(self.initial_mol)
             self.draw_nicely(self.scaffold)
             self.draw_nicely(common)
-            print('probe/mobile/candidate', probe_match)
+            print('followup/probe/mobile/candidate', followup_match)
             print('scaffold/ref', scaffold_match)
 
         putty = Chem.Mol(sextant)
@@ -401,8 +401,8 @@ class Fragmenstein:
 
 def test():
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in ('x0692', 'x0305', 'x1249')]
-    probe = Chem.MolFromSmiles('CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1')
-    Fragmenstein(probe, hits).make_pse('test.pse')
+    followup = Chem.MolFromSmiles('CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1')
+    Fragmenstein(followup, hits).make_pse('test.pse')
 
 if __name__ == '__main__':
     test()
