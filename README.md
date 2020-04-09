@@ -4,6 +4,7 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 ## Premise
 
 Aim: place a followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
+This makes a starting position for any subsequent calculations —say ∆∆G_bound vs. RMSD from the Frangmenstein pose after various optimisation cycles.
 
 ## Description
 
