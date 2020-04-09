@@ -40,7 +40,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 
 
-
+##################################################################
 
 class Fragmenstein:
     """
@@ -189,7 +189,7 @@ class Fragmenstein:
     def _categorise(self, mol:Chem.Mol, uniques:set) -> Dict[str, Union[set, Dict]]:
         """
         What do the novel atoms do in terms of connectivity.
-        Complicated dict output
+        Complicated dict output. Really ought to be SetProp of the atoms.
 
         * ``uniques`` are set of atoms to classify on
         * ``internals`` are unique atoms that are connected solely to unique atoms
