@@ -14,7 +14,7 @@ __citation__ = ""
 ########################################################################################################################
 
 
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 from warnings import warn
 
 try:
@@ -65,9 +65,11 @@ class Fragmenstein:
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], debug_draw: bool = False):
         # starting attributes
-        self.initial_mol = mol  # initial to-be-aligned mol, untouched.
+        self.initial_mol = mol #untouched.
+        #Chem.RemoveHs(self.initial_mol)
         self.hits = hits  # list of hits
         self._debug_draw = debug_draw # Jupyter notebook only.
+        self.unmatched = []
         # derived attributes
         self.scaffold = self.merge_hits()  # merger of hits
         self.chimera = self.make_chimera()  # merger of hits but with atoms made to match the to-be-aligned mol
@@ -79,9 +81,10 @@ class Fragmenstein:
 
         :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
         """
-        scaffold = Chem.Mol(self.hits[0])
+        hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
+        scaffold = Chem.Mol(hits[0])
         save_for_later = []
-        for fragmentanda in self.hits[1:]:
+        for fragmentanda in hits[1:]:
             try:
                 pairs = self._fragment_pairs(scaffold, fragmentanda)
                 for anchor_index in pairs:
@@ -98,6 +101,7 @@ class Fragmenstein:
                                           anchor_index=anchor_index,
                                           attachment_details=pairs[anchor_index])
             except ConnectionError:
+                self.unmatched.append(fragmentanda.GetProp("_Name"))
                 warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
         refined = self.posthoc_refine(scaffold)
         return refined
@@ -111,7 +115,7 @@ class Fragmenstein:
                                      [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()],
                                      addDummies=False)
             frag_split = []
-            fragmols = Chem.GetMolFrags(f, asMols=True, fragsMolAtomMapping=frag_split)
+            fragmols = Chem.GetMolFrags(f, asMols=True, fragsMolAtomMapping=frag_split, sanitizeFrags=False)
             if self._debug_draw:
                 print(frag_split)
             # Get the fragment of interest.
@@ -132,7 +136,10 @@ class Fragmenstein:
                 print(scaffold_anchor_index, scaffold_attachment_index, anchor_index, scaffold.GetNumAtoms())
                 self.draw_nicely(combo)
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
-            Chem.SanitizeMol(combo)
+            Chem.SanitizeMol(combo,
+                             sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
+                                         Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
+                             catchErrors=True)
             if self._debug_draw:
                 self.draw_nicely(combo)
             scaffold = combo
@@ -242,9 +249,15 @@ class Fragmenstein:
             for k, v in self.get_positional_mapping(scaffold, h).items():
                 positions[k].append([hc.GetAtomPosition(v).x, hc.GetAtomPosition(v).y, hc.GetAtomPosition(v).z])
         for i in range(scaffold.GetNumAtoms()):
+            if len(positions[i]) == 0:
+                continue
+                warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} in scaffold that has no positions.')
             p = np.mean(np.array(positions[i]), axis=0).astype(float)
             refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
-        Chem.SanitizeMol(refined)
+        Chem.SanitizeMol(refined,
+                         sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
+                                     Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
+                         catchErrors=True)
         return refined
 
     def make_chimera(self) -> Chem.Mol:
@@ -269,47 +282,68 @@ class Fragmenstein:
         chimera = Chem.RWMol(self.scaffold)
         for i in range(common.GetNumAtoms()):
             if common.GetAtomWithIdx(i).GetSymbol() == '*':  # dummies.
+                v = {'F': 1, 'Br': 1, 'Cl': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'P': 6}
                 wanted = self.initial_mol.GetAtomWithIdx(followup_match[i])
                 owned = self.scaffold.GetAtomWithIdx(scaffold_match[i])
-                chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
-                v = {'C': 4, 'N': 3, 'O': 2, 'S': 2}
-                diff_valance = owned.GetExplicitValence() > v[wanted.GetSymbol()]
-                if diff_valance > 0:
-                    chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
-        chimera.UpdatePropertyCache()
+                diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
+                if wanted.GetSymbol() in ('F', 'Br', 'Cl', 'C', 'H') and diff_valance > 0:
+                    continue # cannot change this.
+                elif owned.GetExplicitValence() > 4 and wanted.GetSymbol() not in ('P', ):
+                    continue
+                else:
+                    chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
+                    if diff_valance > 0:
+                        chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
+        try:
+            chimera.UpdatePropertyCache()
+        except Chem.AtomValenceException as err:
+            warn('Valance issue'+str(err))
         return chimera
 
-    def place_followup(self) -> Chem.Mol:
-        # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
-        # prealignment
-        sextant = Chem.Mol(self.initial_mol)
-        Chem.SanitizeMol(sextant)
-        AllChem.EmbedMolecule(sextant)
-        AllChem.MMFFOptimizeMolecule(sextant)
+    @property
+    def num_common(self) -> int:
         mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareOrder)
+        return Chem.MolFromSmarts(mcs.smartsString).GetNumAtoms()
+
+    @property
+    def percent_common(self) -> int:
+        return round(self.num_common/self.initial_mol.GetNumAtoms()*100)
+
+    def place_followup(self, mol:Chem.Mol=None) -> Chem.Mol:
+        # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
+        # prealignment
+        if mol is None:
+            mol = self.initial_mol
+        sextant = Chem.Mol(mol)
+        Chem.SanitizeMol(sextant)
+        AllChem.EmbedMolecule(sextant)
+        AllChem.MMFFOptimizeMolecule(sextant)
+        mcs = rdFMCS.FindMCS([self.chimera, mol],
+                             atomCompare=rdFMCS.AtomCompare.CompareElements,
+                             bondCompare=rdFMCS.BondCompare.CompareOrder)
         common = Chem.MolFromSmarts(mcs.smartsString)
-        scaffold_match = self.scaffold.GetSubstructMatch(common)
-        followup_match = self.initial_mol.GetSubstructMatch(common)
-        atomMap = [(followup_at, scaffold_at) for followup_at, scaffold_at in zip(followup_match, scaffold_match)]
+        chimera_match = self.chimera.GetSubstructMatch(common)
+        followup_match = mol.GetSubstructMatch(common)
+        atomMap = [(followup_at, chimera_at) for followup_at, chimera_at in zip(followup_match, chimera_match)]
         assert followup_match, 'No matching structure? All dummy atoms'
-        rdMolAlign.AlignMol(sextant, self.scaffold, atomMap=atomMap, maxIters=500)
+        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=atomMap, maxIters=500)
         if self._debug_draw:
-            self.draw_nicely(self.initial_mol)
-            self.draw_nicely(self.scaffold)
+            self.draw_nicely(mol)
+            self.draw_nicely(self.chimera)
             self.draw_nicely(common)
             print('followup/probe/mobile/candidate', followup_match)
-            print('scaffold/ref', scaffold_match)
+            print('chimera/ref/scaffold', chimera_match)
 
         putty = Chem.Mol(sextant)
         pconf = putty.GetConformer()
-        scaffold_conf = self.scaffold.GetConformer()
+        chimera_conf = self.chimera.GetConformer()
         pd = dict(atomMap)
         uniques = set()
         for i in range(putty.GetNumAtoms()):
             if i in pd:
-                pconf.SetAtomPosition(i, scaffold_conf.GetAtomPosition(pd[i]))
+                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(pd[i]))
             else:
                 uniques.add(i)
         # we be using a sextant for dead reckoning!
@@ -325,7 +359,7 @@ class Fragmenstein:
                           i.GetIdx() not in uniques]
                 for n in neighs:
                     sights.add((n, n))
-            team = self._recruit_team(unique_idx, categories)
+            team = self._recruit_team(mol, unique_idx, categories)
             rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
             sconf = sextant.GetConformer()
             if self._debug_draw:
@@ -336,14 +370,14 @@ class Fragmenstein:
         AllChem.SanitizeMol(putty)
         return putty
 
-    def _recruit_team(self, starting, categories, team=None) -> set:
+    def _recruit_team(self, mol:Chem.Mol, starting:set, categories:dict, team:Optional[set]=None) -> set:
         if team is None:
             team = set()
         team.add(starting)
-        for atom in self.initial_mol.GetAtomWithIdx(starting).GetNeighbors():
+        for atom in mol.GetAtomWithIdx(starting).GetNeighbors():
             i = atom.GetIdx()
             if i in categories['internals'] and i not in team:
-                team = self._recruit_team(i, categories, team)
+                team = self._recruit_team(mol, i, categories, team)
         return team
 
     def make_pse(self, filename='test.pse'):
@@ -354,8 +388,8 @@ class Fragmenstein:
             for h, hit in enumerate(self.hits):
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), f'hit{h}')
                 pymol.cmd.color(next(tints), f'hit{h} and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'frankenfragment')
-            pymol.cmd.color('tv_blue', f'frankenfragment and name C*')
+            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'scaffold')
+            pymol.cmd.color('tv_blue', f'scaffold and name C*')
             pymol.cmd.read_molstr(Chem.MolToMolBlock(self.chimera, kekulize=False), f'chimera')
             pymol.cmd.color('cyan', f'chimera and name C*')
             pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
@@ -366,7 +400,7 @@ class Fragmenstein:
             pymol.cmd.show('sticks', 'followup or chimera')
             pymol.cmd.save(filename)
 
-    def draw_nicely(self, mol, **kwargs):
+    def draw_nicely(self, mol, show=True, **kwargs):
         """
         Draw with atom indices for Jupyter notebooks.
 
@@ -382,7 +416,25 @@ class Fragmenstein:
         AllChem.Compute2DCoords(x)
         rdMolDraw2D.PrepareAndDrawMolecule(d, x, **kwargs)
         d.FinishDrawing()
-        display(SVG(d.GetDrawingText()))
+        if show:
+            display(SVG(d.GetDrawingText()))
+        return d
+
+    def save_commonality(self, filename:Optional[str]=None):
+        mcs = rdFMCS.FindMCS([self.chimera, self.positioned_mol],
+                             atomCompare=rdFMCS.AtomCompare.CompareElements,
+                             bondCompare=rdFMCS.BondCompare.CompareOrder,
+                             ringMatchesRingOnly=True)
+        common = Chem.MolFromSmarts(mcs.smartsString)
+        match = self.positioned_mol.GetSubstructMatch(common)
+        d = self.draw_nicely(self.positioned_mol, show=False, highlightAtoms=match)
+        if filename is None:
+            return d
+        else:
+            assert '.svg' in filename, 'Can only save SVGs.'
+            with open(filename, 'w') as w:
+                w.write(d.GetDrawingText())
+
 
     def pretweak(self) -> None:
         """

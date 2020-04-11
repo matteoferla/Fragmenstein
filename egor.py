@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, Union, Sequence
 from warnings import warn
 
 from fragmenstein import Fragmenstein
+from hit import Hit
 
 
 class Egor:
@@ -29,7 +30,8 @@ class Egor:
     * a residue name in uppercase "LIG"
     * a pyrosetta.Vector1 where 1 == the ligand.
 
-    If key_residues is None, no other residues are added... However this is probably not great as it lacks the connecting cysteine.
+    If key_residues is None, only the connecting residue is added (if present in the LINK record).
+    This is overridden if one of many options are given.
     If it is a pyrosetta.Vector1 it is assumed that 1 mean select this residue (as a result of a ``selector.apply(pose)`` operation)
     If it is a list or tuple, the elements are interpreted similarly to ligand.
 
@@ -42,7 +44,7 @@ class Egor:
     def __init__(self,
                  pose: pyrosetta.Pose,
                  constraint_file: str,
-                 ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1],
+                 ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1] = 'LIG',
                  key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None):
         """
         ...
@@ -126,7 +128,10 @@ class Egor:
                             key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1]):
         parsed = []
         if key_residues is None:
-            pass
+            try:
+                parsed = [self.pose.residue(self.ligand_residue[0]).connect_map(1).resid()]
+            except RuntimeError:
+                warn('No covalent bond with the ligand.')
         else:
             for k in key_residues:
                 parsed.extend(self._parse_residue(k))
@@ -183,7 +188,7 @@ class Egor:
         AllChem.UFFGetMoleculeForceField(mol)
         ff = AllChem.UFFGetMoleculeForceField(mol)
         ff.Initialize()
-        #print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
+        # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
         if delta:
             pre = ff.CalcEnergy()
             ff.Minimize()
@@ -311,7 +316,8 @@ class Egor:
         # get neighbourhood
         self._get_selector(ligand_only=True)
         NeighborhoodResidueSelector = pyrosetta.rosetta.core.select.residue_selector.NeighborhoodResidueSelector
-        ns = NeighborhoodResidueSelector(self._get_selector(ligand_only=True), distance=7, include_focus_in_subset=False)
+        ns = NeighborhoodResidueSelector(self._get_selector(ligand_only=True), distance=7,
+                                         include_focus_in_subset=False)
         ## repack
         operation = pyrosetta.rosetta.core.pack.task.operation
         allow = operation.RestrictToRepackingRLT()
@@ -334,7 +340,7 @@ class Egor:
                 'ligand_ref2015': sfxd,
                 **self.score_split()}
 
-    def minimise(self, cycles:int=10):
+    def minimise(self, cycles: int = 10):
         self.repack_neighbors()
         mover = self.get_FastRelax(cycles)
         # mover = acl.get_PertMinMover()
@@ -383,13 +389,6 @@ class Egor:
         b = scorefxn(self.pose)
         return {'xyz_unbound': x, 'xyz_bound': b, 'xyz_∆∆G': b - x}
 
-    @classmethod
-    def reanimate(cls,
-                  constraint_file: str,
-                  ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1],
-                  key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None
-                  ):
-        pass
 
 
 def test():
@@ -401,7 +400,7 @@ def test():
     acl.coordinate_constraint = 100
     print('initial')
     print(acl.ligand_score())
-    print(acl.ligand_residue) #AtomPair SG 145A HE2 41A HARMONIC 1.8 0.2
+    print(acl.ligand_residue)  # AtomPair SG 145A HE2 41A HARMONIC 1.8 0.2
     print(acl.key_residues)
     r = acl.pose.pdb_info().pdb2pose(res=41, chain='A')
     MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
@@ -417,6 +416,7 @@ def test():
     pymover.apply(acl.pose)
     print('cartesian relaxed')
     print(acl.ligand_score())
+
 
 if __name__ == '__main__':
     test()
