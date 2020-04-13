@@ -130,7 +130,8 @@ This results in a non-unique mapping.
 
 _This script requires a module that I cannot share, but I was 70% through rewriting it, so should be lit._
 
-Egor minimises the Fragmenstein monster in the protein.
+
+Egor minimises the Fragmenstein monster in the protein using PyRosetta.
 
 Egor has three minimisers that I tried:
 
@@ -140,6 +141,21 @@ Egor has three minimisers that I tried:
 
 <img src="images/movers.jpg" alt="movers" width="400px">
 
+The template needs to be relaxed beforehand and an ideal conformer set made into a `params` file.
+Both of which ATM are done with a different script.
+
+
+    e = Egor(pose, constraint_filename)
+    e.minimise(10)
+
+Where pose is a `pyrosetta.Pose` instance. But Egor can be initialised with `Egor.from_pdbfile(..)` or `Egor.from_pdbblock(..)`.
+The latter is nothing more than:
+
+    e.repack_neighbors()
+    mover = e.get_FastRelax(10)
+    # mover = e.get_PertMinMover()
+    # mover = e.get_MinMover()
+    mover.apply(e.pose)
 
 ## See also
 
