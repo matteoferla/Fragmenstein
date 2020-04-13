@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple, Union, Sequence
 from warnings import warn
 
 from fragmenstein import Fragmenstein
-from hit import Hit
+#from hit import Hit
 
 
 class Egor:
