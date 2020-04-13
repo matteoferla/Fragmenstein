@@ -6,6 +6,13 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 Aim: place a followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 This makes a starting position for any subsequent calculations —say ∆∆G_bound vs. RMSD from the Frangmenstein pose after various optimisation cycles.
 
+## Dramatis personae
+
+There are **for now** two scripts here each with a namesake class.
+
+* ``Fragmenstein`` makes the stitched together molecules
+* ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
+
 ## Description
 
 Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
@@ -94,8 +101,45 @@ using the 3-4 atoms that are the closest neighbours within the half-placed struc
     # further alignments... badly written way of doing this.
     monster.initial_mol = new_mol
     aligned = monster.place_followup(new_mol)
+    
+## Unresolved issues
 
-For details
+Here is an example with a few issues.
+
+<img src="images/unconnected.jpg" alt="unconnected" width="400px">
+
+### Non-overlapping fragments
+
+Non-overlapping fragments are discarded. Ideally they should be joined using the followup compound as a template _if possible_.
+In the pictured case the SMILES submitted may not have been what was intended and should not be used connect the fragments.
+
+### Imperfect projection
+
+The projection approach is not perfect. In the pictured example the sidechain is placed badly.
+There must be a glitch with the 2-4 reference atoms used.
+
+### More than 4 templates
+
+<img src="images/v_ugly.jpg" alt="ugly" width="400px">
+
+When there are too many templates with large spread, these aren't merged resulting in a spiderweb scaffold.
+This results in a non-unique mapping.
+
+
+## Egor
+
+_This script requires a module that I cannot share, but I was 70% through rewriting it, so should be lit._
+
+Egor minimises the Fragmenstein monster in the protein.
+
+Egor has three minimisers that I tried:
+
+* cartesian FastRelax which works effectively, but even though I have not manage to stop it from doing a repacking step —the constrain to coordinates helps in most cases, but not all.
+* cartesian MinMover which gets stuck in local minimum in hard cases.
+* PertMinMover which behaves weirdly...
+
+<img src="images/movers.jpg" alt="movers" width="400px">
+
 
 ## See also
 
