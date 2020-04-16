@@ -285,7 +285,7 @@ class Egor:
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, cycles)
         # v = pyrosetta.rosetta.utility.vector1_string()
         v = pyrosetta.rosetta.std.vector_std_string('''repeat %%nrepeats%%
-                coord_cst_weight 5.0
+                coord_cst_weight 10.0
                 scale:fa_rep 0.092
                 min 0.01
                 scale:fa_rep 0.323
