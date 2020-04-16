@@ -598,7 +598,7 @@ def test_molecule(name, smiles, hitnames):
     print(f.logbook)
 
 def easy_test():
-    test_molecule(name='2_ACl', smiles='CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1', hitnames=('x0692', 'x0305', 'x1249'))
+    test_molecule(name='2_ACL', smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1', hitnames=('x0692', 'x0305', 'x1249'))
 
 def nasty_test():
     test_molecule(name='AGN-NEW-5f0-1_ACR1',
@@ -611,7 +611,5 @@ def nasty2_test():
                   hitnames='x0692,x0770,x0995'.split(','))
 
 
-
-
 if __name__ == '__main__':
-    nasty_test()
+    easy_test()
