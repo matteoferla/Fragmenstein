@@ -8,13 +8,13 @@ __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
 __date__ = "2019 A.D."
 __license__ = "MIT"
-__version__ = "3"
+__version__ = "0.3"
 __citation__ = ""
 
 ########################################################################################################################
 
 
-from typing import Dict, Union, List, Optional
+from typing import Dict, Union, List, Optional, Tuple
 from warnings import warn
 
 try:
@@ -61,11 +61,27 @@ class Fragmenstein:
     ``.scaffold`` and ``.chimera`` and ``.positioned_mol`` absolutely do not have this.
     Novel side chains are added by aligning an optimised conformer against the closest 3-4 reference atoms.
     Note that ``.initial_mol`` is not touched. ``.positioned_mol`` may have lost some custom properties, but the atom idices are the same.
-    """
 
-    def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], debug_draw: bool = False):
+    If an atom in a Chem.Mol object is provided via ``attachment`` argument and the molecule contains a dummy atom as
+    defined in the ``dummy`` class variable. Namely element R in mol file or * in string is the default.
+    """
+    dummy_symbol = '*'
+    dummy = Chem.MolFromSmiles(dummy_symbol) #: The virtual atom where the targets attaches
+
+    def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment:Optional[Chem.Mol]=None, debug_draw: bool = False):
         # starting attributes
+        self.logbook = {}
         self.initial_mol = mol #untouched.
+        if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
+            self.attachement = attachment
+        elif self.initial_mol.HasSubstructMatch(self.dummy):
+            warn('No attachment atom provided but dummy atom present --- ignoring.')
+            self.attachement = None
+        elif attachment:
+            warn('Attachment atom provided but dummy atom not present --- ignoring.')
+            self.attachement = None
+        else:
+            self.attachement = None
         #Chem.RemoveHs(self.initial_mol)
         self.hits = hits  # list of hits
         self._debug_draw = debug_draw # Jupyter notebook only.
@@ -196,7 +212,7 @@ class Fragmenstein:
     def _categorise(self, mol:Chem.Mol, uniques:set) -> Dict[str, Union[set, Dict]]:
         """
         What do the novel atoms do in terms of connectivity.
-        Complicated dict output. Really ought to be SetProp of the atoms.
+        Complicated dict output (called ``categories`` in the methods). Really ought to be SetProp of the atoms.
 
         * ``uniques`` are set of atoms to classify on
         * ``internals`` are unique atoms that are connected solely to unique atoms
@@ -211,8 +227,11 @@ class Fragmenstein:
         pairs = {}
         internals = set()
         attachments = set()
+        dummies = set()
         for i in uniques:
             unique_atom = mol.GetAtomWithIdx(i)
+            if unique_atom.GetSymbol() == self.dummy_symbol:
+                dummies.add(i)
             neighbours = {n.GetIdx() for n in unique_atom.GetNeighbors()}
             if len(neighbours - uniques) == 0:
                 internals.add(i)
@@ -231,7 +250,8 @@ class Fragmenstein:
         return dict(uniques=uniques,
                     internals=internals,
                     attachments=attachments,
-                    pairs=pairs
+                    pairs=pairs,
+                    dummies=dummies
                     )
 
     def posthoc_refine(self, scaffold):
@@ -260,31 +280,84 @@ class Fragmenstein:
                          catchErrors=True)
         return refined
 
+    def get_mcs_mapping(self, molA, molB) -> Tuple[Dict[int, int], dict]:
+        """
+        This is a weird method. It does a strict MCS match.
+        And then it uses laxer searches and finds the case where a lax search includes the strict search.
+
+        :param molA: query molecule
+        :param molB: target/ref molecule
+        :return: mapping and mode
+        """
+        strict = self._get_atom_maps(molA, molB, atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                     bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                     ringMatchesRingOnly=True,
+                                     ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                     matchChiralTag=True)
+        for mode in [dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareAny,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareAny,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True)]:
+            lax = self._get_atom_maps(molA, molB, **mode)
+            # remove the lax matches that disobey
+            neolax = [l for l in lax if any([len(set(s) - set(l)) == 0 for s in strict])]
+            if len(neolax) == 0:
+                continue
+            else:
+                return dict(neolax[0]), mode
+        else:
+            raise ValueError('This is chemically impossible.')
+
+
+    def _get_atom_maps(self, molA, molB, **mode) -> List[List[Tuple[int, int]]]:
+        mcs = rdFMCS.FindMCS([molA, molB], **mode)
+        common = Chem.MolFromSmarts(mcs.smartsString)
+        matches = []
+        for molA_match in molA.GetSubstructMatches(common):
+            for molB_match in molB.GetSubstructMatches(common):
+                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match)])
+        return matches
+
+    def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
+        return self._get_atom_maps(molA, molB, **mode)[0]
+
     def make_chimera(self) -> Chem.Mol:
         """
-        This is to avoid corner cases. E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
+        This is to avoid extreme corner corner cases. E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
         while for the positioning this is not the case.
 
         :return:
         """
-        for mode in (dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringMatchesRingOnly=True),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareAny,
-                          ringMatchesRingOnly=False)):
-            mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol],
-                                 **mode)
-            common = Chem.MolFromSmarts(mcs.smartsString)
-            scaffold_match = self.scaffold.GetSubstructMatch(common)
-            followup_match = self.initial_mol.GetSubstructMatch(common)
-            atomMap = [(followup_at, scaffold_at) for followup_at, scaffold_at in zip(followup_match, scaffold_match)]
-            if followup_match:
-                break
-        else:
-            raise ValueError('No matching structure with hits.')
+        # get the matches
+        atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol)
+        self.logbook['scaffold-followup'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         if self._debug_draw:
-            self.draw_nicely(common)
+            self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
+
+        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol], **mode)
+        common = Chem.MolFromSmarts(mcs.smartsString)
+        scaffold_match = list(atom_map.keys())
+        followup_match = list(atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
         for i in range(common.GetNumAtoms()):
@@ -318,6 +391,14 @@ class Fragmenstein:
     def percent_common(self) -> int:
         return round(self.num_common/self.initial_mol.GetNumAtoms()*100)
 
+    _i = 0
+    def save_temp(self, mol):
+        """
+        This is a silly debug-by-print debug method. drop it in where you want to spy on stuff.
+        """
+        Chem.MolToMolFile(mol, f'debug_temp{self.i}.mol', kekulize=False)
+        self._i += 1
+
     def place_followup(self, mol:Chem.Mol=None) -> Chem.Mol:
         # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
         # prealignment
@@ -327,30 +408,19 @@ class Fragmenstein:
         Chem.SanitizeMol(sextant)
         AllChem.EmbedMolecule(sextant)
         AllChem.MMFFOptimizeMolecule(sextant)
-        mcs = rdFMCS.FindMCS([self.chimera, mol],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrder)
-        common = Chem.MolFromSmarts(mcs.smartsString)
-        chimera_match = self.chimera.GetSubstructMatch(common)
-        followup_match = mol.GetSubstructMatch(common)
-        atomMap = [(followup_at, chimera_at) for followup_at, chimera_at in zip(followup_match, chimera_match)]
-        assert followup_match, 'No matching structure? All dummy atoms'
-        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=atomMap, maxIters=500)
+        atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
+        self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         if self._debug_draw:
-            self.draw_nicely(mol)
-            self.draw_nicely(self.chimera)
-            self.draw_nicely(common)
-            print('followup/probe/mobile/candidate', followup_match)
-            print('chimera/ref/scaffold', chimera_match)
-
+            self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
+            self.draw_nicely(self.chimera, highlightAtoms=dict(atom_map).values())
         putty = Chem.Mol(sextant)
         pconf = putty.GetConformer()
         chimera_conf = self.chimera.GetConformer()
-        pd = dict(atomMap)
-        uniques = set()
+        uniques = set() # unique atoms in followup
         for i in range(putty.GetNumAtoms()):
-            if i in pd:
-                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(pd[i]))
+            if i in atom_map:
+                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(atom_map[i]))
             else:
                 uniques.add(i)
         # we be using a sextant for dead reckoning!
@@ -367,10 +437,15 @@ class Fragmenstein:
                 for n in neighs:
                     sights.add((n, n))
             team = self._recruit_team(mol, unique_idx, categories)
+            if self.attachement and list(categories['dummies'])[0] in team:
+                r = list(categories['dummies'])[0]
+                pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
+                sights.add((r, r))
             rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
             sconf = sextant.GetConformer()
             if self._debug_draw:
                 print(f'alignment atoms for {unique_idx} ({team}): {sights}')
+                self.draw_nicely(sextant, highlightAtoms=[a for a,b in sights])
             for atom_idx in team:
                 pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
 
@@ -407,7 +482,7 @@ class Fragmenstein:
             pymol.cmd.show('sticks', 'followup or chimera')
             pymol.cmd.save(filename)
 
-    def draw_nicely(self, mol, show=True, **kwargs):
+    def draw_nicely(self, mol, show=True, **kwargs) -> rdMolDraw2D.MolDraw2DSVG:
         """
         Draw with atom indices for Jupyter notebooks.
 
@@ -428,6 +503,12 @@ class Fragmenstein:
         return d
 
     def save_commonality(self, filename:Optional[str]=None):
+        """
+        Saves an SVG of the followup fragmenstein with the common atoms with the chimeric scaffold highlighted.
+
+        :param filename: optinal filename to save it as. Otherwise returns a rdMolDraw2D.MolDraw2DSVG object.
+        :return:
+        """
         mcs = rdFMCS.FindMCS([self.chimera, self.positioned_mol],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareOrder,
@@ -458,10 +539,79 @@ class Fragmenstein:
             else:
                 print(f'No overlap? {A2B}')
 
-def test():
-    hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in ('x0692', 'x0305', 'x1249')]
-    followup = Chem.MolFromSmiles('CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1')
-    Fragmenstein(followup, hits).make_pse('test.pse')
+    @classmethod
+    def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol]=None, hits: Optional[List[Chem.Mol]]= None) -> float:
+        """
+        The inbuilt RMSD calculations in RDKit align the two molecules, this does not align them.
+        This deals with the case of multiple hits.
+        For euclidean distance the square root of the sum of the differences in each coordinates is taken.
+        For a regular RMSD the still-squared distance is averaged before taking the root.
+        Here the average is done across all the atom pairs between each hit and the followup.
+        Therefore, atoms in followup that derive in the blended molecule by multiple atom are scored multiple times.
+
+        As a classmethod ``followup_placed`` and ``hits`` must be provided. But as an instance method they don't.
+
+        :param followup_moved: followup compound moved by Egor or similar
+        :param followup_placed: followup compound as placed by Fragmenstein
+        :param hits: list of hits.
+        :return: combined RMSD
+        """
+        # class or instance?
+        if followup_placed is None: # instance
+            assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
+            followup_placed = cls.positioned_mol
+        if hits is None: # instance
+            assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
+            hits = cls.hits
+        for i in range(followup_placed.GetNumAtoms()):
+            assert followup_placed.GetAtomWithIdx(i).GetSymbol() == followup_moved.GetAtomWithIdx(i).GetSymbol(), 'The atoms order is changed.'
+        if followup_moved.GetNumAtoms() > followup_placed.GetNumAtoms():
+            warn(f'Followup moved {followup_moved.GetNumAtoms()} has more atoms that followup placed {followup_placed.GetNumAtoms()}. Assuming these are hydrogens.')
+        # calculate
+        tatoms = 0
+        d=0
+        for hit in hits:
+            mapping = list(cls.get_positional_mapping(followup_placed, hit).items())
+            tatoms += len(mapping)
+            if len(mapping) == 0:
+                continue
+            d += cls._get_square_deviation(followup_moved, hit, mapping)
+        return d/tatoms ** 0.5
+
+    @classmethod
+    def get_pair_rmsd(cls, molA, molB, mapping: List[Tuple[int, int]]) -> float:
+        return (cls._get_square_deviation(molA, molB, mapping) / len(mapping)) ** 0.5
+
+    def _get_square_deviation(self, molA, molB, mapping):
+        confA = molA.GetConformer()
+        confB = molB.GetConformer()
+        return sum([(confA.GetAtomPosition(a).x - confB.GetAtomPosition(b).x) ** 2 +
+                    (confA.GetAtomPosition(a).y - confB.GetAtomPosition(b).y) ** 2 +
+                    (confA.GetAtomPosition(a).z - confB.GetAtomPosition(b).z) ** 2 for a, b in mapping])
+
+def test_molecule(name, smiles, hitnames):
+    hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in hitnames]
+    followup = Chem.MolFromSmiles(smiles)
+    r = Chem.MolFromMolFile(f'../Mpro/Mpro-{hitnames[0]}_0/Mpro-{hitnames[0]}_0_SG.mol')
+    f = Fragmenstein(followup, hits, attachment=r)
+    f.make_pse(f'test_{name}.pse')
+    print(f.logbook)
+
+def easy_test():
+    test_molecule(name='2_ACl', smiles='CCNc1nc(CCS)c(C#N)cc1CN1C(CCS)CN(C(C)=O)CC1', hitnames=('x0692', 'x0305', 'x1249'))
+
+def nasty_test():
+    test_molecule(name='AGN-NEW-5f0-1_ACR1',
+                  smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
+                  hitnames=('x0434','x0540'))
+
+def nasty2_test():
+    test_molecule(name='BEN-VAN-c98-4',
+                  smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
+                  hitnames='x0692,x0770,x0995'.split(','))
+
+
+
 
 if __name__ == '__main__':
-    test()
+    nasty_test()
