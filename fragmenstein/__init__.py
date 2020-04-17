@@ -25,6 +25,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 from ._utility_mixin import _FragmensteinUtil
 
+
 ##################################################################
 
 class Fragmenstein(_FragmensteinUtil):
@@ -51,12 +52,13 @@ class Fragmenstein(_FragmensteinUtil):
     defined in the ``dummy`` class variable. Namely element R in mol file or * in string is the default.
     """
     dummy_symbol = '*'
-    dummy = Chem.MolFromSmiles(dummy_symbol) #: The virtual atom where the targets attaches
+    dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
 
-    def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment:Optional[Chem.Mol]=None, debug_draw: bool = False):
+    def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
+                 debug_draw: bool = False):
         # starting attributes
         self.logbook = {}
-        self.initial_mol = mol #untouched.
+        self.initial_mol = mol  # untouched.
         if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
             self.attachement = attachment
         elif self.initial_mol.HasSubstructMatch(self.dummy):
@@ -67,9 +69,9 @@ class Fragmenstein(_FragmensteinUtil):
             self.attachement = None
         else:
             self.attachement = None
-        #Chem.RemoveHs(self.initial_mol)
+        # Chem.RemoveHs(self.initial_mol)
         self.hits = hits  # list of hits
-        self._debug_draw = debug_draw # Jupyter notebook only.
+        self._debug_draw = debug_draw  # Jupyter notebook only.
         self.unmatched = []
         # derived attributes
         self.scaffold = self.merge_hits()  # merger of hits
@@ -107,7 +109,100 @@ class Fragmenstein(_FragmensteinUtil):
         refined = self.posthoc_refine(scaffold)
         return refined
 
-    def merge(self, scaffold:Chem.Mol, fragmentanda:Chem.Mol, anchor_index:int, attachment_details:List[Dict]) -> Chem.Mol:
+    def make_chimera(self) -> Chem.Mol:
+        """
+        This is to avoid extreme corner corner cases. E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
+        while for the positioning this is not the case.
+
+        :return:
+        """
+        # get the matches
+        atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol)
+        self.logbook['scaffold-followup'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        if self._debug_draw:
+            self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
+
+        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol], **mode)
+        common = Chem.MolFromSmarts(mcs.smartsString)
+        scaffold_match = list(atom_map.keys())
+        followup_match = list(atom_map.values())
+        ## make the scaffold more like the followup to avoid weird matches.
+        chimera = Chem.RWMol(self.scaffold)
+        for i in range(common.GetNumAtoms()):
+            if common.GetAtomWithIdx(i).GetSymbol() == '*':  # dummies.
+                v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'P': 6}
+                wanted = self.initial_mol.GetAtomWithIdx(followup_match[i])
+                owned = self.scaffold.GetAtomWithIdx(scaffold_match[i])
+                diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
+                if wanted.GetSymbol() in ('F', 'Br', 'Cl', 'C', 'H') and diff_valance > 0:
+                    continue  # cannot change this.
+                elif owned.GetExplicitValence() > 4 and wanted.GetSymbol() not in ('P',):
+                    continue
+                else:
+                    chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
+                    if diff_valance > 0:
+                        chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
+        try:
+            chimera.UpdatePropertyCache()
+        except Chem.AtomValenceException as err:
+            warn('Valance issue' + str(err))
+        return chimera
+
+    def place_followup(self, mol: Chem.Mol = None) -> Chem.Mol:
+        # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
+        # prealignment
+        if mol is None:
+            mol = self.initial_mol
+        sextant = Chem.Mol(mol)
+        Chem.SanitizeMol(sextant)
+        AllChem.EmbedMolecule(sextant)
+        AllChem.MMFFOptimizeMolecule(sextant)
+        atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
+        self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
+        if self._debug_draw:
+            self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
+            self.draw_nicely(self.chimera, highlightAtoms=dict(atom_map).values())
+        putty = Chem.Mol(sextant)
+        pconf = putty.GetConformer()
+        chimera_conf = self.chimera.GetConformer()
+        uniques = set()  # unique atoms in followup
+        for i in range(putty.GetNumAtoms()):
+            if i in atom_map:
+                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(atom_map[i]))
+            else:
+                uniques.add(i)
+        # we be using a sextant for dead reckoning!
+        categories = self._categorise(sextant, uniques)
+        if self._debug_draw:
+            print('internal', categories['internals'])
+        for unique_idx in categories['pairs']:  # attachment unique indices
+            sights = set()
+            for pd in categories['pairs'][unique_idx]:
+                first_sight = pd['idx']
+                sights.add((first_sight, first_sight))
+                neighs = [i.GetIdx() for i in sextant.GetAtomWithIdx(first_sight).GetNeighbors() if
+                          i.GetIdx() not in uniques]
+                for n in neighs:
+                    sights.add((n, n))
+            team = self._recruit_team(mol, unique_idx, categories)
+            if self.attachement and list(categories['dummies'])[0] in team:
+                r = list(categories['dummies'])[0]
+                pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
+                sights.add((r, r))
+            rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
+            sconf = sextant.GetConformer()
+            if self._debug_draw:
+                print(f'alignment atoms for {unique_idx} ({team}): {sights}')
+                self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
+            for atom_idx in team:
+                pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
+
+        AllChem.SanitizeMol(putty)
+        return putty
+
+    def merge(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
+              attachment_details: List[Dict]) -> Chem.Mol:
         for detail in attachment_details:
             attachment_index = detail['idx_F']  # fragmentanda attachment_index
             scaffold_attachment_index = detail['idx_S']
@@ -146,7 +241,7 @@ class Fragmenstein(_FragmensteinUtil):
             scaffold = combo
         return scaffold
 
-    def _fragment_pairs(self, scaffold:Chem.Mol, fragmentanda:Chem.Mol) -> Dict[int, List[Dict]]:
+    def _fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol) -> Dict[int, List[Dict]]:
         A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:
@@ -194,7 +289,7 @@ class Fragmenstein(_FragmensteinUtil):
             dm[:, s] = np.ones(dm.shape[0]) * 999
         return mapping
 
-    def _categorise(self, mol:Chem.Mol, uniques:set) -> Dict[str, Union[set, Dict]]:
+    def _categorise(self, mol: Chem.Mol, uniques: set) -> Dict[str, Union[set, Dict]]:
         """
         What do the novel atoms do in terms of connectivity.
         Complicated dict output (called ``categories`` in the methods). Really ought to be SetProp of the atoms.
@@ -256,7 +351,8 @@ class Fragmenstein(_FragmensteinUtil):
         for i in range(scaffold.GetNumAtoms()):
             if len(positions[i]) == 0:
                 continue
-                warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} in scaffold that has no positions.')
+                warn(
+                    f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} in scaffold that has no positions.')
             p = np.mean(np.array(positions[i]), axis=0).astype(float)
             refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
         Chem.SanitizeMol(refined,
@@ -313,7 +409,6 @@ class Fragmenstein(_FragmensteinUtil):
         else:
             raise ValueError('This is chemically impossible.')
 
-
     def _get_atom_maps(self, molA, molB, **mode) -> List[List[Tuple[int, int]]]:
         mcs = rdFMCS.FindMCS([molA, molB], **mode)
         common = Chem.MolFromSmarts(mcs.smartsString)
@@ -326,99 +421,7 @@ class Fragmenstein(_FragmensteinUtil):
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
         return self._get_atom_maps(molA, molB, **mode)[0]
 
-    def make_chimera(self) -> Chem.Mol:
-        """
-        This is to avoid extreme corner corner cases. E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
-        while for the positioning this is not the case.
-
-        :return:
-        """
-        # get the matches
-        atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol)
-        self.logbook['scaffold-followup'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
-        if self._debug_draw:
-            self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
-
-        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol], **mode)
-        common = Chem.MolFromSmarts(mcs.smartsString)
-        scaffold_match = list(atom_map.keys())
-        followup_match = list(atom_map.values())
-        ## make the scaffold more like the followup to avoid weird matches.
-        chimera = Chem.RWMol(self.scaffold)
-        for i in range(common.GetNumAtoms()):
-            if common.GetAtomWithIdx(i).GetSymbol() == '*':  # dummies.
-                v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'P': 6}
-                wanted = self.initial_mol.GetAtomWithIdx(followup_match[i])
-                owned = self.scaffold.GetAtomWithIdx(scaffold_match[i])
-                diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
-                if wanted.GetSymbol() in ('F', 'Br', 'Cl', 'C', 'H') and diff_valance > 0:
-                    continue # cannot change this.
-                elif owned.GetExplicitValence() > 4 and wanted.GetSymbol() not in ('P', ):
-                    continue
-                else:
-                    chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
-                    if diff_valance > 0:
-                        chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
-        try:
-            chimera.UpdatePropertyCache()
-        except Chem.AtomValenceException as err:
-            warn('Valance issue'+str(err))
-        return chimera
-
-    def place_followup(self, mol:Chem.Mol=None) -> Chem.Mol:
-        # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
-        # prealignment
-        if mol is None:
-            mol = self.initial_mol
-        sextant = Chem.Mol(mol)
-        Chem.SanitizeMol(sextant)
-        AllChem.EmbedMolecule(sextant)
-        AllChem.MMFFOptimizeMolecule(sextant)
-        atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-        self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
-        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
-        if self._debug_draw:
-            self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
-            self.draw_nicely(self.chimera, highlightAtoms=dict(atom_map).values())
-        putty = Chem.Mol(sextant)
-        pconf = putty.GetConformer()
-        chimera_conf = self.chimera.GetConformer()
-        uniques = set() # unique atoms in followup
-        for i in range(putty.GetNumAtoms()):
-            if i in atom_map:
-                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(atom_map[i]))
-            else:
-                uniques.add(i)
-        # we be using a sextant for dead reckoning!
-        categories = self._categorise(sextant, uniques)
-        if self._debug_draw:
-            print('internal', categories['internals'])
-        for unique_idx in categories['pairs']:  # attachment unique indices
-            sights = set()
-            for pd in categories['pairs'][unique_idx]:
-                first_sight = pd['idx']
-                sights.add((first_sight, first_sight))
-                neighs = [i.GetIdx() for i in sextant.GetAtomWithIdx(first_sight).GetNeighbors() if
-                          i.GetIdx() not in uniques]
-                for n in neighs:
-                    sights.add((n, n))
-            team = self._recruit_team(mol, unique_idx, categories)
-            if self.attachement and list(categories['dummies'])[0] in team:
-                r = list(categories['dummies'])[0]
-                pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
-                sights.add((r, r))
-            rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
-            sconf = sextant.GetConformer()
-            if self._debug_draw:
-                print(f'alignment atoms for {unique_idx} ({team}): {sights}')
-                self.draw_nicely(sextant, highlightAtoms=[a for a,b in sights])
-            for atom_idx in team:
-                pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
-
-        AllChem.SanitizeMol(putty)
-        return putty
-
-    def _recruit_team(self, mol:Chem.Mol, starting:set, categories:dict, team:Optional[set]=None) -> set:
+    def _recruit_team(self, mol: Chem.Mol, starting: set, categories: dict, team: Optional[set] = None) -> set:
         if team is None:
             team = set()
         team.add(starting)
@@ -434,7 +437,7 @@ class Fragmenstein(_FragmensteinUtil):
 
         :return:
         """
-        print('This method is unreliable. Do not use it')
+        warn('This method is unreliable. Do not use it')
         ref = self.hits[0]
         for target in self.hits[1:]:
             A2B = list(self.get_positional_mapping(target, ref, 0.5).items())
@@ -443,6 +446,8 @@ class Fragmenstein(_FragmensteinUtil):
             else:
                 print(f'No overlap? {A2B}')
 
+
 if __name__ == '__main__':
     from .test import easy_test
+
     easy_test()
