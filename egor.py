@@ -15,19 +15,14 @@ __citation__ = ""
 
 import pyrosetta
 
-pyrosetta.init(extra_options='-no_optH false -mute all')
+pyrosetta.init(extra_options='-no_optH false -mute all -load_PDB_components false')
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import pymol2
-
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from warnings import warn
-
-from fragmenstein import Fragmenstein
-from hit import Hit
 
 
 class Egor:
@@ -273,29 +268,30 @@ class Egor:
         mmf.add_jump_action(true, pyrosetta.rosetta.core.select.jump_selector.InterchainJumpSelector())
         return mmf
 
-    def get_FastRelax(self, cycles=1) -> pyrosetta.rosetta.protocols.moves.Mover:
+    def get_FastRelax(self, cycles:int=1, weight:float=10.0) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
-        For some reason providing a template script stops it from uusing the movemap
+        This is not the usual fastRelax. It uses a modded minimiser protocol!
+        No repacking.
 
-        :param cycles:
+        :param cycles: number of cycles
+        :param weight: 10 is strict. 5 is decent. 1 is traditional.
         :return:
         """
         scorefxn = self._get_scorefxn("ref2015_cart")
         movemap = self._get_movemap()
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, cycles)
-        # v = pyrosetta.rosetta.utility.vector1_string()
-        v = pyrosetta.rosetta.std.vector_std_string('''repeat %%nrepeats%%
-                coord_cst_weight 10.0
-                scale:fa_rep 0.092
-                min 0.01
-                scale:fa_rep 0.323
-                min 0.01
-                scale:fa_rep 0.633
-                min 0.01
-                scale:fa_rep 1
-                min 0.00001
-                accept_to_best
-                endrepeat'''.split('\n'))
+        v = pyrosetta.rosetta.std.vector_std_string(['repeat %%nrepeats%%',
+                                                    f'coord_cst_weight {weight}',
+                                                    'scale:fa_rep 0.092',
+                                                    'min 0.01',
+                                                    'scale:fa_rep 0.323',
+                                                    'min 0.01',
+                                                    'scale:fa_rep 0.633',
+                                                    'min 0.01',
+                                                    'scale:fa_rep 1',
+                                                    'min 0.00001',
+                                                    'accept_to_best',
+                                                    'endrepeat'])
         relax.set_script_from_lines(v)
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)

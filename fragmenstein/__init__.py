@@ -13,36 +13,21 @@ __citation__ = ""
 
 ########################################################################################################################
 
-
 from typing import Dict, Union, List, Optional, Tuple
 from warnings import warn
-
-try:
-    from IPython.display import SVG, display
-except ImportError:
-    warn('No Jupyter notebook installed. `.draw_nicely` will not work.')
-    SVG = lambda *args, **kwargs: print('Install IPython...')
-    display = lambda *args, **kwargs: print('Install IPython...')
-
-try:
-    import pymol2
-except ImportError:
-    warn('No Pymol module installed. `.make_pse` will not work.')
-    pymol2 = None
 
 import numpy as np
 from collections import defaultdict
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Geometry.rdGeometry import Point3D
 
-
+from ._utility_mixin import _FragmensteinUtil
 
 ##################################################################
 
-class Fragmenstein:
+class Fragmenstein(_FragmensteinUtil):
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -380,25 +365,6 @@ class Fragmenstein:
             warn('Valance issue'+str(err))
         return chimera
 
-    @property
-    def num_common(self) -> int:
-        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrder)
-        return Chem.MolFromSmarts(mcs.smartsString).GetNumAtoms()
-
-    @property
-    def percent_common(self) -> int:
-        return round(self.num_common/self.initial_mol.GetNumAtoms()*100)
-
-    _i = 0
-    def save_temp(self, mol):
-        """
-        This is a silly debug-by-print debug method. drop it in where you want to spy on stuff.
-        """
-        Chem.MolToMolFile(mol, f'debug_temp{self.i}.mol', kekulize=False)
-        self._i += 1
-
     def place_followup(self, mol:Chem.Mol=None) -> Chem.Mol:
         # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
         # prealignment
@@ -462,68 +428,6 @@ class Fragmenstein:
                 team = self._recruit_team(mol, i, categories, team)
         return team
 
-    def make_pse(self, filename='test.pse'):
-        assert '.pse' in filename, 'Must be a pymol pse extension!'
-        with pymol2.PyMOL() as pymol:
-            tints = iter(['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
-            #pymol.cmd.bg_color('white')
-            for h, hit in enumerate(self.hits):
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), f'hit{h}')
-                pymol.cmd.color(next(tints), f'hit{h} and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'scaffold')
-            pymol.cmd.color('tv_blue', f'scaffold and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.chimera, kekulize=False), f'chimera')
-            pymol.cmd.color('cyan', f'chimera and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
-            pymol.cmd.color('tv_green', f'followup and name C*')
-            pymol.cmd.hide('sticks')
-            pymol.cmd.hide('cartoon') # there should not be....
-            pymol.cmd.show('lines', 'not polymer')
-            pymol.cmd.show('sticks', 'followup or chimera')
-            pymol.cmd.save(filename)
-
-    def draw_nicely(self, mol, show=True, **kwargs) -> rdMolDraw2D.MolDraw2DSVG:
-        """
-        Draw with atom indices for Jupyter notebooks.
-
-
-        :param mol:
-        :param kwargs: Key value pairs get fed into ``PrepareAndDrawMolecule``.
-        :return:
-        """
-        d = rdMolDraw2D.MolDraw2DSVG(400, 400)
-        d.drawOptions().addAtomIndices = True
-        d.drawOptions().addStereoAnnotation = True
-        x = Chem.Mol(mol)
-        AllChem.Compute2DCoords(x)
-        rdMolDraw2D.PrepareAndDrawMolecule(d, x, **kwargs)
-        d.FinishDrawing()
-        if show:
-            display(SVG(d.GetDrawingText()))
-        return d
-
-    def save_commonality(self, filename:Optional[str]=None):
-        """
-        Saves an SVG of the followup fragmenstein with the common atoms with the chimeric scaffold highlighted.
-
-        :param filename: optinal filename to save it as. Otherwise returns a rdMolDraw2D.MolDraw2DSVG object.
-        :return:
-        """
-        mcs = rdFMCS.FindMCS([self.chimera, self.positioned_mol],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrder,
-                             ringMatchesRingOnly=True)
-        common = Chem.MolFromSmarts(mcs.smartsString)
-        match = self.positioned_mol.GetSubstructMatch(common)
-        d = self.draw_nicely(self.positioned_mol, show=False, highlightAtoms=match)
-        if filename is None:
-            return d
-        else:
-            assert '.svg' in filename, 'Can only save SVGs.'
-            with open(filename, 'w') as w:
-                w.write(d.GetDrawingText())
-
-
     def pretweak(self) -> None:
         """
         What if the fragments were prealigned slightly? Really bad things.
@@ -539,77 +443,6 @@ class Fragmenstein:
             else:
                 print(f'No overlap? {A2B}')
 
-    @classmethod
-    def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol]=None, hits: Optional[List[Chem.Mol]]= None) -> float:
-        """
-        The inbuilt RMSD calculations in RDKit align the two molecules, this does not align them.
-        This deals with the case of multiple hits.
-        For euclidean distance the square root of the sum of the differences in each coordinates is taken.
-        For a regular RMSD the still-squared distance is averaged before taking the root.
-        Here the average is done across all the atom pairs between each hit and the followup.
-        Therefore, atoms in followup that derive in the blended molecule by multiple atom are scored multiple times.
-
-        As a classmethod ``followup_placed`` and ``hits`` must be provided. But as an instance method they don't.
-
-        :param followup_moved: followup compound moved by Egor or similar
-        :param followup_placed: followup compound as placed by Fragmenstein
-        :param hits: list of hits.
-        :return: combined RMSD
-        """
-        # class or instance?
-        if followup_placed is None: # instance
-            assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
-            followup_placed = cls.positioned_mol
-        if hits is None: # instance
-            assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
-            hits = cls.hits
-        for i in range(followup_placed.GetNumAtoms()):
-            assert followup_placed.GetAtomWithIdx(i).GetSymbol() == followup_moved.GetAtomWithIdx(i).GetSymbol(), 'The atoms order is changed.'
-        if followup_moved.GetNumAtoms() > followup_placed.GetNumAtoms():
-            warn(f'Followup moved {followup_moved.GetNumAtoms()} has more atoms that followup placed {followup_placed.GetNumAtoms()}. Assuming these are hydrogens.')
-        # calculate
-        tatoms = 0
-        d=0
-        for hit in hits:
-            mapping = list(cls.get_positional_mapping(followup_placed, hit).items())
-            tatoms += len(mapping)
-            if len(mapping) == 0:
-                continue
-            d += cls._get_square_deviation(followup_moved, hit, mapping)
-        return d/tatoms ** 0.5
-
-    @classmethod
-    def get_pair_rmsd(cls, molA, molB, mapping: List[Tuple[int, int]]) -> float:
-        return (cls._get_square_deviation(molA, molB, mapping) / len(mapping)) ** 0.5
-
-    def _get_square_deviation(self, molA, molB, mapping):
-        confA = molA.GetConformer()
-        confB = molB.GetConformer()
-        return sum([(confA.GetAtomPosition(a).x - confB.GetAtomPosition(b).x) ** 2 +
-                    (confA.GetAtomPosition(a).y - confB.GetAtomPosition(b).y) ** 2 +
-                    (confA.GetAtomPosition(a).z - confB.GetAtomPosition(b).z) ** 2 for a, b in mapping])
-
-def test_molecule(name, smiles, hitnames):
-    hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in hitnames]
-    followup = Chem.MolFromSmiles(smiles)
-    r = Chem.MolFromMolFile(f'../Mpro/Mpro-{hitnames[0]}_0/Mpro-{hitnames[0]}_0_SG.mol')
-    f = Fragmenstein(followup, hits, attachment=r)
-    f.make_pse(f'test_{name}.pse')
-    print(f.logbook)
-
-def easy_test():
-    test_molecule(name='2_ACL', smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1', hitnames=('x0692', 'x0305', 'x1249'))
-
-def nasty_test():
-    test_molecule(name='AGN-NEW-5f0-1_ACR1',
-                  smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
-                  hitnames=('x0434','x0540'))
-
-def nasty2_test():
-    test_molecule(name='BEN-VAN-c98-4',
-                  smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
-                  hitnames='x0692,x0770,x0995'.split(','))
-
-
 if __name__ == '__main__':
+    from .test import easy_test
     easy_test()

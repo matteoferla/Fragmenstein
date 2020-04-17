@@ -101,6 +101,22 @@ using the 3-4 atoms that are the closest neighbours within the half-placed struc
     # further alignments... badly written way of doing this.
     monster.initial_mol = new_mol
     aligned = monster.place_followup(new_mol)
+ 
+## Covalent
+
+If the `Chem.Mol` has a dummy atom (element symbol: `*` within RDKit and smiles, but `R` in a mol file and PDB file) and
+a molecule with a single atom is passed to `attachement` argument, then the covalent linker if absent in the hits is anchored
+to that atom.
+The default dummy atom can be overridden with `Fragmenstein.dummy:Chem.Mol` and `Fragmenstein.dummy_symbol:str`.
+
+## Complicated MCS
+
+Whereas the hit joining is done based on spatial overlaps. The followup is mapped to the blended scaffold by MCS.
+First the list of possible MCS with really strict settings are found.
+Then a set of mapping is sought which includes one of these by doing a new MCS search but very lax.
+And going from very lax in increasing strictness. This prevents some weird mapping.
+
+For more see `get_mcs_mapping`.
     
 ## Unresolved issues
 
@@ -115,8 +131,12 @@ In the pictured case the SMILES submitted may not have been what was intended an
 
 ### Imperfect projection
 
-The projection approach is not perfect. In the pictured example the sidechain is placed badly.
-There must be a glitch with the 2-4 reference atoms used.
+The projection approach is not perfect. The pictured example was affected by a bug (fixed), but this still is a problem in other cases.
+This problem is quite apparent in the cases where atoms connecting to the sulfur are added:
+
+![deviant](images/S_deviant.png)
+
+The way the projection is done is via a single conformer.
 
 ### More than 4 templates
 
@@ -128,27 +148,30 @@ This results in a non-unique mapping.
 
 ## Egor
 
-_This script requires a module that I cannot share, but I was 70% through rewriting it, so should be lit._
+_This script requires a module that I cannot share, but I was 70% through rewriting it, so should be rad._
 
 
 Egor minimises the Fragmenstein monster in the protein using PyRosetta.
 
 Egor has three minimisers that I tried:
 
-* cartesian FastRelax which works effectively, but even though I have not manage to stop it from doing a repacking step —the constrain to coordinates helps in most cases, but not all.
+* a modified cartesian FastRelax which works effectively.
 * cartesian MinMover which gets stuck in local minimum in hard cases.
 * PertMinMover which behaves weirdly...
 
 <img src="images/movers.jpg" alt="movers" width="400px">
 
-The template needs to be relaxed beforehand and an ideal conformer set made into a `params` file.
+* The template ought to be relaxed beforehand —but this can be skipped.
+* An ideal conformer set made into a `params` file.
+
 Both of which ATM are done with a different script.
 
 
     e = Egor(pose, constraint_filename)
     e.minimise(10)
 
-Where pose is a `pyrosetta.Pose` instance. But Egor can be initialised with `Egor.from_pdbfile(..)` or `Egor.from_pdbblock(..)`.
+Where pose is a `pyrosetta.Pose` instance.
+But Egor can be initialised with `Egor.from_pdbfile(..)` or `Egor.from_pdbblock(..)`.
 The latter is nothing more than:
 
     e.repack_neighbors()
