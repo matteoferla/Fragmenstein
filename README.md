@@ -1,5 +1,6 @@
 # Fragmenstein
 Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
+<img src="images/rdkit_to_params" width="300px">
 
 ## Premise
 
@@ -8,10 +9,11 @@ This makes a starting position for any subsequent calculations —say ∆∆G_bo
 
 ## Dramatis personae
 
-There are **for now** two scripts here each with a namesake class.
+There are three main classes:
 
 * ``Fragmenstein`` makes the stitched together molecules
 * ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
+* ``Victor`` runs the show
 
 ## Description
 
@@ -148,10 +150,9 @@ This results in a non-unique mapping.
 
 ## Egor
 
-_This script requires a module that I cannot share, but I was 70% through rewriting it, so should be rad._
-
-
 Egor minimises the Fragmenstein monster in the protein using PyRosetta.
+
+Egor uses the package [rdkit_to_params](https://github.com/matteoferla/rdkit_to_params) to parameterise the compounds.
 
 Egor has three minimisers that I tried:
 
@@ -179,6 +180,8 @@ The latter is nothing more than:
     # mover = e.get_PertMinMover()
     # mover = e.get_MinMover()
     mover.apply(e.pose)
+
+
 
 ## See also
 
