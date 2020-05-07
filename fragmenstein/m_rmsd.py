@@ -51,9 +51,15 @@ class mRSMD:
         for hit, mapping in zip(hits, mappings):
             md = self.calculate_msd(self.followup, hit, mapping)
             mds.append(md)
-            tatoms = len(mapping)
-            self.rmsds.append((md/ len(mapping)) ** 0.5)
-        self.mrmsd = (sum(mds)/ tatoms) ** 0.5
+            tatoms += len(mapping)
+            if len(mapping):
+                self.rmsds.append((md/ len(mapping)) ** 0.5)
+            else:
+                self.rmsds.append(None)
+        if tatoms:
+            self.mrmsd = (sum(mds) / tatoms) ** 0.5
+        else:
+            self.mrmsd = None
 
 
     @classmethod

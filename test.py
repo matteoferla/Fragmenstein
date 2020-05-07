@@ -1,6 +1,6 @@
 import pyrosetta
 
-pyrosetta.init()
+pyrosetta.init(extra_options='-no_optH false -load_PDB_components false') #-mute all
 
 from fragmenstein import Fragmenstein, Victor, Egor
 
@@ -33,49 +33,6 @@ def nasty2_test():
                   smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
                   hitnames='x0692,x0770,x0995'.split(','))
 
-def victor_test():
-    Victor.enable_stdout(logging.DEBUG)
-    hit_codes = ('x0305', 'x1386', 'x1418')
-    mpro_folder = '/Users/matteo/Coding/rosettaOps/Mpro'
-    def get_mol(xnumber):
-        mol = Chem.MolFromMolFile(f'{mpro_folder}/Mpro-{xnumber}_0/Mpro-{xnumber}_0.mol')
-        mol.SetProp('_Name', xnumber)
-        return mol
-    hits = [get_mol(i) for i in hit_codes]
-    best_hit = Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{i}_0/Mpro-{i}_0_bound.pdb' for i in hit_codes],
-                            target_resi=145,
-                            target_chain='A',
-                            target_atomname='SG',
-                            ligand_resn='LIG')
-    name = 'DAV-CRI-d1e-2_ACR'
-    Victor.journal.debug(f'{name} - best hit as starting is {best_hit}')
-    apo = best_hit.replace('_bound', '_apo-desolv')
-
-    def pose_fx(pose):
-        pose2pdb = pose.pdb_info().pdb2pose
-        r = pose2pdb(res=41, chain='A')
-        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-        MutateResidue(target=r, new_res='HIS').apply(pose)
-
-
-    for cname, con in [('chloroacetamide', 'AtomPair H 145A OY 1B HARMONIC 2.1 0.2\n'),
-                      ('nitrile', 'AtomPair H 145A NX 1B HARMONIC 2.1 0.2\n'),
-                      ('acrylamide', 'AtomPair H 143A OZ 1B HARMONIC 2.1 0.2\n'),
-                      ('vinylsulfonamide', 'AtomPair H 143A OZ1 1B HARMONIC 2.1 0.2\n')
-                      ]:
-        Victor.add_constraint_to_warhead(name=cname, constraint=con)
-
-    reanimator = Victor(smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1',
-                        hits=hits,
-                        pdb_filename=apo,
-                        long_name=name,
-                        ligand_resn='LIG',
-                        ligand_resi='1B',
-                        covalent_resn='CYS', covalent_resi='145A',
-                        extra_constraint='AtomPair SG 145A NE2 41A HARMONIC 3.5 0.2\n',
-                        pose_fx = pose_fx
-                        )
-
 def egor_test():
         acl = Egor.from_pdbfile(pdbfile='output/PAU-WEI-b9b-8_NIT2/pre_PAU-WEI-b9b-8_NIT2.pdb',
                                 params_file='output/PAU-WEI-b9b-8_NIT2/PAU-WEI-b9b-8_NIT2.params',
@@ -100,6 +57,59 @@ def egor_test():
         print('cartesian relaxed')
         print(acl.ligand_score())
         acl.pose.dump_pdb('egor_test.pdb')
+
+def victor_test():
+    Victor.work_path = '../Mpro_fragmenstein'
+    Victor.enable_stdout(logging.DEBUG)
+
+    for cname, con in [('chloroacetamide', 'AtomPair H 145A OY 1B HARMONIC 2.1 0.2\n'),
+                       ('nitrile', 'AtomPair H 145A NX 1B HARMONIC 2.1 0.2\n'),
+                       ('acrylamide', 'AtomPair H 143A OZ 1B HARMONIC 2.1 0.2\n'),
+                       ('vinylsulfonamide', 'AtomPair H 143A OZ1 1B HARMONIC 2.1 0.2\n')
+                       ]:
+        Victor.add_constraint_to_warhead(name=cname, constraint=con)
+
+    mpro_folder = '/Users/matteo/Coding/rosettaOps/Mpro'
+
+    def get_mol(xnumber):
+        mol = Chem.MolFromMolFile(f'{mpro_folder}/Mpro-{xnumber}_0/Mpro-{xnumber}_0.mol')
+        mol.SetProp('_Name', xnumber)
+        return mol
+
+    def get_best(hit_codes):
+        return Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{i}_0/Mpro-{i}_0_bound.pdb' for i in hit_codes],
+                                  target_resi=145,
+                                  target_chain='A',
+                                  target_atomname='SG',
+                                  ligand_resn='LIG')
+
+    def pose_fx(pose):
+        pose2pdb = pose.pdb_info().pdb2pose
+        r = pose2pdb(res=41, chain='A')
+        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+        MutateResidue(target=r, new_res='HIS').apply(pose)
+
+    def reanimate(smiles, name, hit_codes):
+        hits = [get_mol(i) for i in hit_codes]
+        best_hit = get_best(hit_codes)
+        Victor.journal.debug(f'{name} - best hit as starting is {best_hit}')
+        apo = best_hit.replace('_bound', '_apo-desolv')
+        reanimator = Victor(smiles=smiles,
+                            hits=hits,
+                            pdb_filename=apo,
+                            long_name=name,
+                            ligand_resn='LIG',
+                            ligand_resi='1B',
+                            covalent_resn='CYS', covalent_resi='145A',
+                            extra_constraint='AtomPair SG 145A NE2 41A HARMONIC 3.5 0.2\n',
+                            pose_fx=pose_fx
+                            )
+        return reanimator
+
+    #reanimate(name='DAV-CRI-d1e-2_ACR', hit_codes=('x0305', 'x1386', 'x1418'), smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1')
+    #reanimate(name='AAR-POS-8a4e0f60-1', hit_codes=('x0072',), smiles='CCN(Cc1cccc(-c2ccncc2)c1)C(=O)Cn1nnc2ccccc21')
+    #reanimate(name='AAR-POS-8a4e0f60-2', hit_codes=('x0072',), smiles='CCN(Cc1cccc(-c2ccncc2)c1)C(=O)Cc1noc2ccccc12')
+    reanimate(name='AAR-POS-8a4e0f60-10', smiles='O=C(Cn1nnc2ccccc21)NCc1ccc(Oc2cccnc2)c(F)c1', hit_codes=['x0072'])
 
 if __name__ == '__main__':
     victor_test()

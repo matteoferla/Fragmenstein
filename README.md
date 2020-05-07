@@ -9,11 +9,12 @@ This makes a starting position for any subsequent calculations —say ∆∆G_bo
 
 ## Dramatis personae
 
-There are three main classes:
+There are four main classes:
 
-* ``Fragmenstein`` makes the stitched together molecules
+* ``Fragmenstein`` makes the stitched together molecules —runs without pyrosetta
 * ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
-* ``Victor`` runs the show
+* ``Victor`` runs the show, i.e. is a pipeline, with several features
+* ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates, not MCS
 
 ## Description
 
@@ -181,6 +182,15 @@ The latter is nothing more than:
     # mover = e.get_MinMover()
     mover.apply(e.pose)
 
+## Victor
+
+Victor is a pipeline class. 
+
+* ``_place_fragmenstein`` is currently hardcoded.
+* ``CHI`` is disabled...
+* warnings need to be caught
+* laboratory needs to be set up
+* better picker for apo structure
 
 
 ## See also

@@ -1,7 +1,5 @@
 import pyrosetta
 
-pyrosetta.init(extra_options='-no_optH false -mute all -load_PDB_components false')
-
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from warnings import warn
@@ -83,7 +81,7 @@ class _EgorInitMixin:
             ligand_selector.set_residue_name3('LIG')
             m = self._vector2residues(ligand_selector.apply(self.pose))
             if len(m) == 1:
-                warn('There are may residues called LIG!')
+                warn('There are many residues called LIG!. Please specify the name3/resn/resi yourself!')
             for r in m:
                 parsed.append(r)
         elif isinstance(residue, int):

@@ -17,7 +17,7 @@ __citation__ = ""
 
 ########################################################################################################################
 
-from ..egor import Egor
+from ..egor import Egor, pyrosetta
 from ..core import Fragmenstein
 from ..m_rmsd import mRSMD
 
@@ -25,7 +25,7 @@ from typing import List, Tuple, Dict, Union, Optional, Callable
 
 from rdkit_to_params import Params, Constraints
 
-import os, logging, sys, re, pymol2, warnings, json, unicodedata, requests
+import os, logging, sys, re, pymol2, warnings, json, unicodedata, requests, shutil
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolAlign, rdmolfiles, rdFMCS, Draw
@@ -269,21 +269,31 @@ class Victor:
             return Chem.MolFromPDBBlock(pdb)
 
     def _place_fragmenstein(self):
+        l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
+        p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
+        if not p_chain:
+            p_chain = 'A'
+        if not l_chain:
+            l_chain = 'B'
         self.journal.debug(f'{self.long_name} - placing fragmenstein')
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             # distort positions
             pos_mol = Chem.MolToPDBBlock(self.fragmenstein.positioned_mol)
             pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
-            pymol.cmd.alter('scaffold', 'resi="1"')
-            pymol.cmd.alter('scaffold', 'chain="B"')  # TODO fix hardcoding!
+            pymol.cmd.alter('scaffold', f'resi="{l_resi}"')
+            pymol.cmd.alter('scaffold', f'chain="{l_chain}"')
             pymol.cmd.remove('name R')  # no dummy atoms!
             for c in ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER'):
                 pymol.cmd.remove(f'name {c}')  # no conns
             pymol.cmd.remove('resn UNL')  # no unmatched stuff.
             pdbblock = pymol.cmd.get_pdbstr('*')
             pymol.cmd.delete('*')
-        return 'LINK         SG  CYS A 145                 CX  LIG B   1     1555   1555  1.8\n' + pdbblock
+        if self.is_covalent:
+            cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
+            return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                {cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n' + pdbblock
+        else:
+            return pdbblock
 
     @classmethod
     def copy_names(cls, acceptor_mol, donor_mol):
@@ -329,6 +339,8 @@ class Victor:
                 name = f'hit{h}'
             hfile = os.path.join(self.work_path, self.long_name, f'{name}.pdb')
             Chem.MolToPDBFile(hit, hfile)
+            mfile = os.path.join(self.work_path, self.long_name, f'{name}.mol')
+            Chem.MolToMolFile(hit, mfile, kekulize=False)
         # saving params template
         params_template_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_template.pdb')
         Chem.MolToPDBFile(self.params.mol, params_template_file)
@@ -359,17 +371,20 @@ class Victor:
         self.journal.debug(f'{self.long_name} - saving pose from egor')
         min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
         self.egor.pose.dump_pdb(min_file)
+        self.journal.debug(f'{self.long_name} - calculating Gibbs')
+        energy = self.egor.ligand_score()
         # recover bonds
+        self.journal.debug(f'{self.long_name} - making ligand only')
         lig_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol')
-        ligand_pose = self.egor.make_ligand_only_pose()
-        ligand = Chem.MolFromPDBBlock(self.egor.pose2str(ligand_pose), removeHs=False, proximityBonding=False)
+        ligand = self.egor.mol_from_pose()
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
         ligand = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        self.journal.debug(f'{self.long_name} - calculating mRMSD')
         mrsmd = mRSMD.from_other_annotated_mols(ligand, self.hits, self.fragmenstein.positioned_mol)
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
         json.dump(self.egor.ligand_score(), open(score_file, 'w'))
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
-        json.dump({'Energy': self.egor.ligand_score(),
+        json.dump({'Energy': energy,
                    'mRMSD': mrsmd.mrmsd,
                    'RMSDs': mrsmd.rmsds}, open(score_file, 'w'))
         Chem.MolToMolFile(ligand, lig_file)
@@ -423,6 +438,91 @@ class Victor:
                     best_d = d
                 pymol.cmd.delete('*')
         return best_hit
+
+    @classmethod
+    def make_covalent(cls, smiles:str, warhead_name:Optional[str]=None) -> Union[str, None]:
+        """
+        Convert a unreacted warhead to a reacted one in the SMILES
+
+        :param smiles: unreacted SMILES
+        :param warhead_name: name in the definitions. If unspecified it will try and guess (less preferrable)
+        :return: SMILES
+        """
+        mol = Chem.MolFromSmiles(smiles)
+        if warhead_name:
+            war_defs = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name]
+        else:
+            war_defs = cls.warhead_definitions
+        for war_def in war_defs:
+            ncv = Chem.MolFromSmiles(war_def['noncovalent'])
+            cv = Chem.MolFromSmiles(war_def['covalent'])
+            if mol.HasSubstructMatch(ncv):
+                x = Chem.ReplaceSubstructs(mol, ncv, cv, replacementConnectionPoint=0)[0]
+                return Chem.MolToSmiles(x)
+        else:
+            return None
+
+    @classmethod
+    def make_all_warhead_combinations(cls, smiles:str, warhead_name:str) -> Union[str, None]:
+        """
+        Convert a unreacted warhead to a reacted one in the SMILES
+
+        :param smiles: unreacted SMILES
+        :param warhead_name: name in the definitions
+        :return: SMILES
+        """
+        mol = Chem.MolFromSmiles(smiles)
+        war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name][0]
+        ncv = Chem.MolFromSmiles(war_def['noncovalent'])
+        if mol.HasSubstructMatch(ncv):
+            combinations = {}
+            for wd in cls.warhead_definitions:
+                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['covalent']), replacementConnectionPoint=0)
+                combinations[wd['name']+'_covalent'] = Chem.MolToSmiles(x[0])
+                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['noncovalent']), replacementConnectionPoint=0)
+                combinations[wd['name'] + '_noncovalent'] = Chem.MolToSmiles(x[0])
+            return combinations
+        else:
+            return None
+
+    @classmethod
+    def download_map(cls, pdbcode: str, filename: str):
+        assert '.ccp4' in filename, f'This downloads ccp4 maps ({filename})'
+        r = requests.get(f'http://www.ebi.ac.uk/pdbe/coordinates/files/{pdbcode.lower()}.ccp4', stream=True)
+        if r.status_code == 200:
+            with open(filename, 'wb') as f:
+                r.raw.decode_content = True
+                shutil.copyfileobj(r.raw, f)
+
+    @classmethod
+    def relax_with_ED(cls, pose, ccp4_file: str, constraint_file:Optional[str]=None) -> None:
+        """
+        Relaxes ``pose`` based on the ccp4 electron density map provided. See ``download_map`` to download one.
+        :param pose:
+        :param ccp4_file: download map from ePDB
+        :return: Relaxes pose in place
+        """
+        scorefxnED = pyrosetta.get_fa_scorefxn()
+        ED = pyrosetta.rosetta.core.scoring.electron_density.getDensityMap(ccp4_file)
+        sdsm = pyrosetta.rosetta.protocols.electron_density.SetupForDensityScoringMover()
+        sdsm.apply(pose)
+        ## Set ED constraint
+        elec_dens_fast = pyrosetta.rosetta.core.scoring.ScoreType.elec_dens_fast
+        scorefxnED.set_weight(elec_dens_fast, 30)
+        ## Set generic constraints
+        if constraint_file:
+            stm = pyrosetta.rosetta.core.scoring.ScoreTypeManager()
+            for contype_name in ("atom_pair_constraint", "angle_constraint", "dihedral_constraint"):
+                contype = stm.score_type_from_name(contype_name)
+                scorefxnED.set_weight(contype, 5)
+            setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
+            setup.constraint_file(constraint_file)
+            setup.apply(pose)
+        ## Relax
+        for w in (30, 20, 10):
+            scorefxnED.set_weight(elec_dens_fast, w)
+            relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxnED, 5)
+            relax.apply(pose)
 
     # =================== Logging ======================================================================================
 

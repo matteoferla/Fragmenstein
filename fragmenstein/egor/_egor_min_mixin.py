@@ -46,19 +46,40 @@ class _EgorMinMixin:
         :return: ligand
         :rtype: Chem.Mol
         """
-        mod = self.make_ligand_only_pose()
-        pdbblock = self.pose2str(mod)
-        mol = Chem.MolFromPDBBlock(pdbblock, proximityBonding=False)
-        assert mol is not None, 'Molecule too horrendous to load.'
-        return mol
+        # mod = self.make_ligand_only_pose()
+        # pdbblock = self.pose2str(mod)
+        # mol = Chem.MolFromPDBBlock(pdbblock, proximityBonding=False)
+        # assert mol is not None, 'Molecule too horrendous to load.'
+        # return mol
+        mol = Chem.MolFromPDBBlock(self.pose2str(), proximityBonding=False, removeHs=False)
+        name3 = self.pose.residue(self.ligand_residue[0]).name3()
+        return Chem.SplitMolByPDBResidues(mol, whiteList=[name3])[name3]
 
     def make_ligand_only_pose(self) -> pyrosetta.Pose:
+        """
+
+        :return:
+        """
+        # this is really janky. But I could not manage to do this without segfaults!
+        raise NotImplementedError('This sporadically does not work.')
         mod = self.pose.clone()
-        ligand_selector = self._get_selector(ligand_only=True)
-        vector = pyrosetta.rosetta.core.select.residue_selector.NotResidueSelector(ligand_selector).apply(mod)
-        residues = self._vector2residues(vector)
-        for r in reversed(residues):
-            mod.delete_residue_slow(r)
+        name3 = self.pose.residue(self.ligand_residue[0]).name3()
+        ligand_selector = pyrosetta.rosetta.core.select.residue_selector.ResidueNameSelector(name3)
+        not_selector = pyrosetta.rosetta.core.select.residue_selector.NotResidueSelector(ligand_selector)
+        residues = self._vector2residues(not_selector.apply(mod))
+        while residues:
+            print(residues)
+            rbegin = residues[0]
+            prev = rbegin
+            i = 1
+            print(len(residues),i+1 ,prev + 1 , residues[i])
+            while len(residues) > i and prev + 1 == residues[i]:
+                prev = residues[i]
+                i += 1
+            rend = residues[i - 1]
+            #mod.delete_residue_slow(r)
+            mod.delete_residue_range_slow(rbegin, rend)
+            residues = self._vector2residues(not_selector.apply(mod))
         return mod
 
     def MMFF_score(self, mol: Optional[Chem.Mol] = None, delta: bool = False) -> float:
@@ -91,6 +112,7 @@ class _EgorMinMixin:
         # ref2015_cart_cst.wts
         # constrain
         if self.constraint_file:
+            self.pose.dump_pdb('test.pdb')
             setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
             setup.constraint_file(self.constraint_file)
             setup.apply(self.pose)
@@ -245,6 +267,7 @@ class _EgorMinMixin:
         restrict_to_focus = operation.OperateOnResidueSubset(allow, ns, True)
         tf = pyrosetta.rosetta.core.pack.task.TaskFactory()
         tf.push_back(operation.PreventRepacking())
+        tf.push_back(operation.DisallowIfNonnative())
         tf.push_back(restrict_to_focus)
         packer = pyrosetta.rosetta.protocols.minimization_packing.PackRotamersMover(scorefxn)
         packer.task_factory(tf)
@@ -266,7 +289,7 @@ class _EgorMinMixin:
                 **self.score_split()}
 
     def minimise(self, cycles: int = 10):
-        self.repack_neighbors()
+        #self.repack_neighbors()
         mover = self.get_FastRelax(cycles)
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
@@ -278,13 +301,11 @@ class _EgorMinMixin:
         ResidueVector = pyrosetta.rosetta.core.select.residue_selector.ResidueVector
         x = self._get_selector(ligand_only=True).apply(split_pose)
         lig_pos = list(ResidueVector(self._get_selector(ligand_only=True).apply(split_pose)))[0]
-        try:
+        if self.pose.residue(lig_pos).connect_map_size() > 0:
             cys_pos = self.pose.residue(lig_pos).connect_map(1).resid()
             # RESCON: 305 LIG n-conn= 1 n-poly= 0 n-nonpoly= 1 conn# 1 22 145 3
             split_pose.conformation().sever_chemical_bond(seqpos1=cys_pos, res1_resconn_index=3, seqpos2=lig_pos,
                                                           res2_resconn_index=1)
-        except RuntimeError:
-            warn('No covalent bond with the ligand.')
         xyz = pyrosetta.rosetta.numeric.xyzVector_double_t()
         xyz.x = 500.0
         xyz.y = 0.0
