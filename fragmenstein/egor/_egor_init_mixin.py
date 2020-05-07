@@ -10,7 +10,7 @@ from warnings import warn
 class _EgorInitMixin:
     atom_pair_constraint = 10
     angle_constraint = 10
-    coordinate_constraint = 100
+    coordinate_constraint = 1
 
     # ============= Init ===============================================================================================
 
@@ -18,8 +18,7 @@ class _EgorInitMixin:
                  pose: pyrosetta.Pose,
                  constraint_file: str,
                  ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1] = 'LIG',
-                 key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None,
-                 weights:Optional[list]=None):
+                 key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None):
         """
         Given a pose with a blended ligand at ligand residue. Load it (ready for minimisation).
 
@@ -27,13 +26,11 @@ class _EgorInitMixin:
         :param constraint_file: filename
         :param ligand_residue: ligand -see class docstring
         :param key_residues: multiple entries -see class docstring
-        :param weights: weights for the coordinate constraint.
         """
         self.pose = pose
         self.constraint_file = constraint_file
         self.ligand_residue = self._parse_residue(ligand_residue)
         self.key_residues = self._parse_key_residues(key_residues)
-        self.weights = weights
 
     @classmethod
     def from_pdbblock(cls,
@@ -41,8 +38,7 @@ class _EgorInitMixin:
                       params_file: str,
                       constraint_file: str,
                       ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1] = 'LIG',
-                      key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None,
-                      weights: Optional[list]=None):
+                      key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None):
 
 
         pose = pyrosetta.Pose()
@@ -50,7 +46,7 @@ class _EgorInitMixin:
         params_paths.extend([params_file])
         pyrosetta.generate_nonstandard_residue_set(pose, params_paths)
         pyrosetta.rosetta.core.import_pose.pose_from_pdbstring(pose, pdbblock)
-        return cls(pose, constraint_file, ligand_residue, key_residues, weights)
+        return cls(pose, constraint_file, ligand_residue, key_residues)
 
     @classmethod
     def from_pdbfile(cls,
@@ -58,8 +54,7 @@ class _EgorInitMixin:
                      params_file: str,
                      constraint_file: str,
                      ligand_residue: Union[str, int, Tuple[int, str], pyrosetta.Vector1] = 'LIG',
-                     key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None,
-                     weights: Optional[list]=None):
+                     key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]], pyrosetta.Vector1] = None):
         """
         Given a PDB with the ligand load it.
 
@@ -68,7 +63,6 @@ class _EgorInitMixin:
         :param constraint_file: filename
         :param ligand_residue: ligand -see class docstring
         :param key_residues: multiple entries -see class docstring
-        :param weights: weights for the coordinate constraint.
         :return:
         """
         pose = pyrosetta.Pose()
@@ -76,7 +70,7 @@ class _EgorInitMixin:
         params_paths.extend([params_file])
         pyrosetta.generate_nonstandard_residue_set(pose, params_paths)
         pyrosetta.rosetta.core.import_pose.pose_from_file(pose, pdbfile)
-        return cls(pose, constraint_file, ligand_residue, key_residues, weights)
+        return cls(pose, constraint_file, ligand_residue, key_residues)
 
     # ============= Private methods for init ===========================================================================
 

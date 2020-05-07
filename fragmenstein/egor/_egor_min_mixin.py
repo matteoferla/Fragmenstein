@@ -18,8 +18,7 @@ class _EgorMinMixin:
         self.key_residues = []
         self.atom_pair_constraint = 10
         self.angle_constraint = 10
-        self.coordinate_constraint = 100
-        self.weights = []
+        self.coordinate_constraint = 1
 
     def pose2str(self, pose: Optional[pyrosetta.Pose] = None) -> str:
         """
@@ -265,13 +264,6 @@ class _EgorMinMixin:
                 'holo_ref2015': scorefxn(self.pose),
                 'ligand_ref2015': sfxd,
                 **self.score_split()}
-
-    def add_coordinate_constraints(self):
-        # CoordinateConstraint Atom1_Name Atom1_ResNum[Atom1_ChainID] Atom2_Name Atom2_ResNum[Atom2_ChainID] Atom1_target_X_coordinate Atom1_target_Y_coordinate Atom1_target_Z_coordinate Func_Type Func_Def
-        lines = []
-        if self.weights:
-            pass
-
 
     def minimise(self, cycles: int = 10):
         self.repack_neighbors()

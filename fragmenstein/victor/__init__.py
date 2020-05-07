@@ -158,7 +158,7 @@ class Victor:
             else:
                 self.journal.debug(f'{self.long_name} - is not covalent.')
                 if extra_constraint:
-                    self.constraint = Constraints.falsify()
+                    self.constraint = Constraints.mock()
                     self.constraint.custom_constraint = self.extra_constraint
                 else:
                     self.constraint = None
@@ -169,6 +169,7 @@ class Victor:
             self.journal.debug(f'{self.long_name} - Starting fragmenstein')
             self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
             self.unminimised_pdbblock = self._place_fragmenstein()
+            self.constraint.custom_constaint += self._make_coordinate_constraints()
             self._checkpoint_bravo()
             # save stuff
             params_file, holo_file, constraint_file = self._checkpoint_alpha()
@@ -232,9 +233,24 @@ class Victor:
         else:
             raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
 
+    def _make_coordinate_constraints(self):
+        lines = []
+        origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
+        std = self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)
+        conf = self.fragmenstein.positioned_mol.GetConformer()
+        for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
+            if origins[i]:
+                atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
+                pos = conf.GetAtomPosition(i)
+                lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} '+ \
+                             f'CA {self.covalent_resi} '+ \
+                             f'{pos.x} {pos.y} {pos.z} HARMONIC 0 {std[i] + 1}\n')
+        print(lines)
+        return ''.join(lines)
+
     def _get_attachment_from_pdbblock(self) -> Chem.Mol:
         """
-        Yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
+        Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
         """
         self.journal.debug(f'{self.long_name} - getting attachemnt atom')
         with pymol2.PyMOL() as pymol:
