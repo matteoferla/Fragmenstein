@@ -19,11 +19,11 @@ __citation__ = ""
 
 from ..egor import Egor
 from ..core import Fragmenstein
-from typing import List, Tuple, Dict, Union, Optional
+from typing import List, Tuple, Dict, Union, Optional, Callable
 
 from rdkit_to_params import Params, Constraints
 
-import os, logging, sys, re, pymol2
+import os, logging, sys, re, pymol2, warnings, json, unicodedata, requests
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolAlign, rdmolfiles, rdFMCS, Draw
@@ -55,6 +55,7 @@ class Victor:
     'covalent_atomnames' and 'noncovalent_atomnames' (list of atom names).
     The need for atomnames is actually not for the code but to allow lazy tweaks and analysis downstream
     (say typing in pymol: `show sphere, name CX`).
+    Adding a 'constraint' to an entry will apply that constraint.
 
     """
     hits_path = 'hits'
@@ -97,11 +98,11 @@ class Victor:
                  ligand_resn: str = 'LIG',
                  ligand_resi: Union[int, str] = '1B',
                  covalent_resn: str = 'CYS',  # no other option is accepted.
-                 covalent_resi: Optional[Union[int, str]] = None
+                 covalent_resi: Optional[Union[int, str]] = None,
+                 extra_constraint: Union[str] = None,
+                 pose_fx: Optional[Callable] = None,
                  ):
         """
-
-
         :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
         :param hits: list of rdkit molecules
         :param pdb_filename: file of apo structure
@@ -110,6 +111,8 @@ class Victor:
         :param ligand_resi: Rosetta-style pose(int) or pdb(str)
         :param covalent_resn: only CYS accepted. if smiles has no * it is ignored
         :param covalent_resi: Rosetta-style pose(int) or pdb(str)
+        :param extra_constraint: multiline string of constraints..
+        :param pose_fx: a function to call with pose to tweak or change something before minimising.
         """
         # ***** STORE *******
         # entry attributes
@@ -121,49 +124,71 @@ class Victor:
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
-        # check they are okay
-        if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
-            raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
-            # TODO '*' in self.smiles is bad. user might start with a mol file.
-        elif '*' in self.smiles:
-            self.is_covalent = True
-        else:
-            self.is_covalent = False
-        self._assert_inputs()
-        # ***** PARAMS & CONSTRAINT *******
-        self.journal.info(f'{self.long_name} - Starting work')
-        # making folder.
-        self._make_output_folder()
-        # make params
-        self.journal.debug(f'{self.long_name} - Starting parameterisation')
-        self.params = Params.from_smiles(self.smiles, name=ligand_resn, generic=False)
-        self.mol = self.params.mol
-        # deal with covalent and non covalent separately
-        if self.is_covalent:
-            self.journal.debug(f'{self.long_name} - is covalent.')
-            self.constraint = self._fix_covalent()
-            attachment = self._get_attachment_from_pdbblock()
-        else:
-            self.journal.debug(f'{self.long_name} - is not covalent.')
-            self.constraint = None
-            attachment = None
-        # ***** FRAGMENSTEIN *******
-        # make fragmenstein
-        self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
-        self.unminimised_pdbblock = self._place_fragmenstein()
-        # save stuff
-        params_file, holo_file, constraint_file = self._checkpoint()
-        # ***** EGOR *******
-        self.journal.debug(f'{self.long_name} - setting up Egor')
-        self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
-                                       params_file=params_file,
-                                       constraint_file=constraint_file,
-                                       ligand_residue=self.ligand_resi,
-                                       key_residues=[self.covalent_resi])
-        self.journal.debug(f'{self.long_name} - Egor minimising')
-        self.egor.minimise()
-        self.journal.debug(f'{self.long_name} - Complete')
+        self.extra_constraint = extra_constraint
+        self.pose_fx = pose_fx
+        # warnings
+        # logging.captureWarnings(True) # TODO tweak to log to the same.
+        try:
+            # check they are okay
+            if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
+                raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
+                # TODO '*' in self.smiles is bad. user might start with a mol file.
+            elif '*' in self.smiles:
+                self.is_covalent = True
+            else:
+                self.is_covalent = False
+            self._assert_inputs()
+            # ***** PARAMS & CONSTRAINT *******
+            self.journal.info(f'{self.long_name} - Starting work')
+            # making folder.
+            self._make_output_folder()
+            # make params
+            self.journal.debug(f'{self.long_name} - Starting parameterisation')
+            self.params = Params.from_smiles(self.smiles, name=ligand_resn, generic=False)
+            self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+            self.params.CHI.data = []  # TODO fix chi
+            self.mol = self.params.mol
+            # deal with covalent and non covalent separately
+            if self.is_covalent:
+                self.journal.debug(f'{self.long_name} - is covalent.')
+                self.constraint = self._fix_covalent()
+                if extra_constraint:
+                    self.constraint.custom_constaint += self.extra_constraint
+                attachment = self._get_attachment_from_pdbblock()
+            else:
+                self.journal.debug(f'{self.long_name} - is not covalent.')
+                if extra_constraint:
+                    self.constraint = Constraints.falsify()
+                    self.constraint.custom_constraint = self.extra_constraint
+                else:
+                    self.constraint = None
+                attachment = None
+
+            # ***** FRAGMENSTEIN *******
+            # make fragmenstein
+            self.journal.debug(f'{self.long_name} - Starting fragmenstein')
+            self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
+            self.unminimised_pdbblock = self._place_fragmenstein()
+            self._checkpoint_bravo()
+            # save stuff
+            params_file, holo_file, constraint_file = self._checkpoint_alpha()
+            # ***** EGOR *******
+            self.journal.debug(f'{self.long_name} - setting up Egor')
+            self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+                                           params_file=params_file,
+                                           constraint_file=constraint_file,
+                                           ligand_residue=self.ligand_resi,
+                                           key_residues=[self.covalent_resi])
+            # user custom code.
+            if self.pose_fx is not None:
+                self.journal.debug(f'{self.long_name} - running custom pose mod.')
+                self.pose_fx(self.egor.pose)
+            self.journal.debug(f'{self.long_name} - Egor minimising')
+            self.egor.minimise()
+            self._checkpoint_charlie()
+            self.journal.debug(f'{self.long_name} - Completed')
+        except Exception as err:
+            self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
 
     # =================== Init called methods ==========================================================================
 
@@ -196,10 +221,14 @@ class Victor:
                 self.params.rename_by_template(warhead, war_def['covalent_atomnames'])
                 cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
                 self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
-                return Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
+                cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
                                    names=[*war_def['covalent_atomnames'], *cov_def['atomnames']],
-                                   covalent_res=self.covalent_resi,
-                                   target_res=self.ligand_resi)
+                                   ligand_res=self.ligand_resi,
+                                   target_res=self.covalent_resi)
+                # user added constraint
+                if 'constraint' in war_def:
+                    cons.custom_constraint = war_def['constraint']
+                return cons
         else:
             raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
 
@@ -224,10 +253,14 @@ class Victor:
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             # distort positions
-            pymol.cmd.read_pdbstr(Chem.MolToPDBBlock(self.fragmenstein.positioned_mol), 'scaffold')
+            pos_mol = Chem.MolToPDBBlock(self.fragmenstein.positioned_mol)
+            pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
+            pymol.cmd.alter('scaffold', 'resi="1"')
+            pymol.cmd.alter('scaffold', 'chain="B"')  # TODO fix hardcoding!
             pymol.cmd.remove('name R')  # no dummy atoms!
+            for c in ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER'):
+                pymol.cmd.remove(f'name {c}')  # no conns
             pymol.cmd.remove('resn UNL')  # no unmatched stuff.
-            pymol.cmd.save(f'{self.work_path}/{self.long_name}/{self.long_name}.scaffold.pdb')
             pdbblock = pymol.cmd.get_pdbstr('*')
             pymol.cmd.delete('*')
         return 'LINK         SG  CYS A 145                 CX  LIG B   1     1555   1555  1.8\n' + pdbblock
@@ -249,14 +282,16 @@ class Victor:
                                                      f'{pa.GetIdx()}:{pa.GetSymbol()}'
             ma.SetMonomerInfo(pa.GetPDBResidueInfo())
 
-    def _checkpoint(self):
+    # =================== Logging ======================================================================================
+
+    def _checkpoint_alpha(self):
         #  saving params
         self.journal.debug(f'{self.long_name} - saving params')
         params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
         self.params.dump(params_file)
         # saving holo
         self.journal.debug(f'{self.long_name} - saving holo (unmimised)')
-        holo_file = os.path.join(self.work_path, self.long_name, self.long_name + '.pdb')
+        holo_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_unminimised.pdb')
         with open(holo_file, 'w') as w:
             w.write(self.unminimised_pdbblock)
         # saving constraint
@@ -266,7 +301,96 @@ class Victor:
             self.constraint.dump(constraint_file)
         else:
             constraint_file = ''
+        # saving hits (without copying)
+        for h, hit in enumerate(self.hits):
+            if hit.HasProp("_Name") and hit.GetProp("_Name").strip():
+                name = hit.GetProp("_Name")
+            else:
+                name = f'hit{h}'
+            hfile = os.path.join(self.work_path, self.long_name, f'{name}.pdb')
+            Chem.MolToPDBFile(hit, hfile)
+        # saving params template
+        params_template_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_template.pdb')
+        Chem.MolToPDBFile(self.params.mol, params_template_file)
+        params_template_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_template.mol')
+        Chem.MolToMolFile(self.params.mol, params_template_file)
+        # checking all is in order
+        self.journal.debug(f'{self.long_name} - checking params file works')
+        ptest_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.pdb')
+        Params.params_to_pose(params_file, self.params.NAME).dump_pdb(ptest_file)
         return params_file, holo_file, constraint_file
+
+    def _checkpoint_bravo(self):
+        self.journal.debug(f'{self.long_name} - saving mols from fragmenstein')
+        scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
+        Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
+        chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
+        Chem.MolToMolFile(self.fragmenstein.chimera, chimera_file, kekulize=False)
+        pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
+        Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
+        frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
+        json.dump({'smiles': self.smiles,
+                   'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
+                   'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)},
+                  open(frag_file, 'w'))
+        # unminimised_pdbblock will be saved by egor (round trip via pose)
+
+    def _checkpoint_charlie(self):
+        self.journal.debug(f'{self.long_name} - saving pose from egor')
+        min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
+        self.egor.pose.dump_pdb(min_file)
+        score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
+        json.dump(self.egor.ligand_score(), open(score_file, 'w'))
+
+    # =================== Other ========================================================================================
+
+    @classmethod
+    def add_constraint_to_warhead(cls, name:str, constraint:str):
+        """
+        Add a constraint (multiline is fine) to a warhead definition.
+        This will be added and run by Egor's minimiser.
+
+        :param name:
+        :param constraint:
+        :return: None
+        """
+        for war_def in cls.warhead_definitions:
+            if war_def['name'] == name:
+                war_def['constraint'] = constraint
+                break
+        else:
+            raise ValueError(f'{name} not found in warhead_definitions.')
+
+
+    @classmethod
+    def closest_hit(cls, pdb_filenames: List[str],
+                 target_resi: int,
+                 target_chain: str,
+                 target_atomname: str,
+                 ligand_resn='LIG') -> str:
+        """
+        This classmethod helps choose which pdb based on which is closer to a given atom.
+
+        :param pdb_filenames:
+        :param target_resi:
+        :param target_chain:
+        :param target_atomname:
+        :param ligand_resn:
+        :return:
+        """
+        best_d = 99999
+        best_hit = -1
+        with pymol2.PyMOL() as pymol:
+            for hit in pdb_filenames:
+                pymol.cmd.load(hit)
+                d = min([pymol.cmd.distance(f'chain {target_chain} and resi {target_resi} and name {target_atomname}',
+                                            f'resn {ligand_resn} and name {atom.name}') for atom in
+                         pymol.cmd.get_model(f'resn {ligand_resn}').atom])
+                if d < best_d:
+                    best_hit = hit
+                    best_d = d
+                pymol.cmd.delete('*')
+        return best_hit
 
     # =================== Logging ======================================================================================
 
@@ -281,6 +405,7 @@ class Victor:
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(level)
         cls.journal.addHandler(handler)
+        # logging.getLogger('py.warnings').addHandler(handler)
 
     @classmethod
     def enable_logfile(cls, filename='reanimation.log', level=logging.INFO) -> None:
@@ -294,9 +419,33 @@ class Victor:
         handler = logging.FileHandler(filename)
         handler.setLevel(level)
         cls.journal.addHandler(handler)
+        # logging.getLogger('py.warnings').addHandler(handler)
+
+    @classmethod
+    def slack_me(cls, msg: str) -> bool:
+        """
+        Send message to a slack webhook
+
+        :param msg: Can be dirty and unicode-y.
+        :return: did it work?
+        :rtype: bool
+        """
+        # sanitise.
+        msg = unicodedata.normalize('NFKD', msg).encode('ascii', 'ignore').decode('ascii')
+        msg = re.sub('[^\w\s\-.,;?!@#()\[\]]', '', msg)
+        r = requests.post(url=os.environ['SLACK_WEBHOOK'],
+                          headers={'Content-type': 'application/json'},
+                          data=f"{{'text': '{msg}'}}")
+        if r.status_code == 200 and r.content == b'ok':
+            return True
+        else:
+            return False
 
     # =================== Laboratory ===================================================================================
 
     @classmethod
     def laboratory(cls, entries: List[dict], cores: int = 1):
         pass
+
+
+

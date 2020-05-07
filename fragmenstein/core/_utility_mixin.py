@@ -5,6 +5,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS
 from rdkit.Chem.Draw import rdMolDraw2D
 
+import json
+
 try:
     from IPython.display import SVG, display
 except ImportError:
@@ -87,6 +89,36 @@ class _FragmensteinUtil:
     def percent_common(self) -> int:
         return round(self.num_common / self.initial_mol.GetNumAtoms() * 100)
 
+    def stdev_from_mol(self, mol: Chem.Mol=None):
+        """
+        these values are stored from Fragmenstein for scaffold, chimera and positioned_mol
+
+        :param mol: Chem.Mol
+        :return: stdev list for each atom
+        """
+        return [atom.GetDoubleProp('_Stdev') if atom.HasProp('_Stdev') else 0  for atom in mol.GetAtoms()]
+
+    def origin_from_mol(self, mol: Chem.Mol = None):
+        """
+        these values are stored from Fragmenstein for scaffold, chimera and positioned_mol
+
+        :param mol: Chem.Mol
+        :return: stdev list for each atom
+        """
+        origin = []
+        for atom in mol.GetAtoms():
+            if atom.HasProp('_Origin'):
+                x = atom.GetProp('_Origin')
+                if x == 'none':
+                    origin.append([])
+                else:
+                    origin.append(json.loads(x))
+            else:
+                origin.append([])
+        return origin
+
+
+    # class attribute for next method
     _i = 0
 
     def save_temp(self, mol):

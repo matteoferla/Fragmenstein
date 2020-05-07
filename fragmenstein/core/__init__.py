@@ -15,6 +15,7 @@ __citation__ = ""
 
 from typing import Dict, Union, List, Optional, Tuple
 from warnings import warn
+import json
 
 import numpy as np
 from collections import defaultdict
@@ -84,6 +85,10 @@ class Fragmenstein(_FragmensteinUtil):
 
         :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
         """
+        for hi, hit in enumerate(self.hits):
+            # fallback naming.
+            if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
+                hit.SetProp('_Name', f'hit{hi}')
         hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
         scaffold = Chem.Mol(hits[0])
         save_for_later = []
@@ -139,7 +144,12 @@ class Fragmenstein(_FragmensteinUtil):
                 elif owned.GetExplicitValence() > 4 and wanted.GetSymbol() not in ('P',):
                     continue
                 else:
-                    chimera.ReplaceAtom(scaffold_match[i], Chem.Atom(wanted))
+                    newatom = Chem.Atom(wanted)
+                    stdev = chimera.GetAtomWithIdx(scaffold_match[i]).GetDoubleProp('_Stdev')
+                    newatom.SetDoubleProp('_Stdev', stdev)
+                    origin = chimera.GetAtomWithIdx(scaffold_match[i]).GetProp('_Origin')
+                    newatom.SetProp('_Origin', origin)
+                    chimera.ReplaceAtom(scaffold_match[i], newatom)
                     if diff_valance > 0:
                         chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
         try:
@@ -169,9 +179,16 @@ class Fragmenstein(_FragmensteinUtil):
         uniques = set()  # unique atoms in followup
         for i in range(putty.GetNumAtoms()):
             if i in atom_map:
-                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(atom_map[i]))
+                ci = atom_map[i]
+                stdev = self.chimera.GetAtomWithIdx(ci).GetDoubleProp('_Stdev')
+                origin = self.chimera.GetAtomWithIdx(ci).GetProp('_Origin')
+                putty.GetAtomWithIdx(i).SetDoubleProp('_Stdev', stdev)
+                putty.GetAtomWithIdx(i).SetProp('_Origin', origin)
+                pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
             else:
                 uniques.add(i)
+                putty.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
+                putty.GetAtomWithIdx(i).SetProp('_Origin', 'none')
         # we be using a sextant for dead reckoning!
         categories = self._categorise(sextant, uniques)
         if self._debug_draw:
@@ -197,9 +214,8 @@ class Fragmenstein(_FragmensteinUtil):
                 self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
             for atom_idx in team:
                 pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
-
         AllChem.SanitizeMol(putty)
-        return putty
+        return putty #positioned_mol
 
     def merge(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
               attachment_details: List[Dict]) -> Chem.Mol:
@@ -343,22 +359,30 @@ class Fragmenstein(_FragmensteinUtil):
         """
         refined = Chem.RWMol(scaffold)
         refconf = refined.GetConformer()
-        positions = defaultdict(list)
+        positions = defaultdict(list) # coordinates
+        equivalence = defaultdict(list) # atom indices of hits.
         for h in self.hits:
             hc = h.GetConformer()
             for k, v in self.get_positional_mapping(scaffold, h).items():
                 positions[k].append([hc.GetAtomPosition(v).x, hc.GetAtomPosition(v).y, hc.GetAtomPosition(v).z])
+                equivalence[k].append(f'{h.GetProp("_Name")}.{v}')
         for i in range(scaffold.GetNumAtoms()):
             if len(positions[i]) == 0:
-                continue
-                warn(
-                    f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} in scaffold that has no positions.')
-            p = np.mean(np.array(positions[i]), axis=0).astype(float)
-            refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
+                refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
+                refined.GetAtomWithIdx(i).SetProp('_Origin', 'none')
+                # warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} '+ \
+                #     'in scaffold that has no positions.')
+            else:
+                p = np.mean(np.array(positions[i]), axis=0).astype(float)
+                sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float) # TODO this seems a bit dodgy.
+                refined.GetAtomWithIdx(i).SetProp('_Origin', json.dumps(equivalence[i]))
+                refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', sd)
+                refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
         Chem.SanitizeMol(refined,
                          sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
                                      Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
                          catchErrors=True)
+
         return refined
 
     def get_mcs_mapping(self, molA, molB) -> Tuple[Dict[int, int], dict]:
@@ -444,4 +468,4 @@ class Fragmenstein(_FragmensteinUtil):
             if A2B:
                 rdMolAlign.AlignMol(target, ref, atomMap=A2B, maxIters=500)
             else:
-                print(f'No overlap? {A2B}')
+                warn(f'No overlap? {A2B}')
