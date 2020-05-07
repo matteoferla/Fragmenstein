@@ -205,7 +205,7 @@ class Fragmenstein(_FragmensteinUtil):
                 for n in neighs:
                     sights.add((n, n))
             team = self._recruit_team(mol, unique_idx, categories)
-            if self.attachement and list(categories['dummies'])[0] in team:
+            if self.attachement and list(categories['dummies']) and list(categories['dummies'])[0] in team:
                 r = list(categories['dummies'])[0]
                 pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
                 sights.add((r, r))
