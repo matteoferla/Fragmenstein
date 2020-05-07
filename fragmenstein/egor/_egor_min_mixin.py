@@ -46,13 +46,13 @@ class _EgorMinMixin:
         :return: ligand
         :rtype: Chem.Mol
         """
-        mod = self._make_ligand_only_pose()
+        mod = self.make_ligand_only_pose()
         pdbblock = self.pose2str(mod)
         mol = Chem.MolFromPDBBlock(pdbblock, proximityBonding=False)
         assert mol is not None, 'Molecule too horrendous to load.'
         return mol
 
-    def _make_ligand_only_pose(self) -> pyrosetta.Pose:
+    def make_ligand_only_pose(self) -> pyrosetta.Pose:
         mod = self.pose.clone()
         ligand_selector = self._get_selector(ligand_only=True)
         vector = pyrosetta.rosetta.core.select.residue_selector.NotResidueSelector(ligand_selector).apply(mod)

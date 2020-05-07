@@ -27,3 +27,4 @@ except ZeroDivisionError as err:
     warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
 
 from .core import Fragmenstein
+from .m_rmsd import mRSMD

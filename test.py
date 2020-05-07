@@ -57,8 +57,13 @@ def victor_test():
         MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
         MutateResidue(target=r, new_res='HIS').apply(pose)
 
-    con = 'AtomPair H 145A OZ 1B HARMONIC 2.1 0.2\n'
-    Victor.add_constraint_to_warhead(name='acrylamide', constraint=con)
+
+    for cname, con in [('chloroacetamide', 'AtomPair H 145A OY 1B HARMONIC 2.1 0.2\n'),
+                      ('nitrile', 'AtomPair H 145A NX 1B HARMONIC 2.1 0.2\n'),
+                      ('acrylamide', 'AtomPair H 143A OZ 1B HARMONIC 2.1 0.2\n'),
+                      ('vinylsulfonamide', 'AtomPair H 143A OZ1 1B HARMONIC 2.1 0.2\n')
+                      ]:
+        Victor.add_constraint_to_warhead(name=cname, constraint=con)
 
     reanimator = Victor(smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1',
                         hits=hits,

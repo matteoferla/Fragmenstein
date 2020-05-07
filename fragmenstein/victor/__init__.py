@@ -19,6 +19,8 @@ __citation__ = ""
 
 from ..egor import Egor
 from ..core import Fragmenstein
+from ..m_rmsd import mRSMD
+
 from typing import List, Tuple, Dict, Union, Optional, Callable
 
 from rdkit_to_params import Params, Constraints
@@ -153,13 +155,13 @@ class Victor:
                 self.journal.debug(f'{self.long_name} - is covalent.')
                 self.constraint = self._fix_covalent()
                 if extra_constraint:
-                    self.constraint.custom_constaint += self.extra_constraint
+                    self.constraint.custom_constraint += self.extra_constraint
                 attachment = self._get_attachment_from_pdbblock()
             else:
                 self.journal.debug(f'{self.long_name} - is not covalent.')
                 if extra_constraint:
                     self.constraint = Constraints.mock()
-                    self.constraint.custom_constraint = self.extra_constraint
+                    self.constraint.custom_constraint += self.extra_constraint
                 else:
                     self.constraint = None
                 attachment = None
@@ -169,7 +171,7 @@ class Victor:
             self.journal.debug(f'{self.long_name} - Starting fragmenstein')
             self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
             self.unminimised_pdbblock = self._place_fragmenstein()
-            self.constraint.custom_constaint += self._make_coordinate_constraints()
+            self.constraint.custom_constraint += self._make_coordinate_constraints()
             self._checkpoint_bravo()
             # save stuff
             params_file, holo_file, constraint_file = self._checkpoint_alpha()
@@ -184,6 +186,9 @@ class Victor:
             if self.pose_fx is not None:
                 self.journal.debug(f'{self.long_name} - running custom pose mod.')
                 self.pose_fx(self.egor.pose)
+            # storing a roundtrip
+            self.unminimised_pdbblock = self.egor.pose2str()
+            # minimise
             self.journal.debug(f'{self.long_name} - Egor minimising')
             self.egor.minimise()
             self._checkpoint_charlie()
@@ -245,7 +250,6 @@ class Victor:
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} '+ \
                              f'CA {self.covalent_resi} '+ \
                              f'{pos.x} {pos.y} {pos.z} HARMONIC 0 {std[i] + 1}\n')
-        print(lines)
         return ''.join(lines)
 
     def _get_attachment_from_pdbblock(self) -> Chem.Mol:
@@ -355,8 +359,20 @@ class Victor:
         self.journal.debug(f'{self.long_name} - saving pose from egor')
         min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
         self.egor.pose.dump_pdb(min_file)
+        # recover bonds
+        lig_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol')
+        ligand_pose = self.egor.make_ligand_only_pose()
+        ligand = Chem.MolFromPDBBlock(self.egor.pose2str(ligand_pose), removeHs=False, proximityBonding=False)
+        template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
+        ligand = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        mrsmd = mRSMD.from_other_annotated_mols(ligand, self.hits, self.fragmenstein.positioned_mol)
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
         json.dump(self.egor.ligand_score(), open(score_file, 'w'))
+        score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
+        json.dump({'Energy': self.egor.ligand_score(),
+                   'mRMSD': mrsmd.mrmsd,
+                   'RMSDs': mrsmd.rmsds}, open(score_file, 'w'))
+        Chem.MolToMolFile(ligand, lig_file)
 
     # =================== Other ========================================================================================
 

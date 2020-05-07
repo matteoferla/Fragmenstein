@@ -28,6 +28,7 @@ class _EgorInitMixin:
         :param key_residues: multiple entries -see class docstring
         """
         self.pose = pose
+        pyrosetta.create_score_function('ref2015')(pose)
         self.constraint_file = constraint_file
         self.ligand_residue = self._parse_residue(ligand_residue)
         self.key_residues = self._parse_key_residues(key_residues)
