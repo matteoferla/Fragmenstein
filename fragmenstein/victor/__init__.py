@@ -64,6 +64,7 @@ class Victor:
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)
+
     covalent_definitions = [{'residue': 'CYS', 'smiles': '*SC', 'atomnames': ['CONN3', 'SG', 'CB']}]
     warhead_definitions = [{'name': 'nitrile',
                             'covalent': 'C(=N)*',  # zeroth atom is attached to the rest
@@ -91,6 +92,7 @@ class Victor:
                             'noncovalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX']
                             }
                            ]
+    _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 
     def __init__(self,
                  smiles: str,
@@ -129,72 +131,74 @@ class Victor:
         self.extra_constraint = extra_constraint
         self.pose_fx = pose_fx
         # warnings
-        # logging.captureWarnings(True) # TODO tweak to log to the same.
-        try:
-            # check they are okay
-            if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
-                raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
-                # TODO '*' in self.smiles is bad. user might start with a mol file.
-            elif '*' in self.smiles:
-                self.is_covalent = True
-            else:
-                self.is_covalent = False
-            self._assert_inputs()
-            # ***** PARAMS & CONSTRAINT *******
-            self.journal.info(f'{self.long_name} - Starting work')
-            # making folder.
-            self._make_output_folder()
-            # make params
-            self.journal.debug(f'{self.long_name} - Starting parameterisation')
-            self.params = Params.from_smiles(self.smiles, name=ligand_resn, generic=False)
-            self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-            self.params.CHI.data = []  # TODO fix chi
-            self.mol = self.params.mol
-            # deal with covalent and non covalent separately
-            if self.is_covalent:
-                self.journal.debug(f'{self.long_name} - is covalent.')
-                self.constraint = self._fix_covalent()
-                if extra_constraint:
-                    self.constraint.custom_constraint += self.extra_constraint
-                attachment = self._get_attachment_from_pdbblock()
-            else:
-                self.journal.debug(f'{self.long_name} - is not covalent.')
-                if extra_constraint:
-                    self.constraint = Constraints.mock()
-                    self.constraint.custom_constraint += self.extra_constraint
+        with warnings.catch_warnings(record=True) as self._warned:
+            try:
+                # check they are okay
+                if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
+                    raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
+                    # TODO '*' in self.smiles is bad. user might start with a mol file.
+                elif '*' in self.smiles:
+                    self.is_covalent = True
                 else:
-                    self.constraint = None
-                attachment = None
-
-            # ***** FRAGMENSTEIN *******
-            # make fragmenstein
-            self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-            self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
-            self.unminimised_pdbblock = self._place_fragmenstein()
-            self.constraint.custom_constraint += self._make_coordinate_constraints()
-            self._checkpoint_bravo()
-            # save stuff
-            params_file, holo_file, constraint_file = self._checkpoint_alpha()
-            # ***** EGOR *******
-            self.journal.debug(f'{self.long_name} - setting up Egor')
-            self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
-                                           params_file=params_file,
-                                           constraint_file=constraint_file,
-                                           ligand_residue=self.ligand_resi,
-                                           key_residues=[self.covalent_resi])
-            # user custom code.
-            if self.pose_fx is not None:
-                self.journal.debug(f'{self.long_name} - running custom pose mod.')
-                self.pose_fx(self.egor.pose)
-            # storing a roundtrip
-            self.unminimised_pdbblock = self.egor.pose2str()
-            # minimise
-            self.journal.debug(f'{self.long_name} - Egor minimising')
-            self.egor.minimise()
-            self._checkpoint_charlie()
-            self.journal.debug(f'{self.long_name} - Completed')
-        except Exception as err:
-            self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
+                    self.is_covalent = False
+                self._assert_inputs()
+                # ***** PARAMS & CONSTRAINT *******
+                self.journal.info(f'{self.long_name} - Starting work')
+                self._log_warnings()
+                # making folder.
+                self._make_output_folder()
+                # make params
+                self.journal.debug(f'{self.long_name} - Starting parameterisation')
+                self.params = Params.from_smiles(self.smiles, name=ligand_resn, generic=False)
+                self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+                self.params.CHI.data = []  # TODO fix chi
+                self.mol = self.params.mol
+                self._log_warnings()
+                # deal with covalent and non covalent separately
+                if self.is_covalent:
+                    self.journal.debug(f'{self.long_name} - is covalent.')
+                    self.constraint = self._fix_covalent()
+                    if extra_constraint:
+                        self.constraint.custom_constraint += self.extra_constraint
+                    attachment = self._get_attachment_from_pdbblock()
+                else:
+                    self.journal.debug(f'{self.long_name} - is not covalent.')
+                    if extra_constraint:
+                        self.constraint = Constraints.mock()
+                        self.constraint.custom_constraint += self.extra_constraint
+                    else:
+                        self.constraint = None
+                    attachment = None
+                self._log_warnings()
+                # ***** FRAGMENSTEIN *******
+                # make fragmenstein
+                self.journal.debug(f'{self.long_name} - Starting fragmenstein')
+                self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
+                self.unminimised_pdbblock = self._place_fragmenstein()
+                self.constraint.custom_constraint += self._make_coordinate_constraints()
+                self._checkpoint_bravo()
+                # save stuff
+                params_file, holo_file, constraint_file = self._checkpoint_alpha()
+                # ***** EGOR *******
+                self.journal.debug(f'{self.long_name} - setting up Egor')
+                self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+                                               params_file=params_file,
+                                               constraint_file=constraint_file,
+                                               ligand_residue=self.ligand_resi,
+                                               key_residues=[self.covalent_resi])
+                # user custom code.
+                if self.pose_fx is not None:
+                    self.journal.debug(f'{self.long_name} - running custom pose mod.')
+                    self.pose_fx(self.egor.pose)
+                # storing a roundtrip
+                self.unminimised_pdbblock = self.egor.pose2str()
+                # minimise
+                self.journal.debug(f'{self.long_name} - Egor minimising')
+                self.egor.minimise()
+                self._checkpoint_charlie()
+                self.journal.debug(f'{self.long_name} - Completed')
+            except Exception as err:
+                self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
 
     # =================== Init called methods ==========================================================================
 
@@ -246,6 +250,8 @@ class Victor:
         for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
             if origins[i]:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
+                if atom.GetSymbol() in self._connected_names:
+                    continue
                 pos = conf.GetAtomPosition(i)
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} '+ \
                              f'CA {self.covalent_resi} '+ \
@@ -284,7 +290,7 @@ class Victor:
             pymol.cmd.alter('scaffold', f'resi="{l_resi}"')
             pymol.cmd.alter('scaffold', f'chain="{l_chain}"')
             pymol.cmd.remove('name R')  # no dummy atoms!
-            for c in ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER'):
+            for c in self._connected_names:
                 pymol.cmd.remove(f'name {c}')  # no conns
             pymol.cmd.remove('resn UNL')  # no unmatched stuff.
             pdbblock = pymol.cmd.get_pdbstr('*')
@@ -312,9 +318,16 @@ class Victor:
                                                      f'{pa.GetIdx()}:{pa.GetSymbol()}'
             ma.SetMonomerInfo(pa.GetPDBResidueInfo())
 
+    def _log_warnings(self):
+        if len(self._warned):
+            for w in self._warned:
+                self.journal.warning(f'{self.long_name} - {w.message} ({w.category})')
+            self._warned.clear()
+
     # =================== Logging ======================================================================================
 
     def _checkpoint_alpha(self):
+        self._log_warnings()
         #  saving params
         self.journal.debug(f'{self.long_name} - saving params')
         params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
@@ -350,9 +363,11 @@ class Victor:
         self.journal.debug(f'{self.long_name} - checking params file works')
         ptest_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.pdb')
         Params.params_to_pose(params_file, self.params.NAME).dump_pdb(ptest_file)
+        self._log_warnings()
         return params_file, holo_file, constraint_file
 
     def _checkpoint_bravo(self):
+        self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving mols from fragmenstein')
         scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
         Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
@@ -361,13 +376,16 @@ class Victor:
         pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
         Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
         frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
-        json.dump({'smiles': self.smiles,
-                   'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
-                   'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)},
-                  open(frag_file, 'w'))
+        with open(frag_file, 'w') as w:
+            json.dump({'smiles': self.smiles,
+                       'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
+                       'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)},
+                      w)
+        self._log_warnings()
         # unminimised_pdbblock will be saved by egor (round trip via pose)
 
     def _checkpoint_charlie(self):
+        self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving pose from egor')
         min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
         self.egor.pose.dump_pdb(min_file)
@@ -382,12 +400,12 @@ class Victor:
         self.journal.debug(f'{self.long_name} - calculating mRMSD')
         mrsmd = mRSMD.from_other_annotated_mols(ligand, self.hits, self.fragmenstein.positioned_mol)
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
-        json.dump(self.egor.ligand_score(), open(score_file, 'w'))
-        score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
-        json.dump({'Energy': energy,
-                   'mRMSD': mrsmd.mrmsd,
-                   'RMSDs': mrsmd.rmsds}, open(score_file, 'w'))
+        with open(score_file, 'w') as w:
+            json.dump({'Energy': energy,
+                       'mRMSD': mrsmd.mrmsd,
+                       'RMSDs': mrsmd.rmsds}, w)
         Chem.MolToMolFile(ligand, lig_file)
+        self._log_warnings()
 
     # =================== Other ========================================================================================
 
@@ -485,45 +503,6 @@ class Victor:
         else:
             return None
 
-    @classmethod
-    def download_map(cls, pdbcode: str, filename: str):
-        assert '.ccp4' in filename, f'This downloads ccp4 maps ({filename})'
-        r = requests.get(f'http://www.ebi.ac.uk/pdbe/coordinates/files/{pdbcode.lower()}.ccp4', stream=True)
-        if r.status_code == 200:
-            with open(filename, 'wb') as f:
-                r.raw.decode_content = True
-                shutil.copyfileobj(r.raw, f)
-
-    @classmethod
-    def relax_with_ED(cls, pose, ccp4_file: str, constraint_file:Optional[str]=None) -> None:
-        """
-        Relaxes ``pose`` based on the ccp4 electron density map provided. See ``download_map`` to download one.
-        :param pose:
-        :param ccp4_file: download map from ePDB
-        :return: Relaxes pose in place
-        """
-        scorefxnED = pyrosetta.get_fa_scorefxn()
-        ED = pyrosetta.rosetta.core.scoring.electron_density.getDensityMap(ccp4_file)
-        sdsm = pyrosetta.rosetta.protocols.electron_density.SetupForDensityScoringMover()
-        sdsm.apply(pose)
-        ## Set ED constraint
-        elec_dens_fast = pyrosetta.rosetta.core.scoring.ScoreType.elec_dens_fast
-        scorefxnED.set_weight(elec_dens_fast, 30)
-        ## Set generic constraints
-        if constraint_file:
-            stm = pyrosetta.rosetta.core.scoring.ScoreTypeManager()
-            for contype_name in ("atom_pair_constraint", "angle_constraint", "dihedral_constraint"):
-                contype = stm.score_type_from_name(contype_name)
-                scorefxnED.set_weight(contype, 5)
-            setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
-            setup.constraint_file(constraint_file)
-            setup.apply(pose)
-        ## Relax
-        for w in (30, 20, 10):
-            scorefxnED.set_weight(elec_dens_fast, w)
-            relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxnED, 5)
-            relax.apply(pose)
-
     # =================== Logging ======================================================================================
 
     @classmethod
@@ -536,6 +515,7 @@ class Victor:
         """
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(level)
+        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
         cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 
@@ -550,6 +530,7 @@ class Victor:
         """
         handler = logging.FileHandler(filename)
         handler.setLevel(level)
+        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
         cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 

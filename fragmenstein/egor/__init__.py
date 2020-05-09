@@ -17,12 +17,12 @@ from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from ._egor_init_mixin import _EgorInitMixin, pyrosetta
 from ._egor_min_mixin import _EgorMinMixin
-
+from ._egor_utils_mixin import _EgorUtilsMixin
 
 # this contains the init and the two classmethods.
 
 
-class Egor(_EgorInitMixin, _EgorMinMixin):
+class Egor(_EgorInitMixin, _EgorMinMixin, _EgorUtilsMixin):
     """
     Regular Egor(..) accepts pyrosetta pose.
     ``Egor.from_pdbblock(..)`` accepts pdb block as str,
