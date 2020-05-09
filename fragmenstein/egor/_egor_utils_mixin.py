@@ -14,6 +14,7 @@ __citation__ = ""
 ########################################################################################################################
 
 import requests, shutil, pyrosetta
+from typing import Optional
 
 class _EgorUtilsMixin:
     @classmethod
