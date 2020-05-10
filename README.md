@@ -324,3 +324,7 @@ bases which atoms to use on a given pairing, by default this which atoms were do
 
 It is a multiple RMSD, that is basically a N_atom weighted geometric mean of RMSDs.
 
+# More
+
+For more see the source code or the [Sphinx converted documentation](/sphinx-docs.md).
+
