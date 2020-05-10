@@ -170,6 +170,7 @@ class Victor:
                         self.constraint = None
                     attachment = None
                 self._log_warnings()
+                self.post_params_step()
                 # ***** FRAGMENSTEIN *******
                 # make fragmenstein
                 self.journal.debug(f'{self.long_name} - Starting fragmenstein')
@@ -178,6 +179,7 @@ class Victor:
                 self.constraint.custom_constraint += self._make_coordinate_constraints()
                 self._checkpoint_bravo()
                 # save stuff
+                self.post_fragmenstein_step()
                 params_file, holo_file, constraint_file = self._checkpoint_alpha()
                 # ***** EGOR *******
                 self.journal.debug(f'{self.long_name} - setting up Egor')
@@ -190,11 +192,14 @@ class Victor:
                 if self.pose_fx is not None:
                     self.journal.debug(f'{self.long_name} - running custom pose mod.')
                     self.pose_fx(self.egor.pose)
+                else:
+                    self.pose_mod_step()
                 # storing a roundtrip
                 self.unminimised_pdbblock = self.egor.pose2str()
                 # minimise
                 self.journal.debug(f'{self.long_name} - Egor minimising')
                 self.egor.minimise()
+                self.post_egor_step()
                 self._checkpoint_charlie()
                 self.journal.debug(f'{self.long_name} - Completed')
             except Exception as err:
@@ -323,6 +328,37 @@ class Victor:
             for w in self._warned:
                 self.journal.warning(f'{self.long_name} - {w.message} ({w.category})')
             self._warned.clear()
+
+    # =================== Overridables =================================================================================
+
+    def post_params_step(self):
+        """
+        This method is intended for make inherited mods easier.
+        :return:
+        """
+        pass
+
+    def post_fragmenstein_step(self):
+        """
+        This method is intended for make inherited mods easier.
+        :return:
+        """
+        pass
+
+    def pose_mod_step(self):
+        """
+        This method is intended for make inherited mods easier.
+        :return:
+        """
+        pass
+
+    def post_egor_step(self):
+        """
+        This method is intended for make inherited mods easier.
+        :return:
+        """
+        pass
+
 
     # =================== Logging ======================================================================================
 
@@ -558,6 +594,7 @@ class Victor:
 
     @classmethod
     def laboratory(cls, entries: List[dict], cores: int = 1):
+        raise NotImplementedError('Not yet written.')
         pass
 
 

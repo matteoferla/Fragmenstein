@@ -170,7 +170,7 @@ class _EgorMinMixin:
         mmf.add_jump_action(true, pyrosetta.rosetta.core.select.jump_selector.InterchainJumpSelector())
         return mmf
 
-    def get_FastRelax(self, cycles: int = 1, weight: float = 10.0) -> pyrosetta.rosetta.protocols.moves.Mover:
+    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 10.0) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
         No repacking.
@@ -203,7 +203,6 @@ class _EgorMinMixin:
 
     def get_old_FastRelax(self, cycles=1) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
-        This is the only method that works.
 
         :param cycles:
         :return:
@@ -290,7 +289,7 @@ class _EgorMinMixin:
 
     def minimise(self, cycles: int = 10):
         #self.repack_neighbors()
-        mover = self.get_FastRelax(cycles)
+        mover = self.get_mod_FastRelax(cycles)
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
         mover.apply(self.pose)

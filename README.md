@@ -1,10 +1,12 @@
 # Fragmenstein
 Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
-<img src="images/rdkit_to_params" width="300px">
+<img src="images/fragmenstein.jpg" width="300px">
+
+> Victor, the pipeline, requires my [rdkit to params module](https://github.com/matteoferla/rdkit_to_params).
 
 ## Premise
 
-Aim: place a followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
+*Aim*: place a followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 This makes a starting position for any subsequent calculations —say ∆∆G_bound vs. RMSD from the Frangmenstein pose after various optimisation cycles.
 
 ## Dramatis personae
@@ -13,9 +15,10 @@ There are four main classes:
 
 * ``Fragmenstein`` makes the stitched together molecules —runs without pyrosetta
 * ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
-* ``Victor`` runs the show, i.e. is a pipeline, with several features
+* ``Victor`` runs the show, i.e. is a pipeline, with several features, such as warhead switching.
 * ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates, not MCS
 
+# Fragmenstein
 ## Description
 
 Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
@@ -120,6 +123,15 @@ Then a set of mapping is sought which includes one of these by doing a new MCS s
 And going from very lax in increasing strictness. This prevents some weird mapping.
 
 For more see `get_mcs_mapping`.
+
+## Knows its past
+
+The `Chem.Mol` object will have `Chem.Atom` objects with the RDKit property `_Origin`.
+This is a json stringified list of reference hit name dot atom index.
+`fragmenstein.origin_from_mol(mol)` will extract these for you.
+
+Also there will be a field,`_StDev`, which is the average of the three axes of 
+the standard deviation of the positions of the contributing atoms. `fragmenstein.origin_from_stdev(mol)` extracts them.
     
 ## Unresolved issues
 
@@ -149,7 +161,7 @@ When there are too many templates with large spread, these aren't merged resulti
 This results in a non-unique mapping.
 
 
-## Egor
+# Egor
 
 Egor minimises the Fragmenstein monster in the protein using PyRosetta.
 
@@ -163,11 +175,7 @@ Egor has three minimisers that I tried:
 
 <img src="images/movers.jpg" alt="movers" width="400px">
 
-* The template ought to be relaxed beforehand —but this can be skipped.
-* An ideal conformer set made into a `params` file.
-
-Both of which ATM are done with a different script.
-
+Egor gets run as follows:
 
     e = Egor(pose, constraint_filename)
     e.minimise(10)
@@ -182,18 +190,137 @@ The latter is nothing more than:
     # mover = e.get_MinMover()
     mover.apply(e.pose)
 
-## Victor
+Do note that when Victor calls Egor the constraint file used will have the atoms that should be constrained by position.
+The `Egor.coordinate_constraint` (default = 1) controls the stringency.
+Note that the `get_mod_FastRelax` has a weight in case it runs of constrain to position alone.
+The coordinate constraint is a harmonic function of standard deviation 1 plus the atom `_StDev` property
+—total math fudge: I am happy to hear better suggestions!
 
-Victor is a pipeline class. 
+# Victor
 
-* ``_place_fragmenstein`` is currently hardcoded.
-* ``CHI`` is disabled...
-* warnings need to be caught
-* laboratory needs to be set up
-* better picker for apo structure
+Victor is a pipeline class. This has many features and is rather complicated in its setup: but then a point and click
+solution that works universally is a bad solution.
+Here is a real world usage that uses multiple features:
 
+Import pyrosetta and initialised before everything (applies to Egor too):
 
-## See also
+    import pyrosetta
+    pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
+    from fragmenstein import Egor, Fragmenstein, Victor
+    import logging, csv, json
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+    
+configure whither to save and whence to load:
 
-* [my messy code for Covid19 moonshot](https://github.com/matteoferla/SARS-CoV-2_CL3_covalent_docking).
+    Victor.work_path = '../Mpro_fragmenstein'
+    Victor.enable_stdout(logging.WARNING)
+    mpro_folder = '/Users/matteo/Coding/rosettaOps/Mpro'  
+    
+    def get_mol(xnumber):
+        mol = Chem.MolFromMolFile(f'{mpro_folder}/Mpro-{xnumber}_0/Mpro-{xnumber}_0.mol')
+        mol.SetProp('_Name', xnumber)
+        return mol
+    
+alternatively `Victor.enable_logfile('reanimate.log',logging.DEBUG)`
+    
+add extra constraints that are warhead & protein specific.
+note that the warhead definitions contain preferred names for the connecting atoms and their neighbours
+
+    for cname, con in [('chloroacetamide', 'AtomPair  H  145A  OY  1B HARMONIC 2.1 0.2\n'),
+                      ('nitrile', 'AtomPair  H  145A  NX  1B HARMONIC 2.1 0.2\n'),
+                      ('acrylamide', 'AtomPair  H  143A  OZ  1B HARMONIC 2.1 0.2\n'),
+                      ('vinylsulfonamide', 'AtomPair  H  143A  OZ1 1B HARMONIC 2.1 0.2\n')
+                      ]:
+        Victor.add_constraint_to_warhead(name=cname, constraint=con)
+        
+Here is the definition of a nitrile warhead, for example:
+
+    {'name': 'nitrile',
+    'covalent': 'C(=N)*',  # zeroth atom is attached to the rest
+    'covalent_atomnames': ['CX', 'NX', 'CONN1'],
+    'noncovalent': 'C(#N)',  # zeroth atom is attached to the rest
+    'noncovalent_atomnames': ['CX', 'NX']
+    }
+    
+The choice of the protein template is a bit weak.
+I plan to experiment with minimisation against averaged electron densities.
+    
+    def get_best(hit_codes):
+        return Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{i}_0/Mpro-{i}_0_bound.pdb' for i in hit_codes],
+                            target_resi=145,
+                            target_chain='A',
+                            target_atomname='SG',
+                            ligand_resn='LIG')
+    
+There is a change I require to the pose
+    
+    def pose_fx(pose):
+            pose2pdb = pose.pdb_info().pdb2pose
+            r = pose2pdb(res=41, chain='A')
+            MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+            MutateResidue(target=r, new_res='HIS').apply(pose)
+    
+Define all the steps
+    
+    def reanimate(smiles, name, hit_codes):
+        hits = [get_mol(i) for i in hit_codes]
+        best_hit = get_best(hit_codes)
+        Victor.journal.debug(f'{name} - best hit as starting is {best_hit}')
+        apo = best_hit.replace('_bound', '_apo-desolv')
+        print(f'reanimate(smiles="{smiles}", name="{name}", hit_codes={hit_codes})')
+        reanimator = Victor(smiles=smiles,
+                            hits=hits,
+                            pdb_filename=apo,
+                            long_name=name,
+                            ligand_resn='LIG',
+                            ligand_resi='1B',
+                            covalent_resn='CYS', covalent_resi='145A',
+                            extra_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
+                            pose_fx = pose_fx
+                            )
+        return reanimator
+     
+Read the data and do all warhead combinations if covalent. This data is actually from
+[github.com/postera-ai/COVID_moonshot_submissions](https://github.com/postera-ai/COVID_moonshot_submissions).
+       
+    data = csv.DictReader(open('../COVID_moonshot_submissions/covid_submissions_all_info.csv'))
+    
+    issue = []
+    
+    for row in data:
+        if row['covalent_warhead'] == 'False':
+            pass
+            reanimate(name = row['CID'], hit_codes = row['fragments'].split(','), smiles=row['SMILES'])
+        else:
+            print(f'Covalent: {row["CID"]}')
+            for category in ('acrylamide', 'chloroacetamide', 'vinylsulfonamide', 'nitrile'):
+                if row[category] == 'True':
+                    combinations = Victor.make_all_warhead_combinations(row['SMILES'], category)
+                    if combinations is None:
+                        issue.append(row["CID"])
+                        break
+                    for c in combinations:
+                        reanimate(name = row['CID']+'-'+c, hit_codes = row['fragments'].split(','), smiles=combinations[c])
+                    break
+            else:
+                print(f'What is {row["CID"]}')
+                issue.append(row["CID"])
+      
+The above could have been customised further, by making a class that inherits Victor and defining
+ `post_params_step`, `post_fragmenstein_step`, `pose_mod_step` or `post_egor_step`, which are empty methods
+intended to make subclassing Victor easier as these are meant to be overridden
+—NB `pose_mod_step` is run if not `pose_fx` is given.
+
+# mRMSD
+
+This RDKit requiring module calculate a multiple RMSD variant which does not align and
+bases which atoms to use on a given pairing, by default this which atoms were donors in Fragmenstein.
+
+* `mRMSD(followup: Chem.Mol, hits: Sequence[Chem.Mol], mappings: List[List[Tuple[int, int]]])` the mappings is a list of len(hits) containing lists of tuples of atom idx that go from followup to hit
+* `mRMSD.from_annotated_mols(annotated_followup: Chem.Mol, hits: Sequence[Chem.Mol])` The annotated variant requires the mol to have the `_Origin` `Chem.Atom` props.
+* `mRMSD.from_unannotated_mols(moved_followup: Chem.Mol, hits: Sequence[Chem.Mol], placed_followup: Chem.Mol)` the positional mapping is (re)calculated
+* `mRMSD.from_other_annotated_mols(followup: Chem.Mol, hits: Sequence[Chem.Mol], annotated: Chem.Mol)` uses the second case, but `mRMSD.copy_origins(annotated, followup)` is called first.
+
+It is a multiple RMSD, that is basically a N_atom weighted geometric mean of RMSDs.
 

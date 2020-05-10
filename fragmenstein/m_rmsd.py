@@ -14,8 +14,8 @@ class mRSMD:
     The inbuilt RMSD calculations in RDKit (``Chem.rdMolAlign.GetBestRMS``) align the two molecules,
     this does not align them.
     This deals with the case of multiple hits.
-    For euclidean distance the square root of the sum of the differences in each coordinates is taken.
-    For a regular RMSD the still-squared distance is averaged before taking the root.
+    As a comparision, For euclidean distance the square root of the sum of the differences in each coordinates is taken.
+    As a comparision, For a regular RMSD the still-squared distance is averaged before taking the root.
     Here the average is done across all the atom pairs between each hit and the followup.
     Therefore, atoms in followup that derive in the blended molecule by multiple atom are scored multiple times.
 
@@ -63,7 +63,7 @@ class mRSMD:
 
 
     @classmethod
-    def from_unnotated_mols(cls,
+    def from_unannotated_mols(cls,
                             moved_followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
                             placed_followup: Chem.Mol
