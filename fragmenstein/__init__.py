@@ -6,9 +6,9 @@ __doc__ = \
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
-__date__ = "2019 A.D."
+__date__ = "2020 A.D."
 __license__ = "MIT"
-__version__ = "0.3"
+__version__ = "0.4"
 __citation__ = ""
 
 ########################################################################################################################
