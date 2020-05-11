@@ -197,7 +197,7 @@ class Victor(_VictorUtilsMixin):
         for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
             if origins[i]:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
-                if atom.GetSymbol() in self._connected_names:
+                if atom.GetSymbol().strip() in self._connected_names:
                     continue
                 pos = conf.GetAtomPosition(i)
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} '+ \
@@ -377,7 +377,7 @@ class Victor(_VictorUtilsMixin):
         pose.dump_pdb(ptest_file)
         scorefxn = pyrosetta.get_fa_scorefxn()
         with open(pscore_file, 'w') as w:
-            w.write(scorefxn(pose))
+            w.write(str(scorefxn(pose)))
         self._log_warnings()
 
     def _checkpoint_bravo(self):

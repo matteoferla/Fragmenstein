@@ -126,20 +126,15 @@ class Fragmenstein(_FragmensteinUtil):
         self.logbook['scaffold-followup'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
-
-        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol], **mode)
-        common = Chem.MolFromSmarts(mcs.smartsString)
-        scaffold_match = list(atom_map.keys())
-        followup_match = list(atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
-        for i in range(common.GetNumAtoms()):
-            if common.GetAtomWithIdx(i).GetSymbol() == '*':  # dummies.
+        for scaff_ai, follow_ai in atom_map.items():
+            if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(follow_ai).GetSymbol():
                 v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'Se': 2, 'P': 6}
-                wanted = self.initial_mol.GetAtomWithIdx(followup_match[i])
+                wanted = self.initial_mol.GetAtomWithIdx(follow_ai)
                 if wanted.GetSymbol() == '*': # all good then!
                     continue
-                owned = self.scaffold.GetAtomWithIdx(scaffold_match[i])
+                owned = self.scaffold.GetAtomWithIdx(scaff_ai)
                 diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
                 if wanted.GetSymbol() in ('F', 'Br', 'Cl', 'C', 'H') and diff_valance > 0:
                     continue  # cannot change this.
@@ -147,13 +142,13 @@ class Fragmenstein(_FragmensteinUtil):
                     continue
                 else:
                     newatom = Chem.Atom(wanted)
-                    stdev = chimera.GetAtomWithIdx(scaffold_match[i]).GetDoubleProp('_Stdev')
+                    stdev = chimera.GetAtomWithIdx(scaff_ai).GetDoubleProp('_Stdev')
                     newatom.SetDoubleProp('_Stdev', stdev)
-                    origin = chimera.GetAtomWithIdx(scaffold_match[i]).GetProp('_Origin')
+                    origin = chimera.GetAtomWithIdx(scaff_ai).GetProp('_Origin')
                     newatom.SetProp('_Origin', origin)
-                    chimera.ReplaceAtom(scaffold_match[i], newatom)
+                    chimera.ReplaceAtom(scaff_ai, newatom)
                     if diff_valance > 0:
-                        chimera.GetAtomWithIdx(scaffold_match[i]).SetFormalCharge(diff_valance)
+                        chimera.GetAtomWithIdx(scaff_ai).SetFormalCharge(diff_valance)
         try:
             chimera.UpdatePropertyCache()
         except Chem.AtomValenceException as err:
@@ -439,9 +434,12 @@ class Fragmenstein(_FragmensteinUtil):
         mcs = rdFMCS.FindMCS([molA, molB], **mode)
         common = Chem.MolFromSmarts(mcs.smartsString)
         matches = []
+        # prevent a dummy to match a non-dummy, which can happen when the mode is super lax.
+        is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
+        all_bar_dummy = lambda Aat, Bat:  (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (is_dummy(molA, Aat) or is_dummy(molB, Bat))
         for molA_match in molA.GetSubstructMatches(common):
             for molB_match in molB.GetSubstructMatches(common):
-                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match)])
+                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if all_bar_dummy(molA_at, molB_at)])
         return matches
 
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
