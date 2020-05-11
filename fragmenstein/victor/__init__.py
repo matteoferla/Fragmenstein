@@ -17,21 +17,25 @@ __citation__ = ""
 
 ########################################################################################################################
 
-from ..egor import Egor, pyrosetta
-from ..core import Fragmenstein
-from ..m_rmsd import mRSMD
-
-from typing import List, Tuple, Dict, Union, Optional, Callable
-
-from rdkit_to_params import Params, Constraints
-
-import os, logging, sys, re, pymol2, warnings, json, unicodedata, requests, shutil
+import json
+import os
+import pymol2
+import re
+import warnings
+import pyrosetta
+from typing import List, Union, Optional, Callable
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdMolAlign, rdmolfiles, rdFMCS, Draw
+from rdkit.Chem import AllChem
+from rdkit_to_params import Params, Constraints
+
+from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
+from ..core import Fragmenstein
+from ..egor import Egor
+from ..m_rmsd import mRSMD
 
 
-class Victor:
+class Victor(_VictorUtilsMixin):
     """
     * ``smiles`` SMILES string (inputted)
     * ``long_name`` name for files
@@ -60,39 +64,7 @@ class Victor:
     Adding a 'constraint' to an entry will apply that constraint.
 
     """
-    hits_path = 'hits'
-    work_path = 'output'
-    journal = logging.getLogger('Fragmenstein')
-    journal.setLevel(logging.DEBUG)
 
-    covalent_definitions = [{'residue': 'CYS', 'smiles': '*SC', 'atomnames': ['CONN3', 'SG', 'CB']}]
-    warhead_definitions = [{'name': 'nitrile',
-                            'covalent': 'C(=N)*',  # zeroth atom is attached to the rest
-                            'covalent_atomnames': ['CX', 'NX', 'CONN1'],
-                            'noncovalent': 'C(#N)',  # zeroth atom is attached to the rest
-                            'noncovalent_atomnames': ['CX', 'NX']
-                            },
-                           {'name': 'acrylamide',
-                            'covalent': 'C(=O)CC*',  # the N may be secondary etc. so best not do mad substitutions.
-                            'covalent_atomnames': ['CZ', 'OZ', 'CY', 'CX', 'CONN1'],
-                            # OZ needs to tautomerise & h-bond happily.
-                            'noncovalent': 'C(=O)C=C',
-                            'noncovalent_atomnames': ['CZ', 'OZ', 'CY', 'CX']},
-                           {'name': 'chloroacetamide',
-                            'covalent': 'C(=O)C*',  # the N may be secondary etc. so best not do mad substitutions.
-                            'covalent_atomnames': ['CY', 'OY', 'CX', 'CONN1'],
-                            # OY needs to tautomerise & h-bond happily.
-                            'noncovalent': 'C(=O)C[Cl]',
-                            'noncovalent_atomnames': ['CY', 'OY', 'CX', 'CLX']
-                            },
-                           {'name': 'vinylsulfonamide',
-                            'covalent': 'S(=O)(=O)CC*',  # the N may be secondary etc. so best not do mad substitutions.
-                            'covalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX', 'CONN1'],  # OZ tauto
-                            'noncovalent': 'S(=O)(=O)C=C',
-                            'noncovalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX']
-                            }
-                           ]
-    _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 
     def __init__(self,
                  smiles: str,
@@ -154,21 +126,9 @@ class Victor:
                 self.params.CHI.data = []  # TODO fix chi
                 self.mol = self.params.mol
                 self._log_warnings()
-                # deal with covalent and non covalent separately
-                if self.is_covalent:
-                    self.journal.debug(f'{self.long_name} - is covalent.')
-                    self.constraint = self._fix_covalent()
-                    if extra_constraint:
-                        self.constraint.custom_constraint += self.extra_constraint
-                    attachment = self._get_attachment_from_pdbblock()
-                else:
-                    self.journal.debug(f'{self.long_name} - is not covalent.')
-                    if extra_constraint:
-                        self.constraint = Constraints.mock()
-                        self.constraint.custom_constraint += self.extra_constraint
-                    else:
-                        self.constraint = None
-                    attachment = None
+                # get constraint
+                self.constraint = self._get_constraint(extra_constraint)
+                attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
                 self._log_warnings()
                 self.post_params_step()
                 # ***** FRAGMENSTEIN *******
@@ -179,8 +139,9 @@ class Victor:
                 self.constraint.custom_constraint += self._make_coordinate_constraints()
                 self._checkpoint_bravo()
                 # save stuff
+                params_file, holo_file, constraint_file = self._save_prerequisites()
                 self.post_fragmenstein_step()
-                params_file, holo_file, constraint_file = self._checkpoint_alpha()
+                self._checkpoint_alpha()
                 # ***** EGOR *******
                 self.journal.debug(f'{self.long_name} - setting up Egor')
                 self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
@@ -199,6 +160,7 @@ class Victor:
                 # minimise
                 self.journal.debug(f'{self.long_name} - Egor minimising')
                 self.egor.minimise()
+                self.minimised_pdbblock = self.egor.pose2str()
                 self.post_egor_step()
                 self._checkpoint_charlie()
                 self.journal.debug(f'{self.long_name} - Completed')
@@ -227,26 +189,6 @@ class Victor:
                 [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn]) == 0:
             raise ValueError(f'{self.long_name} - Unrecognised type {self.covalent_resn}')
 
-    def _fix_covalent(self):
-        self.journal.debug(f'{self.long_name} - fixing for covalent')
-        # to make life easier for analysis, CX is the attachment atom, CY is the one before it.
-        for war_def in self.warhead_definitions:
-            warhead = Chem.MolFromSmiles(war_def['covalent'])
-            if self.params.mol.HasSubstructMatch(warhead):
-                self.params.rename_by_template(warhead, war_def['covalent_atomnames'])
-                cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
-                self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
-                cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
-                                   names=[*war_def['covalent_atomnames'], *cov_def['atomnames']],
-                                   ligand_res=self.ligand_resi,
-                                   target_res=self.covalent_resi)
-                # user added constraint
-                if 'constraint' in war_def:
-                    cons.custom_constraint = war_def['constraint']
-                return cons
-        else:
-            raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
-
     def _make_coordinate_constraints(self):
         lines = []
         origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
@@ -262,22 +204,6 @@ class Victor:
                              f'CA {self.covalent_resi} '+ \
                              f'{pos.x} {pos.y} {pos.z} HARMONIC 0 {std[i] + 1}\n')
         return ''.join(lines)
-
-    def _get_attachment_from_pdbblock(self) -> Chem.Mol:
-        """
-        Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
-        """
-        self.journal.debug(f'{self.long_name} - getting attachemnt atom')
-        with pymol2.PyMOL() as pymol:
-            pymol.cmd.read_pdbstr(self.apo_pdbblock, 'prot')
-            name = self.constraint.target_con_name.strip()
-            resi = re.match('(\d+)', str(self.constraint.target_res)).group(1)
-            try:
-                chain = re.match('\D', str(self.constraint.target_res)).group(1)
-                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name} and chain {chain}')
-            except:
-                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
-            return Chem.MolFromPDBBlock(pdb)
 
     def _place_fragmenstein(self):
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
@@ -306,22 +232,64 @@ class Victor:
         else:
             return pdbblock
 
-    @classmethod
-    def copy_names(cls, acceptor_mol, donor_mol):
-        mcs = rdFMCS.FindMCS([acceptor_mol, donor_mol],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrder,
-                             ringMatchesRingOnly=True)
-        common = Chem.MolFromSmarts(mcs.smartsString)
-        pos_match = acceptor_mol.positioned_mol.GetSubstructMatch(common)
-        pdb_match = donor_mol.GetSubstructMatch(common)
-        for m, p in zip(pos_match, pdb_match):
-            ma = acceptor_mol.GetAtomWithIdx(m)
-            pa = donor_mol.GetAtomWithIdx(p)
-            assert ma.GetSymbol() == pa.GetSymbol(), 'The indices do not align! ' + \
-                                                     f'{ma.GetIdx()}:{ma.GetSymbol()} vs. ' + \
-                                                     f'{pa.GetIdx()}:{pa.GetSymbol()}'
-            ma.SetMonomerInfo(pa.GetPDBResidueInfo())
+
+
+    # =================== Constraint & attachment ======================================================================
+
+    def _get_constraint(self, extra_constraint: Optional[str]=None) -> Constraints:
+        # deal with covalent and non covalent separately
+        if self.is_covalent:
+            self.journal.debug(f'{self.long_name} - is covalent.')
+            constraint = self._fix_covalent()
+            if extra_constraint:
+                constraint.custom_constraint += self.extra_constraint
+            return constraint
+        else:
+            self.journal.debug(f'{self.long_name} - is not covalent.')
+            if extra_constraint:
+                constraint = Constraints.mock()
+                constraint.custom_constraint += self.extra_constraint
+                return constraint
+            else:
+                return None
+
+    def _fix_covalent(self):
+        self.journal.debug(f'{self.long_name} - fixing for covalent')
+        # to make life easier for analysis, CX is the attachment atom, CY is the one before it.
+        for war_def in self.warhead_definitions:
+            warhead = Chem.MolFromSmiles(war_def['covalent'])
+            if self.params.mol.HasSubstructMatch(warhead):
+                self.params.rename_by_template(warhead, war_def['covalent_atomnames'])
+                cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
+                self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
+                cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
+                                   names=[*war_def['covalent_atomnames'], *cov_def['atomnames']],
+                                   ligand_res=self.ligand_resi,
+                                   target_res=self.covalent_resi)
+                # user added constraint
+                if 'constraint' in war_def:
+                    cons.custom_constraint = war_def['constraint']
+                return cons
+        else:
+            raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
+
+    def _get_attachment_from_pdbblock(self) -> Chem.Mol:
+        """
+        Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
+        """
+        self.journal.debug(f'{self.long_name} - getting attachemnt atom')
+        with pymol2.PyMOL() as pymol:
+            pymol.cmd.read_pdbstr(self.apo_pdbblock, 'prot')
+            name = self.constraint.target_con_name.strip()
+            resi = re.match('(\d+)', str(self.constraint.target_res)).group(1)
+            try:
+                chain = re.match('\D', str(self.constraint.target_res)).group(1)
+                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name} and chain {chain}')
+            except:
+                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
+            return Chem.MolFromPDBBlock(pdb)
+
+    # =================== Other ========================================================================================
 
     def _log_warnings(self):
         if len(self._warned):
@@ -362,7 +330,7 @@ class Victor:
 
     # =================== Logging ======================================================================================
 
-    def _checkpoint_alpha(self):
+    def _save_prerequisites(self):
         self._log_warnings()
         #  saving params
         self.journal.debug(f'{self.long_name} - saving params')
@@ -380,6 +348,11 @@ class Victor:
             self.constraint.dump(constraint_file)
         else:
             constraint_file = ''
+        return params_file, holo_file, constraint_file
+
+
+    def _checkpoint_alpha(self):
+        self._log_warnings()
         # saving hits (without copying)
         for h, hit in enumerate(self.hits):
             if hit.HasProp("_Name") and hit.GetProp("_Name").strip():
@@ -397,10 +370,15 @@ class Victor:
         Chem.MolToMolFile(self.params.mol, params_template_file)
         # checking all is in order
         self.journal.debug(f'{self.long_name} - checking params file works')
+        params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
         ptest_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.pdb')
-        Params.params_to_pose(params_file, self.params.NAME).dump_pdb(ptest_file)
+        pscore_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.score')
+        pose = Params.params_to_pose(params_file, self.params.NAME)
+        pose.dump_pdb(ptest_file)
+        scorefxn = pyrosetta.get_fa_scorefxn()
+        with open(pscore_file, 'w') as w:
+            w.write(scorefxn(pose))
         self._log_warnings()
-        return params_file, holo_file, constraint_file
 
     def _checkpoint_bravo(self):
         self._log_warnings()
@@ -442,160 +420,5 @@ class Victor:
                        'RMSDs': mrsmd.rmsds}, w)
         Chem.MolToMolFile(ligand, lig_file)
         self._log_warnings()
-
-    # =================== Other ========================================================================================
-
-    @classmethod
-    def add_constraint_to_warhead(cls, name:str, constraint:str):
-        """
-        Add a constraint (multiline is fine) to a warhead definition.
-        This will be added and run by Egor's minimiser.
-
-        :param name:
-        :param constraint:
-        :return: None
-        """
-        for war_def in cls.warhead_definitions:
-            if war_def['name'] == name:
-                war_def['constraint'] = constraint
-                break
-        else:
-            raise ValueError(f'{name} not found in warhead_definitions.')
-
-
-    @classmethod
-    def closest_hit(cls, pdb_filenames: List[str],
-                 target_resi: int,
-                 target_chain: str,
-                 target_atomname: str,
-                 ligand_resn='LIG') -> str:
-        """
-        This classmethod helps choose which pdb based on which is closer to a given atom.
-
-        :param pdb_filenames:
-        :param target_resi:
-        :param target_chain:
-        :param target_atomname:
-        :param ligand_resn:
-        :return:
-        """
-        best_d = 99999
-        best_hit = -1
-        with pymol2.PyMOL() as pymol:
-            for hit in pdb_filenames:
-                pymol.cmd.load(hit)
-                d = min([pymol.cmd.distance(f'chain {target_chain} and resi {target_resi} and name {target_atomname}',
-                                            f'resn {ligand_resn} and name {atom.name}') for atom in
-                         pymol.cmd.get_model(f'resn {ligand_resn}').atom])
-                if d < best_d:
-                    best_hit = hit
-                    best_d = d
-                pymol.cmd.delete('*')
-        return best_hit
-
-    @classmethod
-    def make_covalent(cls, smiles:str, warhead_name:Optional[str]=None) -> Union[str, None]:
-        """
-        Convert a unreacted warhead to a reacted one in the SMILES
-
-        :param smiles: unreacted SMILES
-        :param warhead_name: name in the definitions. If unspecified it will try and guess (less preferrable)
-        :return: SMILES
-        """
-        mol = Chem.MolFromSmiles(smiles)
-        if warhead_name:
-            war_defs = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name]
-        else:
-            war_defs = cls.warhead_definitions
-        for war_def in war_defs:
-            ncv = Chem.MolFromSmiles(war_def['noncovalent'])
-            cv = Chem.MolFromSmiles(war_def['covalent'])
-            if mol.HasSubstructMatch(ncv):
-                x = Chem.ReplaceSubstructs(mol, ncv, cv, replacementConnectionPoint=0)[0]
-                return Chem.MolToSmiles(x)
-        else:
-            return None
-
-    @classmethod
-    def make_all_warhead_combinations(cls, smiles:str, warhead_name:str) -> Union[str, None]:
-        """
-        Convert a unreacted warhead to a reacted one in the SMILES
-
-        :param smiles: unreacted SMILES
-        :param warhead_name: name in the definitions
-        :return: SMILES
-        """
-        mol = Chem.MolFromSmiles(smiles)
-        war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name][0]
-        ncv = Chem.MolFromSmiles(war_def['noncovalent'])
-        if mol.HasSubstructMatch(ncv):
-            combinations = {}
-            for wd in cls.warhead_definitions:
-                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['covalent']), replacementConnectionPoint=0)
-                combinations[wd['name']+'_covalent'] = Chem.MolToSmiles(x[0])
-                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['noncovalent']), replacementConnectionPoint=0)
-                combinations[wd['name'] + '_noncovalent'] = Chem.MolToSmiles(x[0])
-            return combinations
-        else:
-            return None
-
-    # =================== Logging ======================================================================================
-
-    @classmethod
-    def enable_stdout(cls, level=logging.INFO) -> None:
-        """
-        The ``cls.journal`` is output to the terminal.
-
-        :param level: logging level
-        :return: None
-        """
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(level)
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
-        # logging.getLogger('py.warnings').addHandler(handler)
-
-    @classmethod
-    def enable_logfile(cls, filename='reanimation.log', level=logging.INFO) -> None:
-        """
-        The journal is output to a file.
-
-        :param filename: file to write.
-        :param level: logging level
-        :return: None
-        """
-        handler = logging.FileHandler(filename)
-        handler.setLevel(level)
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
-        # logging.getLogger('py.warnings').addHandler(handler)
-
-    @classmethod
-    def slack_me(cls, msg: str) -> bool:
-        """
-        Send message to a slack webhook
-
-        :param msg: Can be dirty and unicode-y.
-        :return: did it work?
-        :rtype: bool
-        """
-        # sanitise.
-        msg = unicodedata.normalize('NFKD', msg).encode('ascii', 'ignore').decode('ascii')
-        msg = re.sub('[^\w\s\-.,;?!@#()\[\]]', '', msg)
-        r = requests.post(url=os.environ['SLACK_WEBHOOK'],
-                          headers={'Content-type': 'application/json'},
-                          data=f"{{'text': '{msg}'}}")
-        if r.status_code == 200 and r.content == b'ok':
-            return True
-        else:
-            return False
-
-    # =================== Laboratory ===================================================================================
-
-    @classmethod
-    def laboratory(cls, entries: List[dict], cores: int = 1):
-        raise NotImplementedError('Not yet written.')
-        pass
-
 
 

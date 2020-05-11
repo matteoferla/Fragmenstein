@@ -16,7 +16,9 @@ __citation__ = ""
 import requests, shutil, pyrosetta
 from typing import Optional
 
+
 class _EgorUtilsMixin:
+
     @classmethod
     def download_map(cls, pdbcode: str, filename: str):
         """
@@ -33,7 +35,7 @@ class _EgorUtilsMixin:
                 shutil.copyfileobj(r.raw, f)
 
     @classmethod
-    def relax_with_ED(cls, pose, ccp4_file: str, constraint_file:Optional[str]=None) -> None:
+    def relax_with_ED(cls, pose, ccp4_file: str, constraint_file: Optional[str] = None) -> None:
         """
         Relaxes ``pose`` based on the ccp4 electron density map provided. See ``download_map`` to download one.
         :param pose:
