@@ -181,13 +181,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             return None
 
     @classmethod
-    def make_all_warhead_combinations(cls, smiles: str, warhead_name: str) -> Union[dict, None]:
+    def make_all_warhead_combinations(cls, smiles: str, warhead_name: str, canonical=True) -> Union[dict, None]:
         """
         Convert a unreacted warhead to a reacted one in the SMILES
 
         :param smiles: unreacted SMILES
         :param warhead_name: name in the definitions
-        :return: SMILES
+        :param canonical: the SMILES canonical? (makes sense...)
+        :return: dictionary of SMILES
         """
         mol = Chem.MolFromSmiles(smiles)
         war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name][0]
@@ -197,10 +198,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             for wd in cls.warhead_definitions:
                 x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['covalent']),
                                            replacementConnectionPoint=0)
-                combinations[wd['name'] + '_covalent'] = Chem.MolToSmiles(x[0])
+                combinations[wd['name'] + '_covalent'] = Chem.MolToSmiles(x[0], canonical=canonical)
                 x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['noncovalent']),
                                            replacementConnectionPoint=0)
-                combinations[wd['name'] + '_noncovalent'] = Chem.MolToSmiles(x[0])
+                combinations[wd['name'] + '_noncovalent'] = Chem.MolToSmiles(x[0], canonical=canonical)
             return combinations
         else:
             return None

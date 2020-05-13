@@ -23,7 +23,7 @@ import pymol2
 import re
 import warnings
 import pyrosetta
-from typing import List, Union, Optional, Callable
+from typing import List, Union, Optional, Callable, Dict
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -75,7 +75,8 @@ class Victor(_VictorUtilsMixin):
                  covalent_resn: str = 'CYS',  # no other option is accepted.
                  covalent_resi: Optional[Union[int, str]] = None,
                  extra_constraint: Union[str] = None,
-                 pose_fx: Optional[Callable] = None
+                 pose_fx: Optional[Callable] = None,
+                 atomnames: Optional[Dict[int, str]] = None
                  ):
         """
         :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
@@ -88,6 +89,7 @@ class Victor(_VictorUtilsMixin):
         :param covalent_resi: Rosetta-style pose(int) or pdb(str)
         :param extra_constraint: multiline string of constraints..
         :param pose_fx: a function to call with pose to tweak or change something before minimising.
+        :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
         """
         # ***** STORE *******
         # entry attributes
@@ -99,6 +101,7 @@ class Victor(_VictorUtilsMixin):
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
+        self.atomnames = atomnames
         self.extra_constraint = extra_constraint
         self.pose_fx = pose_fx
         # these are calculated
@@ -114,6 +117,9 @@ class Victor(_VictorUtilsMixin):
         self._warned = []
         # analyse
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
+
+
+    # =================== Init core methods ============================================================================
 
     def _safely_do(self,
                    execute: Optional[Callable] = None,
@@ -159,7 +165,7 @@ class Victor(_VictorUtilsMixin):
         """
         self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
 
-    def _analyse(self):
+    def _analyse(self) -> None:
         """
         This is the actual core of the class.
 
@@ -181,7 +187,7 @@ class Victor(_VictorUtilsMixin):
         self._make_output_folder()
         # make params
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
-        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False)
+        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
         self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         self.params.CHI.data = []  # TODO fix chi
         self.mol = self.params.mol
