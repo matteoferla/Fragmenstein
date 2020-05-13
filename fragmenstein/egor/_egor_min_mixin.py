@@ -170,13 +170,14 @@ class _EgorMinMixin:
         mmf.add_jump_action(true, pyrosetta.rosetta.core.select.jump_selector.InterchainJumpSelector())
         return mmf
 
-    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 10.0) -> pyrosetta.rosetta.protocols.moves.Mover:
+    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 10.0, default_coord_constraint=True) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
         No repacking.
 
         :param cycles: number of cycles
         :param weight: 10 is strict. 5 is decent. 1 is traditional.
+        :param default_coord_constraint: whether to constrain to the start position, in addition to whatever may be in the constraint set.
         :return:
         """
         scorefxn = self._get_scorefxn("ref2015_cart")
@@ -198,7 +199,7 @@ class _EgorMinMixin:
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.cartesian(True)
-        relax.constrain_relax_to_start_coords(True)  # set native causes a segfault.
+        relax.constrain_relax_to_start_coords(default_coord_constraint)  # set native causes a segfault.
         return relax
 
     def get_old_FastRelax(self, cycles=1) -> pyrosetta.rosetta.protocols.moves.Mover:
@@ -287,9 +288,9 @@ class _EgorMinMixin:
                 'ligand_ref2015': sfxd,
                 **self.score_split()}
 
-    def minimise(self, cycles: int = 10):
+    def minimise(self, cycles: int = 10, default_coord_constraint=True):
         #self.repack_neighbors()
-        mover = self.get_mod_FastRelax(cycles)
+        mover = self.get_mod_FastRelax(cycles, default_coord_constraint)
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
         mover.apply(self.pose)

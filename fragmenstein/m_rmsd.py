@@ -153,6 +153,22 @@ class mRSMD:
         return origins
 
     @classmethod
+    def migrate_origin(cls, mol: Chem.Mol, tag='_Origin') -> Chem.Mol:
+        """
+        The origin list may be saved as a molecule property rather than an atom -saved as a mol say.
+
+        :param mol: mol to fix
+        :param tag: name of prop
+        :return: the same mol
+        """
+        assert mol.HasProp(tag), f'There is no tag {tag}'
+        origins = json.load(mol.GetProp(tag))
+        assert len(origins) == mol.GetNumAtoms(), f'Mismatch {len(origins)} vs. {mol.GetNumAtoms()}'
+        for i, atom in enumerate(mol.GetAtoms()):
+            atom.SetProp('_Origin', origins[i])
+        return mol
+
+    @classmethod
     def _get_origin(cls, atom: Chem.Atom) -> List[str]:
         if atom.HasProp('_Origin'):
             o = atom.GetProp('_Origin')

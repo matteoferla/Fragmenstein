@@ -2,21 +2,32 @@
 Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
 <img src="images/fragmenstein.jpg" width="300px">
 
-> Victor, the pipeline, requires my [rdkit to params module](https://github.com/matteoferla/rdkit_to_params).
 
 ## Premise
 
 *Aim*: place a followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 This makes a starting position for any subsequent calculations —say ∆∆G_bound vs. RMSD from the Frangmenstein pose after various optimisation cycles.
 
+As a consequence, it is not really a docking algorithm as it does not find the pose with the lowest energy 
+within a given volume. Consequently, it is a method to find how faithful is a given followup to the hits provided.
+Hence the minimised pose should be assessed by the RMSD metric and the ∆∆G score used solely as a cutoff —lower than zero.
+
+* First the inspiration hits are merged regardless of horrid torsions and bond lengths.
+* Then the followup compound is mapped on (with appropriate atom changes) and novel parts added
+* Then the compound is minimised in the protein with constraints to the mapped atoms.
+ 
 ## Dramatis personae
+
+> Victor, the pipeline, requires my [rdkit to params module](https://github.com/matteoferla/rdkit_to_params).
 
 There are four main classes:
 
 * ``Fragmenstein`` makes the stitched together molecules —runs without pyrosetta
 * ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
-* ``Victor`` runs the show, i.e. is a pipeline, with several features, such as warhead switching.
+* ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching.
 * ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates, not MCS
+
+In the absence of `pyrosetta`, `Fragmenstein` and `mRMSD` work.
 
 # Fragmenstein
 ## Description
@@ -334,7 +345,7 @@ To properly discuss this, it is best to recap some maths.
 An Euclidean distance (or 2-norm) between the vectors *a* and *b*, representing two atom positions,
 is the square root of the _sum_ of the squared differences of each element/axis-position
 
-<img src="https://render.githubusercontent.com/render/math?math=\sqrt{(a_{\xrightarrow{x}} - b_{\xrightarrow{x}})^2 + (a_{\xrightarrow{y}} - b_{\xrightarrow{y}})^2 + (a_{\xrightarrow{z}} - b_{\xrightarrow{z}})^2}">
+<img src="https://render.githubusercontent.com/render/math?math=\sqrt{(a_{\overrightarrow{x}} - b_{\overrightarrow{x}})^2 + (a_{\overrightarrow{y}} - b_{\overrightarrow{y}})^2 + (a_{\overrightarrow{z}} - b_{\overrightarrow{z}})^2}">
 
 Which can be better written
 

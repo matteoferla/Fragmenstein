@@ -65,7 +65,6 @@ class Victor(_VictorUtilsMixin):
 
     """
 
-
     def __init__(self,
                  smiles: str,
                  hits: List[Chem.Mol],
@@ -76,7 +75,7 @@ class Victor(_VictorUtilsMixin):
                  covalent_resn: str = 'CYS',  # no other option is accepted.
                  covalent_resi: Optional[Union[int, str]] = None,
                  extra_constraint: Union[str] = None,
-                 pose_fx: Optional[Callable] = None,
+                 pose_fx: Optional[Callable] = None
                  ):
         """
         :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
@@ -102,70 +101,129 @@ class Victor(_VictorUtilsMixin):
         self.covalent_resi = covalent_resi
         self.extra_constraint = extra_constraint
         self.pose_fx = pose_fx
+        # these are calculated
+        self.is_covalent = None
+        self.params = None
+        self.mol = None
+        self.constraint = None
+        self.fragmenstein = None
+        self.unminimised_pdbblock = None
+        self.egor = None
+        self.minimised_pdbblock = None
+        # buffers etc.
+        self._warned = []
+        # analyse
+        self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
+
+    def _safely_do(self,
+                   execute: Optional[Callable] = None,
+                   resolve: Optional[Callable] = None,
+                   reject: Optional[Callable] = None,
+                   error=Exception):
+        """
+        A safety net around the analysis.
+        Ought to be a decorator and ought to not use the same names as a JS Promise.
+
+        :param execute: what to run (main)
+        :param resolve: what to run at the end (regardless of failure)
+        :param reject: what to run if ``exceute`` fails
+        :param error: what to Error is caught and send to ``reject``
+        :return:
+        """
         # warnings
         with warnings.catch_warnings(record=True) as self._warned:
             try:
-                # check they are okay
-                if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
-                    raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
-                    # TODO '*' in self.smiles is bad. user might start with a mol file.
-                elif '*' in self.smiles:
-                    self.is_covalent = True
-                else:
-                    self.is_covalent = False
-                self._assert_inputs()
-                # ***** PARAMS & CONSTRAINT *******
-                self.journal.info(f'{self.long_name} - Starting work')
-                self._log_warnings()
-                # making folder.
-                self._make_output_folder()
-                # make params
-                self.journal.debug(f'{self.long_name} - Starting parameterisation')
-                self.params = Params.from_smiles(self.smiles, name=ligand_resn, generic=False)
-                self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-                self.params.CHI.data = []  # TODO fix chi
-                self.mol = self.params.mol
-                self._log_warnings()
-                # get constraint
-                self.constraint = self._get_constraint(extra_constraint)
-                attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-                self._log_warnings()
-                self.post_params_step()
-                # ***** FRAGMENSTEIN *******
-                # make fragmenstein
-                self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-                self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
-                self.unminimised_pdbblock = self._place_fragmenstein()
-                self.constraint.custom_constraint += self._make_coordinate_constraints()
-                self._checkpoint_bravo()
-                # save stuff
-                params_file, holo_file, constraint_file = self._save_prerequisites()
-                self.post_fragmenstein_step()
-                self._checkpoint_alpha()
-                # ***** EGOR *******
-                self.journal.debug(f'{self.long_name} - setting up Egor')
-                self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
-                                               params_file=params_file,
-                                               constraint_file=constraint_file,
-                                               ligand_residue=self.ligand_resi,
-                                               key_residues=[self.covalent_resi])
-                # user custom code.
-                if self.pose_fx is not None:
-                    self.journal.debug(f'{self.long_name} - running custom pose mod.')
-                    self.pose_fx(self.egor.pose)
-                else:
-                    self.pose_mod_step()
-                # storing a roundtrip
-                self.unminimised_pdbblock = self.egor.pose2str()
-                # minimise
-                self.journal.debug(f'{self.long_name} - Egor minimising')
-                self.egor.minimise()
-                self.minimised_pdbblock = self.egor.pose2str()
-                self.post_egor_step()
-                self._checkpoint_charlie()
-                self.journal.debug(f'{self.long_name} - Completed')
-            except Exception as err:
-                self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
+                if execute is not None:
+                    execute()
+            except error as err:
+                if reject is not None:
+                    reject(err)
+            finally:
+                if resolve is not None:
+                    resolve()
+
+    def _resolve(self) -> None:
+        """
+        This gets called at the end of ``_safely_do``, regardless of the whether it worked or not.
+        So the name is a bit misleading.
+        :return:
+        """
+        pass
+
+    def _reject(self, err) -> None:
+        """
+        This gets called by ``_safely_do`` on error.
+
+        :param err: the error raised.
+        :return:
+        """
+        self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
+
+    def _analyse(self):
+        """
+        This is the actual core of the class.
+
+        :return:
+        """
+        # check they are okay
+        if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):
+            raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
+            # TODO '*' in self.smiles is bad. user might start with a mol file.
+        elif '*' in self.smiles:
+            self.is_covalent = True
+        else:
+            self.is_covalent = False
+        self._assert_inputs()
+        # ***** PARAMS & CONSTRAINT *******
+        self.journal.info(f'{self.long_name} - Starting work')
+        self._log_warnings()
+        # making folder.
+        self._make_output_folder()
+        # make params
+        self.journal.debug(f'{self.long_name} - Starting parameterisation')
+        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False)
+        self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        self.params.CHI.data = []  # TODO fix chi
+        self.mol = self.params.mol
+        self._log_warnings()
+        # get constraint
+        self.constraint = self._get_constraint(self.extra_constraint)
+        attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
+        self._log_warnings()
+        self.post_params_step()
+        # ***** FRAGMENSTEIN *******
+        # make fragmenstein
+        self.journal.debug(f'{self.long_name} - Starting fragmenstein')
+        self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
+        self.unminimised_pdbblock = self._place_fragmenstein()
+        self.constraint.custom_constraint += self._make_coordinate_constraints()
+        self._checkpoint_bravo()
+        # save stuff
+        params_file, holo_file, constraint_file = self._save_prerequisites()
+        self.post_fragmenstein_step()
+        self._checkpoint_alpha()
+        # ***** EGOR *******
+        self.journal.debug(f'{self.long_name} - setting up Egor')
+        self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+                                       params_file=params_file,
+                                       constraint_file=constraint_file,
+                                       ligand_residue=self.ligand_resi,
+                                       key_residues=[self.covalent_resi])
+        # user custom code.
+        if self.pose_fx is not None:
+            self.journal.debug(f'{self.long_name} - running custom pose mod.')
+            self.pose_fx(self.egor.pose)
+        else:
+            self.pose_mod_step()
+        # storing a roundtrip
+        self.unminimised_pdbblock = self.egor.pose2str()
+        # minimise
+        self.journal.debug(f'{self.long_name} - Egor minimising')
+        self.egor.minimise()
+        self.minimised_pdbblock = self.egor.pose2str()
+        self.post_egor_step()
+        self._checkpoint_charlie()
+        self.journal.debug(f'{self.long_name} - Completed')
 
     # =================== Init called methods ==========================================================================
 
@@ -200,8 +258,8 @@ class Victor(_VictorUtilsMixin):
                 if atom.GetSymbol().strip() in self._connected_names:
                     continue
                 pos = conf.GetAtomPosition(i)
-                lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} '+ \
-                             f'CA {self.covalent_resi} '+ \
+                lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
+                             f'CA {self.covalent_resi} ' + \
                              f'{pos.x} {pos.y} {pos.z} HARMONIC 0 {std[i] + 1}\n')
         return ''.join(lines)
 
@@ -232,11 +290,9 @@ class Victor(_VictorUtilsMixin):
         else:
             return pdbblock
 
-
-
     # =================== Constraint & attachment ======================================================================
 
-    def _get_constraint(self, extra_constraint: Optional[str]=None) -> Constraints:
+    def _get_constraint(self, extra_constraint: Optional[str] = None) -> Constraints:
         # deal with covalent and non covalent separately
         if self.is_covalent:
             self.journal.debug(f'{self.long_name} - is covalent.')
@@ -247,11 +303,14 @@ class Victor(_VictorUtilsMixin):
         else:
             self.journal.debug(f'{self.long_name} - is not covalent.')
             if extra_constraint:
-                constraint = Constraints.mock()
+                constraint = self._fix_uncovalent()
                 constraint.custom_constraint += self.extra_constraint
                 return constraint
             else:
                 return None
+
+    def _fix_uncovalent(self):
+        return Constraints.mock()
 
     def _fix_covalent(self):
         self.journal.debug(f'{self.long_name} - fixing for covalent')
@@ -327,7 +386,6 @@ class Victor(_VictorUtilsMixin):
         """
         pass
 
-
     # =================== Logging ======================================================================================
 
     def _save_prerequisites(self):
@@ -349,7 +407,6 @@ class Victor(_VictorUtilsMixin):
         else:
             constraint_file = ''
         return params_file, holo_file, constraint_file
-
 
     def _checkpoint_alpha(self):
         self._log_warnings()
@@ -420,5 +477,3 @@ class Victor(_VictorUtilsMixin):
                        'RMSDs': mrsmd.rmsds}, w)
         Chem.MolToMolFile(ligand, lig_file)
         self._log_warnings()
-
-

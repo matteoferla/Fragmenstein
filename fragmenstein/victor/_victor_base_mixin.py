@@ -34,6 +34,7 @@ class _VictorBaseMixin:
                             'noncovalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX']
                             }
                            ]
+
     _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 
     def __init__(self):
@@ -49,6 +50,7 @@ class _VictorBaseMixin:
         self.extra_constraint = str()
         self.pose_fx = lambda x: None
         self.is_covalent = False
+        # these are calculated.
         self.params = 'Params'
         self.mol = 'Chem.Mol'
         self.constraint = 'Constraint'
