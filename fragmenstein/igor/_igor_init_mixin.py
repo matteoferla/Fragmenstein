@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Union, Sequence
 from warnings import warn
 
 
-class _EgorInitMixin:
+class _IgorInitMixin:
     atom_pair_constraint = 10
     angle_constraint = 10
     coordinate_constraint = 1

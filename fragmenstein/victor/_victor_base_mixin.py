@@ -56,5 +56,5 @@ class _VictorBaseMixin:
         self.constraint = 'Constraint'
         self.fragmenstein = 'Fragmenstein'
         self.unminimised_pdbblock = str()
-        self.egor = 'Egor'
+        self.igor = 'Igor'
         self.minimised_pdbblock = str()

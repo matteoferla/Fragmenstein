@@ -23,7 +23,7 @@ Hence the minimised pose should be assessed by the RMSD metric and the ∆∆G s
 There are four main classes:
 
 * ``Fragmenstein`` makes the stitched together molecules —runs without pyrosetta
-* ``Egor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
+* ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup.
 * ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching.
 * ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates, not MCS
 
@@ -172,13 +172,13 @@ When there are too many templates with large spread, these aren't merged resulti
 This results in a non-unique mapping.
 
 
-# Egor
+# Igor
 
-Egor minimises the Fragmenstein monster in the protein using PyRosetta.
+Igor minimises the Fragmenstein monster in the protein using PyRosetta.
 
-Egor uses the package [rdkit_to_params](https://github.com/matteoferla/rdkit_to_params) to parameterise the compounds.
+Igor uses the package [rdkit_to_params](https://github.com/matteoferla/rdkit_to_params) to parameterise the compounds.
 
-Egor has three minimisers that I tried:
+Igor has three minimisers that I tried:
 
 * a modified cartesian FastRelax which works effectively.
 * cartesian MinMover which gets stuck in local minimum in hard cases.
@@ -186,13 +186,13 @@ Egor has three minimisers that I tried:
 
 <img src="images/movers.jpg" alt="movers" width="400px">
 
-Egor gets run as follows:
+Igor gets run as follows:
 
-    e = Egor(pose, constraint_filename)
+    e = Igor(pose, constraint_filename)
     e.minimise(10)
 
 Where pose is a `pyrosetta.Pose` instance.
-But Egor can be initialised with `Egor.from_pdbfile(..)` or `Egor.from_pdbblock(..)`.
+But Igor can be initialised with `Igor.from_pdbfile(..)` or `Igor.from_pdbblock(..)`.
 The latter is nothing more than:
 
     e.repack_neighbors()
@@ -201,8 +201,8 @@ The latter is nothing more than:
     # mover = e.get_MinMover()
     mover.apply(e.pose)
 
-Do note that when Victor calls Egor the constraint file used will have the atoms that should be constrained by position.
-The `Egor.coordinate_constraint` (default = 1) controls the stringency.
+Do note that when Victor calls Igor the constraint file used will have the atoms that should be constrained by position.
+The `Igor.coordinate_constraint` (default = 1) controls the stringency.
 Note that the `get_mod_FastRelax` has a weight in case it runs of constrain to position alone.
 The coordinate constraint is a harmonic function of standard deviation 1 plus the atom `_StDev` property
 —total math fudge: I am happy to hear better suggestions!
@@ -213,11 +213,11 @@ Victor is a pipeline class. This has many features and is rather complicated in 
 solution that works universally is a bad solution.
 Here is a real world usage that uses multiple features:
 
-Import pyrosetta and initialised before everything (applies to Egor too):
+Import pyrosetta and initialised before everything (applies to Igor too):
 
     import pyrosetta
     pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
-    from fragmenstein import Egor, Fragmenstein, Victor
+    from fragmenstein import Igor, Fragmenstein, Victor
     import logging, csv, json
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -322,7 +322,7 @@ Read the data and do all warhead combinations if covalent. This data is actually
                 issue.append(row["CID"])
       
 The above could have been customised further, by making a class that inherits Victor and defining
- `post_params_step`, `post_fragmenstein_step`, `pose_mod_step` or `post_egor_step`, which are empty methods
+ `post_params_step`, `post_fragmenstein_step`, `pose_mod_step` or `post_igor_step`, which are empty methods
 intended to make subclassing Victor easier as these are meant to be overridden
 —NB `pose_mod_step` is run if not `pose_fx` is given.
 

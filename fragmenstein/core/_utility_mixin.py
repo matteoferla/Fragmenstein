@@ -38,7 +38,7 @@ class _FragmensteinUtil:
 
         As a classmethod ``followup_placed`` and ``hits`` must be provided. But as an instance method they don't.
 
-        :param followup_moved: followup compound moved by Egor or similar
+        :param followup_moved: followup compound moved by Igor or similar
         :param followup_placed: followup compound as placed by Fragmenstein
         :param hits: list of hits.
         :return: combined RMSD

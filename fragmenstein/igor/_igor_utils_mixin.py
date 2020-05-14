@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-These are extra functionality for Egor
+These are extra functionality for Igor
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
@@ -17,7 +17,7 @@ import requests, shutil, pyrosetta
 from typing import Optional
 
 
-class _EgorUtilsMixin:
+class _IgorUtilsMixin:
 
     @classmethod
     def download_map(cls, pdbcode: str, filename: str):

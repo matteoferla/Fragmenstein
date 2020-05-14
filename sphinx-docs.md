@@ -174,19 +174,19 @@ What if the fragments were prealigned slightly? Really bad things.
 
 * **Returns**
 
-# fragmenstein.egor package
+# fragmenstein.igor package
 
 ## Module contents
 
-Egor energy minises the blended compound using pyrosetta.
+Igor energy minises the blended compound using pyrosetta.
 
 
-### class fragmenstein.egor.Egor(pose, constraint_file, ligand_residue='LIG', key_residues=None)
-Bases: `fragmenstein.egor._egor_init_mixin._EgorInitMixin`, `fragmenstein.egor._egor_min_mixin._EgorMinMixin`, `fragmenstein.egor._egor_utils_mixin._EgorUtilsMixin`
+### class fragmenstein.igor.Igor(pose, constraint_file, ligand_residue='LIG', key_residues=None)
+Bases: `fragmenstein.igor._igor_init_mixin._IgorInitMixin`, `fragmenstein.igor._igor_min_mixin._IgorMinMixin`, `fragmenstein.igor._igor_utils_mixin._IgorUtilsMixin`
 
-Regular Egor(..) accepts pyrosetta pose.
-`Egor.from_pdbblock(..)` accepts pdb block as str,
-while `Egorfrom_pdbfile(..)` accepts filename as str.
+Regular Igor(..) accepts pyrosetta pose.
+`Igor.from_pdbblock(..)` accepts pdb block as str,
+while `Igorfrom_pdbfile(..)` accepts filename as str.
 
 `ligand` can be one of many things. default is ‘LIG’. But it can be
 
@@ -233,7 +233,7 @@ This method is just for checking purposes for humans basically.
 
 ## Module contents
 
-Victor (after Dr Victor Frankenstein) is a class that uses both Fragmenstein (makes blended compounds) and Egor (energy minimises).
+Victor (after Dr Victor Frankenstein) is a class that uses both Fragmenstein (makes blended compounds) and Igor (energy minimises).
 This master reanimator keeps a `.journal` (logging, class attribute).
 And can be called via the class method `.laboratory` where he can process multiple compounds at once.
 
@@ -331,7 +331,7 @@ Adding a ‘constraint’ to an entry will apply that constraint.
 
 #### classmethod add_constraint_to_warhead(name, constraint)
 Add a constraint (multiline is fine) to a warhead definition.
-This will be added and run by Egor’s minimiser.
+This will be added and run by Igor’s minimiser.
 
 
 * **Parameters**
@@ -499,7 +499,7 @@ This method is intended for make inherited mods easier.
 :return:
 
 
-#### post_egor_step()
+#### post_igor_step()
 This method is intended for make inherited mods easier.
 :return:
 

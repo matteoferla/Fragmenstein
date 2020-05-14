@@ -8,7 +8,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 
-class _EgorMinMixin:
+class _IgorMinMixin:
 
     def __init__(self):
         warn('THIS METHOD SHOULD NOT BE RUN. INHERIT _init_')

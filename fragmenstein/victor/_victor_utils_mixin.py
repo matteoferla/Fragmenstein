@@ -113,7 +113,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     def add_constraint_to_warhead(cls, name: str, constraint: str):
         """
         Add a constraint (multiline is fine) to a warhead definition.
-        This will be added and run by Egor's minimiser.
+        This will be added and run by Igor's minimiser.
 
         :param name:
         :param constraint:
@@ -205,6 +205,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             return combinations
         else:
             return None
+
+    # =================== pre-encounter ================================================================================
+
+    #@classmethod
+
 
     # =================== Laboratory ===================================================================================
 

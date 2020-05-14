@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-Egor energy minises the blended compound using pyrosetta.
+Igor energy minises the blended compound using pyrosetta.
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
@@ -15,18 +15,18 @@ __citation__ = ""
 
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
-from ._egor_init_mixin import _EgorInitMixin, pyrosetta
-from ._egor_min_mixin import _EgorMinMixin
-from ._egor_utils_mixin import _EgorUtilsMixin
+from ._igor_init_mixin import _IgorInitMixin, pyrosetta
+from ._igor_min_mixin import _IgorMinMixin
+from ._igor_utils_mixin import _IgorUtilsMixin
 
 # this contains the init and the two classmethods.
 
 
-class Egor(_EgorInitMixin, _EgorMinMixin, _EgorUtilsMixin):
+class Igor(_IgorInitMixin, _IgorMinMixin, _IgorUtilsMixin):
     """
-    Regular Egor(..) accepts pyrosetta pose.
-    ``Egor.from_pdbblock(..)`` accepts pdb block as str,
-    while ``Egorfrom_pdbfile(..)`` accepts filename as str.
+    Regular Igor(..) accepts pyrosetta pose.
+    ``Igor.from_pdbblock(..)`` accepts pdb block as str,
+    while ``Igorfrom_pdbfile(..)`` accepts filename as str.
 
 
     ``ligand`` can be one of many things. default is 'LIG'. But it can be

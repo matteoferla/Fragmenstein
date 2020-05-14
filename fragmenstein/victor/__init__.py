@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-Victor (after Dr Victor Frankenstein) is a class that uses both Fragmenstein (makes blended compounds) and Egor (energy minimises).
+Victor (after Dr Victor Frankenstein) is a class that uses both Fragmenstein (makes blended compounds) and Igor (energy minimises).
 This master reanimator keeps a ``.journal`` (logging, class attribute).
 And can be called via the class method ``.laboratory`` where he can process multiple compounds at once.
 
@@ -31,7 +31,7 @@ from rdkit_to_params import Params, Constraints
 
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
 from ..core import Fragmenstein
-from ..egor import Egor
+from ..igor import Igor
 from ..m_rmsd import mRSMD
 
 
@@ -111,7 +111,7 @@ class Victor(_VictorUtilsMixin):
         self.constraint = None
         self.fragmenstein = None
         self.unminimised_pdbblock = None
-        self.egor = None
+        self.igor = None
         self.minimised_pdbblock = None
         # buffers etc.
         self._warned = []
@@ -209,8 +209,8 @@ class Victor(_VictorUtilsMixin):
         self.post_fragmenstein_step()
         self._checkpoint_alpha()
         # ***** EGOR *******
-        self.journal.debug(f'{self.long_name} - setting up Egor')
-        self.egor = Egor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+        self.journal.debug(f'{self.long_name} - setting up Igor')
+        self.igor = Igor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
                                        params_file=params_file,
                                        constraint_file=constraint_file,
                                        ligand_residue=self.ligand_resi,
@@ -218,16 +218,16 @@ class Victor(_VictorUtilsMixin):
         # user custom code.
         if self.pose_fx is not None:
             self.journal.debug(f'{self.long_name} - running custom pose mod.')
-            self.pose_fx(self.egor.pose)
+            self.pose_fx(self.igor.pose)
         else:
             self.pose_mod_step()
         # storing a roundtrip
-        self.unminimised_pdbblock = self.egor.pose2str()
+        self.unminimised_pdbblock = self.igor.pose2str()
         # minimise
-        self.journal.debug(f'{self.long_name} - Egor minimising')
-        self.egor.minimise()
-        self.minimised_pdbblock = self.egor.pose2str()
-        self.post_egor_step()
+        self.journal.debug(f'{self.long_name} - Igor minimising')
+        self.igor.minimise()
+        self.minimised_pdbblock = self.igor.pose2str()
+        self.post_igor_step()
         self._checkpoint_charlie()
         self.journal.debug(f'{self.long_name} - Completed')
 
@@ -261,7 +261,7 @@ class Victor(_VictorUtilsMixin):
         for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
             if origins[i]:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
-                if atom.GetSymbol().strip() in self._connected_names:
+                if atom.GetSymbol() == '*':
                     continue
                 pos = conf.GetAtomPosition(i)
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
@@ -385,7 +385,7 @@ class Victor(_VictorUtilsMixin):
         """
         pass
 
-    def post_egor_step(self):
+    def post_igor_step(self):
         """
         This method is intended for make inherited mods easier.
         :return:
@@ -459,19 +459,19 @@ class Victor(_VictorUtilsMixin):
                        'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)},
                       w)
         self._log_warnings()
-        # unminimised_pdbblock will be saved by egor (round trip via pose)
+        # unminimised_pdbblock will be saved by igor (round trip via pose)
 
     def _checkpoint_charlie(self):
         self._log_warnings()
-        self.journal.debug(f'{self.long_name} - saving pose from egor')
+        self.journal.debug(f'{self.long_name} - saving pose from igor')
         min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
-        self.egor.pose.dump_pdb(min_file)
+        self.igor.pose.dump_pdb(min_file)
         self.journal.debug(f'{self.long_name} - calculating Gibbs')
-        energy = self.egor.ligand_score()
+        energy = self.igor.ligand_score()
         # recover bonds
         self.journal.debug(f'{self.long_name} - making ligand only')
         lig_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol')
-        ligand = self.egor.mol_from_pose()
+        ligand = self.igor.mol_from_pose()
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
         ligand = AllChem.AssignBondOrdersFromTemplate(template, ligand)
         self.journal.debug(f'{self.long_name} - calculating mRMSD')

@@ -2,7 +2,7 @@ import pyrosetta
 
 pyrosetta.init(extra_options='-no_optH false -load_PDB_components false') #-mute all
 
-from fragmenstein import Fragmenstein, Victor, Egor
+from fragmenstein import Fragmenstein, Victor, Igor
 
 
 from rdkit import Chem
@@ -33,8 +33,8 @@ def nasty2_test():
                   smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
                   hitnames='x0692,x0770,x0995'.split(','))
 
-def egor_test():
-        acl = Egor.from_pdbfile(pdbfile='output/PAU-WEI-b9b-8_NIT2/pre_PAU-WEI-b9b-8_NIT2.pdb',
+def igor_test():
+        acl = Igor.from_pdbfile(pdbfile='output/PAU-WEI-b9b-8_NIT2/pre_PAU-WEI-b9b-8_NIT2.pdb',
                                 params_file='output/PAU-WEI-b9b-8_NIT2/PAU-WEI-b9b-8_NIT2.params',
                                 constraint_file='cysBound.noCY.cst')
         acl.coordinate_constraint = 100
@@ -56,7 +56,7 @@ def egor_test():
         pymover.apply(acl.pose)
         print('cartesian relaxed')
         print(acl.ligand_score())
-        acl.pose.dump_pdb('egor_test.pdb')
+        acl.pose.dump_pdb('igor_test.pdb')
 
 def victor_test():
     Victor.work_path = '../Mpro_fragmenstein'
