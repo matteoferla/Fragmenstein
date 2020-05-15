@@ -127,6 +127,33 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             raise ValueError(f'{name} not found in warhead_definitions.')
 
     @classmethod
+    def distance_hits(cls, pdb_filenames: List[str],
+                    target_resi: int,
+                    target_chain: str,
+                    target_atomname: str,
+                    ligand_resn='LIG') -> List[float]:
+        """
+        See closest hit for info.
+
+        :param pdb_filenames:
+        :param target_resi:
+        :param target_chain:
+        :param target_atomname:
+        :param ligand_resn:
+        :return:
+        """
+        distances = []
+        with pymol2.PyMOL() as pymol:
+            for hit in pdb_filenames:
+                pymol.cmd.load(hit)
+                distances.append(min(
+                    [pymol.cmd.distance(f'chain {target_chain} and resi {target_resi} and name {target_atomname}',
+                                        f'resn {ligand_resn} and name {atom.name}') for atom in
+                     pymol.cmd.get_model(f'resn {ligand_resn}').atom]))
+                pymol.cmd.delete('*')
+        return distances
+
+    @classmethod
     def closest_hit(cls, pdb_filenames: List[str],
                     target_resi: int,
                     target_chain: str,
@@ -144,17 +171,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         """
         best_d = 99999
         best_hit = -1
-        with pymol2.PyMOL() as pymol:
-            for hit in pdb_filenames:
-                pymol.cmd.load(hit)
-                d = min(
-                    [pymol.cmd.distance(f'chain {target_chain} and resi {target_resi} and name {target_atomname}',
-                                        f'resn {ligand_resn} and name {atom.name}') for atom in
-                     pymol.cmd.get_model(f'resn {ligand_resn}').atom])
-                if d < best_d:
-                    best_hit = hit
-                    best_d = d
-                pymol.cmd.delete('*')
+        for hit, d in zip(pdb_filenames,
+                     cls.distance_hits(pdb_filenames, target_resi, target_chain, target_atomname, ligand_resn)):
+            if d < best_d:
+                best_hit = hit
+                best_d = d
         return best_hit
 
     @classmethod

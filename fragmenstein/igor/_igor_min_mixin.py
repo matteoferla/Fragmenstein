@@ -18,7 +18,7 @@ class _IgorMinMixin:
         self.key_residues = []
         self.atom_pair_constraint = 10
         self.angle_constraint = 10
-        self.coordinate_constraint = 1
+        self.coordinate_constraint = 2
 
     def pose2str(self, pose: Optional[pyrosetta.Pose] = None) -> str:
         """
@@ -173,11 +173,14 @@ class _IgorMinMixin:
     def get_mod_FastRelax(self, cycles: int = 1, weight: float = 10.0, default_coord_constraint=True) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
+
+        `default_coord_constraint` turns on the restrict to starting position, which is mostly redundant/ineffectual
+        with fragmenstein constraint set. Actually, epirically I cannot see a difference.
         No repacking.
 
         :param cycles: number of cycles
         :param weight: 10 is strict. 5 is decent. 1 is traditional.
-        :param default_coord_constraint: whether to constrain to the start position, in addition to whatever may be in the constraint set.
+        :param default_coord_constraint: whether to constrain to the start position
         :return:
         """
         scorefxn = self._get_scorefxn("ref2015_cart")
@@ -199,7 +202,10 @@ class _IgorMinMixin:
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.cartesian(True)
-        relax.constrain_relax_to_start_coords(default_coord_constraint)  # set native causes a segfault.
+        # this appears to do nothing.
+        print(default_coord_constraint)
+        if default_coord_constraint:
+            relax.constrain_relax_to_start_coords(default_coord_constraint)  # set native causes a segfault.
         return relax
 
     def get_old_FastRelax(self, cycles=1) -> pyrosetta.rosetta.protocols.moves.Mover:
@@ -250,7 +256,8 @@ class _IgorMinMixin:
         # minimizer.cartesian is True already thanks to movemap factory.
         return minimizer
 
-    def repack_neighbors(self) -> None:
+    def Xrepack_neighbors(self) -> None:
+        # THIS IS WEIRD. IT DESIGNS.
         # get score function. but relax the coordinate constraint.
         cc = self.coordinate_constraint
         self.coordinate_constraint = 0
@@ -273,6 +280,24 @@ class _IgorMinMixin:
         packer.task_factory(tf)
         packer.apply(self.pose)
 
+    def repack_neighbors(self) -> None:
+        cc = self.coordinate_constraint
+        self.coordinate_constraint = 0
+        scorefxn = self._get_scorefxn("ref2015")
+        self.coordinate_constraint = cc
+        self._get_selector(ligand_only=True)
+        NeighborhoodResidueSelector = pyrosetta.rosetta.core.select.residue_selector.NeighborhoodResidueSelector
+        ns = NeighborhoodResidueSelector(self._get_selector(ligand_only=True), distance=7,
+                                         include_focus_in_subset=False)
+        movemap = self._get_movemap()
+        movemap.set_chi(allow_chi=ns.apply(self.pose))
+        relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, 2)
+        relax.set_movemap(movemap)
+        relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
+        relax.apply(self.pose)
+
+
+
     def ligand_score(self):
         lig_pos = self.ligand_residue[0]
         # no constraints here
@@ -289,10 +314,11 @@ class _IgorMinMixin:
                 **self.score_split()}
 
     def minimise(self, cycles: int = 10, default_coord_constraint=True):
-        #self.repack_neighbors()
+        self.repack_neighbors()
         mover = self.get_mod_FastRelax(cycles, default_coord_constraint)
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
+        self.repack_neighbors()
         mover.apply(self.pose)
 
     def score_split(self, repack=False):

@@ -162,10 +162,10 @@ class mRSMD:
         :return: the same mol
         """
         assert mol.HasProp(tag), f'There is no tag {tag}'
-        origins = json.load(mol.GetProp(tag))
+        origins = json.loads(mol.GetProp(tag))
         assert len(origins) == mol.GetNumAtoms(), f'Mismatch {len(origins)} vs. {mol.GetNumAtoms()}'
         for i, atom in enumerate(mol.GetAtoms()):
-            atom.SetProp('_Origin', origins[i])
+            atom.SetProp('_Origin', json.dumps(origins[i]))
         return mol
 
     @classmethod

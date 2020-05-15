@@ -255,6 +255,22 @@ class Fragmenstein(_FragmensteinUtil):
         return scaffold
 
     def _fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol) -> Dict[int, List[Dict]]:
+        """
+        Returns
+
+            {4: [{'idx': 5,
+                   'type': rdkit.Chem.rdchem.BondType.SINGLE,
+                   'idx_F': 5,
+                   'idx_S': 1}], ...}
+
+        required for self.merge, the key is the index of anchoring atom.
+
+        Calls get_positional_mapping
+
+        :param scaffold:
+        :param fragmentanda:
+        :return:
+        """
         A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:

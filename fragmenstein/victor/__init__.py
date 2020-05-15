@@ -225,7 +225,7 @@ class Victor(_VictorUtilsMixin):
         self.unminimised_pdbblock = self.igor.pose2str()
         # minimise
         self.journal.debug(f'{self.long_name} - Igor minimising')
-        self.igor.minimise()
+        self.igor.minimise(default_coord_constraint=False)
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
         self._checkpoint_charlie()
