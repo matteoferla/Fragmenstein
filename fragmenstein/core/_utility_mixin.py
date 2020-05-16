@@ -182,15 +182,19 @@ class _FragmensteinUtil:
         :param kwargs: Key value pairs get fed into ``PrepareAndDrawMolecule``.
         :return:
         """
-        d = rdMolDraw2D.MolDraw2DSVG(400, 400)
-        d.drawOptions().addAtomIndices = True
-        d.drawOptions().addStereoAnnotation = True
-        x = Chem.Mol(mol)
-        AllChem.Compute2DCoords(x)
-        rdMolDraw2D.PrepareAndDrawMolecule(d, x, **kwargs)
-        d.FinishDrawing()
-        if show:
-            display(SVG(d.GetDrawingText()))
-        return d
+        try:
+            d = rdMolDraw2D.MolDraw2DSVG(400, 400)
+            d.drawOptions().addAtomIndices = True
+            d.drawOptions().addStereoAnnotation = True
+            x = Chem.Mol(mol)
+            AllChem.Compute2DCoords(x)
+            rdMolDraw2D.PrepareAndDrawMolecule(d, x, **kwargs)
+            d.FinishDrawing()
+            if show:
+                display(SVG(d.GetDrawingText()))
+            return d
+        except Exception as err:
+            warn(f'*{err.__class__.__name__}* : {err}')
+
 
 

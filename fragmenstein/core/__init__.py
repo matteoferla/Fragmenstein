@@ -54,6 +54,30 @@ class Fragmenstein(_FragmensteinUtil):
     """
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
+    matching_modes = [dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareAny,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=False),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareAny,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True),
+                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                          bondCompare=rdFMCS.BondCompare.CompareOrder,
+                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                          ringMatchesRingOnly=True)]
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
                  debug_draw: bool = False):
@@ -75,44 +99,71 @@ class Fragmenstein(_FragmensteinUtil):
         self._debug_draw = debug_draw  # Jupyter notebook only.
         self.unmatched = []
         # derived attributes
-        self.scaffold = self.merge_hits()  # merger of hits
+        unrefined_scaffold = self.merge_hits()  # merger of hits
+        self.scaffold = self.posthoc_refine(unrefined_scaffold)
         self.chimera = self.make_chimera()  # merger of hits but with atoms made to match the to-be-aligned mol
         self.positioned_mol = self.place_followup()  # to-be-aligned is aligned!
 
-    def merge_hits(self) -> Chem.Mol:
+    def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional=None) -> Chem.Mol:
+        """
+        To specify attachments use ``.merge``.
+
+        :param scaffold: mol to be added to.
+        :param fragmentanda: mol to be fragmented
+        :param mapping: see ``get_positional_mapping``. Optional
+        :return:
+        """
+        done_already = []
+        # these are hit indices:
+        fp = self._fragment_pairs(scaffold, fragmentanda, mapping)
+        # confusingly thes fragment pairs
+        for anchor_index, attachment_details in fp.items():
+            if anchor_index in done_already:
+                continue
+            # fix rings.
+            uniques = {atom.GetIdx() for atom in fragmentanda.GetAtoms() if 'overlapping' not in atom.GetProp('_Category')}
+            team = self._recruit_team(fragmentanda, anchor_index, uniques)
+            other_attachments = list((team & set(fp.keys())) - {anchor_index})
+            other_attachment_details = []
+            for other in other_attachments:
+                other_attachment_details.append(fp[other])
+                done_already.append(other)
+            scaffold = self._merge_part(scaffold, fragmentanda,
+                                  anchor_index=anchor_index,
+                                  attachment_details=attachment_details,
+                                  other_attachments = other_attachments,
+                                  other_attachment_details=other_attachment_details)
+        name_A = scaffold.GetProp('_Name')
+        name_B = fragmentanda.GetProp('_Name')
+        scaffold.SetProp('_Name', f'{name_A}-{name_B}')
+        return scaffold
+
+    def merge_hits(self, hits: Optional[List[Chem.Mol]]=None) -> Chem.Mol:
         """
         Recursively stick the hits together and average the positions.
-
+        :param hits: optionally give a hit list, else uses the attribute ``.hits``.
         :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
         """
-        for hi, hit in enumerate(self.hits):
+        if hits is None:
+            hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
+        for hi, hit in enumerate(hits):
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
-        hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
         scaffold = Chem.Mol(hits[0])
         save_for_later = []
         for fragmentanda in hits[1:]:
             try:
-                pairs = self._fragment_pairs(scaffold, fragmentanda)
-                for anchor_index in pairs:
-                    scaffold = self.merge(scaffold, fragmentanda,
-                                          anchor_index=anchor_index,
-                                          attachment_details=pairs[anchor_index])
+                scaffold = self.merge_pair(scaffold, fragmentanda)
             except ConnectionError:
                 save_for_later.append(fragmentanda)
         for fragmentanda in save_for_later:
             try:
-                pairs = self._fragment_pairs(scaffold, fragmentanda)
-                for anchor_index in pairs:
-                    scaffold = self.merge(scaffold, fragmentanda,
-                                          anchor_index=anchor_index,
-                                          attachment_details=pairs[anchor_index])
+                scaffold = self.merge_pair(scaffold, fragmentanda)
             except ConnectionError:
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
                 warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
-        refined = self.posthoc_refine(scaffold)
-        return refined
+        return scaffold
 
     def make_chimera(self) -> Chem.Mol:
         """
@@ -190,7 +241,10 @@ class Fragmenstein(_FragmensteinUtil):
         categories = self._categorise(sextant, uniques)
         if self._debug_draw:
             print('internal', categories['internals'])
+        done_already = []
         for unique_idx in categories['pairs']:  # attachment unique indices
+            if unique_idx in done_already:
+                continue
             sights = set()
             for pd in categories['pairs'][unique_idx]:
                 first_sight = pd['idx']
@@ -199,7 +253,7 @@ class Fragmenstein(_FragmensteinUtil):
                           i.GetIdx() not in uniques]
                 for n in neighs:
                     sights.add((n, n))
-            team = self._recruit_team(mol, unique_idx, categories)
+            team = self._recruit_team(mol, unique_idx, categories['uniques'])
             if self.attachement and list(categories['dummies']) and list(categories['dummies'])[0] in team:
                 r = list(categories['dummies'])[0]
                 pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
@@ -211,21 +265,45 @@ class Fragmenstein(_FragmensteinUtil):
                 self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
             for atom_idx in team:
                 pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
+            # the ring problem does not apply here but would result in rejiggling atoms.
+            other_attachments = (team & set(categories['pairs'].keys())) - {unique_idx}
+            for other in other_attachments:
+                done_already.append(other)
+
         AllChem.SanitizeMol(putty)
         return putty #positioned_mol
 
-    def merge(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
-              attachment_details: List[Dict]) -> Chem.Mol:
+    def _merge_part(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
+              attachment_details: List[Dict],
+              other_attachments: List[int],
+              other_attachment_details: List[List[Dict]]) -> Chem.Mol:
+        """
+        This does the messy work for merge_pair.
+
+        :param scaffold:
+        :param fragmentanda:
+        :param anchor_index:
+        :param attachment_details:
+        :param other_attachments:
+        :param other_attachment_details:
+        :return:
+        """
         for detail in attachment_details:
             attachment_index = detail['idx_F']  # fragmentanda attachment_index
             scaffold_attachment_index = detail['idx_S']
             bond_type = detail['type']
+            bonds_to_frag = [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()]
+            bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(oi, oad[0]['idx_F']).GetIdx() for oi, oad in zip(other_attachments, other_attachment_details)]
+            if self._debug_draw:
+                print(other_attachments)
+                print(other_attachment_details)
             f = Chem.FragmentOnBonds(fragmentanda,
-                                     [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()],
+                                     bonds_to_frag,
                                      addDummies=False)
             frag_split = []
             fragmols = Chem.GetMolFrags(f, asMols=True, fragsMolAtomMapping=frag_split, sanitizeFrags=False)
             if self._debug_draw:
+                print('Fragment splits')
                 print(frag_split)
             # Get the fragment of interest.
             ii = 0
@@ -238,23 +316,31 @@ class Fragmenstein(_FragmensteinUtil):
             frag = fragmols[mol_N]
             frag_anchor_index = indices.index(anchor_index)
             if self._debug_draw:
+                print('Fragment to add')
                 self.draw_nicely(frag)
             combo = Chem.RWMol(rdmolops.CombineMols(scaffold, frag))
             scaffold_anchor_index = frag_anchor_index + scaffold.GetNumAtoms()
             if self._debug_draw:
+                print('Pre-merger')
                 print(scaffold_anchor_index, scaffold_attachment_index, anchor_index, scaffold.GetNumAtoms())
                 self.draw_nicely(combo)
+            combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
+        for oi, oad in zip(other_attachments, other_attachment_details):
+            bond_type = oad[0]['type']
+            scaffold_attachment_index = oad[0]['idx_S']
+            scaffold_anchor_index = indices.index(oi) + scaffold.GetNumAtoms()
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
             Chem.SanitizeMol(combo,
                              sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
                                          Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
                              catchErrors=True)
             if self._debug_draw:
+                print('Merged')
                 self.draw_nicely(combo)
             scaffold = combo
         return scaffold
 
-    def _fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol) -> Dict[int, List[Dict]]:
+    def _fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, A2B_mapping: Optional=None) -> Dict[int, List[Dict]]:
         """
         Returns
 
@@ -263,15 +349,19 @@ class Fragmenstein(_FragmensteinUtil):
                    'idx_F': 5,
                    'idx_S': 1}], ...}
 
+        which is slight more than {5: [{'idx': 4, 'type': rdkit.Chem.rdchem.BondType.SINGLE}], ... from categories
+
         required for self.merge, the key is the index of anchoring atom.
 
         Calls get_positional_mapping
 
-        :param scaffold:
-        :param fragmentanda:
+        :param scaffold: mol to be added to.
+        :param fragmentanda: mol to be fragmented
+        :param A2B_mapping: see ``get_positional_mapping``
         :return:
         """
-        A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
+        if A2B_mapping is None:
+            A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:
             raise ConnectionError
@@ -295,7 +385,7 @@ class Fragmenstein(_FragmensteinUtil):
         :return: dictionary mol A atom idx -> mol B atom idx.
         """
         mols = [mol_A, mol_B]
-        confs = [mols[i].GetConformers()[0] for i in range(len(mols))]
+        confs = [m.GetConformers()[0] for m in mols]
         distance = lambda a, b: ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2) ** 0.5
         m = []
         for i in range(mols[0].GetNumAtoms()):
@@ -337,12 +427,12 @@ class Fragmenstein(_FragmensteinUtil):
         internals = set()
         attachments = set()
         dummies = set()
-        for i in uniques:
+        for i in uniques: # novel atoms
             unique_atom = mol.GetAtomWithIdx(i)
             if unique_atom.GetSymbol() == self.dummy_symbol:
                 dummies.add(i)
             neighbours = {n.GetIdx() for n in unique_atom.GetNeighbors()}
-            if len(neighbours - uniques) == 0:
+            if len(neighbours - uniques) == 0: # unlessone of the connections is not unique.
                 internals.add(i)
             else:
                 i_attached = neighbours - uniques
@@ -350,12 +440,25 @@ class Fragmenstein(_FragmensteinUtil):
                 pairs[i] = [{'idx': j,
                              'type': mol.GetBondBetweenAtoms(i, j).GetBondType()} for j in i_attached]
         anchors = uniques - internals
+        # store for safekeeping
+        for atom in mol.GetAtoms():
+            i = atom.GetIdx()
+            if i in internals:  # novel and not connected
+                atom.SetProp('_Category', 'internal')
+            elif i in attachments:  # not-novel but connected
+                atom.SetProp('_Category', 'overlapping-attachment')
+            elif i in pairs: # dict not set tho
+                atom.SetProp('_Category', 'internal-attachment')
+            else:  # overlapping
+                atom.SetProp('_Category', 'overlapping')
         if self._debug_draw:
             high = list(internals) + list(attachments) + list(anchors)
             color = {**{i: (0, 0.8, 0) for i in internals},
                      **{i: (0, 0, 0.8) for i in attachments},
                      **{i: (0.8, 0, 0.8) for i in anchors}}
+            print('Purple: anchor atoms, Blue: attachments, Green: internals')
             self.draw_nicely(mol, highlightAtoms=high, highlightAtomColors=color)
+            print({atom.GetIdx(): atom.GetProp('_Category') for atom in mol.GetAtoms()})
         return dict(uniques=uniques,
                     internals=internals,
                     attachments=attachments,
@@ -395,7 +498,6 @@ class Fragmenstein(_FragmensteinUtil):
                          sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
                                      Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
                          catchErrors=True)
-
         return refined
 
     def get_mcs_mapping(self, molA, molB) -> Tuple[Dict[int, int], dict]:
@@ -412,30 +514,7 @@ class Fragmenstein(_FragmensteinUtil):
                                      ringMatchesRingOnly=True,
                                      ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
                                      matchChiralTag=True)
-        for mode in [dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareAny,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareAny,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True)]:
+        for mode in self.matching_modes:
             lax = self._get_atom_maps(molA, molB, **mode)
             # remove the lax matches that disobey
             neolax = [l for l in lax if any([len(set(s) - set(l)) == 0 for s in strict])]
@@ -461,14 +540,14 @@ class Fragmenstein(_FragmensteinUtil):
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
         return self._get_atom_maps(molA, molB, **mode)[0]
 
-    def _recruit_team(self, mol: Chem.Mol, starting: set, categories: dict, team: Optional[set] = None) -> set:
+    def _recruit_team(self, mol: Chem.Mol, starting: int, uniques: set, team: Optional[set] = None) -> set:
         if team is None:
             team = set()
         team.add(starting)
         for atom in mol.GetAtomWithIdx(starting).GetNeighbors():
             i = atom.GetIdx()
-            if i in categories['internals'] and i not in team:
-                team = self._recruit_team(mol, i, categories, team)
+            if i in uniques and i not in team:
+                team = self._recruit_team(mol, i, uniques, team)
         return team
 
     def pretweak(self) -> None:
