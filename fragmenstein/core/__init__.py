@@ -18,23 +18,26 @@ from warnings import warn
 import json
 
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
 from rdkit.Geometry.rdGeometry import Point3D
 
 from ._utility_mixin import _FragmensteinUtil
+from ._collapse_ring import Ring
+import itertools
 
 
 ##################################################################
 
-class Fragmenstein(_FragmensteinUtil):
+class Fragmenstein(_FragmensteinUtil, Ring):
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 
     * ``.scaffold`` is the combined version of the hits (rdkit.Chem.Mol object).
+    * ``.scaffold_options`` are the possible scaffolds to use.
     * ``.chimera`` is the combined version of the hits, but with differing atoms made to match the followup (rdkit.Chem.Mol object).
     * ``.positioned_mol`` is the desired output (rdkit.Chem.Mol object)
 
@@ -55,32 +58,32 @@ class Fragmenstein(_FragmensteinUtil):
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
     matching_modes = [dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareAny,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=False),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareAny,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True),
-                     dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-                          bondCompare=rdFMCS.BondCompare.CompareOrder,
-                          ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                          ringMatchesRingOnly=True)]
+                           bondCompare=rdFMCS.BondCompare.CompareAny,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=False),
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=False),
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=False),
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                           bondCompare=rdFMCS.BondCompare.CompareAny,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=True),
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=True),
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=True)]
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
-                 debug_draw: bool = False):
+                 debug_draw: bool = False, classic_mode=False):
         # starting attributes
         self.logbook = {}
         self.initial_mol = mol  # untouched.
@@ -95,33 +98,37 @@ class Fragmenstein(_FragmensteinUtil):
         else:
             self.attachement = None
         # Chem.RemoveHs(self.initial_mol)
-        self.hits = hits  # list of hits
+        self.hits = self.fix_hits(hits) # list of hits
         self._debug_draw = debug_draw  # Jupyter notebook only.
         self.unmatched = []
         # derived attributes
-        unrefined_scaffold = self.merge_hits()  # merger of hits
+        if classic_mode:
+            self.scaffold_options = [self.classic_merge_hits()]
+        else:
+            self.scaffold_options = self.combine_hits()  # merger of hits
+        unrefined_scaffold = self.pick_best()
         self.scaffold = self.posthoc_refine(unrefined_scaffold)
         self.chimera = self.make_chimera()  # merger of hits but with atoms made to match the to-be-aligned mol
         self.positioned_mol = self.place_followup()  # to-be-aligned is aligned!
 
-    def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional=None) -> Chem.Mol:
+    def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional = None) -> Chem.Mol:
         """
         To specify attachments use ``.merge``.
 
         :param scaffold: mol to be added to.
         :param fragmentanda: mol to be fragmented
-        :param mapping: see ``get_positional_mapping``. Optional
+        :param mapping: see ``get_positional_mapping``. Optional in _pre_fragment_pairs
         :return:
         """
         done_already = []
-        # these are hit indices:
-        fp = self._fragment_pairs(scaffold, fragmentanda, mapping)
-        # confusingly thes fragment pairs
+        fp = self._pre_fragment_pairs(scaffold, fragmentanda, mapping)
+        # confusingly these are hit indexed.
         for anchor_index, attachment_details in fp.items():
             if anchor_index in done_already:
                 continue
             # fix rings.
-            uniques = {atom.GetIdx() for atom in fragmentanda.GetAtoms() if 'overlapping' not in atom.GetProp('_Category')}
+            uniques = {atom.GetIdx() for atom in fragmentanda.GetAtoms() if
+                       'overlapping' not in atom.GetProp('_Category')}
             team = self._recruit_team(fragmentanda, anchor_index, uniques)
             other_attachments = list((team & set(fp.keys())) - {anchor_index})
             other_attachment_details = []
@@ -129,27 +136,118 @@ class Fragmenstein(_FragmensteinUtil):
                 other_attachment_details.append(fp[other])
                 done_already.append(other)
             scaffold = self._merge_part(scaffold, fragmentanda,
-                                  anchor_index=anchor_index,
-                                  attachment_details=attachment_details,
-                                  other_attachments = other_attachments,
-                                  other_attachment_details=other_attachment_details)
+                                        anchor_index=anchor_index,
+                                        attachment_details=attachment_details,
+                                        other_attachments=other_attachments,
+                                        other_attachment_details=other_attachment_details)
         name_A = scaffold.GetProp('_Name')
         name_B = fragmentanda.GetProp('_Name')
         scaffold.SetProp('_Name', f'{name_A}-{name_B}')
         return scaffold
 
-    def merge_hits(self, hits: Optional[List[Chem.Mol]]=None) -> Chem.Mol:
+    # ================= Combine hits ===================================================================================
+
+    def combine_hits(self, hits: Optional[List[Chem.Mol]] = None, distance=2) -> List[Chem.Mol]:
         """
-        Recursively stick the hits together and average the positions.
-        :param hits: optionally give a hit list, else uses the attribute ``.hits``.
-        :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
+        This is the new algorithm, wherein the hits are attempted to be combined.
+        If the combination is bad. It will not be combined.
+        Returning a list of possible options.
+        These will have the atoms changed too.
+
+        :param hits:
+        :param distance:
+        :return:
         """
+
         if hits is None:
             hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
         for hi, hit in enumerate(hits):
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
+
+        ## a dodgy hit is a hit with inconsistent mapping bwteen three.
+        def get_dodgies(skippers):
+            dodgy = []
+            for hit0, hit1, hit2 in itertools.combinations(hits, 3):
+                hn0 = hit0.GetProp('_Name')
+                hn1 = hit1.GetProp('_Name')
+                hn2 = hit2.GetProp('_Name')
+                if any([hit in skippers for hit in (hn0, hn1, hn2)]):
+                    continue
+                for a, b in inter_mapping[(hn0, hn1)].items():
+                    if a in inter_mapping[(hn0, hn2)] and b in inter_mapping[(hn1, hn2)]:
+                        if inter_mapping[(hn0, hn2)][a] != inter_mapping[(hn1, hn2)][b]:
+                            if all([m.GetAtomWithIdx(i).IsInRing() for m, i in ((hit0, a),
+                                                                                (hit1, b),
+                                                                                (hit2, inter_mapping[(hn0, hn2)][a]),
+                                                                                (hit2, inter_mapping[(hn1, hn2)][b]))]):
+                                pass
+                            else:
+                                dodgy.extend((hn0, hn1, hn2))
+            d = Counter(dodgy).most_common()
+            if dodgy:
+                return get_dodgies(skippers=skippers + [d[0][0]])
+            else:
+                return skippers
+
+        inter_mapping = {}
+        for h1, h2 in itertools.combinations(hits, 2):
+            inter_mapping[(h1.GetProp('_Name'), h2.GetProp('_Name'))] = self.get_positional_mapping(h1, h2, distance)
+        dodgy_names = get_dodgies([])
+        dodgies = [hit for hit in hits if hit.GetProp('_Name') in dodgy_names]
+        mergituri = [hit for hit in hits if hit.GetProp('_Name') not in dodgy_names]
+        merged = self.merge_hits(mergituri)
+        dodgies += [hit for hit in hits if hit.GetProp('_Name') in self.unmatched]
+        self.unmatched = []
+        combined_dodgies = []
+        for h1, h2 in itertools.combinations(dodgies, 2):
+            h_alt = Chem.Mol(h1)
+            try:
+                combined_dodgies.append(self.merge_pair(h_alt, h2))
+            except ConnectionError:
+                pass
+        combinations = [merged] + dodgies + combined_dodgies
+        # propagate alternatives
+        while self.propagate_alternatives(combinations) != 0:
+            pass
+        return combinations
+
+    def propagate_alternatives(self, fewer):
+        pt = Chem.GetPeriodicTable()
+        new = 0
+        for template in list(fewer):
+            for i, atom in enumerate(template.GetAtoms()):
+                if atom.HasProp('_AltSymbol'):
+                    alt = Chem.Mol(template)
+                    aa = alt.GetAtomWithIdx(i)
+                    aa.SetAtomicNum(pt.GetAtomicNumber(atom.GetProp('_AltSymbol')))
+                    aa.ClearProp('_AltSymbol')
+                    atom.ClearProp('_AltSymbol')
+                    fewer.append(alt)
+                    new += 1
+        return new
+
+    def pick_best(self):
+        maps = {}
+        for template in self.scaffold_options:
+            atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
+            maps[template.GetProp('_Name')] = (atom_map, mode)
+        template_sorter = lambda t: - len(maps[t.GetProp('_Name')][0]) + \
+                                    self.matching_modes.index(maps[t.GetProp('_Name')][1]) / 10
+        self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
+        return self.scaffold_options[0]
+
+    def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
+        """
+        Recursively stick the hits together and average the positions.
+        This is the old way
+
+        :param hits: optionally give a hit list, else uses the attribute ``.hits``.
+        :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
+        """
+        if hits is None:
+            hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
         scaffold = Chem.Mol(hits[0])
         save_for_later = []
         for fragmentanda in hits[1:]:
@@ -164,6 +262,8 @@ class Fragmenstein(_FragmensteinUtil):
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
                 warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
         return scaffold
+
+    # ================= Chimera ========================================================================================
 
     def make_chimera(self) -> Chem.Mol:
         """
@@ -180,10 +280,11 @@ class Fragmenstein(_FragmensteinUtil):
         ## make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
         for scaff_ai, follow_ai in atom_map.items():
-            if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(follow_ai).GetSymbol():
+            if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(
+                    follow_ai).GetSymbol():
                 v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'Se': 2, 'P': 6}
                 wanted = self.initial_mol.GetAtomWithIdx(follow_ai)
-                if wanted.GetSymbol() == '*': # all good then!
+                if wanted.GetSymbol() == '*':  # all good then!
                     continue
                 owned = self.scaffold.GetAtomWithIdx(scaff_ai)
                 diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
@@ -271,12 +372,12 @@ class Fragmenstein(_FragmensteinUtil):
                 done_already.append(other)
 
         AllChem.SanitizeMol(putty)
-        return putty #positioned_mol
+        return putty  # positioned_mol
 
     def _merge_part(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
-              attachment_details: List[Dict],
-              other_attachments: List[int],
-              other_attachment_details: List[List[Dict]]) -> Chem.Mol:
+                    attachment_details: List[Dict],
+                    other_attachments: List[int],
+                    other_attachment_details: List[List[Dict]]) -> Chem.Mol:
         """
         This does the messy work for merge_pair.
 
@@ -293,7 +394,8 @@ class Fragmenstein(_FragmensteinUtil):
             scaffold_attachment_index = detail['idx_S']
             bond_type = detail['type']
             bonds_to_frag = [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()]
-            bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(oi, oad[0]['idx_F']).GetIdx() for oi, oad in zip(other_attachments, other_attachment_details)]
+            bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(oi, oad[0]['idx_F']).GetIdx() for oi, oad in
+                              zip(other_attachments, other_attachment_details)]
             if self._debug_draw:
                 print(other_attachments)
                 print(other_attachment_details)
@@ -315,9 +417,21 @@ class Fragmenstein(_FragmensteinUtil):
                 raise Exception
             frag = fragmols[mol_N]
             frag_anchor_index = indices.index(anchor_index)
+            # pre-emptively fix atom ori_i
+            # offset collapsed to avoid clashes.
+            self._offset_collapsed_ring(frag)
+            self._offset_origins(frag)
+            # Experimental code.
+            # frag_atom = frag.GetAtomWithIdx(frag_anchor_index)
+            # old2future = {atom.GetIntProp('_ori_i'): atom.GetIdx() + scaffold.GetNumAtoms() for atom in frag.GetAtoms()}
+            # del old2future[-1] # does nothing but nice to double tap
+            # if frag_atom.GetIntProp('_ori_i') == -1: #damn.
+            #     for absent in self._get_mystery_ori_i(frag):
+            #         old2future[absent] = scaffold_attachment_index
+            # self._renumber_original_indices(frag, old2future)
             if self._debug_draw:
-                print('Fragment to add')
-                self.draw_nicely(frag)
+                    print('Fragment to add')
+                    self.draw_nicely(frag)
             combo = Chem.RWMol(rdmolops.CombineMols(scaffold, frag))
             scaffold_anchor_index = frag_anchor_index + scaffold.GetNumAtoms()
             if self._debug_draw:
@@ -330,17 +444,18 @@ class Fragmenstein(_FragmensteinUtil):
             scaffold_attachment_index = oad[0]['idx_S']
             scaffold_anchor_index = indices.index(oi) + scaffold.GetNumAtoms()
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
-            Chem.SanitizeMol(combo,
-                             sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
-                                         Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
-                             catchErrors=True)
-            if self._debug_draw:
-                print('Merged')
-                self.draw_nicely(combo)
-            scaffold = combo
+        Chem.SanitizeMol(combo,
+                         sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
+                                     Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
+                         catchErrors=True)
+        if self._debug_draw:
+            print('Merged')
+            self.draw_nicely(combo)
+        scaffold = combo.GetMol()
         return scaffold
 
-    def _fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, A2B_mapping: Optional=None) -> Dict[int, List[Dict]]:
+    def _pre_fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, A2B_mapping: Optional = None) \
+            -> Dict[int, List[Dict]]:
         """
         Returns
 
@@ -353,18 +468,27 @@ class Fragmenstein(_FragmensteinUtil):
 
         required for self.merge, the key is the index of anchoring atom.
 
-        Calls get_positional_mapping
+        Calls get_positional_mapping and _categorise.
 
         :param scaffold: mol to be added to.
         :param fragmentanda: mol to be fragmented
         :param A2B_mapping: see ``get_positional_mapping``
         :return:
         """
+        # get A2B mapping
         if A2B_mapping is None:
             A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:
             raise ConnectionError
+        # store alternative atom symbols.
+        for si, fi in A2B_mapping.items():
+            sa = scaffold.GetAtomWithIdx(si)
+            sn = sa.GetSymbol()
+            fn = fragmentanda.GetAtomWithIdx(fi).GetSymbol()
+            if sn != fn:
+                sa.SetProp('_AltSymbol', fn)
+        # prepare.
         uniques = set(range(fragmentanda.GetNumAtoms())) - set(A2B_mapping.values())
         categories = self._categorise(fragmentanda, uniques)
         pairs = categories['pairs']
@@ -374,39 +498,6 @@ class Fragmenstein(_FragmensteinUtil):
                 pp['idx_S'] = get_key(A2B_mapping, pp['idx'])  # scaffold index
         return pairs
 
-    @classmethod
-    def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, cutoff=2) -> Dict[int, int]:
-        """
-        Returns a map to convert overlapping atom of A onto B
-        Cutoff 2 &Aring;.
-
-        :param mol_A: first molecule (Chem.Mol) will form keys
-        :param mol_B: second molecule (Chem.Mol) will form values
-        :return: dictionary mol A atom idx -> mol B atom idx.
-        """
-        mols = [mol_A, mol_B]
-        confs = [m.GetConformers()[0] for m in mols]
-        distance = lambda a, b: ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2) ** 0.5
-        m = []
-        for i in range(mols[0].GetNumAtoms()):
-            v = []
-            for j in range(mols[1].GetNumAtoms()):
-                d = distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
-                v.append(d)
-            m.append(v)
-        dm = np.array(m)
-        ## find the closest
-        mapping = {}
-        while 1 == 1:
-            d = np.amin(dm)
-            if d > cutoff:
-                break
-            w = np.where(dm == d)
-            f, s = w[0][0], w[1][0]
-            mapping[int(f)] = int(s)  # np.int64 --> int
-            dm[f, :] = np.ones(dm.shape[1]) * 999
-            dm[:, s] = np.ones(dm.shape[0]) * 999
-        return mapping
 
     def _categorise(self, mol: Chem.Mol, uniques: set) -> Dict[str, Union[set, Dict]]:
         """
@@ -427,12 +518,12 @@ class Fragmenstein(_FragmensteinUtil):
         internals = set()
         attachments = set()
         dummies = set()
-        for i in uniques: # novel atoms
+        for i in uniques:  # novel atoms
             unique_atom = mol.GetAtomWithIdx(i)
             if unique_atom.GetSymbol() == self.dummy_symbol:
                 dummies.add(i)
             neighbours = {n.GetIdx() for n in unique_atom.GetNeighbors()}
-            if len(neighbours - uniques) == 0: # unlessone of the connections is not unique.
+            if len(neighbours - uniques) == 0:  # unlessone of the connections is not unique.
                 internals.add(i)
             else:
                 i_attached = neighbours - uniques
@@ -447,7 +538,7 @@ class Fragmenstein(_FragmensteinUtil):
                 atom.SetProp('_Category', 'internal')
             elif i in attachments:  # not-novel but connected
                 atom.SetProp('_Category', 'overlapping-attachment')
-            elif i in pairs: # dict not set tho
+            elif i in pairs:  # dict not set tho
                 atom.SetProp('_Category', 'internal-attachment')
             else:  # overlapping
                 atom.SetProp('_Category', 'overlapping')
@@ -466,6 +557,121 @@ class Fragmenstein(_FragmensteinUtil):
                     dummies=dummies
                     )
 
+    # ========= Get positional mapping =================================================================================
+
+    @classmethod
+    def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, cutoff=2, dummy_w_dummy=True) -> Dict[int, int]:
+        """
+        Returns a map to convert overlapping atom of A onto B
+        Cutoff 2 &Aring;.
+
+        :param mol_A: first molecule (Chem.Mol) will form keys
+        :param mol_B: second molecule (Chem.Mol) will form values
+        :param dummy_w_dummy: match */R with */R.
+        :return: dictionary mol A atom idx -> mol B atom idx.
+        """
+
+        mols = [mol_A, mol_B]
+        confs = [m.GetConformers()[0] for m in mols]
+        distance_protomatrix = []
+        dummy_distance_protomatrix = []
+        ring_distance_protomatrix = []
+        for i in range(mols[0].GetNumAtoms()):
+            distance_protovector = []
+            dummy_distance_protovector = []
+            ring_distance_protovector = []
+            for j in range(mols[1].GetNumAtoms()):
+                distance, dummy_distance, ring_distance = cls._gpm_distance(mols, confs, i, j, dummy_w_dummy)
+                distance_protovector.append(distance)
+                dummy_distance_protovector.append(dummy_distance)
+                ring_distance_protovector.append(ring_distance)
+            distance_protomatrix.append(distance_protovector)
+            dummy_distance_protomatrix.append(dummy_distance_protovector)
+            ring_distance_protomatrix.append(ring_distance_protovector)
+        distance_matrix = np.array(distance_protomatrix)
+        dummy_distance_matrix = np.array(dummy_distance_protomatrix)
+        ring_distance_matrix = np.array(ring_distance_protomatrix)
+        if dummy_w_dummy:
+            return {**cls._gpm_covert(distance_matrix, cutoff),
+                    **cls._gpm_covert(dummy_distance_matrix, cutoff * 2),
+                    **cls._gpm_covert(ring_distance_matrix, cutoff * 1.2)}
+        else:
+            return {**cls._gpm_covert(distance_matrix, cutoff),
+                    **cls._gpm_covert(ring_distance_matrix, cutoff * 1.2)}
+
+    @classmethod
+    def _gpm_distance(cls, mols: List[Chem.Mol], confs: [Chem.Conformer], i, j, dummy_w_dummy=True) \
+            -> Tuple[float, float, float]:
+        """
+        See get_positional_distance
+
+        :param mols:
+        :param dummy_w_dummy:
+        :return:
+        """
+        measure_distance = lambda a, b: ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2) ** 0.5
+        is_collapsed_ring = lambda atom: atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1
+        zeroth = mols[0].GetAtomWithIdx(i)
+        first = mols[1].GetAtomWithIdx(j)
+        if dummy_w_dummy and \
+                zeroth.GetSymbol() == '*' and \
+                first.GetSymbol() == '*':
+            distance = 9999
+            dummy_distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
+            ring_distance = 9999
+        elif dummy_w_dummy and \
+                (zeroth.GetSymbol() == '*' or
+                 first.GetSymbol() == '*'):
+            distance = 9999
+            dummy_distance = 9999
+            ring_distance = 9999
+        elif is_collapsed_ring(zeroth) and is_collapsed_ring(first):
+            distance = 9999
+            dummy_distance = 9999
+            ring_distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
+        elif is_collapsed_ring(zeroth) or is_collapsed_ring(first):
+            distance = 9999
+            dummy_distance = 9999
+            ring_distance = 9999
+        else:
+            distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
+            dummy_distance = 9999
+            ring_distance = 9999
+        return distance, dummy_distance, ring_distance
+
+    @classmethod
+    def _gpm_covert(cls, array: np.array, cutoff: float) -> Dict[int, int]:
+        """
+        See get_positional_distance
+
+        :param array:
+        :param cutoff:
+        :return:
+        """
+        ## find the closest
+        mapping = {}
+        while 1 == 1:
+            d = np.amin(array)
+            if d > cutoff:
+                break
+            w = np.where(array == d)
+            f, s = w[0][0], w[1][0]
+            mapping[int(f)] = int(s)  # np.int64 --> int
+            array[f, :] = np.ones(array.shape[1]) * 999
+            array[:, s] = np.ones(array.shape[0]) * 999
+        return mapping
+
+    # ========= Other ==================================================================================================
+
+    def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
+        for hi, hit in enumerate(hits):
+            self.store_positions(hit)
+            # fallback naming.
+            if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
+                hit.SetProp('_Name', f'hit{hi}')
+        return hits
+
+
     def posthoc_refine(self, scaffold):
         """
         Averages the overlapping atoms.
@@ -475,8 +681,8 @@ class Fragmenstein(_FragmensteinUtil):
         """
         refined = Chem.RWMol(scaffold)
         refconf = refined.GetConformer()
-        positions = defaultdict(list) # coordinates
-        equivalence = defaultdict(list) # atom indices of hits.
+        positions = defaultdict(list)  # coordinates
+        equivalence = defaultdict(list)  # atom indices of hits.
         for h in self.hits:
             hc = h.GetConformer()
             for k, v in self.get_positional_mapping(scaffold, h).items():
@@ -490,7 +696,7 @@ class Fragmenstein(_FragmensteinUtil):
                 #     'in scaffold that has no positions.')
             else:
                 p = np.mean(np.array(positions[i]), axis=0).astype(float)
-                sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float) # TODO this seems a bit dodgy.
+                sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float)  # TODO this seems a bit dodgy.
                 refined.GetAtomWithIdx(i).SetProp('_Origin', json.dumps(equivalence[i]))
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', sd)
                 refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
@@ -531,10 +737,12 @@ class Fragmenstein(_FragmensteinUtil):
         matches = []
         # prevent a dummy to match a non-dummy, which can happen when the mode is super lax.
         is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
-        all_bar_dummy = lambda Aat, Bat:  (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (is_dummy(molA, Aat) or is_dummy(molB, Bat))
+        all_bar_dummy = lambda Aat, Bat: (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (
+                is_dummy(molA, Aat) or is_dummy(molB, Bat))
         for molA_match in molA.GetSubstructMatches(common):
             for molB_match in molB.GetSubstructMatches(common):
-                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if all_bar_dummy(molA_at, molB_at)])
+                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
+                                all_bar_dummy(molA_at, molB_at)])
         return matches
 
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:

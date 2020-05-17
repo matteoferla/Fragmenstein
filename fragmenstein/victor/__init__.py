@@ -292,7 +292,8 @@ class Victor(_VictorUtilsMixin):
             pymol.cmd.delete('*')
         if self.is_covalent:
             cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
-            return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                {cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n' + pdbblock
+            return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                '+\
+                   f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n' + pdbblock
         else:
             return pdbblock
 
@@ -453,6 +454,11 @@ class Victor(_VictorUtilsMixin):
         pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
         Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
         frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
+        opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
+        writer = Chem.SDWriter(opt_file)
+        for t in self.fragmenstein.scaffold_options:
+            writer.write(t)
+        writer.close()
         with open(frag_file, 'w') as w:
             json.dump({'smiles': self.smiles,
                        'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),

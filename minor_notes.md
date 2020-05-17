@@ -28,6 +28,11 @@ These are not really inspirations, just a case where `null` was not a choice.
 
 The wobbly extras are good to set deviations for the coordinate constraints.
 
+## Bottleneck
+
+The problem why the code is slow is the distance matrix, which is becomes a huge mess due to atoms that did not
+map correctly.
+
 ## Removing the ones that do not map equally
 
 So as a test case, let's get an even more extreme case, `ALE-HEI-f28a35b5-17` which has 8 hits listed,
@@ -98,14 +103,19 @@ Gives
     
 ![toomany](images/dodgy_killer.png)
     
-This is a failure. x1093 and x0107 are removed at 2 Å.
+x1093 and x0107 are removed at 2 Å due to the ring.
+Consequently, the code implemented to get rid of dodgy mappings does not include rings.
+However, for a more realiable, solution, the rings need to be collapsed.
 
-## Pre-mapping
+## Ring collapse
 
-What if the fragments were pre-mapped? MCS or Morgan fingerprints?
+A "simple" solution is to replace all rings with a single atom that can be unpacked later.
 
-## Best pairwise
+``Ring`` class in ``core._collapse_ring`` does exactly that (inherited by ``Frankenstein``).
 
-What if pairwise combinations were made, but atom positions across the hits used for the contraint?
-There are unlikely going to be 
+![collapse](images/atom_collapse.png)
 
+But is totally buggy in the upacking step after merging, therefore it is not implemented in Victor.
+
+* ``.collapse_ring(mol)``
+* ``.expand_ring(mol)``
