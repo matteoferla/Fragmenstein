@@ -8,7 +8,7 @@ __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
 __date__ = "2019 A.D."
 __license__ = "MIT"
-__version__ = "0.4"
+__version__ = "0.5"
 __citation__ = ""
 
 ########################################################################################################################
@@ -57,6 +57,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
     """
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
+    cutoff = 2
     matching_modes = [dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
                            bondCompare=rdFMCS.BondCompare.CompareAny,
                            ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
@@ -147,7 +148,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
 
     # ================= Combine hits ===================================================================================
 
-    def combine_hits(self, hits: Optional[List[Chem.Mol]] = None, distance=2) -> List[Chem.Mol]:
+    def combine_hits(self, hits: Optional[List[Chem.Mol]] = None) -> List[Chem.Mol]:
         """
         This is the new algorithm, wherein the hits are attempted to be combined.
         If the combination is bad. It will not be combined.
@@ -178,13 +179,14 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                 for a, b in inter_mapping[(hn0, hn1)].items():
                     if a in inter_mapping[(hn0, hn2)] and b in inter_mapping[(hn1, hn2)]:
                         if inter_mapping[(hn0, hn2)][a] != inter_mapping[(hn1, hn2)][b]:
-                            if all([m.GetAtomWithIdx(i).IsInRing() for m, i in ((hit0, a),
-                                                                                (hit1, b),
-                                                                                (hit2, inter_mapping[(hn0, hn2)][a]),
-                                                                                (hit2, inter_mapping[(hn1, hn2)][b]))]):
-                                pass
-                            else:
-                                dodgy.extend((hn0, hn1, hn2))
+                            # TODO: THIS IS A BAD OPTION:
+                            # if all([m.GetAtomWithIdx(i).IsInRing() for m, i in ((hit0, a),
+                            #                                                     (hit1, b),
+                            #                                                     (hit2, inter_mapping[(hn0, hn2)][a]),
+                            #                                                     (hit2, inter_mapping[(hn1, hn2)][b]))]):
+                            #     pass
+                            # else:
+                            dodgy.extend((hn0, hn1, hn2))
             d = Counter(dodgy).most_common()
             if dodgy:
                 return get_dodgies(skippers=skippers + [d[0][0]])
@@ -193,7 +195,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
 
         inter_mapping = {}
         for h1, h2 in itertools.combinations(hits, 2):
-            inter_mapping[(h1.GetProp('_Name'), h2.GetProp('_Name'))] = self.get_positional_mapping(h1, h2, distance)
+            inter_mapping[(h1.GetProp('_Name'), h2.GetProp('_Name'))] = self.get_positional_mapping(h1, h2)
         dodgy_names = get_dodgies([])
         dodgies = [hit for hit in hits if hit.GetProp('_Name') in dodgy_names]
         mergituri = [hit for hit in hits if hit.GetProp('_Name') not in dodgy_names]
@@ -230,13 +232,61 @@ class Fragmenstein(_FragmensteinUtil, Ring):
 
     def pick_best(self):
         maps = {}
+        ## get data
         for template in self.scaffold_options:
             atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
             maps[template.GetProp('_Name')] = (atom_map, mode)
+        ## pick best template
         template_sorter = lambda t: - len(maps[t.GetProp('_Name')][0]) + \
                                     self.matching_modes.index(maps[t.GetProp('_Name')][1]) / 10
         self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
-        return self.scaffold_options[0]
+        ## Check if missing atoms can be explained by a different one with no overlap
+        best = self.scaffold_options[0]
+        # best_map = maps[best.GetProp('_Name')][0]
+        # full = set(range(self.initial_mol.GetNumAtoms()))
+        # present = set(best_map.values())
+        # missing = full - present
+        # for other in self.scaffold_options:
+        #     other_map = maps[other.GetProp('_Name')][0]
+        #     found = set(other_map.values())
+        #     if len(found) > 6 and len(present & found) == 0: # more than just a ring and no overlap
+        #         fusion = self._fuse(best, other, best_map, other_map)
+        return best
+
+    def _fuse(self, mol_A: Chem.Mol, mol_B: Chem.Mol, map_A: Dict[int, int], map_B: Dict[int, int]) -> Chem.Mol:
+        """
+        Merge two compounds... but that are unlinked, using the followup as a guide.
+
+        :param mol_A:
+        :param mol_B:
+        :param map_A:
+        :param map_B:
+        :return:
+        """
+        # TODO: finish this!
+        fusion = Chem.RwMol(Chem.CombineMols(mol_A, mol_B))
+        t = mol_A.GetNumAtoms()
+        new_map_B = {k+t: v for k, v in map_B.items()}
+        full = set(range(self.initial_mol.GetNumAtoms()))
+        present_A = set(map_A.values())
+        present_B = set(map_B.values())
+
+        def find_route(n):
+            if n in present_A:
+                return None
+            elif n in present_B:
+                return n
+            else:
+                path_raw = {m: find_route(m) for m in self.initial_mol.GetAtomWithIdx(n).GetNeighbors()}
+                path = {i: path_raw[i] for i in path_raw if path_raw[i] is not None}
+                if len(path) == 0:
+                    return None
+                else:
+                    return {n: path}
+
+
+
+        # find what connects
 
     def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
@@ -267,7 +317,8 @@ class Fragmenstein(_FragmensteinUtil, Ring):
 
     def make_chimera(self) -> Chem.Mol:
         """
-        This is to avoid extreme corner corner cases. E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
+        This is to avoid extreme corner corner cases.
+        E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
         while for the positioning this is not the case.
 
         :return:
@@ -422,6 +473,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
             self._offset_collapsed_ring(frag)
             self._offset_origins(frag)
             # Experimental code.
+            # TODO: finish!
             # frag_atom = frag.GetAtomWithIdx(frag_anchor_index)
             # old2future = {atom.GetIntProp('_ori_i'): atom.GetIdx() + scaffold.GetNumAtoms() for atom in frag.GetAtoms()}
             # del old2future[-1] # does nothing but nice to double tap
@@ -560,7 +612,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
     # ========= Get positional mapping =================================================================================
 
     @classmethod
-    def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, cutoff=2, dummy_w_dummy=True) -> Dict[int, int]:
+    def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, dummy_w_dummy=True) -> Dict[int, int]:
         """
         Returns a map to convert overlapping atom of A onto B
         Cutoff 2 &Aring;.
@@ -592,12 +644,12 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         dummy_distance_matrix = np.array(dummy_distance_protomatrix)
         ring_distance_matrix = np.array(ring_distance_protomatrix)
         if dummy_w_dummy:
-            return {**cls._gpm_covert(distance_matrix, cutoff),
-                    **cls._gpm_covert(dummy_distance_matrix, cutoff * 2),
-                    **cls._gpm_covert(ring_distance_matrix, cutoff * 1.2)}
+            return {**cls._gpm_covert(distance_matrix, cls.cutoff),
+                    **cls._gpm_covert(dummy_distance_matrix, cls.cutoff * 2),
+                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
         else:
-            return {**cls._gpm_covert(distance_matrix, cutoff),
-                    **cls._gpm_covert(ring_distance_matrix, cutoff * 1.2)}
+            return {**cls._gpm_covert(distance_matrix, cls.cutoff),
+                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
 
     @classmethod
     def _gpm_distance(cls, mols: List[Chem.Mol], confs: [Chem.Conformer], i, j, dummy_w_dummy=True) \

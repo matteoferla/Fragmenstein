@@ -12,7 +12,7 @@ __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
 __date__ = "2020 A.D."
 __license__ = "MIT"
-__version__ = "0.4"
+__version__ = "0.5"
 __citation__ = ""
 
 ########################################################################################################################
@@ -201,6 +201,7 @@ class Victor(_VictorUtilsMixin):
         # make fragmenstein
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
         self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
+        self.journal.debug(f'{self.long_name} - Tried {len(self.fragmenstein.scaffold_options)} combinations')
         self.unminimised_pdbblock = self._place_fragmenstein()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
@@ -456,6 +457,7 @@ class Victor(_VictorUtilsMixin):
         frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
         opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
         writer = Chem.SDWriter(opt_file)
+        writer.SetKekulize(False)
         for t in self.fragmenstein.scaffold_options:
             writer.write(t)
         writer.close()

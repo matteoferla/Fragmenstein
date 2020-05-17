@@ -183,6 +183,8 @@ class _FragmensteinUtil:
         :return:
         """
         try:
+            if mol.HasProp('_Name'):
+                print(mol.GetProp('_Name'))
             d = rdMolDraw2D.MolDraw2DSVG(400, 400)
             d.drawOptions().addAtomIndices = True
             d.drawOptions().addStereoAnnotation = True

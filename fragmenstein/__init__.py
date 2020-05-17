@@ -8,7 +8,7 @@ __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
 __date__ = "2020 A.D."
 __license__ = "MIT"
-__version__ = "0.4"
+__version__ = "0.5"
 __citation__ = ""
 
 ########################################################################################################################

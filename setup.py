@@ -4,7 +4,7 @@ print('This 3.6+ script requires rdkit, numpy and optionally pymol and jupyter, 
 
 setup(
     name='Fragmenstein',
-    version='0.1',
+    version='0.5',
     packages=['fragmenstein'],
     url='https://github.com/matteoferla/Fragmenstein',
     license='MIT',
