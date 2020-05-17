@@ -53,6 +53,8 @@ Note that `.initial_mol` is not touched. `.positioned_mol` may have lost some cu
 
 ## Algorithm
 
+> Some changes to the algorithm are underway, see [wip.md](wip.md) for more.
+
 The following steps are done:
 
 * `.merge_hits()`: merges the hits, the output `rdkit.Chem.Mol` object added as `.scaffold`.
