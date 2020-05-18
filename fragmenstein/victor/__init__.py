@@ -200,7 +200,7 @@ class Victor(_VictorUtilsMixin):
         # ***** FRAGMENSTEIN *******
         # make fragmenstein
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment)
+        self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment, debug_draw=True)
         self.journal.debug(f'{self.long_name} - Tried {len(self.fragmenstein.scaffold_options)} combinations')
         self.unminimised_pdbblock = self._place_fragmenstein()
         self.constraint.custom_constraint += self._make_coordinate_constraints()

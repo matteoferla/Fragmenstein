@@ -2,8 +2,7 @@ from typing import List, Optional, Tuple
 from warnings import warn
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS
-from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit.Chem import AllChem, rdFMCS, Draw
 
 import json
 
@@ -136,7 +135,7 @@ class _FragmensteinUtil:
         """
         Saves an SVG of the followup fragmenstein with the common atoms with the chimeric scaffold highlighted.
 
-        :param filename: optinal filename to save it as. Otherwise returns a rdMolDraw2D.MolDraw2DSVG object.
+        :param filename: optinal filename to save it as. Otherwise returns a Draw.MolDraw2DSVG object.
         :return:
         """
         mcs = rdFMCS.FindMCS([self.chimera, self.positioned_mol],
@@ -161,19 +160,29 @@ class _FragmensteinUtil:
             for h, hit in enumerate(self.hits):
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), f'hit{h}')
                 pymol.cmd.color(next(tints), f'hit{h} and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'scaffold')
-            pymol.cmd.color('tv_blue', f'scaffold and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.chimera, kekulize=False), f'chimera')
-            pymol.cmd.color('cyan', f'chimera and name C*')
-            pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
-            pymol.cmd.color('tv_green', f'followup and name C*')
+            if self.scaffold:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'scaffold')
+                pymol.cmd.color('tv_blue', f'scaffold and name C*')
+            if self.chimera:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.chimera, kekulize=False), f'chimera')
+                pymol.cmd.color('cyan', f'chimera and name C*')
+            if self.positioned_mol:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
+                pymol.cmd.color('tv_green', f'followup and name C*')
+            if self.scaffold_options:
+                for i, mol in enumerate(self.scaffold_options):
+                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), f'opt{i}')
+                    pymol.cmd.color('grey50', f'opt{i} and name C*')
             pymol.cmd.hide('sticks')
             pymol.cmd.hide('cartoon') # there should not be....
             pymol.cmd.show('lines', 'not polymer')
-            pymol.cmd.show('sticks', 'followup or chimera')
+            if self.chimera:
+                pymol.cmd.show('sticks', 'chimera')
+            if self.positioned_mol:
+                pymol.cmd.show('sticks', 'followup')
             pymol.cmd.save(filename)
 
-    def draw_nicely(self, mol, show=True, **kwargs) -> rdMolDraw2D.MolDraw2DSVG:
+    def draw_nicely(self, mol, show=True, **kwargs) -> Draw.MolDraw2DSVG:
         """
         Draw with atom indices for Jupyter notebooks.
 
@@ -182,21 +191,26 @@ class _FragmensteinUtil:
         :param kwargs: Key value pairs get fed into ``PrepareAndDrawMolecule``.
         :return:
         """
+        if mol.HasProp('_Name'):
+            print(mol.GetProp('_Name'))
+        d = Draw.MolDraw2DSVG(400, 400)
+        d.drawOptions().addAtomIndices = True
+        d.drawOptions().addStereoAnnotation = True
+        d.drawOptions().prepareMolsBeforeDrawing = False
+        d.drawOptions().dummiesAreAttachments = True
+        x = Chem.Mol(mol)
+        AllChem.Compute2DCoords(x)
+        Chem.SanitizeMol(x, catchErrors=True)
         try:
-            if mol.HasProp('_Name'):
-                print(mol.GetProp('_Name'))
-            d = rdMolDraw2D.MolDraw2DSVG(400, 400)
-            d.drawOptions().addAtomIndices = True
-            d.drawOptions().addStereoAnnotation = True
-            x = Chem.Mol(mol)
-            AllChem.Compute2DCoords(x)
-            rdMolDraw2D.PrepareAndDrawMolecule(d, x, **kwargs)
+            #x = Chem.MolFromSmiles(Chem.MolToSmiles(x, kekuleSmiles=False), sanitize=False)
+            Draw.PrepareAndDrawMolecule(d, x, **kwargs)
             d.FinishDrawing()
             if show:
                 display(SVG(d.GetDrawingText()))
             return d
         except Exception as err:
             warn(f'*{err.__class__.__name__}* : {err}')
+            display(x)
 
 
 
