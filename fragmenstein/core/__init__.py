@@ -28,7 +28,6 @@ from ._utility_mixin import _FragmensteinUtil
 from ._collapse_ring import Ring
 import itertools
 
-
 ##################################################################
 
 class Fragmenstein(_FragmensteinUtil, Ring):
@@ -86,7 +85,21 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                            ringMatchesRingOnly=True)]
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
-                 debug_draw: bool = False, classic_mode=False):
+                 debug_draw: bool = False, merging_mode='partial'):
+        """
+        Merging mode controls what algorithm to use.
+
+        * 'full': a single scaffold is made
+        * 'partial': multiple possible scaffolds and best is chosen
+        * 'none': no merging is done. The hits are mapped individually. Not great for small fragments.
+        * 'off': do nothing.
+
+        :param mol:
+        :param hits:
+        :param attachment:
+        :param debug_draw:
+        :param merging_mode: full | partial | none | off
+        """
         # starting attributes
         self.logbook = {}
         self.initial_mol = mol  # untouched.
@@ -105,17 +118,51 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         self._debug_draw = debug_draw  # Jupyter notebook only.
         self.unmatched = []
         # derived attributes
-        if classic_mode:
-            self.scaffold_options = [self.merge_hits()]
+        self.scaffold = None #: template which may have wrong elements
+        self.scaffold_options = [] #: partial combined templates (merging_mode: partial)
+        self.chimera = None #: merger of hits but with atoms made to match the to-be-aligned mol
+        self.positioned_mol = None #: final molecule
+        # do calculations
+        if merging_mode == 'off':
+            pass
+        elif merging_mode == 'full':
+            self.full_merging()
+        elif merging_mode == 'partial':
+            self.partial_merging()
+        elif merging_mode == 'none':
+            self.no_merging()
         else:
-            self.scaffold_options = self.combine_hits()  # merger of hits
+            raise ValueError(f"Merging mode can only be 'full' | 'partial' | 'none' | 'off', not '{merging_mode}'")
+
+    def full_merging(self) -> None:
+        """
+        a single scaffold is made (except for ``.unmatched``)
+        """
+        self.scaffold_options = [self.merge_hits()]
+        self.scaffold = self.posthoc_refine(self.scaffold_options[0])
+        self.chimera = self.make_chimera()
+        self.positioned_mol = self.place_followup()
+
+    def partial_merging(self) -> None:
+        """
+        multiple possible scaffolds and best is chosen
+        """
+        self.scaffold_options = self.combine_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
-        if self._debug_draw:
-            print('BEST PICKED')
-            self.draw_nicely(unrefined_scaffold)
         self.scaffold = self.posthoc_refine(unrefined_scaffold)
-        self.chimera = self.make_chimera(mode_index)  # merger of hits but with atoms made to match the to-be-aligned mol
-        self.positioned_mol = self.place_followup()  # to-be-aligned is aligned!
+        self.chimera = self.make_chimera(mode_index)
+        self.positioned_mol = self.place_followup()
+
+    def no_merging(self) -> None:
+        """
+        no merging is done. The hits are mapped individually. Not great for small fragments.
+        """
+        unmerged, atom_map = self.unmerge() #atom_map is followup to unmerged
+        self.scaffold = self.posthoc_refine(unmerged, indices=atom_map.values())
+        self.chimera = self.scaffold
+        self.positioned_mol = self.place_followup(atom_map=atom_map)
+
+    # ========== Merging ===============================================================================================
 
     def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional = None) -> Chem.Mol:
         """
@@ -251,46 +298,53 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         return new
 
     def pick_best(self):
-        maps = {}
+        if len(self.scaffold_options) == 1:
+            return self.scaffold_options[0], 0
+        elif len(self.scaffold_options) == 0:
+            raise ValueError('No scaffolds made?!')
+        else:
+            mapx = {} #: dictionary of key mol name and value tuple of maps and mode
 
-        def template_sorter(t: List[Chem.Mol]) -> float:
-            # key for sorting. requires outer scope ``maps``.
-            n_atoms = len(maps[t.GetProp('_Name')][0])
-            mode = maps[t.GetProp('_Name')][1]
-            mode_i = self.matching_modes.index(mode)
-            return - n_atoms - mode_i / 10
+            def template_sorter(t: List[Chem.Mol]) -> float:
+                # key for sorting. requires outer scope ``maps``.
+                n_atoms = len(mapx[t.GetProp('_Name')][0])
+                mode = mapx[t.GetProp('_Name')][1]
+                mode_i = self.matching_modes.index(mode)
+                return - n_atoms - mode_i / 10
 
-        ## get data
-        # presort as this is expensive.
-        for template in self.scaffold_options:
-            atom_map = self._get_atom_maps(template, self.initial_mol, atomCompare=rdFMCS.AtomCompare.CompareElements,
-                            bondCompare=rdFMCS.BondCompare.CompareOrder,
-                            ringMatchesRingOnly=True,
-                            ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                            matchChiralTag=True)
-            maps[template.GetProp('_Name')] = (atom_map, self.matching_modes[-1])
-        # search properly only top 3.
-        self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
-        for template in self.scaffold_options[:3]:
-            atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
-            maps[template.GetProp('_Name')] = (atom_map, mode)
-            if self._debug_draw:
-                print(f"With {template.GetProp('_Name')}, {len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
-        ## pick best template
-
-        self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
-        ## Check if missing atoms can be explained by a different one with no overlap
-        best = self.scaffold_options[0]
-        # best_map = maps[best.GetProp('_Name')][0]
-        # full = set(range(self.initial_mol.GetNumAtoms()))
-        # present = set(best_map.values())
-        # missing = full - present
-        # for other in self.scaffold_options:
-        #     other_map = maps[other.GetProp('_Name')][0]
-        #     found = set(other_map.values())
-        #     if len(found) > 6 and len(present & found) == 0: # more than just a ring and no overlap
-        #         fusion = self._fuse(best, other, best_map, other_map)
-        return best, self.matching_modes.index(mode)
+            ## get data
+            # presort as this is expensive.
+            for template in self.scaffold_options:
+                # _get_atom_maps returns a list of alternative mappings which are lists of template to initail mol
+                atom_maps = self._get_atom_maps(template, self.initial_mol, atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                ringMatchesRingOnly=True,
+                                ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                matchChiralTag=True)
+                mapx[template.GetProp('_Name')] = (atom_maps, self.matching_modes[-1])
+            # search properly only top 3.
+            self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
+            for template in self.scaffold_options[:3]:
+                atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
+                # get_mcs_mapping returns a dict going from template index to initial.
+                mapx[template.GetProp('_Name')] = (atom_map, mode)
+                if self._debug_draw:
+                    print(f"With {template.GetProp('_Name')}, {len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
+            ## pick best template
+            self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
+            ## Check if missing atoms can be explained by a different one with no overlap
+            best = self.scaffold_options[0]
+            ## Fuse overlaps
+            # best_map = maps[best.GetProp('_Name')][0]
+            # full = set(range(self.initial_mol.GetNumAtoms()))
+            # present = set(best_map.values())
+            # missing = full - present
+            # for other in self.scaffold_options:
+            #     other_map = maps[other.GetProp('_Name')][0]
+            #     found = set(other_map.values())
+            #     if len(found) > 6 and len(present & found) == 0: # more than just a ring and no overlap
+            #         fusion = self._fuse(best, other, best_map, other_map)
+            return best, self.matching_modes.index(mapx[best.GetProp('_Name')][1])
 
     def _fuse(self, mol_A: Chem.Mol, mol_B: Chem.Mol, map_A: Dict[int, int], map_B: Dict[int, int]) -> Chem.Mol:
         """
@@ -354,6 +408,90 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                 warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
         return scaffold
 
+    def unmerge(self):
+        """
+
+        :return: combined mol, atom-map like that of get_mcs_mapping
+        """
+        maps = {}
+        accounted_for = set()
+        get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
+        def template_sorter(t: Chem.Mol) -> float:
+            # key for sorting. requires outer scope ``maps`` and ``accounted_for``.
+            m = maps[t.GetProp('_Name')][0]
+            n_atoms = len([k for k in m if k in accounted_for])
+            return - n_atoms
+
+        # presort based on most faithful match
+        for template in self.hits:
+            atom_map = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                           ringMatchesRingOnly=True,
+                                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                           matchChiralTag=True)
+            maps[template.GetProp('_Name')] = atom_map
+        others = sorted(self.hits, key=template_sorter)
+        # start
+        combined = others.pop(0)
+        combined_map = dict(maps[combined.GetProp('_Name')][0])
+        accounted_for = set(combined_map.keys()) # followup indices that have been mapped
+        for other in sorted(others, key=template_sorter):
+            o_map = dict(maps[other.GetProp('_Name')][0])
+            o_present = set(o_map.keys())
+            strikes = 2  # 2+1 strikes is discarded
+            if len(o_map) < 3:
+                break  # too few atoms. Stop mol cycle.
+            elif len(accounted_for - o_present) == 0:
+                break  # None new. Stop mol cycle.
+            else:
+                inter_map = self.get_positional_mapping(other, combined)
+                possible_map = {}
+                for i, o in o_map.items():  # check each atom is okay
+                    # i = followup index
+                    # o = other index
+                    if i in accounted_for:  # this atom is accounted for. Check it is fine.
+                        if o in inter_map:  # this position overlaps
+                            c = inter_map[o]  # equivalent index of combined
+                            if c not in combined_map.values():
+                                # the other atom does not contribute
+                                if strikes == 0:
+                                    break
+                                else:
+                                    strikes -= 1
+                                    continue
+                            elif get_key(combined_map, c) == i:
+                                continue  # that is fine.
+                            else:  # no it's a different atom
+                                if strikes == 0:
+                                    break
+                                else:
+                                    strikes -= 1
+                                    continue
+                        else:  # this position does not overlaps. Yet atom is accounted for.
+                            if strikes == 0:
+                                break
+                            else:
+                                strikes -= 1
+                                continue
+                    elif o not in inter_map:
+                        # new atom that does not overlap
+                        possible_map[i] = combined.GetNumAtoms() + o
+                    elif inter_map[o] not in combined_map.values():
+                        # overlaps but the overlap was not counted
+                        possible_map[i] = combined.GetNumAtoms() + o
+                    else:  # mismatch!
+                        if strikes == 0:
+                            break
+                        else:
+                            strikes -= 1
+                            continue
+                else:
+                    offset = combined.GetNumAtoms()
+                    combined_map = {**combined_map, **possible_map}
+                    combined = Chem.CombineMols(combined, other)
+                    accounted_for = set(combined_map.values())
+        return combined, combined_map
+
     # ================= Chimera ========================================================================================
 
     def make_chimera(self, min_mode_index=0) -> Chem.Mol:
@@ -399,7 +537,13 @@ class Fragmenstein(_FragmensteinUtil, Ring):
             warn('Valance issue' + str(err))
         return chimera
 
-    def place_followup(self, mol: Chem.Mol = None) -> Chem.Mol:
+    def place_followup(self, mol: Chem.Mol = None, atom_map:Optional[Dict]=None) -> Chem.Mol:
+        """
+
+        :param mol:
+        :param atom_map: something that get_mcs_mapping would return.
+        :return:
+        """
         # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
         # prealignment
         if mol is None:
@@ -408,8 +552,9 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         Chem.SanitizeMol(sextant)
         AllChem.EmbedMolecule(sextant)
         AllChem.MMFFOptimizeMolecule(sextant)
-        atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-        self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        if atom_map is None:
+            atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
+            self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         if self._debug_draw:
             self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
@@ -772,13 +917,15 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         return hits
 
 
-    def posthoc_refine(self, scaffold):
+    def posthoc_refine(self, scaffold, indices:Optional[List[int]]=None) -> Chem.Mol:
         """
         Averages the overlapping atoms.
 
         :param scaffold:
         :return:
         """
+        if indices is None:
+            indices = list(range(scaffold.GetNumAtoms()))
         refined = Chem.RWMol(scaffold)
         refconf = refined.GetConformer()
         positions = defaultdict(list)  # coordinates
@@ -789,7 +936,9 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                 positions[k].append([hc.GetAtomPosition(v).x, hc.GetAtomPosition(v).y, hc.GetAtomPosition(v).z])
                 equivalence[k].append(f'{h.GetProp("_Name")}.{v}')
         for i in range(scaffold.GetNumAtoms()):
-            if len(positions[i]) == 0:
+            if i not in indices:
+                continue
+            elif len(positions[i]) == 0:
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
                 refined.GetAtomWithIdx(i).SetProp('_Origin', 'none')
                 # warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} '+ \

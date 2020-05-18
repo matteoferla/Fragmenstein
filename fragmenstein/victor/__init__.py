@@ -62,6 +62,7 @@ class Victor(_VictorUtilsMixin):
     The need for atomnames is actually not for the code but to allow lazy tweaks and analysis downstream
     (say typing in pymol: `show sphere, name CX`).
     Adding a 'constraint' to an entry will apply that constraint.
+    ``fragmenstein_debug_draw:bool`` and ``fragmenstein_merging_mode:str`` are class attributes that control Fragmenstein.
 
     """
 
@@ -200,7 +201,11 @@ class Victor(_VictorUtilsMixin):
         # ***** FRAGMENSTEIN *******
         # make fragmenstein
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        self.fragmenstein = Fragmenstein(self.mol, self.hits, attachment=attachment, debug_draw=False)
+        self.fragmenstein = Fragmenstein(mol=self.mol,
+                                         hits=self.hits,
+                                         attachment=attachment,
+                                         merging_mode=self.fragmenstein_merging_mode,
+                                         debug_draw=self.fragmenstein_debug_draw)
         self.journal.debug(f'{self.long_name} - Tried {len(self.fragmenstein.scaffold_options)} combinations')
         self.unminimised_pdbblock = self._place_fragmenstein()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
