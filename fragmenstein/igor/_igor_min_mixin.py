@@ -68,11 +68,9 @@ class _IgorMinMixin:
         not_selector = pyrosetta.rosetta.core.select.residue_selector.NotResidueSelector(ligand_selector)
         residues = self._vector2residues(not_selector.apply(mod))
         while residues:
-            print(residues)
             rbegin = residues[0]
             prev = rbegin
             i = 1
-            print(len(residues),i+1 ,prev + 1 , residues[i])
             while len(residues) > i and prev + 1 == residues[i]:
                 prev = residues[i]
                 i += 1
@@ -203,7 +201,6 @@ class _IgorMinMixin:
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.cartesian(True)
         # this appears to do nothing.
-        print(default_coord_constraint)
         if default_coord_constraint:
             relax.constrain_relax_to_start_coords(default_coord_constraint)  # set native causes a segfault.
         return relax
