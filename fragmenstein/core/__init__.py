@@ -26,11 +26,13 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 from ._utility_mixin import _FragmensteinUtil
 from ._collapse_ring import Ring
+from ._positional_mapping import GPM
+from ._unmerge_mapper import Unmerge
 import itertools
 
 ##################################################################
 
-class Fragmenstein(_FragmensteinUtil, Ring):
+class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inherited.
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -157,10 +159,26 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
-        unmerged, atom_map = self.unmerge() #atom_map is followup to unmerged
-        self.scaffold = self.posthoc_refine(unmerged, indices=atom_map.values())
-        self.chimera = self.scaffold
-        self.positioned_mol = self.place_followup(atom_map=atom_map)
+        maps = {}
+        for template in self.hits:
+            pair_atom_maps = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                           ringMatchesRingOnly=True,
+                                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                           matchChiralTag=True)
+            maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
+        um = Unmerge(followup=self.initial_mol, mols=self.hits, maps=maps, _debug_draw = self._debug_draw)
+        self.scaffold = um.combined
+        full_atom_map = um.combined_map
+        self.chimera = self.posthoc_refine(um.combined_bonded, indices=full_atom_map.values())
+        if self._debug_draw:
+            print('followup to scaffold', full_atom_map)
+            print('followup')
+            self.draw_nicely(self.initial_mol)
+            print('scaffold')
+            self.draw_nicely(self.scaffold)
+        self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
+        self.positioned_mol = self.place_followup(atom_map=full_atom_map)
 
     # ========== Merging ===============================================================================================
 
@@ -320,7 +338,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                                 bondCompare=rdFMCS.BondCompare.CompareOrder,
                                 ringMatchesRingOnly=True,
                                 ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                matchChiralTag=True)
+                                matchChiralTag=False)
                 mapx[template.GetProp('_Name')] = (atom_maps, self.matching_modes[-1])
             # search properly only top 3.
             self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
@@ -408,89 +426,7 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                 warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
         return scaffold
 
-    def unmerge(self):
-        """
 
-        :return: combined mol, atom-map like that of get_mcs_mapping
-        """
-        maps = {}
-        accounted_for = set()
-        get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
-        def template_sorter(t: Chem.Mol) -> float:
-            # key for sorting. requires outer scope ``maps`` and ``accounted_for``.
-            m = maps[t.GetProp('_Name')][0]
-            n_atoms = len([k for k in m if k in accounted_for])
-            return - n_atoms
-
-        # presort based on most faithful match
-        for template in self.hits:
-            atom_map = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                           bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                           ringMatchesRingOnly=True,
-                                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                           matchChiralTag=True)
-            maps[template.GetProp('_Name')] = atom_map
-        others = sorted(self.hits, key=template_sorter)
-        # start
-        combined = others.pop(0)
-        combined_map = dict(maps[combined.GetProp('_Name')][0])
-        accounted_for = set(combined_map.keys()) # followup indices that have been mapped
-        for other in sorted(others, key=template_sorter):
-            o_map = dict(maps[other.GetProp('_Name')][0])
-            o_present = set(o_map.keys())
-            strikes = 2  # 2+1 strikes is discarded
-            if len(o_map) < 3:
-                break  # too few atoms. Stop mol cycle.
-            elif len(accounted_for - o_present) == 0:
-                break  # None new. Stop mol cycle.
-            else:
-                inter_map = self.get_positional_mapping(other, combined)
-                possible_map = {}
-                for i, o in o_map.items():  # check each atom is okay
-                    # i = followup index
-                    # o = other index
-                    if i in accounted_for:  # this atom is accounted for. Check it is fine.
-                        if o in inter_map:  # this position overlaps
-                            c = inter_map[o]  # equivalent index of combined
-                            if c not in combined_map.values():
-                                # the other atom does not contribute
-                                if strikes == 0:
-                                    break
-                                else:
-                                    strikes -= 1
-                                    continue
-                            elif get_key(combined_map, c) == i:
-                                continue  # that is fine.
-                            else:  # no it's a different atom
-                                if strikes == 0:
-                                    break
-                                else:
-                                    strikes -= 1
-                                    continue
-                        else:  # this position does not overlaps. Yet atom is accounted for.
-                            if strikes == 0:
-                                break
-                            else:
-                                strikes -= 1
-                                continue
-                    elif o not in inter_map:
-                        # new atom that does not overlap
-                        possible_map[i] = combined.GetNumAtoms() + o
-                    elif inter_map[o] not in combined_map.values():
-                        # overlaps but the overlap was not counted
-                        possible_map[i] = combined.GetNumAtoms() + o
-                    else:  # mismatch!
-                        if strikes == 0:
-                            break
-                        else:
-                            strikes -= 1
-                            continue
-                else:
-                    offset = combined.GetNumAtoms()
-                    combined_map = {**combined_map, **possible_map}
-                    combined = Chem.CombineMols(combined, other)
-                    accounted_for = set(combined_map.values())
-        return combined, combined_map
 
     # ================= Chimera ========================================================================================
 
@@ -802,110 +738,6 @@ class Fragmenstein(_FragmensteinUtil, Ring):
                     dummies=dummies
                     )
 
-    # ========= Get positional mapping =================================================================================
-
-    @classmethod
-    def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, dummy_w_dummy=True) -> Dict[int, int]:
-        """
-        Returns a map to convert overlapping atom of A onto B
-        Cutoff 2 &Aring;.
-
-        :param mol_A: first molecule (Chem.Mol) will form keys
-        :param mol_B: second molecule (Chem.Mol) will form values
-        :param dummy_w_dummy: match */R with */R.
-        :return: dictionary mol A atom idx -> mol B atom idx.
-        """
-
-        mols = [mol_A, mol_B]
-        confs = [m.GetConformers()[0] for m in mols]
-        distance_protomatrix = []
-        dummy_distance_protomatrix = []
-        ring_distance_protomatrix = []
-        for i in range(mols[0].GetNumAtoms()):
-            distance_protovector = []
-            dummy_distance_protovector = []
-            ring_distance_protovector = []
-            for j in range(mols[1].GetNumAtoms()):
-                distance, dummy_distance, ring_distance = cls._gpm_distance(mols, confs, i, j, dummy_w_dummy)
-                distance_protovector.append(distance)
-                dummy_distance_protovector.append(dummy_distance)
-                ring_distance_protovector.append(ring_distance)
-            distance_protomatrix.append(distance_protovector)
-            dummy_distance_protomatrix.append(dummy_distance_protovector)
-            ring_distance_protomatrix.append(ring_distance_protovector)
-        distance_matrix = np.array(distance_protomatrix)
-        dummy_distance_matrix = np.array(dummy_distance_protomatrix)
-        ring_distance_matrix = np.array(ring_distance_protomatrix)
-        if dummy_w_dummy:
-            return {**cls._gpm_covert(distance_matrix, cls.cutoff),
-                    **cls._gpm_covert(dummy_distance_matrix, cls.cutoff * 2),
-                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
-        else:
-            return {**cls._gpm_covert(distance_matrix, cls.cutoff),
-                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
-
-    @classmethod
-    def _gpm_distance(cls, mols: List[Chem.Mol], confs: [Chem.Conformer], i, j, dummy_w_dummy=True) \
-            -> Tuple[float, float, float]:
-        """
-        See get_positional_distance
-
-        :param mols:
-        :param dummy_w_dummy:
-        :return:
-        """
-        measure_distance = lambda a, b: ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2) ** 0.5
-        is_collapsed_ring = lambda atom: atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1
-        zeroth = mols[0].GetAtomWithIdx(i)
-        first = mols[1].GetAtomWithIdx(j)
-        if dummy_w_dummy and \
-                zeroth.GetSymbol() == '*' and \
-                first.GetSymbol() == '*':
-            distance = 9999
-            dummy_distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
-            ring_distance = 9999
-        elif dummy_w_dummy and \
-                (zeroth.GetSymbol() == '*' or
-                 first.GetSymbol() == '*'):
-            distance = 9999
-            dummy_distance = 9999
-            ring_distance = 9999
-        elif is_collapsed_ring(zeroth) and is_collapsed_ring(first):
-            distance = 9999
-            dummy_distance = 9999
-            ring_distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
-        elif is_collapsed_ring(zeroth) or is_collapsed_ring(first):
-            distance = 9999
-            dummy_distance = 9999
-            ring_distance = 9999
-        else:
-            distance = measure_distance(confs[0].GetAtomPosition(i), confs[1].GetAtomPosition(j))
-            dummy_distance = 9999
-            ring_distance = 9999
-        return distance, dummy_distance, ring_distance
-
-    @classmethod
-    def _gpm_covert(cls, array: np.array, cutoff: float) -> Dict[int, int]:
-        """
-        See get_positional_distance
-
-        :param array:
-        :param cutoff:
-        :return:
-        """
-        ## find the closest
-        mapping = {}
-        while 1 == 1:
-            d = np.amin(array)
-            if d > cutoff:
-                break
-            w = np.where(array == d)
-            f, s = w[0][0], w[1][0]
-            mapping[int(f)] = int(s)  # np.int64 --> int
-            array[f, :] = np.ones(array.shape[1]) * 999
-            array[:, s] = np.ones(array.shape[0]) * 999
-        return mapping
-
     # ========= Other ==================================================================================================
 
     def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
@@ -931,6 +763,8 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         positions = defaultdict(list)  # coordinates
         equivalence = defaultdict(list)  # atom indices of hits.
         for h in self.hits:
+            if h.GetProp('_Name') in self.unmatched:
+                continue
             hc = h.GetConformer()
             for k, v in self.get_positional_mapping(scaffold, h).items():
                 positions[k].append([hc.GetAtomPosition(v).x, hc.GetAtomPosition(v).y, hc.GetAtomPosition(v).z])
@@ -993,8 +827,8 @@ class Fragmenstein(_FragmensteinUtil, Ring):
         is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
         all_bar_dummy = lambda Aat, Bat: (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (
                 is_dummy(molA, Aat) or is_dummy(molB, Bat))
-        for molA_match in molA.GetSubstructMatches(common):
-            for molB_match in molB.GetSubstructMatches(common):
+        for molA_match in molA.GetSubstructMatches(common, uniquify=False):
+            for molB_match in molB.GetSubstructMatches(common, uniquify=False):
                 matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
                                 all_bar_dummy(molA_at, molB_at)])
         return matches
