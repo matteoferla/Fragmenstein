@@ -213,6 +213,7 @@ class Victor(_VictorUtilsMixin):
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.post_fragmenstein_step()
+        self.unbound_pose = self._check_params()
         self._checkpoint_alpha()
         # ***** EGOR *******
         self.journal.debug(f'{self.long_name} - setting up Igor')
@@ -234,6 +235,9 @@ class Victor(_VictorUtilsMixin):
         self.igor.minimise(default_coord_constraint=False)
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
+        self.minimised_mol = self._fix_minimised()
+        self.mrmsd = self._calculate_rmsd()
+        self.energy_score = self._calculate_score()
         self._checkpoint_charlie()
         self.journal.debug(f'{self.long_name} - Completed')
 
@@ -303,9 +307,19 @@ class Victor(_VictorUtilsMixin):
         else:
             return pdbblock
 
+    def _fix_minimised(self) -> Chem.Mol:
+        """
+        PDBs are terrible for bond order etc. and Rosetta addes these based on atom types
+        :return:
+        """
+        self.journal.debug(f'{self.long_name} - making ligand only')
+        ligand = self.igor.mol_from_pose()
+        template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
+        return AllChem.AssignBondOrdersFromTemplate(template, ligand)
+
     # =================== Constraint & attachment ======================================================================
 
-    def _get_constraint(self, extra_constraint: Optional[str] = None) -> Constraints:
+    def _get_constraint(self, extra_constraint: Optional[str] = None) -> Union[Constraints, None]:
         # deal with covalent and non covalent separately
         if self.is_covalent:
             self.journal.debug(f'{self.long_name} - is covalent.')
@@ -360,6 +374,22 @@ class Victor(_VictorUtilsMixin):
             except:
                 pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
             return Chem.MolFromPDBBlock(pdb)
+
+    def _calculate_rmsd(self):
+        self.journal.debug(f'{self.long_name} - calculating mRMSD')
+        return mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.fragmenstein.positioned_mol)
+
+    def _calculate_score(self):
+        return {**self.igor.ligand_score(),
+                'unbound_ref2015': self.igor.detailed_scores(self.unbound_pose, 1)}
+
+    def _check_params(self):
+        # checking all is in order
+        self.journal.debug(f'{self.long_name} - saving params files')
+        params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
+        self.journal.debug(f'{self.long_name} - checking params file works')
+        pose = Params.params_to_pose(params_file, self.params.NAME)
+        return pose
 
     # =================== Other ========================================================================================
 
@@ -439,15 +469,12 @@ class Victor(_VictorUtilsMixin):
         params_template_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_template.mol')
         Chem.MolToMolFile(self.params.mol, params_template_file)
         # checking all is in order
-        self.journal.debug(f'{self.long_name} - checking params file works')
-        params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
         ptest_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.pdb')
+        self.unbound_pose.dump_pdb(ptest_file)
         pscore_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params_test.score')
-        pose = Params.params_to_pose(params_file, self.params.NAME)
-        pose.dump_pdb(ptest_file)
         scorefxn = pyrosetta.get_fa_scorefxn()
         with open(pscore_file, 'w') as w:
-            w.write(str(scorefxn(pose)))
+            w.write(str(scorefxn(self.unbound_pose)))
         self._log_warnings()
 
     def _checkpoint_bravo(self):
@@ -480,19 +507,21 @@ class Victor(_VictorUtilsMixin):
         min_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb')
         self.igor.pose.dump_pdb(min_file)
         self.journal.debug(f'{self.long_name} - calculating Gibbs')
-        energy = self.igor.ligand_score()
         # recover bonds
-        self.journal.debug(f'{self.long_name} - making ligand only')
         lig_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol')
-        ligand = self.igor.mol_from_pose()
-        template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
-        ligand = AllChem.AssignBondOrdersFromTemplate(template, ligand)
-        self.journal.debug(f'{self.long_name} - calculating mRMSD')
-        mrsmd = mRSMD.from_other_annotated_mols(ligand, self.hits, self.fragmenstein.positioned_mol)
+        Chem.MolToMolFile(self.minimised_mol, lig_file)
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
         with open(score_file, 'w') as w:
-            json.dump({'Energy': energy,
-                       'mRMSD': mrsmd.mrmsd,
-                       'RMSDs': mrsmd.rmsds}, w)
-        Chem.MolToMolFile(ligand, lig_file)
+            json.dump({'Energy': self.energy_score,
+                       'mRMSD': self.mrmsd.mrmsd,
+                       'RMSDs': self.mrmsd.rmsds}, w)
         self._log_warnings()
+
+    @property
+    def constrained_atoms(self) -> int:
+        """
+        Do note that the whole Origins list contains hydrogens. So do not divided by len!
+        :return:
+        """
+        conn = sum([o != [] for o in self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)])
+        return conn

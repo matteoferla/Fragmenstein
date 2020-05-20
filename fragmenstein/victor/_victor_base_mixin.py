@@ -37,6 +37,14 @@ class _VictorBaseMixin:
                             }
                            ]
 
+    possible_definitions =[{'name': 'chloroacetamide',
+                            'covalent': 'C(=O)C*',  # the N may be secondary etc. so best not do mad substitutions.
+                            'covalent_atomnames': ['CY', 'OY', 'CX', 'CONN1'],
+                            # OY needs to tautomerise & h-bond happily.
+                            'noncovalent': 'C(=O)C[Cl]',
+                            'noncovalent_atomnames': ['CY', 'OY', 'CX', 'CLX']
+                            },]
+
     _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 
     def __init__(self):

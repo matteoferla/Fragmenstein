@@ -300,15 +300,25 @@ class _IgorMinMixin:
         # no constraints here
         scorefxn = pyrosetta.rosetta.core.scoring.ScoreFunctionFactory.create_score_function("ref2015")
         scorefxn(self.pose)
-        data = self.pose.energies().residue_total_energies_array()  # structured numpy array
-        # this stupid line actually solves a race condition...
-        assert data.shape[0] >= lig_pos - 1, f'Ligand {lig_pos} was lost from the pose? size={data.shape}'
-        i = lig_pos - 1  ##pose numbering is fortran style. while python is C++
-        sfxd = {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
+        sfxd = self.detailed_scores(self.pose, lig_pos)
         return {'MMFF_ligand': self.MMFF_score(delta=True),
                 'holo_ref2015': scorefxn(self.pose),
                 'ligand_ref2015': sfxd,
                 **self.score_split()}
+
+    @classmethod
+    def detailed_scores(cls, pose, lig_pos:int) -> Dict:
+        """
+        Gets called by Victor too, hence the classmethod
+        :param pose:
+        :return:
+        """
+        data = pose.energies().residue_total_energies_array()  # structured numpy array
+        # this stupid line actually solves a race condition...
+        assert data.shape[0] >= lig_pos - 1, f'Ligand {lig_pos} was lost from the pose? size={data.shape}'
+        i = lig_pos - 1  ##pose numbering is fortran style. while python is C++
+        return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
+
 
     def minimise(self, cycles: int = 10, default_coord_constraint=True):
         self.repack_neighbors()

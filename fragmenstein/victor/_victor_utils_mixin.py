@@ -179,7 +179,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         return best_hit
 
     @classmethod
-    def make_covalent(cls, smiles: str, warhead_name: Optional[str] = None) -> Union[str, None]:
+    def make_covalent(cls, smiles: str,
+                      warhead_name: Optional[str] = None) -> Union[str, None]:
         """
         Convert a unreacted warhead to a reacted one in the SMILES
 

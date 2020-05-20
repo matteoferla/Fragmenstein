@@ -59,6 +59,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
     cutoff = 2
+    die_if_unconnected = False
     matching_modes = [
                     # this shape based matching is too permissive,
                     # dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
@@ -423,7 +424,11 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                 scaffold = self.merge_pair(scaffold, fragmentanda)
             except ConnectionError:
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
-                warn(f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!')
+                msg = f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!'
+                if self.die_if_unconnected:
+                    raise ConnectionError(msg)
+                else:
+                    warn(msg)
         return scaffold
 
 

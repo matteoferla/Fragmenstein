@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict
+from typing import Callable, List, Dict, Tuple
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 import numpy as np
@@ -7,11 +7,37 @@ from ._positional_mapping import GPM
 from collections import deque
 
 class Unmerge(GPM):
+    """
+    This class tries to solve the mapping problem by try all possible mappings of the target to the ligand.
+    It is one of three in Fragmenstein (full merge, partial merge (preferred), unmerge.
+
+    It is great with fragments that do not connect, but is bad when a hit has a typo.
+
+    * the positions must overlap if any atom is mapped in two maps
+    * no bond can be over 3 A
+
+    The chosen map ``combined_map`` is a dict that goes from ``followup`` mol to ``combined`` mol which
+    is the hits in a single molecule.
+
+    Note that some molecules are discarded entirely.
+
+    """
     max_strikes = 3  #: number of discrepancies tollerated.
     rotational_approach = True
 
     def __init__(self, followup: Chem.Mol, mols: List[Chem.Mol], maps: Dict[str, List[Dict[int, int]]],
                  _debug_draw: bool = False):
+        """
+
+
+        :param followup: the molecule to place
+        :type followup: Chem.Mol
+        :param mols: 3D molecules
+        :type mols: List[Chem.Mol]
+        :param maps: can be generated outseide of Fragmenstein by ``.make_maps``.
+        :type maps: Dict[List[Dict[int, int]]]
+        :param _debug_draw:
+        """
         self.followup = followup
         self.mols = mols
         self.maps = maps
@@ -60,6 +86,45 @@ class Unmerge(GPM):
         self.combined_bonded = self.bond()
 
     get_key = lambda self, d, v: list(d.keys())[list(d.values()).index(v)]
+
+    @classmethod
+    def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol]) -> Dict[List[Dict[int, int]]]:
+        """
+        This is basically if someone is using this class outside of Fragmenstein
+
+        Returns a dictionary of key mol name and
+        value a list of possible dictionary with idex of target to the index given mol.
+        Note that a bunch of mapping modes can be found in Fragmenstein init mixin class.
+
+        :param target: the molecule to be mapped
+        :param mols: the list of molecules with positional data to be mapped to
+        :return:
+        """
+        def get_atom_maps(molA, molB, **mode) -> List[List[Tuple[int, int]]]:
+            mcs = rdFMCS.FindMCS([molA, molB], **mode)
+            common = Chem.MolFromSmarts(mcs.smartsString)
+            matches = []
+            # prevent a dummy to match a non-dummy, which can happen when the mode is super lax.
+            is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
+            all_bar_dummy = lambda Aat, Bat: (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (
+                    is_dummy(molA, Aat) or is_dummy(molB, Bat))
+            for molA_match in molA.GetSubstructMatches(common, uniquify=False):
+                for molB_match in molB.GetSubstructMatches(common, uniquify=False):
+                    matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
+                                    all_bar_dummy(molA_at, molB_at)])
+            # you can map two toluenes 4 ways, but two are repeats.
+            return list[set([tuple(sorted(m, key=lambda i: i[0])) for m in matches])]
+
+        maps = {}
+        for template in mols:
+            pair_atom_maps = get_atom_maps(target, template,
+                                                 atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                                 bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                                 ringMatchesRingOnly=True,
+                                                 ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                                 matchChiralTag=True)
+            maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
+        return maps
 
     def template_sorter_factory(self, accounted_for) -> Callable:
         """ returns the number of atoms that have not already been accounted for."""
