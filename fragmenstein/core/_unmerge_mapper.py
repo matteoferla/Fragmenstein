@@ -88,7 +88,7 @@ class Unmerge(GPM):
     get_key = lambda self, d, v: list(d.keys())[list(d.values()).index(v)]
 
     @classmethod
-    def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol]) -> Dict[List[Dict[int, int]]]:
+    def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol]) -> Dict[str, List[Dict[int, int]]]:
         """
         This is basically if someone is using this class outside of Fragmenstein
 
