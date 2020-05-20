@@ -47,7 +47,7 @@ class Unmerge(GPM):
                          reverse=True)
         i = indices[0]
         if self._debug_draw or 1==1:
-            print(f'## Option for {i} combinations:')
+            print(f'## Option #{i}  for combinations:')
             for j in range(len(self.c_options)):
                 mol = self.c_options[j]
                 m = self.c_map_options[j]
@@ -195,12 +195,31 @@ class Unmerge(GPM):
                 if self._debug_draw:
                     print(f'{label} - {i} mismatch')
                 strikes += 1
-        if strikes < self.max_strikes:
-            return possible_map
-        else:
+        if strikes >= self.max_strikes:
             if self._debug_draw:
                 print(f'{label} got {strikes} strikes')
             return {}
+        elif not self.check_possible_distances(other, possible_map, combined, combined_map):
+                if self._debug_draw:
+                    print(f'{label} gives too long bonds')
+                return {}
+        else:
+            return possible_map
+
+    def check_possible_distances(self, other, possible_map, combined, combined_map, cutoff=3):
+        for i, offset_o in possible_map.items():
+            unoffset_o = offset_o - combined.GetNumAtoms()
+            atom = self.followup.GetAtomWithIdx(i)
+            for neigh in atom.GetNeighbors():
+                ni = neigh.GetIdx()
+                if ni in possible_map:
+                    pass # assuming the inspiration compound was not janky
+                elif ni in combined_map:
+                    if self.get_inter_distance(other, combined, unoffset_o, combined_map[ni]) > cutoff:
+                        return False
+                else:
+                    pass # unmapped neighbor
+        return True
 
     def bond(self):
         putty = Chem.RWMol(self.combined)
@@ -221,6 +240,12 @@ class Unmerge(GPM):
                         print(fi, ni, 'bond added')
                     putty.GetBondBetweenAtoms(ci, nci).SetBondType(bond_type)
         return putty.GetMol()
+
+    def get_inter_distance(self, molA:Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> np.float:
+        def get_pos(mol, idx):
+            conf = mol.GetConformer()
+            return np.array(conf.GetAtomPosition(idx))
+        return np.linalg.norm(get_pos(molA, idxA) - get_pos(molB, idxB))
 
     def measure_map(self, mol: Chem.Mol, mapping: Dict[int, int]) -> np.array:
         """
@@ -252,5 +277,5 @@ class Unmerge(GPM):
         """
         d = self.measure_map(mol, mapping)
         #return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
-        return sum(d >2.5 )
+        return sum(d > 2.5 ) * 3
 

@@ -831,6 +831,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
             for molB_match in molB.GetSubstructMatches(common, uniquify=False):
                 matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
                                 all_bar_dummy(molA_at, molB_at)])
+        # you can map two toluenes 4 ways, but two are repeats.
+        matches = set([tuple(sorted(m, key=lambda i: i[0])) for m in matches])
         return matches
 
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
