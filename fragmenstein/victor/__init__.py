@@ -125,16 +125,15 @@ class Victor(_VictorUtilsMixin):
     def _safely_do(self,
                    execute: Optional[Callable] = None,
                    resolve: Optional[Callable] = None,
-                   reject: Optional[Callable] = None,
-                   error=Exception):
+                   reject: Optional[Callable] = None):
         """
         A safety net around the analysis.
         Ought to be a decorator and ought to not use the same names as a JS Promise.
+        The class attribute ``error_to_catch`` is by default Exception
 
         :param execute: what to run (main)
         :param resolve: what to run at the end (regardless of failure)
         :param reject: what to run if ``exceute`` fails
-        :param error: what to Error is caught and send to ``reject``
         :return:
         """
         # warnings
@@ -142,7 +141,7 @@ class Victor(_VictorUtilsMixin):
             try:
                 if execute is not None:
                     execute()
-            except error as err:
+            except self.error_to_catch as err:
                 if reject is not None:
                     reject(err)
             finally:
