@@ -9,7 +9,7 @@ The latter has three modes as discussed in [fragmenstein.md](fragmenstein.md): "
 
 Each has advantages and disadvantage. For the [covid](covid.md) data, an analysis was done to figure out which.
 
-50 followups were randomly chosen and placed with the three modes (170 were done for safety).
+50 followups were randomly chosen and placed with the three modes (165 total poses were done, +10% for safety).
 
 The medians of the various scores are:
 
