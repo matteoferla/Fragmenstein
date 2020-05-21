@@ -80,19 +80,11 @@ This step is needed to avoid weird matches with the followup.
     # further alignments... not correct way of tho
     monster.initial_mol = new_mol
     aligned = monster.place_followup(new_mol)
- 
-
-## Complicated MCS
-
-Whereas the hit joining is done based on spatial overlaps. The followup is mapped to the blended scaffold by MCS.
-First the list of possible MCS with really strict settings are found.
-Then a set of mapping is sought which includes one of these by doing a new MCS search but very lax.
-And going from very lax in increasing strictness. This prevents some weird mapping.
-
-For more see `get_mcs_mapping`.
 
     
 ## Issues to be aware of
+
+> See also [work in progress](wip.md)
 
 Here is an example with a few issues.
 

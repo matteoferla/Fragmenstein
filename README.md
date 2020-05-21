@@ -35,7 +35,6 @@ There are four main classes:
 * ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates —[documentation](mrmsd.md)
 
 In the absence of `pyrosetta` (which requires an academic licence), `Fragmenstein` and `mRMSD` work.
-Victor requires my 
 
 ## Work in progress
 
