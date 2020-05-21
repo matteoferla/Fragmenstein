@@ -26,8 +26,8 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 from ._utility_mixin import _FragmensteinUtil
 from ._collapse_ring import Ring
-from ._positional_mapping import GPM
-from ._unmerge_mapper import Unmerge
+from .positional_mapping import GPM
+from .unmerge_mapper import Unmerge
 import itertools
 
 ##################################################################

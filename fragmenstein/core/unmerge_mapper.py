@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import rdFMCS
 import numpy as np
 import json
-from ._positional_mapping import GPM
+from .positional_mapping import GPM
 from collections import deque
 
 
@@ -218,7 +218,8 @@ class Unmerge(GPM):
             # reject
             if self._debug_draw:
                 print('>> reject')
-            disregarded = disregarded + [other]  # new obj
+            combined = Chem.Mol(combined)
+            disregarded = [*disregarded, other]  # new obj
         else:
             # accept
             if self._debug_draw:
@@ -227,7 +228,7 @@ class Unmerge(GPM):
             combined = Chem.CombineMols(combined, other)  # new obj
             name = '-'.join([m.GetProp('_Name') for m in (combined, other) if m.HasProp('_Name')])
             combined.SetProp('_Name', name)
-            disregarded = list(disregarded)  # new obj
+            disregarded = disregarded.copy()  # new obj
         # do inners
         accounted_for = set(combined_map.keys())
         template_sorter = self.template_sorter_factory(accounted_for)

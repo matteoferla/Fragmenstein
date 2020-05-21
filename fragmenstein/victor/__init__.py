@@ -1,3 +1,4 @@
+from __future__ import annotations
 ########################################################################################################################
 
 __doc__ = \
@@ -23,10 +24,12 @@ import pymol2
 import re
 import warnings
 import pyrosetta
+import time
 from typing import List, Union, Optional, Callable, Dict
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
+# noinspection PyUnresolvedReferences
 from rdkit_to_params import Params, Constraints
 
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
@@ -114,11 +117,14 @@ class Victor(_VictorUtilsMixin):
         self.unminimised_pdbblock = None
         self.igor = None
         self.minimised_pdbblock = None
+        self.minimised_mol = None
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                             'unbound_ref2015': {'total_score': float('nan')}}
         self.mrmsd = mRSMD.mock()
+        self.tick = time.time()
+        self.tock = float('inf')
         # analyse
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
 
@@ -157,7 +163,8 @@ class Victor(_VictorUtilsMixin):
         So the name is a bit misleading.
         :return:
         """
-        pass
+        self.tock = time.time()
+        self.journal.info(f'{self.long_name} - Time taken: {self.tock - self.tick}')
 
     def _reject(self, err) -> None:
         """
@@ -532,5 +539,85 @@ class Victor(_VictorUtilsMixin):
         Do note that the whole Origins list contains hydrogens. So do not divided by len!
         :return:
         """
-        conn = sum([o != [] for o in self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)])
+        try:
+            conn = sum([o != [] for o in self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)])
+        except Exception as err:
+            self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
+            conn = float('nan')
         return conn
+
+    @classmethod
+    def from_files(cls, folder:str) -> Victor:
+        """
+        This creates an instance form the output files. Likely to be unstable.
+        Assumes the checkpoints were not altered.
+        And is basically for analysis only.
+
+        :param folder: path
+        :return:
+        """
+        cls.journal.warning('`from_files`: You really should not use this.')
+        self = cls.__new__(cls)
+        self.tick = float('nan')
+        self.tock = float('nan')
+        self.ligand_resn = ''
+        self.ligand_resi = ''
+        self.covalent_resn = ''
+        self.covalent_resi = ''
+        self.hits = []
+        self.long_name = os.path.split(folder)[1]
+        posmol = os.path.join(folder, f'{self.long_name}.positioned.mol')
+        if os.path.exists(posmol):
+            self.mol = Chem.MolFromMolFile(posmol, sanitize=False, removeHs=False)
+        else:
+            self.journal.info(f'{self.long_name} - no positioned mol')
+            self.mol = None
+        fragjson = os.path.join(folder, f'{self.long_name}.fragmenstein.json')
+        if os.path.exists(fragjson):
+            fd = json.load(open(fragjson))
+            self.smiles = fd['smiles']
+            self.fragmenstein = Fragmenstein(mol=self.mol,
+                                             hits=self.hits,
+                                             attachment=None,
+                                             merging_mode='off')
+            self.fragmenstein.positioned_mol = self.mol
+            self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
+        else:
+            self.smiles = ''
+            self.fragmenstein = None
+            self.journal.info(f'{self.long_name} - no fragmenstein json')
+            self.N_constrained_atoms = float('nan')
+        #
+        self.apo_pdbblock = None
+        #
+        self.atomnames = None
+        #
+        self.extra_constraint = ''
+        self.pose_fx = None
+        # these are calculated
+        self.is_covalent = None
+        self.params = None
+        self.constraint = None
+        self.unminimised_pdbblock = None
+        self.igor = None
+        self.minimised_pdbblock = None
+        # buffers etc.
+        self._warned = []
+        minjson = os.path.join(folder, f'{self.long_name}.minimised.json')
+        self.mrmsd = mRSMD.mock()
+        if os.path.exists(minjson):
+            md = json.load(open(minjson))
+            self.energy_score = md["Energy"]
+            self.mrmsd.mrmsd = md["mRMSD"]
+            self.mrmsd.rmsds = md["RMSDs"]
+        else:
+            self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
+                                 'unbound_ref2015': {'total_score': float('nan')}}
+
+            self.journal.info(f'{self.long_name} - no min json')
+        minmol = os.path.join(folder,  f'{self.long_name}.minimised.mol')
+        if os.path.exists(minmol):
+            self.minimised_mol = Chem.MolFromMolFile(minmol, sanitize=False, removeHs=False)
+        else:
+            self.minimised_mol = None
+        return self

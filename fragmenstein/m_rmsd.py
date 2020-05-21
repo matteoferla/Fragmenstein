@@ -133,7 +133,7 @@ class mRSMD:
         self.followup = None
         self.hits = None
         self.mappings = {}
-        self.mrmds = float('nan')
+        self.mrmsd = float('nan')
         self.rmsds = []
         return self
 

@@ -108,6 +108,8 @@ class _FragmensteinUtil:
         """
         if mol is None:
             mol = self.positioned_mol
+        if mol.HasProp('_Origins'):
+            return json.loads(mol.GetProp('_Origins'))
         origin = []
         for atom in mol.GetAtoms():
             if atom.HasProp('_Origin'):
