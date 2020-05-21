@@ -9,3 +9,5 @@ However, there are some problems:
 * the inspiration hits are common to a group of submissions by a user, even if one went into one and another to another.
 * some pockets have many hits, so a large amount of not fully overlapping hits are submitted
 * some users submitted a mispelt hit
+
+For an example of the script used, see [covid.py](covid.py).
