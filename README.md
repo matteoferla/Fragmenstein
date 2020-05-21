@@ -10,6 +10,10 @@ This monstrosity is then energy minimised with strong constraints.
 
 Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
+It is somewhat tolerant to erroneous/excessive submissions (by automatically excluding them)
+and can energy minimised strained conformations.
+![unconnected](unconnected.jpg)
+
 ### Side role: follow prediction
 It can also merge fragment hits by itself and find the best scoring mergers
 —with a good amount of impossible chemistry thrown in ([example](https://www.well.ox.ac.uk/~matteo/fragmenstein_pairwise.html)).
