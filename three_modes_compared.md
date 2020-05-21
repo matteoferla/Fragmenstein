@@ -1,11 +1,11 @@
 ## Three modes
 
-As [discussed](readme.md), it has three main parts:
+As [discussed](README.md), it has three main parts:
 * the pipeline (Victor class)
 * the minimiser (Egor class) and
 * the followup placing algorithm (Fragmenstein class)
 
-The latter has three modes as discussed in [fragmenstein.md](fragmenstein.md): "full-merging", "partial-merging" and "no-merging" for mapping.
+The latter has three modes as discussed in [the fragmenstein page](fragmenstein.md): "full-merging", "partial-merging" and "no-merging" for mapping.
 
 Each has advantages and disadvantage. For the [covid](covid.md) data, an analysis was done to figure out which.
 
