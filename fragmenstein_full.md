@@ -65,15 +65,6 @@ And ditto again for a second fragment (x1249):
 During the elemental change, valence is taken into account resulting in appropriate positive charge.
 This step is needed to avoid weird matches with the followup.
 
-## Placing
-
-To do a contrained embed in RDKit the reference need to have a good geometry. Consequently, this is not possible.
-Therefore in the case of sidechains that are novel in the followup a optimised conformer is a aligned against the half placed followup
-using the 3-4 atoms that are the closest neighbours within the half-placed structure and the side chain position copied from there for each bit.
-
-<img src="images/grid.jpg" alt="fragments of x0305" width="400px">
-<img src="images/overlay.png" alt="fragments of x0305" width="400px">
-
 ## Example
 
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in ('x0692', 'x0305', 'x1249')]
@@ -86,16 +77,10 @@ using the 3-4 atoms that are the closest neighbours within the half-placed struc
     display(monster.chimera) # merger of hits but with atoms made to match the to-be-aligned mol
     display(monster.positioned_mol) # followup aligned
     
-    # further alignments... badly written way of doing this.
+    # further alignments... not correct way of tho
     monster.initial_mol = new_mol
     aligned = monster.place_followup(new_mol)
  
-## Covalent
-
-If the `Chem.Mol` has a dummy atom (element symbol: `*` within RDKit and smiles, but `R` in a mol file and PDB file) and
-a molecule with a single atom is passed to `attachement` argument, then the covalent linker if absent in the hits is anchored
-to that atom.
-The default dummy atom can be overridden with `Fragmenstein.dummy:Chem.Mol` and `Fragmenstein.dummy_symbol:str`.
 
 ## Complicated MCS
 
@@ -106,16 +91,8 @@ And going from very lax in increasing strictness. This prevents some weird mappi
 
 For more see `get_mcs_mapping`.
 
-## Knows its past
-
-The `Chem.Mol` object will have `Chem.Atom` objects with the RDKit property `_Origin`.
-This is a json stringified list of reference hit name dot atom index.
-`fragmenstein.origin_from_mol(mol)` will extract these for you.
-
-Also there will be a field,`_StDev`, which is the average of the three axes of 
-the standard deviation of the positions of the contributing atoms. `fragmenstein.origin_from_stdev(mol)` extracts them.
     
-## Unresolved issues
+## Issues to be aware of
 
 Here is an example with a few issues.
 
@@ -125,15 +102,6 @@ Here is an example with a few issues.
 
 Non-overlapping fragments are discarded. Ideally they should be joined using the followup compound as a template _if possible_.
 In the pictured case the SMILES submitted may not have been what was intended and should not be used connect the fragments.
-
-### Imperfect projection
-
-The projection approach is not perfect. The pictured example was affected by a bug (fixed), but this still is a problem in other cases.
-This problem is quite apparent in the cases where atoms connecting to the sulfur are added:
-
-![deviant](images/S_deviant.png)
-
-The way the projection is done is via a single conformer.
 
 ### More than 4 templates
 
