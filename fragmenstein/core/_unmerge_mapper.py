@@ -189,7 +189,7 @@ class Unmerge(GPM):
                                                      combined=combined,
                                                      combined_map=combined_map)
             # verdict
-            self.judge_n_move_on(possible_map)
+            self.judge_n_move_on(combined, combined_map, other, possible_map, others, disregarded)
 
     def judge_n_move_on(self, combined, combined_map, other, possible_map, others, disregarded):
         """
