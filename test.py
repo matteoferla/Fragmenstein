@@ -106,10 +106,7 @@ def victor_test():
                             )
         return reanimator
 
-    #reanimate(name='DAV-CRI-d1e-2_ACR', hit_codes=('x0305', 'x1386', 'x1418'), smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1')
-    #reanimate(name='AAR-POS-8a4e0f60-1', hit_codes=('x0072',), smiles='CCN(Cc1cccc(-c2ccncc2)c1)C(=O)Cn1nnc2ccccc21')
-    #reanimate(name='AAR-POS-8a4e0f60-2', hit_codes=('x0072',), smiles='CCN(Cc1cccc(-c2ccncc2)c1)C(=O)Cc1noc2ccccc12')
-    reanimate(name='AAR-POS-8a4e0f60-10', smiles='O=C(Cn1nnc2ccccc21)NCc1ccc(Oc2cccnc2)c(F)c1', hit_codes=['x0072'])
+    reanimate(name='DAV-CRI-d1e-2_ACR', hit_codes=('x0305', 'x1386', 'x1418'), smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1')
 
 if __name__ == '__main__':
     victor_test()
