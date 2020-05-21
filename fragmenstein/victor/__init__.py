@@ -116,6 +116,9 @@ class Victor(_VictorUtilsMixin):
         self.minimised_pdbblock = None
         # buffers etc.
         self._warned = []
+        self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
+                            'unbound_ref2015': {'total_score': float('nan')}}
+        self.mrmsd = mRSMD.mock()
         # analyse
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
 

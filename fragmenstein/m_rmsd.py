@@ -128,6 +128,17 @@ class mRSMD:
         return (self.calculate_msd(molA, molB, mapping) / len(mapping)) ** 0.5
 
     @classmethod
+    def mock(cls):
+        self = cls.__new__(cls)
+        self.followup = None
+        self.hits = None
+        self.mappings = {}
+        self.mrmds = float('nan')
+        self.rmsds = []
+        return self
+
+
+    @classmethod
     def copy_origins(cls, annotated: Chem.Mol, target: Chem.Mol):
         """
         Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
