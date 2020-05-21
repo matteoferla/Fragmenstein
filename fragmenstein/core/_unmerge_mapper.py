@@ -189,24 +189,39 @@ class Unmerge(GPM):
                                                      combined=combined,
                                                      combined_map=combined_map)
             # verdict
-            if len(possible_map) == 0:
-                # reject
-                if self._debug_draw:
-                    print('>> reject')
-                disregarded = disregarded + [other]  # new obj
-            else:
-                # accept
-                if self._debug_draw:
-                    print(f'>> accept: {possible_map}')
-                combined_map = {**combined_map, **possible_map} # new obj
-                combined = Chem.CombineMols(combined, other) # new obj
-                name = '-'.join([m.GetProp('_Name') for m in (combined, other) if m.HasProp('_Name')])
-                combined.SetProp('_Name', name)
-                disregarded = list(disregarded) # new obj
-            # do inners
-            template_sorter = self.template_sorter_factory(accounted_for)
-            sorted_others = sorted(others[1:], key=template_sorter)
-            self.unmerge_inner(combined, combined_map, sorted_others, disregarded)
+            self.judge_n_move_on(possible_map)
+
+    def judge_n_move_on(self, combined, combined_map, other, possible_map, others, disregarded):
+        """
+        The mutables need to be within their own scope
+
+        :param combined:
+        :param combined_map:
+        :param other:
+        :param possible_map:
+        :param others:
+        :param disregarded:
+        :return:
+        """
+        if len(possible_map) == 0:
+            # reject
+            if self._debug_draw:
+                print('>> reject')
+            disregarded = disregarded + [other]  # new obj
+        else:
+            # accept
+            if self._debug_draw:
+                print(f'>> accept: {possible_map}')
+            combined_map = {**combined_map, **possible_map} # new obj
+            combined = Chem.CombineMols(combined, other) # new obj
+            name = '-'.join([m.GetProp('_Name') for m in (combined, other) if m.HasProp('_Name')])
+            combined.SetProp('_Name', name)
+            disregarded = list(disregarded) # new obj
+        # do inners
+        accounted_for = set(combined_map.keys())
+        template_sorter = self.template_sorter_factory(accounted_for)
+        sorted_others = sorted(others[1:], key=template_sorter)
+        self.unmerge_inner(combined, combined_map, sorted_others, disregarded)
 
     def get_possible_map(self,
                          other: Chem.Mol,
