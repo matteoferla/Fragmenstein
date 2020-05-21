@@ -481,6 +481,11 @@ class Victor(_VictorUtilsMixin):
         self.journal.debug(f'{self.long_name} - saving mols from fragmenstein')
         scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
         Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
+        if self.fragmenstein.scaffold.HasProp('parts'):
+            disregard = json.loads(self.fragmenstein.scaffold.GetProp('parts'))
+            self.journal.info(f'{self.long_name} - disregarded {disregard}')
+        else:
+            disregard = []
         chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
         Chem.MolToMolFile(self.fragmenstein.chimera, chimera_file, kekulize=False)
         pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
@@ -492,11 +497,13 @@ class Victor(_VictorUtilsMixin):
         for t in self.fragmenstein.scaffold_options:
             writer.write(t)
         writer.close()
+        data = {'smiles': self.smiles,
+               'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
+               'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)}
+        if disregard:
+            data['disregard'] = disregard
         with open(frag_file, 'w') as w:
-            json.dump({'smiles': self.smiles,
-                       'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
-                       'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)},
-                      w)
+            json.dump(data,  w)
         self._log_warnings()
         # unminimised_pdbblock will be saved by igor (round trip via pose)
 

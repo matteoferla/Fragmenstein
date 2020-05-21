@@ -1,10 +1,11 @@
-from typing import Callable, List, Dict, Tuple
+from typing import Callable, List, Dict, Tuple, Optional, Any
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 import numpy as np
-
+import json
 from ._positional_mapping import GPM
 from collections import deque
+
 
 class Unmerge(GPM):
     """
@@ -57,22 +58,22 @@ class Unmerge(GPM):
                 if self._debug_draw:
                     print(f"Rotated, new first : {others[0].GetProp('_Name')}")
                 self.unmerge_inner(Chem.Mol(), {}, list(others), [])
-        else: # pre sort
+        else:  # pre sort
             others = sorted(self.mols, key=accounted_sorter, reverse=True)
             self.unmerge_inner(Chem.Mol(), {}, list(others), [])
             i = sorted(range(len(self.c_options)),
-                             key=goodness_sorter,
-                             reverse=True)[0]
+                       key=goodness_sorter,
+                       reverse=True)[0]
             for alt in self.c_disregarded_options[0]:
                 aname = alt.GetProp('_Name')
                 not_alt = set([o for o in others if o.GetProp('_Name') != aname])
-                self.unmerge_inner(Chem.Mol(), {}, [alt]+list(not_alt), [])
+                self.unmerge_inner(Chem.Mol(), {}, [alt] + list(not_alt), [])
         # find best
         indices = sorted(range(len(self.c_options)),
                          key=goodness_sorter,
                          reverse=True)
         i = indices[0]
-        if self._debug_draw or 1==1:
+        if self._debug_draw:
             print(f'## Option #{i}  for combinations:')
             for j in range(len(self.c_options)):
                 mol = self.c_options[j]
@@ -88,7 +89,8 @@ class Unmerge(GPM):
     get_key = lambda self, d, v: list(d.keys())[list(d.values()).index(v)]
 
     @classmethod
-    def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol]) -> Dict[str, List[Dict[int, int]]]:
+    def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol], mode: Optional[Dict[str, Any]] = None) \
+            -> Dict[str, List[Dict[int, int]]]:
         """
         This is basically if someone is using this class outside of Fragmenstein
 
@@ -98,8 +100,10 @@ class Unmerge(GPM):
 
         :param target: the molecule to be mapped
         :param mols: the list of molecules with positional data to be mapped to
+        :param mode: dict of setting for MCS step
         :return:
         """
+
         def get_atom_maps(molA, molB, **mode) -> List[List[Tuple[int, int]]]:
             mcs = rdFMCS.FindMCS([molA, molB], **mode)
             common = Chem.MolFromSmarts(mcs.smartsString)
@@ -115,19 +119,22 @@ class Unmerge(GPM):
             # you can map two toluenes 4 ways, but two are repeats.
             return list[set([tuple(sorted(m, key=lambda i: i[0])) for m in matches])]
 
+        if mode is None:
+            mode = dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                        bondCompare=rdFMCS.BondCompare.CompareOrder,
+                        ringMatchesRingOnly=True,
+                        ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                        matchChiralTag=True)
         maps = {}
         for template in mols:
-            pair_atom_maps = get_atom_maps(target, template,
-                                                 atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                                 bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                                 ringMatchesRingOnly=True,
-                                                 ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                                 matchChiralTag=True)
+            pair_atom_maps = get_atom_maps(target, template, **mode)
             maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
         return maps
 
+
     def template_sorter_factory(self, accounted_for) -> Callable:
         """ returns the number of atoms that have not already been accounted for."""
+
         # key for sorting. requires outer scope ``maps`` and ``accounted_for``.
         def template_sorter(t: Chem.Mol) -> int:
             n_atoms = max([len([k for k in m if k not in accounted_for]) for m in self.maps[t.GetProp('_Name')]])
@@ -135,11 +142,14 @@ class Unmerge(GPM):
 
         return template_sorter
 
+
     def store(self, combined: Chem.Mol, combined_map: Dict[int, int], disregarded: List[Chem.Mol]):
+        combined.SetProp('parts', json.dumps([m.GetProp('_Name') for m in disregarded]))
         self.c_map_options.append(combined_map)
         self.c_options.append(combined)
         self.c_disregarded_options.append(disregarded)
         return None
+
 
     def unmerge_inner(self,
                       combined: Chem.Mol,
@@ -191,6 +201,7 @@ class Unmerge(GPM):
             # verdict
             self.judge_n_move_on(combined, combined_map, other, possible_map, others, disregarded)
 
+
     def judge_n_move_on(self, combined, combined_map, other, possible_map, others, disregarded):
         """
         The mutables need to be within their own scope
@@ -212,16 +223,17 @@ class Unmerge(GPM):
             # accept
             if self._debug_draw:
                 print(f'>> accept: {possible_map}')
-            combined_map = {**combined_map, **possible_map} # new obj
-            combined = Chem.CombineMols(combined, other) # new obj
+            combined_map = {**combined_map, **possible_map}  # new obj
+            combined = Chem.CombineMols(combined, other)  # new obj
             name = '-'.join([m.GetProp('_Name') for m in (combined, other) if m.HasProp('_Name')])
             combined.SetProp('_Name', name)
-            disregarded = list(disregarded) # new obj
+            disregarded = list(disregarded)  # new obj
         # do inners
         accounted_for = set(combined_map.keys())
         template_sorter = self.template_sorter_factory(accounted_for)
         sorted_others = sorted(others[1:], key=template_sorter)
         self.unmerge_inner(combined, combined_map, sorted_others, disregarded)
+
 
     def get_possible_map(self,
                          other: Chem.Mol,
@@ -280,11 +292,12 @@ class Unmerge(GPM):
                 print(f'{label} got {strikes} strikes')
             return {}
         elif not self.check_possible_distances(other, possible_map, combined, combined_map):
-                if self._debug_draw:
-                    print(f'{label} gives too long bonds')
-                return {}
+            if self._debug_draw:
+                print(f'{label} gives too long bonds')
+            return {}
         else:
             return possible_map
+
 
     def check_possible_distances(self, other, possible_map, combined, combined_map, cutoff=3):
         for i, offset_o in possible_map.items():
@@ -293,13 +306,14 @@ class Unmerge(GPM):
             for neigh in atom.GetNeighbors():
                 ni = neigh.GetIdx()
                 if ni in possible_map:
-                    pass # assuming the inspiration compound was not janky
+                    pass  # assuming the inspiration compound was not janky
                 elif ni in combined_map:
                     if self.get_inter_distance(other, combined, unoffset_o, combined_map[ni]) > cutoff:
                         return False
                 else:
-                    pass # unmapped neighbor
+                    pass  # unmapped neighbor
         return True
+
 
     def bond(self):
         putty = Chem.RWMol(self.combined)
@@ -321,11 +335,14 @@ class Unmerge(GPM):
                     putty.GetBondBetweenAtoms(ci, nci).SetBondType(bond_type)
         return putty.GetMol()
 
-    def get_inter_distance(self, molA:Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> np.float:
+
+    def get_inter_distance(self, molA: Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> np.float:
         def get_pos(mol, idx):
             conf = mol.GetConformer()
             return np.array(conf.GetAtomPosition(idx))
+
         return np.linalg.norm(get_pos(molA, idxA) - get_pos(molB, idxB))
+
 
     def measure_map(self, mol: Chem.Mol, mapping: Dict[int, int]) -> np.array:
         """
@@ -348,6 +365,7 @@ class Unmerge(GPM):
                 d = np.append(d, np.linalg.norm(a - b))
         return d
 
+
     def offness(self, mol: Chem.Mol, mapping: Dict[int, int]) -> float:
         """
         How many bonds are too long?
@@ -356,6 +374,5 @@ class Unmerge(GPM):
         :return:
         """
         d = self.measure_map(mol, mapping)
-        #return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
-        return sum(d > 2.5 ) * 3
-
+        # return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
+        return sum(d > 2.5) * 3
