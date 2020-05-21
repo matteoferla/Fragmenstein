@@ -10,6 +10,7 @@ from sqlitedict import SqliteDict
 results = SqliteDict('results.sqlite', encode=json.dumps, decode=json.loads, autocommit=True)
 ########################################################################################################################
 
+Victor.fragmenstein_merging_mode = 'none'
 Victor.work_path = 'mpro_output'
 # Victor.enable_stdout(logging.DEBUG)
 Victor.enable_logfile('reanimate.log')
