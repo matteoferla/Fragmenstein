@@ -12,7 +12,7 @@ Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.
 
 It is somewhat tolerant to erroneous/excessive submissions (by automatically excluding them)
 and can energy minimised strained conformations.
-![unconnected](unconnected.jpg)
+![unconnected](images/unconnected.jpg)
 
 ### Side role: follow prediction
 It can also merge fragment hits by itself and find the best scoring mergers
