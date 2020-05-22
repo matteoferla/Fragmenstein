@@ -39,7 +39,7 @@ Namely the outlier is chosen as an inspiration and the bond length is not violat
 not neighbours, so the 3 Å limit does not apply. Curiously, full-merger mapped to one cluster, while partial merger to the loner.
 
 The time problem is substantial for the none.
-![compare-timeproblem.png](compare-timeproblem.png).
+![compare-timeproblem.png](images/compare-timeproblem.png).
 
 These are the offenders:
 |     | name                | mode    |       ∆∆G |   comRMSD |   N_constrained_atoms |   runtime |   N_hits |
