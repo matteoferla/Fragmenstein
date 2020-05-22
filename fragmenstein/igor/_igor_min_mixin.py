@@ -93,17 +93,21 @@ class _IgorMinMixin:
         """
         if mol is None:
             mol = self.mol_from_pose()
-        AllChem.UFFGetMoleculeForceField(mol)
-        ff = AllChem.UFFGetMoleculeForceField(mol)
-        ff.Initialize()
-        # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
-        if delta:
-            pre = ff.CalcEnergy()
-            ff.Minimize()
-            post = ff.CalcEnergy()
-            return pre - post
-        else:
-            return ff.CalcEnergy()
+        try:
+            AllChem.UFFGetMoleculeForceField(mol)
+            ff = AllChem.UFFGetMoleculeForceField(mol)
+            ff.Initialize()
+            # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
+            if delta:
+                pre = ff.CalcEnergy()
+                ff.Minimize()
+                post = ff.CalcEnergy()
+                return pre - post
+            else:
+                return ff.CalcEnergy()
+        except RuntimeError as err:
+            warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
+            return float('nan')
 
     def _get_scorefxn(self, name: str = "ref2015"):
         scorefxn = pyrosetta.create_score_function(name)
