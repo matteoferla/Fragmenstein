@@ -37,13 +37,22 @@ class _VictorBaseMixin:
                             }
                            ]
 
-    possible_definitions =[{'name': 'chloroacetamide',
-                            'covalent': 'C(=O)C*',  # the N may be secondary etc. so best not do mad substitutions.
-                            'covalent_atomnames': ['CY', 'OY', 'CX', 'CONN1'],
+    # these may be wrong and need checking.
+    possible_definitions =[{'name': 'bromoalkyne',
+                            'covalent': 'C(=C)*',
+                            'covalent_atomnames': ['CX', 'CY', 'CONN1'],
                             # OY needs to tautomerise & h-bond happily.
-                            'noncovalent': 'C(=O)C[Cl]',
-                            'noncovalent_atomnames': ['CY', 'OY', 'CX', 'CLX']
-                            },]
+                            'noncovalent': 'C#C[Br]',
+                            'noncovalent_atomnames': ['CX', 'CY', 'BRX']
+                            },
+                           {'name': 'aurothiol', # gold salt
+                            'covalent': 'S[Au]*',
+                            'covalent_atomnames': ['SY', 'AUX', 'CONN1'],
+                            # OY needs to tautomerise & h-bond happily.
+                            'noncovalent': 'S[Au]P(CC)(CC)CC',
+                            'noncovalent_atomnames': ['SY', 'AUX', 'PL', 'CL1', 'CL2', 'CL3', 'CL4', 'CL5', 'CL6']
+                            },
+                           ]
 
     _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 

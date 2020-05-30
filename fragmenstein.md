@@ -48,6 +48,9 @@ This was the primary method used, until partial mapping was introduced to overco
 &lowast; See [work in progress](wip.md) for the ring collapsing code which aims to fix this.
 
 ### Partial mapping
+
+> The main documentation for this mode can be found [here](fragmenstein_partial.md).
+
 As above but inconsistent hits are excluded.
 The "inconsistent" hits (`dodgies` in the code) are those who when seen in trio of hits do not map consistently.
 This speeds up the code and avoids the pitfalls of incorrect hits and too many hits.

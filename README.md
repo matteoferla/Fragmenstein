@@ -5,8 +5,8 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 
 ## Aim
 Given a followup molecule and a series of hits it makes a spatially stitched together version of the followup based on the hits.
-Like Frankenstein's creation it violates the laws of chemistry. Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
-This monstrosity is then energy minimised with strong constraints.
+Like Frankenstein's creation it may violate the laws of chemistry. Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
+This monstrosity is therefore then energy minimised with strong constraints.
 
 Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 

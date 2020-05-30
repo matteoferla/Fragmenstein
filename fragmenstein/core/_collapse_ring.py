@@ -7,8 +7,8 @@ from rdkit.Chem import AllChem
 from typing import Optional, Dict, List
 
 class Ring:
-    def __init__(self):
-        pass
+    def __init__(self, _debug_draw=False):
+        self._debug_draw = _debug_draw
 
     def store_positions(self, mol: Chem.Mol) -> Chem.Mol:
         """
@@ -30,6 +30,7 @@ class Ring:
         return mol
 
     def _print_stored(self, mol: Chem.Mol):
+        print('Idx', 'OriIdx', 'OriName')
         for atom in mol.GetAtoms():
             try:
                 if atom.GetIntProp('_ori_i') == -1:
@@ -116,7 +117,8 @@ class Ring:
             new = [i+self._collapsed_ring_offset for i in old]
             atom.SetProp('_ori_is', json.dumps(new))
             old2new = dict(zip(old, new))
-            print('UPDATE', old2new)
+            if self._debug_draw:
+                print('UPDATE', old2new)
             old_neighss = json.loads(atom.GetProp('_neighbors'))
             new_neighss = [[old2new[i] if i in old2new else i for i in old_neighs] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
@@ -141,7 +143,8 @@ class Ring:
             new = [i + self._collapsed_ring_offset for i in old]
             atom.SetProp('_ori_is', json.dumps(new))
             old2new = {**old2new, **dict(zip(old, new))}
-            print('UPDATE', old2new)
+            if self._debug_draw:
+                print('UPDATE', old2new)
             old_neighss = json.loads(atom.GetProp('_neighbors'))
             new_neighss = [[old2new[i] if i in old2new else i for i in old_neighs] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
@@ -194,28 +197,47 @@ class Ring:
             zs = json.loads(atom.GetProp('_zs'))
             bonds = json.loads(atom.GetProp('_bonds'))
             new_is = []
+            # atom addition
             for i in range(len(elements)):
-                n = mod.AddAtom(Chem.Atom(elements[i]))
-                new_is.append(n)
-                natom = mod.GetAtomWithIdx(n)
-                conf.SetAtomPosition(n, Point3D(*[axis[i] for axis in (xs, ys, zs)]))
-                natom.SetIntProp('_ori_i', ori_i[i])
-                natom.SetDoubleProp('_x', xs[i])
-                natom.SetDoubleProp('_y', ys[i])
-                natom.SetDoubleProp('_z', zs[i])
+                if self.is_present(mol, ori_i[i]):
+                    natom = self._get_new_index(mod, ori_i[i], search_collapsed=False)
+                    if self._debug_draw:
+                        print(f'{natom} (formerly {ori_i[i]} existed already!')
+                else:
+                    n = mod.AddAtom(Chem.Atom(elements[i]))
+                    new_is.append(n)
+                    natom = mod.GetAtomWithIdx(n)
+                    conf.SetAtomPosition(n, Point3D(*[axis[i] for axis in (xs, ys, zs)]))
+                    natom.SetIntProp('_ori_i', ori_i[i])
+                    natom.SetDoubleProp('_x', xs[i])
+                    natom.SetDoubleProp('_y', ys[i])
+                    natom.SetDoubleProp('_z', zs[i])
+            # bonding
             for i in range(len(elements)):
                 new_i = new_is[i]
                 for old_neigh, bond in zip(neighbors[i], bonds[i]):
                     bt = getattr(Chem.BondType, bond)
                     try:
                         new_neigh = self._get_new_index(mod, old_neigh, search_collapsed=False)
-                        if not mod.GetBondBetweenAtoms(new_i, new_neigh):
+                        present_bond = mod.GetBondBetweenAtoms(new_i, new_neigh)
+                        if present_bond is None:
                             mod.AddBond(new_i, new_neigh, bt)
+                        elif present_bond.GetBondType().name != bond:
+                            if self._debug_draw:
+                                print(f'bond between {new_i} {new_neigh} exists already (has {present_bond.GetBondType().name} expected {bt})')
+                            present_bond.SetBondType(bt)
+                        else:
+                            if self._debug_draw:
+                                print(f'bond between {new_i} {new_neigh} exists already '+\
+                                f'(has {present_bond.GetBondType().name} expected {bt})')
+                            pass
                     except ValueError:
                         to_be_waited_for.append((old_neigh, bt))
         for old_neigh, bt in to_be_waited_for:
             try:
                 new_neigh = self._get_new_index(mod, old_neigh, name_restriction=atom.GetProp('_ori_name'))
+                if self._debug_draw:
+                    print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
                 if not mod.GetBondBetweenAtoms(new_i, new_neigh):
                     mod.AddBond(new_i, new_neigh, bt)
             except KeyError as err:
@@ -299,6 +321,14 @@ class Ring:
         for i in sorted(set(morituri), reverse=True):
             mod.RemoveAtom(self._get_new_index(mod, i))
         return mod.GetMol()
+
+    def is_present(self, mol, i):
+        try:
+            self._get_new_index(mol, i, search_collapsed=False)
+            # raises value error.
+            return True
+        except ValueError:  # no atom is present (actually the default)
+            return False
 
 
 if __name__ == '__main__':
