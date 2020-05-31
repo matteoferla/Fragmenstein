@@ -265,7 +265,7 @@ class Ring:
                     print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
                 if not mod.GetBondBetweenAtoms(new_i, new_neigh):
                     mod.AddBond(new_i, new_neigh, bt)
-            except KeyError as err:
+            except (KeyError, ValueError) as err:
                 warn(str(err))
         for a in reversed(range(mod.GetNumAtoms())):
             if mod.GetAtomWithIdx(a).GetIntProp('_ori_i') == -1:
