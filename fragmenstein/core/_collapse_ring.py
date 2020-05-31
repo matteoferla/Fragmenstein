@@ -4,7 +4,8 @@ from rdkit.Geometry.rdGeometry import Point3D
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
+
 
 class Ring:
     def __init__(self, _debug_draw=False):
@@ -40,7 +41,7 @@ class Ring:
                           atom.GetProp('_ori_name'),
                           atom.GetProp('_ori_is'),
                           atom.GetProp('_neighbors')
-                    )
+                          )
                 else:
                     print(atom.GetIdx(),
                           atom.GetSymbol(),
@@ -62,7 +63,8 @@ class Ring:
     def _get_collapsed_atoms(self, mol: Chem.Mol) -> List[Chem.Atom]:
         return [atom for atom in mol.GetAtoms() if atom.GetIntProp('_ori_i') == -1]
 
-    def _get_new_index(self, mol: Chem.Mol, old: int, search_collapsed=True, name_restriction:Optional[str]=None) -> int:
+    def _get_new_index(self, mol: Chem.Mol, old: int, search_collapsed=True,
+                       name_restriction: Optional[str] = None) -> int:
         """
         Given an old index check in ``_ori_i`` for what the current one is.
         NB. ring placeholder will be -1 and these also have ``_ori_is``. a JSON of the ori_i they summarise.
@@ -101,8 +103,9 @@ class Ring:
             absent.extend([n for neighs in neighss for n in neighs if n not in present])
         return absent
 
-    _collapsed_ring_offset=0
-    def _offset_collapsed_ring(self, mol:Chem.Mol):
+    _collapsed_ring_offset = 0
+
+    def _offset_collapsed_ring(self, mol: Chem.Mol):
         """
         This is to prevent clashes.
         The numbers of the ori indices stored in collapsed rings are offset by the class variable (_collapsed_ring_offset)
@@ -114,7 +117,7 @@ class Ring:
         self._collapsed_ring_offset += 100
         for atom in self._get_collapsed_atoms(mol):
             old = json.loads(atom.GetProp('_ori_is'))
-            new = [i+self._collapsed_ring_offset for i in old]
+            new = [i + self._collapsed_ring_offset for i in old]
             atom.SetProp('_ori_is', json.dumps(new))
             old2new = dict(zip(old, new))
             if self._debug_draw:
@@ -123,7 +126,7 @@ class Ring:
             new_neighss = [[old2new[i] if i in old2new else i for i in old_neighs] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
 
-    def _offset_origins(self, mol:Chem.Mol):
+    def _offset_origins(self, mol: Chem.Mol):
         """
         This is to prevent clashes.
 
@@ -151,7 +154,7 @@ class Ring:
 
     def _renumber_original_indices(self, mol: Chem.Mol,
                                    mapping: Dict[int, int],
-                                   name_restriction:Optional[str]=None):
+                                   name_restriction: Optional[str] = None):
         """
 
         :param mol:
@@ -160,7 +163,8 @@ class Ring:
         :return:
         """
         for atom in mol.GetAtoms():
-            if name_restriction is not None and atom.HasProp('_ori_name') and atom.GetProp('_ori_name') != name_restriction:
+            if name_restriction is not None and atom.HasProp('_ori_name') and atom.GetProp(
+                    '_ori_name') != name_restriction:
                 continue
             i = atom.GetIntProp('_ori_i')
             if i == -1:
@@ -177,6 +181,27 @@ class Ring:
             else:
                 pass
 
+    def _get_expansion_data(self, mol: Chem.Mol) -> List[Dict[str, List[Any]]]:
+        """
+        Returns a list for each collapsed ring marking atom each with a dictionary
+
+        :param mol:
+        :return:
+        """
+        return [
+            dict(atom=atom,
+                 ori_name=atom.GetProp('_ori_name'),
+                 elements=json.loads(atom.GetProp('_elements')),
+                 neighbors=json.loads(atom.GetProp('_neighbors')),
+                 ori_is=json.loads(atom.GetProp('_ori_is')),
+                 xs=json.loads(atom.GetProp('_xs')),
+                 ys=json.loads(atom.GetProp('_ys')),
+                 zs=json.loads(atom.GetProp('_zs')),
+                 bonds=json.loads(atom.GetProp('_bonds')))
+            for atom in self._get_collapsed_atoms(mol)]
+
+    def _get_expansion_for_atom(self, data: Dict[str, List[Any]], i: int) -> Dict[str, Any]:
+        return {k.replace('s', ''): data[k][i] if isinstance(data[k], list) else data[k] for k in data}
 
     def expand_ring(self, mol: Chem.Mol):
         """
@@ -188,34 +213,31 @@ class Ring:
         mod = Chem.RWMol(mol)
         conf = mod.GetConformer()
         to_be_waited_for = []
-        for atom in self._get_collapsed_atoms(mol):
-            elements = json.loads(atom.GetProp('_elements'))
-            neighbors = json.loads(atom.GetProp('_neighbors'))
-            ori_i = json.loads(atom.GetProp('_ori_is'))
-            xs = json.loads(atom.GetProp('_xs'))
-            ys = json.loads(atom.GetProp('_ys'))
-            zs = json.loads(atom.GetProp('_zs'))
-            bonds = json.loads(atom.GetProp('_bonds'))
-            new_is = []
+        rings = self._get_expansion_data(mod)
+        for ring in rings:
             # atom addition
-            for i in range(len(elements)):
-                if self.is_present(mol, ori_i[i]):
-                    natom = self._get_new_index(mod, ori_i[i], search_collapsed=False)
+            for i in range(len(ring['elements'])):
+                d = self._get_expansion_for_atom(ring, i)
+                print(i, d['ori_i'], self.is_present(mod, d['ori_i']))
+                if self.is_present(mod, d['ori_i']):
+                    natom = self._get_new_index(mod, d['ori_i'], search_collapsed=False)
                     if self._debug_draw:
-                        print(f'{natom} (formerly {ori_i[i]} existed already!')
+                        print(f"{natom} (formerly {d['ori_i']} existed already!")
                 else:
-                    n = mod.AddAtom(Chem.Atom(elements[i]))
-                    new_is.append(n)
+                    n = mod.AddAtom(Chem.Atom(d['element']))
                     natom = mod.GetAtomWithIdx(n)
-                    conf.SetAtomPosition(n, Point3D(*[axis[i] for axis in (xs, ys, zs)]))
-                    natom.SetIntProp('_ori_i', ori_i[i])
-                    natom.SetDoubleProp('_x', xs[i])
-                    natom.SetDoubleProp('_y', ys[i])
-                    natom.SetDoubleProp('_z', zs[i])
-            # bonding
-            for i in range(len(elements)):
-                new_i = new_is[i]
-                for old_neigh, bond in zip(neighbors[i], bonds[i]):
+                    conf.SetAtomPosition(n, Point3D(d['x'], d['y'], d['z']))
+                    natom.SetIntProp('_ori_i', d['ori_i'])
+                    natom.SetDoubleProp('_x', d['x'])
+                    natom.SetDoubleProp('_y', d['y'])
+                    natom.SetDoubleProp('_z', d['z'])
+                    natom.SetProp('_ori_name', d['ori_name'])
+        # bonding
+        for ring in rings:
+            for i in range(len(ring['elements'])):
+                d = self._get_expansion_for_atom(ring, i)
+                new_i = self._get_new_index(mod, d['ori_i'], search_collapsed=False)
+                for old_neigh, bond in zip(d['neighbor'], d['bond']):
                     bt = getattr(Chem.BondType, bond)
                     try:
                         new_neigh = self._get_new_index(mod, old_neigh, search_collapsed=False)
@@ -224,18 +246,21 @@ class Ring:
                             mod.AddBond(new_i, new_neigh, bt)
                         elif present_bond.GetBondType().name != bond:
                             if self._debug_draw:
-                                print(f'bond between {new_i} {new_neigh} exists already (has {present_bond.GetBondType().name} expected {bt})')
+                                print(
+                                    f'bond between {new_i} {new_neigh} exists already (has {present_bond.GetBondType().name} expected {bt})')
                             present_bond.SetBondType(bt)
                         else:
                             if self._debug_draw:
-                                print(f'bond between {new_i} {new_neigh} exists already '+\
-                                f'(has {present_bond.GetBondType().name} expected {bt})')
+                                print(f'bond between {new_i} {new_neigh} exists already ' + \
+                                      f'(has {present_bond.GetBondType().name} expected {bt})')
                             pass
                     except ValueError:
-                        to_be_waited_for.append((old_neigh, bt))
-        for old_neigh, bt in to_be_waited_for:
+                        if self._debug_draw:
+                            print(f"The neighbour {old_neigh} of {d['ori_i']} with {bt} does not yet exist")
+                        to_be_waited_for.append((new_i, old_neigh, bt))
+        for new_i, old_neigh, bt in to_be_waited_for:
             try:
-                new_neigh = self._get_new_index(mod, old_neigh, name_restriction=atom.GetProp('_ori_name'))
+                new_neigh = self._get_new_index(mod, old_neigh, name_restriction=mod.GetAtomWithIdx(new_i).GetProp('_ori_name'))
                 if self._debug_draw:
                     print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
                 if not mod.GetBondBetweenAtoms(new_i, new_neigh):
@@ -327,7 +352,7 @@ class Ring:
             self._get_new_index(mol, i, search_collapsed=False)
             # raises value error.
             return True
-        except ValueError:  # no atom is present (actually the default)
+        except ValueError as err:  # no atom is present (actually the default)
             return False
 
 
