@@ -13,10 +13,12 @@ But is totally buggy in the upacking step after merging, therefore it is not imp
 
 Two problems I am working on slowly —this is an afterhours project:
 
-* Double rings result in extra atoms at the ring!
+* ~Double rings result in extra atoms at the ring!~ —fixed
 * Ring collapsed merging results in some odd bonds!
 
 Both have issues with `expand_ring`.
+
+The following works now:
 
     from fragmenstein.core import Ring
     from fragmenstein import Fragmenstein
@@ -43,3 +45,35 @@ Both have issues with `expand_ring`.
     print('expanded')
     mod2 = ring.expand_ring(mod)
     display(mod2)
+
+Whereas this does not:
+
+    mpro_folder = '/Users/matteo/Coding/Mpro'
+    
+    def get_mol(xnumber):
+        xnumber = xnumber.strip()
+        mol = Chem.MolFromMolFile(f'{mpro_folder}/Mpro-{xnumber}_0/Mpro-{xnumber}_0.mol')
+        mol.SetProp('_Name', xnumber)
+        return mol
+        
+    a = get_mol('x0107')
+    þ.store_positions(a)
+    a = þ.collapse_ring(a)
+    b = get_mol('x1093')
+    þ.store_positions(b)
+    b = þ.collapse_ring(b)
+    m = þ.merge_pair(a, b)
+    m2 = þ.expand_ring(m)
+    
+    import nglview
+    view = nglview.NGLWidget()
+    view.add_component(a)
+    view.add_component(b)
+    view
+    
+The problem is the bonding is not right.
+This pair is nasty because one ring becomes a double one.
+It requires the valence fix which is fine (as seen in postera site demo).
+However, the bonds need to be fixed going to the new ring.
+The match collapsed ring with collapsed ring only is clearly unneeded.
+Proximity bonding is a nice way to resolve this.
