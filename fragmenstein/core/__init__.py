@@ -164,14 +164,14 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         maps = {}
         for template in self.hits:
             if broad:
-                pair_atom_maps = self.get_mcs_mapping(self.initial_mol, template)
+                maps[template.GetProp('_Name')] = self.get_mcs_mapping(self.initial_mol, template)
             else:
                 pair_atom_maps = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
                                                bondCompare=rdFMCS.BondCompare.CompareOrder,
                                                ringMatchesRingOnly=True,
                                                ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
                                                matchChiralTag=True)
-            maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
+                maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
         um = Unmerge(followup=self.initial_mol, mols=self.hits, maps=maps, _debug_draw = self._debug_draw)
         self.scaffold = um.combined
         full_atom_map = um.combined_map
@@ -798,7 +798,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                          catchErrors=True)
         return refined
 
-    def get_mcs_mapping(self, molA, molB, min_mode_index:int=0) -> Tuple[Dict[int, int], dict]:
+    def get_mcs_mappings(self, molA, molB, min_mode_index: int = 0) -> Tuple[List[Dict[int, int]], dict]:
         """
         This is a weird method. It does a strict MCS match.
         And then it uses laxer searches and finds the case where a lax search includes the strict search.
@@ -806,7 +806,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         :param molA: query molecule
         :param molB: target/ref molecule
         :param min_mode_index: the lowest index to try (opt. speed reasons)
-        :return: mapping and mode
+        :return: mappings and mode
         """
         strict = self._get_atom_maps(molA, molB, atomCompare=rdFMCS.AtomCompare.CompareElements,
                                      bondCompare=rdFMCS.BondCompare.CompareOrder,
@@ -824,9 +824,24 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
             if len(neolax) == 0:
                 continue
             else:
-                return dict(neolax[0]), mode
+                return [dict(n) for n in neolax], mode
         else:
             raise ValueError('This is chemically impossible: nothing matches')
+
+
+    def get_mcs_mapping(self, molA, molB, min_mode_index:int=0) -> Tuple[Dict[int, int], dict]:
+        """
+        This is a weird method. It does a strict MCS match.
+        And then it uses laxer searches and finds the case where a lax search includes the strict search.
+
+        :param molA: query molecule
+        :param molB: target/ref molecule
+        :param min_mode_index: the lowest index to try (opt. speed reasons)
+        :return: mapping and mode
+        """
+        ms, mode = self.get_mcs_mappings(molA, molB, min_mode_index)
+        return ms[0], mode
+
 
     def _get_atom_maps(self, molA, molB, **mode) -> List[List[Tuple[int, int]]]:
         mcs = rdFMCS.FindMCS([molA, molB], **mode)
