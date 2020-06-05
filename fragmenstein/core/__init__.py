@@ -164,7 +164,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         maps = {}
         for template in self.hits:
             if broad:
-                maps[template.GetProp('_Name')] = self.get_mcs_mapping(self.initial_mol, template)
+                pair_atom_maps, _ = self.get_mcs_mapping(self.initial_mol, template)
+                maps[template.GetProp('_Name')] = pair_atom_maps
             else:
                 pair_atom_maps = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
                                                bondCompare=rdFMCS.BondCompare.CompareOrder,
