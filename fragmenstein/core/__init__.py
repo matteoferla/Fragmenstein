@@ -61,15 +61,14 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
     cutoff = 2
     die_if_unconnected = False
     matching_modes = [
-                    # this shape based matching is too permissive,
-                    # dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                    #        bondCompare=rdFMCS.BondCompare.CompareAny,
-                    #        ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                    #        ringMatchesRingOnly=False),
-                    #   dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-                    #        bondCompare=rdFMCS.BondCompare.CompareOrder,
-                    #        ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                    #        ringMatchesRingOnly=False),
+                    dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                           bondCompare=rdFMCS.BondCompare.CompareAny,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=False), # this shape based matching is too permissive,
+                      dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
+                           bondCompare=rdFMCS.BondCompare.CompareOrder,
+                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                           ringMatchesRingOnly=False),
                       dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
                            bondCompare=rdFMCS.BondCompare.CompareOrder,
                            ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
@@ -132,6 +131,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
             self.full_merging()
         elif merging_mode == 'partial':
             self.partial_merging()
+        elif merging_mode == 'none_permissive':
+            self.no_merging(broad=True)
         elif merging_mode == 'none':
             self.no_merging()
         else:
@@ -156,17 +157,20 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         self.chimera = self.make_chimera(mode_index)
         self.positioned_mol = self.place_followup()
 
-    def no_merging(self) -> None:
+    def no_merging(self, broad=False) -> None:
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
         maps = {}
         for template in self.hits:
-            pair_atom_maps = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                           bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                           ringMatchesRingOnly=True,
-                                           ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                           matchChiralTag=True)
+            if broad:
+                pair_atom_maps = self.get_mcs_mapping(self.initial_mol, template)
+            else:
+                pair_atom_maps = self._get_atom_maps(self.initial_mol, template, atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                               bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                               ringMatchesRingOnly=True,
+                                               ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                               matchChiralTag=True)
             maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
         um = Unmerge(followup=self.initial_mol, mols=self.hits, maps=maps, _debug_draw = self._debug_draw)
         self.scaffold = um.combined
