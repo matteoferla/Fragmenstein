@@ -240,14 +240,29 @@ class Victor(_VictorUtilsMixin):
             self.pose_mod_step()
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
-        # minimise
-        self.journal.debug(f'{self.long_name} - Igor minimising')
-        self.igor.minimise(default_coord_constraint=False)
+        # minimise until the ddG is negative.
+        ddG = 999
+        while ddG > 0:
+            self.journal.debug(f'{self.long_name} - Igor minimising')
+            self.igor.minimise(default_coord_constraint=False)
+            self.energy_score = self._calculate_score()
+            dG_bound = self.energy_score['ligand_ref2015']['total_score']
+            dG_unbound = self.energy_score['unbound_ref2015']['total_score']
+            ddG = dG_bound - dG_unbound
+            if ddG > 0:
+                self.igor.coordinate_constraint /= 2
+                self.journal.debug(f'{self.long_name} - coord_constraint lowered: {self.igor.coordinate_constraint}:  {ddG} kcal/mol.')
+            if self.igor.coordinate_constraint == 0.:
+                self.journal.warn(f'{self.long_name} - failed to minimise without constraints:  {ddG} kcal/mol.')
+                break
+            elif self.igor.coordinate_constraint < 0.005:
+                self.igor.coordinate_constraint = 0.
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
         self.minimised_mol = self._fix_minimised()
         self.mrmsd = self._calculate_rmsd()
-        self.energy_score = self._calculate_score()
+        self.journal.info(f'{self.long_name} - final score: {ddG} kcal/mol {self.mrmsd.mrmsd}.')
+
         self._checkpoint_charlie()
         self.journal.debug(f'{self.long_name} - Completed')
 
@@ -367,7 +382,7 @@ class Victor(_VictorUtilsMixin):
         for war_def in self.warhead_definitions:
             warhead = Chem.MolFromSmiles(war_def['covalent'])
             if self.params.mol.HasSubstructMatch(warhead):
-                self.params.rename_from_template(warhead, war_def['covalent_atomnames'])
+                self.params.rename_by_substructure(warhead, war_def['covalent_atomnames'])
                 cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
                 self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
                 cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),

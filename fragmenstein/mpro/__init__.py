@@ -58,9 +58,12 @@ class MProVictor(Victor):
         mpro_folder = self.get_mpro_path()
         apo = os.path.join(mpro_folder, 'template.pdb')
         atomnames = {}
-        fx = pose_fx
+        if category == 'noncolavent':
+            fx = poised_pose_fx
+        else:
+            fx = pose_fx
         extra_constraint = 'AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n'
-        if category:
+        if category not in (None, 'noncovalent') and '_' in category:
             cname, rxd = category.split('_')
             if rxd == 'noncovalent':
                 wd = [wd for wd in self.warhead_definitions if wd['name'] == cname][0]

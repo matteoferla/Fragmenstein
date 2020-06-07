@@ -51,7 +51,7 @@ def igor_test():
         native = acl.pose.clone()
         pymover.apply(native)
         acl.pose = native.clone()
-        acl.minimise(10)
+        acl.minimise()
         pymover.pymol_name(f'relaxed')
         pymover.apply(acl.pose)
         print('cartesian relaxed')

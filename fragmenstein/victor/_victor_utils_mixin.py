@@ -50,7 +50,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     def summarise(self):
         return {'name': self.long_name,
                 'smiles': self.smiles,
-                'mode': 'none',
+                'mode': self.fragmenstein_merging_mode,
                 '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
                        self.energy_score['unbound_ref2015']['total_score'],
                 'comRMSD': self.mrmsd.mrmsd,

@@ -174,7 +174,7 @@ class _IgorMinMixin:
         mmf.add_jump_action(true, pyrosetta.rosetta.core.select.jump_selector.InterchainJumpSelector())
         return mmf
 
-    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 10.0, default_coord_constraint=True) -> pyrosetta.rosetta.protocols.moves.Mover:
+    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 1.0, default_coord_constraint=True) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
 
@@ -337,9 +337,9 @@ class _IgorMinMixin:
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
 
-    def minimise(self, cycles: int = 10, default_coord_constraint=False):
+    def minimise(self, cycles: int = 15, default_coord_constraint=True):
         self.repack_neighbors()
-        mover = self.get_mod_FastRelax(cycles, default_coord_constraint)
+        mover = self.get_mod_FastRelax(cycles, default_coord_constraint=default_coord_constraint)
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
         self.repack_neighbors()

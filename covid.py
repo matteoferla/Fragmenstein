@@ -17,6 +17,7 @@ def preprocess(path):
 def process(x):
     from sqlitedict import SqliteDict
     import json
+    from fragmenstein.mpro import MProVictor
     v = MProVictor.from_hit_codes(**x)
     v.make_pse()
     results = SqliteDict(f'MPro.sqlite', encode=json.dumps, decode=json.loads, autocommit=True)
