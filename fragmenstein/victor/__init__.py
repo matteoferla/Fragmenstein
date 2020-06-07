@@ -367,7 +367,7 @@ class Victor(_VictorUtilsMixin):
         for war_def in self.warhead_definitions:
             warhead = Chem.MolFromSmiles(war_def['covalent'])
             if self.params.mol.HasSubstructMatch(warhead):
-                self.params.rename_by_template(warhead, war_def['covalent_atomnames'])
+                self.params.rename_from_template(warhead, war_def['covalent_atomnames'])
                 cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
                 self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
                 cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),

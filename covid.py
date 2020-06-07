@@ -36,7 +36,7 @@ def get_compounds_to_be_done(postera: pd.DataFrame):
                                           hit_codes=row.fragments.split(','),
                                           smiles=row.SMILES))
         else:
-            if row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+            if row.category.lower() not in ('acrylamide', 'chloroacetamide', 'vinylsulfonamide', 'nitrile'):
                 print(f'What is {row["CID"]}')
                 mystery.append(row["CID"])
             else:
@@ -47,8 +47,13 @@ def get_compounds_to_be_done(postera: pd.DataFrame):
                 for c in combinations:
                     if '_noncovalent' in c:
                         pass  # the pre-encounter complex needs to be done differently (Code to be done)
+                    if row.category.lower() in c:
+                        to_be_done.append(dict(long_name=row.CID,
+                                               hit_codes=row.fragments.split(','),
+                                               smiles=combinations[c]))
                     else:
-                        to_be_done.append(dict(long_name=row.CID + '-' + c,
+
+                        to_be_done.append(dict(long_name=row.CID + '-' + c.split('_')[0],
                                                       hit_codes=row.fragments.split(','),
                                                       smiles=combinations[c]))
     print(mystery)
