@@ -230,7 +230,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         """
         mol = Chem.MolFromSmiles(smiles)
         if warhead_name:
-            war_defs = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name]
+            war_defs = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()]
         else:
             war_defs = cls.warhead_definitions
         for war_def in war_defs:
@@ -253,7 +253,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :return: dictionary of SMILES
         """
         mol = Chem.MolFromSmiles(smiles)
-        war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name][0]
+        war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()][0]
         ncv = Chem.MolFromSmiles(war_def['noncovalent'])
         if mol.HasSubstructMatch(ncv):
             combinations = {}

@@ -1,52 +1,69 @@
-import pyrosetta
+##############################################
+cores = 2
+out_path = 'mpro_output'
+##############################################
 
-pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
-
-from fragmenstein.mpro import MProVictor
-
-MProVictor.work_path = 'mpro_output'
-
-from sqlitedict import SqliteDict
-
-import json
-
-import logging
-
-MProVictor.enable_stdout(logging.DEBUG)
+import pandas as pd
+from multiprocessing import Pool
 
 
-#####################################################
-results = SqliteDict('results.sqlite', encode=json.dumps, decode=json.loads, autocommit=True)
+def preprocess(path):
+    import pyrosetta, logging
+    pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
+    from fragmenstein.mpro import MProVictor
+    MProVictor.enable_stdout(logging.INFO)
+    MProVictor.work_path = path
 
-# data from https://github.com/postera-ai/COVID_moonshot_submissions
-postera = MProVictor.fetch_postera()
+def process(x):
+    from sqlitedict import SqliteDict
+    import json
+    v = MProVictor.from_hit_codes(**x)
+    v.make_pse()
+    results = SqliteDict(f'MPro.sqlite', encode=json.dumps, decode=json.loads, autocommit=True)
+    results[x['long_name']] = v.summarise()
 
-for i, row in postera.iterrows():
-    if row.fragments == 'x0072':
-        # these are not hit inspired.
-        continue
-    if row.covalent_warhead in (False, 'False', 'false'):
-        v = MProVictor.from_hit_codes(long_name=row.CID,
-                                      hit_codes=row.fragments.split(','),
-                                      smiles=row.SMILES)
-        v.make_pse()
-        results[row.CID] = v.summarise()
-    else:
-        if row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
-            print(f'What is {row["CID"]}')
+def get_compounds_to_be_done(postera: pd.DataFrame):
+    # parse
+    to_be_done = []
+    mystery = []
+    for i, row in postera.iterrows():
+        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
+            # these are not hit inspired.
+            continue
+        if row.covalent_warhead in (False, 'False', 'false'):
+            # parse
+            to_be_done.append(dict(long_name=row.CID,
+                                          hit_codes=row.fragments.split(','),
+                                          smiles=row.SMILES))
         else:
-            combinations = MProVictor.make_all_warhead_combinations(row.SMILES, row.category)
-            if combinations is None:
-                break
-            for c in combinations:
-                if '_noncovalent' in c:
-                    pass  # the pre-encounter complex needs to be done differently (Code to be done)
-                else:
-                    v = MProVictor.from_hit_codes(long_name=row.CID + '-' + c,
-                                                  hit_codes=row.fragments.split(','),
-                                                  smiles=combinations[c])
-                    v.make_pse()
-                    results[row.CID] = v.summarise()
+            if row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+                print(f'What is {row["CID"]}')
+                mystery.append(row["CID"])
+            else:
+                combinations = MProVictor.make_all_warhead_combinations(row.SMILES, row.category)
+                if combinations is None:
+                    mystery.append(row["CID"])
+                    break
+                for c in combinations:
+                    if '_noncovalent' in c:
+                        pass  # the pre-encounter complex needs to be done differently (Code to be done)
+                    else:
+                        to_be_done.append(dict(long_name=row.CID + '-' + c,
+                                                      hit_codes=row.fragments.split(','),
+                                                      smiles=combinations[c]))
+    print(mystery)
+    return to_be_done
 
-# requires slack webhook. See api.slack.com
-MProVictor.slack_me('DONE')
+if __name__ == '__main__':
+    # get stuff started
+    pool = Pool(cores)
+    #pool.map(preprocess, [out_path] * cores)
+
+    # get data
+    # data from https://github.com/postera-ai/COVID_moonshot_submissions
+    from fragmenstein.mpro import MProVictor
+    postera = MProVictor.fetch_postera()
+    to_be_done = get_compounds_to_be_done(postera)
+    # pool.map(process, to_be_done)
+    # requires slack webhook. See api.slack.com
+    MProVictor.slack_me('DONE')
