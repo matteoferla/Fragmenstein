@@ -4,6 +4,8 @@ import logging
 class _VictorBaseMixin:
     fragmenstein_merging_mode = 'partial'
     fragmenstein_debug_draw = False
+    fragmenstein_average_position = False
+    constraint_function_type = 'HARMONIC'
     hits_path = 'hits'
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')

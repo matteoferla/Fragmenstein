@@ -99,6 +99,12 @@ class _FragmensteinUtil:
             mol = self.positioned_mol
         return [atom.GetDoubleProp('_Stdev') if atom.HasProp('_Stdev') else 0  for atom in mol.GetAtoms()]
 
+    def max_from_mol(self, mol: Chem.Mol=None):
+        if mol is None:
+            mol = self.positioned_mol
+        return [atom.GetDoubleProp('_Max') if atom.HasProp('_Max') else 0 for atom in mol.GetAtoms()]
+
+
     def origin_from_mol(self, mol: Chem.Mol = None):
         """
         these values are stored from Fragmenstein for scaffold, chimera and positioned_mol

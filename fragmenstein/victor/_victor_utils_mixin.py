@@ -28,6 +28,11 @@ from rdkit.Chem import rdFMCS
 
 from ._victor_base_mixin import _VictorBaseMixin
 
+try:
+    import pymol2
+except ImportError:
+    pymol2 = None
+
 
 class _VictorUtilsMixin(_VictorBaseMixin):
     # =================== Logging ======================================================================================
@@ -40,10 +45,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :param level: logging level
         :return: None
         """
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(level)
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
+        if len([h for h in cls.journal.handlers if h.name == 'stdout']):
+            return None
+        else:
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(level)
+            handler.set_name('stdout')
+            handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
+            cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 
     @classmethod
@@ -55,10 +64,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :param level: logging level
         :return: None
         """
-        handler = logging.FileHandler(filename)
-        handler.setLevel(level)
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
+        if len([h for h in cls.journal.handlers if h.name == 'logfile']):
+            return None
+        else:
+            handler = logging.FileHandler(filename)
+            handler.setLevel(level)
+            handler.set_name('logfile')
+            handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
+            cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 
     @classmethod
@@ -231,6 +244,38 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     # =================== pre-encounter ================================================================================
 
     #@classmethod
+
+    # =================== save  ========================================================================================
+
+    def make_pse(self, filename: str = 'combo.pse'):
+        """
+        Save a pse in the relevant folder.
+
+        :param filename:
+        :return:
+        """
+        assert '.pse' in filename, f'{filename} not .pse file'
+        with pymol2.PyMOL() as pymol:
+            for hit in self.hits:
+                hit_name = hit.GetProp('_Name')
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(hit), hit_name)
+                if hit_name in self.fragmenstein.unmatched:
+                    pymol.cmd.color('black', f'element C and {hit_name}')
+                else:
+                    pymol.cmd.color('white', f'element C and {hit_name}')
+            if self.fragmenstein.positioned_mol is not None:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.fragmenstein.positioned_mol), 'placed')
+                pymol.cmd.color('magenta', f'element C and placed')
+            if self.minimised_mol is not None:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimised_mol), 'minimised')
+                pymol.cmd.color('green', f'element C and minimised')
+            if self.minimised_pdbblock is not None:
+                pymol.cmd.read_pdbstr(self.minimised_pdbblock, 'protein')
+                pymol.cmd.color('gray50', f'element C and protein')
+                pymol.cmd.hide('sticks', 'protein')
+            pymol.cmd.zoom('byres (placed expand 4)')
+            pymol.cmd.show('line', 'byres (placed around 4)')
+            pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
 
     # =================== Laboratory ===================================================================================

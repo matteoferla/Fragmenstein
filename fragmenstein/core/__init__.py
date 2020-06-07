@@ -87,7 +87,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                            ringMatchesRingOnly=True)]
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
-                 debug_draw: bool = False, merging_mode='partial'):
+                 debug_draw: bool = False, merging_mode='partial', average_position=False):
         """
         Merging mode controls what algorithm to use.
 
@@ -119,6 +119,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         self.hits = self.fix_hits(hits) # list of hits
         self._debug_draw = debug_draw  # Jupyter notebook only.
         self.unmatched = []
+        self.average_position = average_position
         # derived attributes
         self.scaffold = None #: template which may have wrong elements
         self.scaffold_options = [] #: partial combined templates (merging_mode: partial)
@@ -153,6 +154,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         """
         self.scaffold_options = self.combine_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
+        used = self.fragmenstein.scaffold.GetProp('_Name').split('-')
+        self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
         self.scaffold = self.posthoc_refine(unrefined_scaffold)
         self.chimera = self.make_chimera(mode_index)
         self.positioned_mol = self.place_followup()
@@ -177,6 +180,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         um = Unmerge(followup=self.initial_mol, mols=self.hits, maps=maps, _debug_draw = self._debug_draw)
         self.scaffold = um.combined
         full_atom_map = um.combined_map
+        self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         self.chimera = self.posthoc_refine(um.combined_bonded, indices=full_atom_map.values())
         if self._debug_draw:
             print('followup to scaffold', full_atom_map)
@@ -184,7 +188,6 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
             self.draw_nicely(self.initial_mol)
             print('scaffold')
             self.draw_nicely(self.scaffold)
-        self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         self.positioned_mol = self.place_followup(atom_map=full_atom_map)
 
     # ========== Merging ===============================================================================================
@@ -486,6 +489,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
 
     def place_followup(self, mol: Chem.Mol = None, atom_map:Optional[Dict]=None) -> Chem.Mol:
         """
+        This method places the atoms with known mapping
+        and places the 'uniques' (novel) via an aligned mol (the 'sextant')
 
         :param mol:
         :param atom_map: something that get_mcs_mapping would return.
@@ -499,13 +504,18 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         Chem.SanitizeMol(sextant)
         AllChem.EmbedMolecule(sextant)
         AllChem.MMFFOptimizeMolecule(sextant)
+        ######################################################
+        # mapping retrieval and sextant alignment
+        # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
             self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
+        # debug print
         if self._debug_draw:
             self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
             self.draw_nicely(self.chimera, highlightAtoms=dict(atom_map).values())
+        # place atoms that have a known location
         putty = Chem.Mol(sextant)
         pconf = putty.GetConformer()
         chimera_conf = self.chimera.GetConformer()
@@ -522,39 +532,48 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                 uniques.add(i)
                 putty.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
                 putty.GetAtomWithIdx(i).SetProp('_Origin', 'none')
-        # we be using a sextant for dead reckoning!
+        ######################################################
+        # I be using a sextant for dead reckoning!
+        # variables: sextant unique team
         categories = self._categorise(sextant, uniques)
+        # debug print
         if self._debug_draw:
             print('internal', categories['internals'])
-        done_already = []
+        done_already = [] # multi-attachment issue.
         for unique_idx in categories['pairs']:  # attachment unique indices
+            # check the index was not done already (by virtue of a second attachment)
             if unique_idx in done_already:
                 continue
-            sights = set()
-            for pd in categories['pairs'][unique_idx]:
-                first_sight = pd['idx']
-                sights.add((first_sight, first_sight))
-                neighs = [i.GetIdx() for i in sextant.GetAtomWithIdx(first_sight).GetNeighbors() if
-                          i.GetIdx() not in uniques]
-                for n in neighs:
-                    sights.add((n, n))
+            # get other attachments if any.
             team = self._recruit_team(mol, unique_idx, categories['uniques'])
+            other_attachments = (team & set(categories['pairs'].keys())) - {unique_idx}
+            sights = set() #atoms to align against
+            for att_idx in [unique_idx] + list(other_attachments):
+                for pd in categories['pairs'][att_idx]:
+                    first_sight = pd['idx']
+                    sights.add((first_sight, first_sight))
+                    neighs = [i.GetIdx() for i in sextant.GetAtomWithIdx(first_sight).GetNeighbors() if
+                              i.GetIdx() not in uniques]
+                    for n in neighs:
+                        sights.add((n, n))
             if self.attachement and list(categories['dummies']) and list(categories['dummies'])[0] in team:
                 r = list(categories['dummies'])[0]
                 pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
                 sights.add((r, r))
             rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
             sconf = sextant.GetConformer()
+            # debug print
             if self._debug_draw:
                 print(f'alignment atoms for {unique_idx} ({team}): {sights}')
                 self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
+            # copy position over
             for atom_idx in team:
                 pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
             # the ring problem does not apply here but would result in rejiggling atoms.
-            other_attachments = (team & set(categories['pairs'].keys())) - {unique_idx}
+
             for other in other_attachments:
                 done_already.append(other)
-
+        # complete
         AllChem.SanitizeMol(putty)
         return putty  # positioned_mol
 
@@ -753,10 +772,22 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
 
     def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
         for hi, hit in enumerate(hits):
-            self.store_positions(hit)
+            if isinstance(hit, str):
+                warn(f'Hit {hi} is a string ({hit}). This route is not the intended way. Trying to read it.')
+                if '.mol' in hit or '.mdf' in hit:
+                    hits[hi] = Chem.MolFromMolFile(hit)
+                elif '.pdb' in hit:
+                    hits[hi] = Chem.MolFromPDBFile(hit)
+                else:
+                    raise ValueError(f'Hit {hit} is not a Mol file.')
+            elif isinstance(hit, Chem.Mol):
+                pass
+            else:
+                raise ValueError(f'Hit has to be a Chem.Mol! not {type(hit)}')
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
+            self.store_positions(hit)
         return hits
 
 
@@ -790,10 +821,15 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                 #     'in scaffold that has no positions.')
             else:
                 p = np.mean(np.array(positions[i]), axis=0).astype(float)
-                sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float)  # TODO this seems a bit dodgy.
+                #sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float)
+                ds = [np.linalg.norm(p - pi) for pi in positions[i]]
+                sd = np.std(ds)
+                md = np.max(ds)
                 refined.GetAtomWithIdx(i).SetProp('_Origin', json.dumps(equivalence[i]))
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', sd)
-                refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
+                refined.GetAtomWithIdx(i).SetDoubleProp('_Max', md)
+                if self.average_position:
+                    refconf.SetAtomPosition(i, Point3D(p[0], p[1], p[2]))
         Chem.SanitizeMol(refined,
                          sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
                                      Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,

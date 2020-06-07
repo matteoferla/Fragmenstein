@@ -206,7 +206,7 @@ class _IgorMinMixin:
         relax.cartesian(True)
         # this appears to do nothing.
         if default_coord_constraint:
-            relax.constrain_relax_to_start_coords(default_coord_constraint)  # set native causes a segfault.
+            relax.constrain_relax_to_start_coords(True)  # set native causes a segfault.
         return relax
 
     def get_old_FastRelax(self, cycles=1) -> pyrosetta.rosetta.protocols.moves.Mover:

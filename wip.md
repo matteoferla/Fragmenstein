@@ -77,3 +77,14 @@ It requires the valence fix which is fine (as seen in postera site demo).
 However, the bonds need to be fixed going to the new ring.
 The match collapsed ring with collapsed ring only is clearly unneeded.
 Proximity bonding is a nice way to resolve this.
+
+## Logging
+
+> Depracation of `Fragmenstein.notebook` (txt dict for debug) in favour of `Victor.journal` (proper logging)
+
+The correct logging is via Victor's journal. The logging log `Fragmenstein`.
+However, Fragmenstein has `.logbook` which are more debug notes —dictionary. These should be integrated or removed.
+
+## Unittest
+
+`test.py` and the various jupyter notebook I have need to go into a proper testing suite.

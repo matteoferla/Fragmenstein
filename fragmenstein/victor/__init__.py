@@ -214,7 +214,8 @@ class Victor(_VictorUtilsMixin):
                                          hits=self.hits,
                                          attachment=attachment,
                                          merging_mode=self.fragmenstein_merging_mode,
-                                         debug_draw=self.fragmenstein_debug_draw)
+                                         debug_draw=self.fragmenstein_debug_draw,
+                                         average_position=self.fragmenstein_average_position)
         self.journal.debug(f'{self.long_name} - Tried {len(self.fragmenstein.scaffold_options)} combinations')
         self.unminimised_pdbblock = self._place_fragmenstein()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
@@ -276,16 +277,28 @@ class Victor(_VictorUtilsMixin):
         lines = []
         origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
         std = self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)
+        mx = self.fragmenstein.max_from_mol(self.fragmenstein.positioned_mol)
         conf = self.fragmenstein.positioned_mol.GetConformer()
         for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
-            if origins[i]:
+            if len(origins[i]) > 0:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
                 if atom.GetSymbol() == '*':
                     continue
                 pos = conf.GetAtomPosition(i)
+                if self.constraint_function_type.upper() == 'HARMONIC':
+                    fxn = f'HARMONIC 0 {std[i] + 1}'
+                elif self.constraint_function_type.upper() == 'FLAT_HARMONIC':
+                    if len(origins) > 1:
+                        fxn = f'FLAT_HARMONIC 0 1 {mx[1]}'
+                    else:
+                        fxn = f'HARMONIC 0 {std[i] + 1}'
+                elif self.constraint_function_type.upper() == 'BOUNDED':
+                    fxn = f'BOUNDED 0 {mx[1]} 1 0.5 TAG'
+                else:
+                    raise ValueError(f'{self.constraint_function_type} is not HARMONIC or FADE or BOUNDED')
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
                              f'CA {self.covalent_resi} ' + \
-                             f'{pos.x} {pos.y} {pos.z} HARMONIC 0 {std[i] + 1}\n')
+                             f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
 
     def _place_fragmenstein(self):
@@ -579,7 +592,9 @@ class Victor(_VictorUtilsMixin):
             self.fragmenstein = Fragmenstein(mol=self.mol,
                                              hits=self.hits,
                                              attachment=None,
-                                             merging_mode='off')
+                                             merging_mode='off',
+                                             average_position = self.fragmenstein_average_position
+                                            )
             self.fragmenstein.positioned_mol = self.mol
             self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
         else:
