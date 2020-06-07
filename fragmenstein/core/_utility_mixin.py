@@ -161,6 +161,13 @@ class _FragmensteinUtil:
                 w.write(d.GetDrawingText())
 
     def make_pse(self, filename='test.pse'):
+        """
+        This is specifically for debugging the full fragment merging mode.
+        For general use. Please use the Victor method ``make_pse``.
+
+        :param filename:
+        :return:
+        """
         assert '.pse' in filename, 'Must be a pymol pse extension!'
         with pymol2.PyMOL() as pymol:
             tints = iter(['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])

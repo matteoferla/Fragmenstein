@@ -559,6 +559,16 @@ class Victor(_VictorUtilsMixin):
             conn = float('nan')
         return conn
 
+    @property
+    def unconstrained_heavy_atoms(self) -> int:
+        try:
+            origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
+            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in zip(origins, self.fragmenstein.positioned_mol.GetAtoms())])
+        except Exception as err:
+            self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
+            unconn = float('nan')
+        return unconn
+
     @classmethod
     def from_files(cls, folder:str) -> Victor:
         """

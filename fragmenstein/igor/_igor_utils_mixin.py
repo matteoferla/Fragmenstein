@@ -19,6 +19,17 @@ from typing import Optional
 
 class _IgorUtilsMixin:
 
+    def dock(self):
+        """Docks the pose the normal way and without constraints"""
+        docked = self.pose.clone()
+        docked.remove_constraints()
+        pyrosetta.rosetta.protocols.docking.setup_foldtree(docked, 'A_B', pyrosetta.Vector1([1]))
+        scorefxn = pyrosetta.create_score_function('ligand')
+        docking = pyrosetta.rosetta.protocols.docking.DockMCMProtocol()
+        docking.set_scorefxn(scorefxn)
+        docking.apply(docked)
+        return docked
+
     @classmethod
     def download_map(cls, pdbcode: str, filename: str):
         """

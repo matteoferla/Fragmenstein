@@ -40,7 +40,7 @@ class _IgorMinMixin:
         """
         return [i + 1 for i, v in enumerate(vector) if v == 1]
 
-    def mol_from_pose(self) -> Chem.Mol:
+    def mol_from_pose(self, pose:Optional[pyrosetta.Pose]=None) -> Chem.Mol:
         """
 
         :return: ligand
@@ -51,8 +51,10 @@ class _IgorMinMixin:
         # mol = Chem.MolFromPDBBlock(pdbblock, proximityBonding=False)
         # assert mol is not None, 'Molecule too horrendous to load.'
         # return mol
-        mol = Chem.MolFromPDBBlock(self.pose2str(), proximityBonding=False, removeHs=False)
-        name3 = self.pose.residue(self.ligand_residue[0]).name3()
+        if pose is None:
+            pose = self.pose
+        mol = Chem.MolFromPDBBlock(self.pose2str(pose), proximityBonding=False, removeHs=False)
+        name3 = pose.residue(self.ligand_residue[0]).name3()
         return Chem.SplitMolByPDBResidues(mol, whiteList=[name3])[name3]
 
     def make_ligand_only_pose(self) -> pyrosetta.Pose:

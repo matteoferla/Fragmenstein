@@ -24,7 +24,7 @@ import unicodedata
 from typing import List, Union, Optional
 
 from rdkit import Chem
-from rdkit.Chem import rdFMCS
+from rdkit.Chem import rdFMCS, AllChem
 
 from ._victor_base_mixin import _VictorBaseMixin
 
@@ -35,6 +35,33 @@ except ImportError:
 
 
 class _VictorUtilsMixin(_VictorBaseMixin):
+
+    def dock(self) -> Chem.Mol:
+        docked = self.igor.dock()
+        self.docked_pose = docked
+        docked.dump_pdb(f'{self.work_path}/{self.long_name}/{self.long_name}.holo_docked.pdb')
+        ligand = self.igor.mol_from_pose(docked)
+        template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
+        lig_chem = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        Chem.MolToMolFile(lig_chem, f'{self.work_path}/{self.long_name}/{self.long_name}.docked.mol')
+        return lig_chem
+        # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
+
+    def summarise(self):
+        return {'name': self.long_name,
+                'smiles': self.smiles,
+                'mode': 'none',
+                '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
+                       self.energy_score['unbound_ref2015']['total_score'],
+                'comRMSD': self.mrmsd.mrmsd,
+                'N_constrained_atoms': self.constrained_atoms,
+                'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
+                'runtime': self.tock - self.tick,
+                'regarded': [h.GetProp('_Name') for h in self.hits if
+                             h.GetProp('_Name') not in self.fragmenstein.unmatched],
+                'disregarded': self.fragmenstein.unmatched
+                }
+
     # =================== Logging ======================================================================================
 
     @classmethod
@@ -141,10 +168,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
 
     @classmethod
     def distance_hits(cls, pdb_filenames: List[str],
-                    target_resi: int,
-                    target_chain: str,
-                    target_atomname: str,
-                    ligand_resn='LIG') -> List[float]:
+                      target_resi: int,
+                      target_chain: str,
+                      target_atomname: str,
+                      ligand_resn='LIG') -> List[float]:
         """
         See closest hit for info.
 
@@ -185,7 +212,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         best_d = 99999
         best_hit = -1
         for hit, d in zip(pdb_filenames,
-                     cls.distance_hits(pdb_filenames, target_resi, target_chain, target_atomname, ligand_resn)):
+                          cls.distance_hits(pdb_filenames, target_resi, target_chain, target_atomname, ligand_resn)):
             if d < best_d:
                 best_hit = hit
                 best_d = d
@@ -243,7 +270,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
 
     # =================== pre-encounter ================================================================================
 
-    #@classmethod
+    # @classmethod
 
     # =================== save  ========================================================================================
 
@@ -270,9 +297,9 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimised_mol), 'minimised')
                 pymol.cmd.color('green', f'element C and minimised')
             if self.minimised_pdbblock is not None:
-                pymol.cmd.read_pdbstr(self.minimised_pdbblock, 'protein')
-                pymol.cmd.color('gray50', f'element C and protein')
-                pymol.cmd.hide('sticks', 'protein')
+                pymol.cmd.read_pdbstr(self.minimised_pdbblock, 'min_protein')
+                pymol.cmd.color('gray50', f'element C and min_protein')
+                pymol.cmd.hide('sticks', 'min_protein')
             if self.unminimised_pdbblock is not None:
                 pymol.cmd.read_pdbstr(self.unminimised_pdbblock, 'unmin_protein')
                 pymol.cmd.color('gray20', f'element C and unmin_protein')
@@ -281,7 +308,6 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             pymol.cmd.zoom('byres (placed expand 4)')
             pymol.cmd.show('line', 'byres (placed around 4)')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
-
 
     # =================== Laboratory ===================================================================================
 
