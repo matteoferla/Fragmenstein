@@ -273,6 +273,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 pymol.cmd.read_pdbstr(self.minimised_pdbblock, 'protein')
                 pymol.cmd.color('gray50', f'element C and protein')
                 pymol.cmd.hide('sticks', 'protein')
+            if self.unminimised_pdbblock is not None:
+                pymol.cmd.read_pdbstr(self.unminimised_pdbblock, 'unmin_protein')
+                pymol.cmd.color('gray20', f'element C and unmin_protein')
+                pymol.cmd.hide('sticks', 'unmin_protein')
+                pymol.cmd.disable('unmin_protein')
             pymol.cmd.zoom('byres (placed expand 4)')
             pymol.cmd.show('line', 'byres (placed around 4)')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))

@@ -6,7 +6,6 @@ class _VictorBaseMixin:
     fragmenstein_debug_draw = False
     fragmenstein_average_position = False
     constraint_function_type = 'HARMONIC'
-    hits_path = 'hits'
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)

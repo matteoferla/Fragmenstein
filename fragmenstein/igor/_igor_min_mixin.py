@@ -275,23 +275,34 @@ class _IgorMinMixin:
         restrict_to_focus = operation.OperateOnResidueSubset(allow, ns, True)
         tf = pyrosetta.rosetta.core.pack.task.TaskFactory()
         tf.push_back(operation.PreventRepacking())
-        tf.push_back(operation.DisallowIfNonnative())
         tf.push_back(restrict_to_focus)
+        #tf.push_back(operation.DisallowIfNonnative())
         packer = pyrosetta.rosetta.protocols.minimization_packing.PackRotamersMover(scorefxn)
         packer.task_factory(tf)
         packer.apply(self.pose)
 
     def repack_neighbors(self) -> None:
+        """
+        Repacking is done by relax...
+        :return:
+        """
         cc = self.coordinate_constraint
         self.coordinate_constraint = 0
         scorefxn = self._get_scorefxn("ref2015")
         self.coordinate_constraint = cc
-        self._get_selector(ligand_only=True)
+        # the distance depends on the size of the ligand.
+        vlig = self._get_selector(ligand_only=True).apply(self.pose)
+        lig = self.pose.residues[pyrosetta.rosetta.core.select.residue_selector.ResidueVector(vlig).pop()]
+        lig_size = lig.nbr_radius()
+        # get neighbourhood
         NeighborhoodResidueSelector = pyrosetta.rosetta.core.select.residue_selector.NeighborhoodResidueSelector
-        ns = NeighborhoodResidueSelector(self._get_selector(ligand_only=True), distance=7,
+        ns = NeighborhoodResidueSelector(self._get_selector(ligand_only=True), distance=lig_size + 3,
                                          include_focus_in_subset=False)
-        movemap = self._get_movemap()
+        movemap = pyrosetta.MoveMap()
+        movemap.set_bb(False)
+        movemap.set_chi(False)
         movemap.set_chi(allow_chi=ns.apply(self.pose))
+        #print(pyrosetta.rosetta.core.select.residue_selector.ResidueVector(ns.apply(self.pose)))
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, 2)
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
@@ -324,7 +335,7 @@ class _IgorMinMixin:
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
 
-    def minimise(self, cycles: int = 10, default_coord_constraint=True):
+    def minimise(self, cycles: int = 10, default_coord_constraint=False):
         self.repack_neighbors()
         mover = self.get_mod_FastRelax(cycles, default_coord_constraint)
         # mover = self.get_PertMinMover()

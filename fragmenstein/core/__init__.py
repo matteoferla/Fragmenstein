@@ -181,14 +181,15 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         self.scaffold = um.combined
         full_atom_map = um.combined_map
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
-        self.chimera = self.posthoc_refine(um.combined_bonded, indices=full_atom_map.values())
+        self.chimera = um.combined_bonded
         if self._debug_draw:
             print('followup to scaffold', full_atom_map)
             print('followup')
             self.draw_nicely(self.initial_mol)
             print('scaffold')
             self.draw_nicely(self.scaffold)
-        self.positioned_mol = self.place_followup(atom_map=full_atom_map)
+        placed = self.place_followup(atom_map=full_atom_map)
+        self.positioned_mol = self.posthoc_refine(placed)
 
     # ========== Merging ===============================================================================================
 
@@ -521,17 +522,20 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         chimera_conf = self.chimera.GetConformer()
         uniques = set()  # unique atoms in followup
         for i in range(putty.GetNumAtoms()):
+            p_atom = putty.GetAtomWithIdx(i)
+            p_atom.SetDoubleProp('_Stdev', 0.)
+            p_atom.SetProp('_Origin', 'none')
             if i in atom_map:
                 ci = atom_map[i]
-                stdev = self.chimera.GetAtomWithIdx(ci).GetDoubleProp('_Stdev')
-                origin = self.chimera.GetAtomWithIdx(ci).GetProp('_Origin')
-                putty.GetAtomWithIdx(i).SetDoubleProp('_Stdev', stdev)
-                putty.GetAtomWithIdx(i).SetProp('_Origin', origin)
+                c_atom = self.chimera.GetAtomWithIdx(ci)
+                if c_atom.HasProp('_Stdev'):
+                    stdev = c_atom.GetDoubleProp('_Stdev')
+                    origin = c_atom.GetAtomWithIdx(ci).GetProp('_Origin')
+                    p_atom.SetDoubleProp('_Stdev', stdev)
+                    p_atom.SetProp('_Origin', origin)
                 pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
             else:
                 uniques.add(i)
-                putty.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
-                putty.GetAtomWithIdx(i).SetProp('_Origin', 'none')
         ######################################################
         # I be using a sextant for dead reckoning!
         # variables: sextant unique team
@@ -816,6 +820,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                 continue
             elif len(positions[i]) == 0:
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
+                refined.GetAtomWithIdx(i).SetDoubleProp('_Max', 0.)
                 refined.GetAtomWithIdx(i).SetProp('_Origin', 'none')
                 # warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} '+ \
                 #     'in scaffold that has no positions.')

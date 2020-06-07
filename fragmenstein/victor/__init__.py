@@ -288,12 +288,12 @@ class Victor(_VictorUtilsMixin):
                 if self.constraint_function_type.upper() == 'HARMONIC':
                     fxn = f'HARMONIC 0 {std[i] + 1}'
                 elif self.constraint_function_type.upper() == 'FLAT_HARMONIC':
-                    if len(origins) > 1:
-                        fxn = f'FLAT_HARMONIC 0 1 {mx[1]}'
+                    if len(origins[i]) > 1:
+                        fxn = f'FLAT_HARMONIC 0 1.0 {mx[i]}'
                     else:
-                        fxn = f'HARMONIC 0 {std[i] + 1}'
+                        fxn = f'HARMONIC 0 1.0'
                 elif self.constraint_function_type.upper() == 'BOUNDED':
-                    fxn = f'BOUNDED 0 {mx[1]} 1 0.5 TAG'
+                    fxn = f'BOUNDED 0 {mx[i]} 1 0.5 TAG'
                 else:
                     raise ValueError(f'{self.constraint_function_type} is not HARMONIC or FADE or BOUNDED')
                 lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \

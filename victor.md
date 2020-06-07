@@ -1,7 +1,39 @@
 # Victor
 
-Victor is a pipeline class. This has many features and is rather complicated in its setup: but then a point and click
-solution that works universally is a bad solution.
+Victor is a pipeline class. This has many features and can be rather complicated in its setup: but then a point and click
+solution that works universally without customisation is a bad solution for molecular modelling.
+
+Victor does the following steps:
+
+* Is given a followup to test and the mol objects of its inspiration and the pdb template file.
+* Calls Fragmenstein class
+* Parameterises the mol
+* Generates the constraints
+* Calls Igor
+* Can do some extras
+
+Whereas each instance call of Victor can be customised with various arguments, such as `smiles` and `hits` etc.
+Core settings controlling its behaviour can be set via class attributes:
+
+The following control fragmenstein and are described in [Fragmenstein class documentation](fragmenstein.md).
+
+* `fragmenstein_merging_mode`
+* `fragmenstein_debug_draw`
+* `fragmenstein_average_position`
+
+The following control the warhead conversion methods:
+
+* `covalent_definitions` (currently defined only for cysteine)
+* `warhead_definitions`
+
+Others:
+
+* `error_to_catch`
+* `constraint_function_type`
+* `work_path`
+    
+
+## Example
 Here is a real world usage that uses multiple features:
 
 Import pyrosetta and initialised before everything (applies to Igor too):
@@ -112,7 +144,12 @@ Read the data and do all warhead combinations if covalent. This data is actually
                 print(f'What is {row["CID"]}')
                 issue.append(row["CID"])
       
+## Methods for inheritance
 The above could have been customised further, by making a class that inherits Victor and defining
  `post_params_step`, `post_fragmenstein_step`, `pose_mod_step` or `post_igor_step`, which are empty methods
 intended to make subclassing Victor easier as these are meant to be overridden
 —NB `pose_mod_step` is run if not `pose_fx` is given.
+
+## Coordinate constraint
+The coordinate constraint generated for Igor, the minimiser can be changed from `HARMONIC` (x = mean)
+to `FLAT_HARMONIC` (tol = max distance of contributing atoms) and `BOUNDED` (fixed penalty potential well).
