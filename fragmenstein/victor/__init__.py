@@ -33,12 +33,13 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
+from ._victor_rectify_mixin import _VictorRectifyMixin
 from ..core import Fragmenstein
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
 
-class Victor(_VictorUtilsMixin):
+class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
     """
     * ``smiles`` SMILES string (inputted)
     * ``long_name`` name for files
