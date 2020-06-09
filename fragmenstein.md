@@ -14,7 +14,7 @@ within a 2Å radius (see [Position Mapping code](fragmenstein/core/positional_ma
 
 The three have different strengths. And which is better depends actually on the dataset.
 
-The argument `merging_mode` (`full`|`partial`|`none`|`off`) chooses which is used.
+The argument `merging_mode` (`full`|`partial`|`none`|`none_permissive`|`off`) chooses which is used.
 
 All three of these modes place the atoms of the followup and "project" the missing atoms.
 
@@ -67,6 +67,8 @@ This method (self standing code in [core.unmerge_mapper.py](fragmenstein/core.un
 The maps must satisfy some conditions, two mapped atoms cannot occupy the same 2 Å overlapping position
 and no bond in the map can be over 3 Å long —if the atoms in between are not placed there is no constraint (which is a problem).
 This mills through all possible MCS pairing of the various inspiration hits, so the time taken increases to the power of the hits.
+
+The (slower) variant `none_permissive` allows the mapping of atoms of different kinds assuming the more permissive mapping includes the stricter.
 
 #### Pros
 * Better at mapping
