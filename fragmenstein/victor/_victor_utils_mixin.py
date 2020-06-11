@@ -21,7 +21,7 @@ import re
 import requests
 import sys
 import unicodedata
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 
 from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem
@@ -308,6 +308,36 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             pymol.cmd.zoom('byres (placed expand 4)')
             pymol.cmd.show('line', 'byres (placed around 4)')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
+
+    # =================== extract_mols =================================================================================
+
+    @classmethod
+    def extract_mols(cls, folder: str, smileses: Dict[str, str], ligand_resn: str = 'LIG') -> Dict[str, Chem.Mol]:
+        """
+         A key requirement for Fragmenstein is a separate mol file for the inspiration hits.
+        This is however often a pdb. This converts.
+
+        :param folder: folder with pdbs
+        :return:
+        """
+        mols = {}
+        for file in os.listdir(folder):
+            if '.pdb' not in file:
+                continue
+            else:
+                fullfile = os.path.join(folder, file)
+                name = os.path.splitext(file)[0]
+                holo = Chem.MolFromPDBFile(fullfile, proximityBonding=False, removeHs=False)
+                mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
+                if name in smileses:
+                    template = Chem.MolFromSmiles(smileses[name])
+                    template = AllChem.DeleteSubstructs(template, Chem.MolFromSmiles('*'))
+                    mol = AllChem.AssignBondOrdersFromTemplate(template, mol)
+                else:
+                    cls.journal.warning(f'{name} could not be matched to a smiles.')
+                mol.SetProp('_Name', name)
+                mols[name] = mol
+        return mols
 
     # =================== Laboratory ===================================================================================
 

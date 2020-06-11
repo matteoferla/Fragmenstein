@@ -11,6 +11,8 @@ However, there are some problems:
 * some users submitted a mispelt hit
 
 For an example of the script used, see [covid.py](covid.py).
+Note that this script runs on multiple cores. For a fews smiles, which takes about 30 seconds each there is no need.
+Also note that some molecules get stuck due to incorrectly entered inspirations.
 
 For a comparision of how the three method fair with the daset see [three modes compared](three_modes_compared.md).
 

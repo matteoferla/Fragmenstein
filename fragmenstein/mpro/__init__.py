@@ -89,6 +89,11 @@ class MProVictor(Victor):
 
     @classmethod
     def fetch_postera(cls):
+        """
+        Reads the submission file off Github.
+        For a local version, just ``postera = pd.read_csv(file)`` and ``MProVictor.add_category(postera)``.
+        :return:
+        """
         url = "https://raw.githubusercontent.com/postera-ai/COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
         s = requests.get(url).content
         postera = pd.read_csv(io.StringIO(s.decode('utf-8')))
