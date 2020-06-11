@@ -1,3 +1,19 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+These are extras for the Fragmenstein step
+    """
+
+__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
+__email__ = "matteo.ferla@gmail.com"
+__date__ = "2020 A.D."
+__license__ = "MIT"
+__version__ = "0.4"
+__citation__ = ""
+
+########################################################################################################################
+
 from typing import List, Optional, Tuple
 from warnings import warn
 
@@ -28,6 +44,7 @@ class _FragmensteinUtil:
     def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol] = None,
                           hits: Optional[List[Chem.Mol]] = None) -> float:
         """
+        Depracated.
         The inbuilt RMSD calculations in RDKit align the two molecules, this does not align them.
         This deals with the case of multiple hits.
         For euclidean distance the square root of the sum of the differences in each coordinates is taken.

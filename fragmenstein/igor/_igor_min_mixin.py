@@ -1,3 +1,19 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+Minimisers
+    """
+
+__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
+__email__ = "matteo.ferla@gmail.com"
+__date__ = "2020 A.D."
+__license__ = "MIT"
+__version__ = "0.4"
+__citation__ = ""
+
+########################################################################################################################
+
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from warnings import warn

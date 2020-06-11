@@ -1,3 +1,20 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+Fix issue in auto-merging
+    """
+
+__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
+__email__ = "matteo.ferla@gmail.com"
+__date__ = "2020 A.D."
+__license__ = "MIT"
+__version__ = "0.4"
+__citation__ = ""
+
+########################################################################################################################
+
+
 from ._victor_base_mixin import _VictorBaseMixin
 
 from rdkit import Chem

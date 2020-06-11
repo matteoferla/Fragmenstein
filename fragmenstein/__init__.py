@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-    ...
+    See GitHub documentation
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"

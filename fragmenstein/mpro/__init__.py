@@ -1,3 +1,20 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+This is a variant of Victor for MPro that uses data from PostEra
+    """
+
+__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
+__email__ = "matteo.ferla@gmail.com"
+__date__ = "2020 A.D."
+__license__ = "MIT"
+__version__ = "0.4"
+__citation__ = ""
+
+########################################################################################################################
+
+
 from ..victor import Victor
 
 import os, pyrosetta

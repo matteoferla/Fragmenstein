@@ -1,3 +1,20 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+Unmerge mapper (not inherited)
+    """
+
+__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
+__email__ = "matteo.ferla@gmail.com"
+__date__ = "2020 A.D."
+__license__ = "MIT"
+__version__ = "0.4"
+__citation__ = ""
+
+########################################################################################################################
+
+
 from typing import Callable, List, Dict, Tuple, Optional, Any
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
