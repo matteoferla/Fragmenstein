@@ -407,8 +407,126 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                     return {n: path}
 
 
+    def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol, cutoff:float=5.):
+        # offset to avoid clashes.
+        self._offset_collapsed_ring(mol_B)
+        self._offset_origins(mol_B)
+        # get closets atoms
+        combo = Chem.RWMol(Chem.CombineMols(mol_A, mol_B))
+        dm = Chem.Get3DDistanceMatrix(combo)
+        A_idxs = np.arange(mol_A.GetNumAtoms())
+        B_idxs = np.arange(mol_B.GetNumAtoms()) + mol_A.GetNumAtoms()
+        tm = np.take(dm, A_idxs, 0)
+        tm2 = np.take(tm, B_idxs, 1)
+        d = float('inf')
 
-        # find what connects
+        def is_fullbonded(atom):
+            if atom.GetIsAromatic() and len(atom.GetNeighbors()) > 2:
+                return True
+            elif len(atom.GetNeighbors()) > 3:
+                return True
+            else:
+                return False
+
+        def is_ring_atom(atom):
+            if atom.GetIsAromatic():
+                return True
+            elif atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
+                if atom.HasProp('_bonds') and 'AROMATIC' in atom.GetProp('_bonds'):
+                    return True # technically it could be non-aromatic (ring fusion).
+                else:
+                    return False
+            else:
+                return False
+
+        previous = None
+        while d == float('inf'):
+            d = np.amin(tm2)
+            p = np.where(tm2 == d)
+            anchor_A = int(A_idxs[p[0][0]])
+            anchor_B = int(B_idxs[p[1][0]])
+            atom_A = combo.GetAtomWithIdx(anchor_A)
+            atom_B = combo.GetAtomWithIdx(anchor_B)
+            if d == float('inf') and previous is not None:
+                warn(f'run out of options for distance bonding, using previous')
+                d, anchor_A, anchor_B = previous
+            elif d == float('inf'):
+                raise ConnectionError('This is impossible. Previous is absent??')
+            elif is_fullbonded(atom_A):
+                warn(f'Atom A is already at full bond allowance')
+                previous = (d, anchor_A, anchor_B)
+                d = float('inf')
+                tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
+            elif is_fullbonded(atom_B):
+                warn(f'Atom B is already at full bond allowance')
+                previous = (d, anchor_A, anchor_B)
+                d = float('inf')
+                tm2[:, p[1][0]] = np.ones(tm2.shape[0]) * float('inf')
+            elif is_ring_atom(atom_A) and previous is None:
+                warn(f'Atom A is a ring. Don\'t really want to connect to that')
+                previous = (d, anchor_A, anchor_B)
+                d = float('inf')
+                tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
+            elif is_ring_atom(atom_B) and previous is None:
+                warn(f'Atom B is a ring. Don\'t really want to connect to that')
+                previous = (d, anchor_A, anchor_B)
+                d = float('inf')
+                tm2[:, p[1][0]] = np.ones(tm2.shape[0]) * float('inf')
+            elif previous is not None and previous[0] - d > 0.5:
+                warn(f'going with the ring then, the next one is too far.')
+                d, anchor_A, anchor_B = previous
+            else:
+                if self._debug_draw:
+                    print(is_fullbonded(atom_A), is_fullbonded(atom_B), is_ring_atom(atom_A), is_ring_atom(atom_B), previous)
+                pass
+
+        # extrapolate positions between
+        conf = combo.GetConformer()
+        pos_A = conf.GetAtomPosition(anchor_A)
+        pos_B = conf.GetAtomPosition(anchor_B)
+        n_new = int(round(d / 1.22) - 1)
+        xs = np.linspace(pos_A.x, pos_B.x, n_new+2)[1:-1]
+        ys = np.linspace(pos_A.y, pos_B.y, n_new+2)[1:-1]
+        zs = np.linspace(pos_A.z, pos_B.z, n_new+2)[1:-1]
+        # correct for ring marker atoms
+        def is_ring_atom(anchor:int) -> bool:
+            atom = combo.GetAtomWithIdx(anchor)
+            if atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
+                True
+            else:
+                False
+        if is_ring_atom(anchor_A):
+                d -= 1.35
+                n_new -= 1
+                xs = xs[1:]
+                ys = ys[1:]
+                zs = zs[1:]
+        if is_ring_atom(anchor_B):
+            d -= 1.35
+            n_new -= 1
+            xs = xs[:-1]
+            ys = ys[:-1]
+            zs = zs[:-1]
+        # place new atoms
+        if d < cutoff:
+            if self._debug_draw:
+                print(f'Adding {n_new} atoms between {anchor_A} and {anchor_B} ({d} jump)')
+            previous = anchor_A
+            for i in range(n_new):
+                idx = combo.AddAtom(Chem.Atom(6))
+                new = combo.GetAtomWithIdx(idx)
+                new.SetBoolProp('_novel', True)
+                new.SetIntProp('_ori_i', 999)
+                conf.SetAtomPosition(idx, Point3D(float(xs[i]), float(ys[i]), float(zs[i])))
+                combo.AddBond(idx, previous, Chem.BondType.SINGLE)
+                previous = idx
+            combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
+        else:
+            raise ConnectionError
+        mol = combo.GetMol()
+        mol.SetProp('_Name', mol_A.GetProp('_Name')+'~'+mol_B.GetProp('_Name'))
+        return mol
+
 
     def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
@@ -423,15 +541,24 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
         if self._debug_draw:
             print('Merging: ', [hit.GetProp('_Name') for hit in hits])
         scaffold = Chem.Mol(hits[0])
+        # first try
         save_for_later = []
         for fragmentanda in hits[1:]:
             try:
                 scaffold = self.merge_pair(scaffold, fragmentanda)
             except ConnectionError:
                 save_for_later.append(fragmentanda)
+        # second try
+        join_later = []
         for fragmentanda in save_for_later:
             try:
                 scaffold = self.merge_pair(scaffold, fragmentanda)
+            except ConnectionError:
+                join_later.append(fragmentanda)
+        # join (last ditch)
+        for fragmentanda in join_later:
+            try:
+                scaffold = self.join_neighboring_mols(scaffold, fragmentanda)
             except ConnectionError:
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
                 msg = f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!'

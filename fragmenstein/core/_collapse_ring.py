@@ -14,13 +14,14 @@ __citation__ = ""
 
 ########################################################################################################################
 
-import json
+import json, itertools
 from warnings import warn
 from rdkit.Geometry.rdGeometry import Point3D
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from typing import Optional, Dict, List, Any
+import numpy as np
 
 
 class Ring:
@@ -46,78 +47,7 @@ class Ring:
             atom.SetDoubleProp('_z', pos.z)
         return mol
 
-    def _print_stored(self, mol: Chem.Mol):
-        print('Idx', 'OriIdx', 'OriName')
-        for atom in mol.GetAtoms():
-            try:
-                if atom.GetIntProp('_ori_i') == -1:
-                    print(atom.GetIdx(),
-                          atom.GetSymbol(),
-                          atom.GetIntProp('_ori_i'),
-                          atom.GetProp('_ori_name'),
-                          atom.GetProp('_ori_is'),
-                          atom.GetProp('_neighbors')
-                          )
-                else:
-                    print(atom.GetIdx(),
-                          atom.GetSymbol(),
-                          atom.GetIntProp('_ori_i'),
-                          atom.GetProp('_ori_name'))
-            except KeyError:
-                print(atom.GetIdx(),
-                      atom.GetSymbol(), '!!!!')
-
-    def _get_ori_i(self, mol: Chem.Mol, include_collapsed=True):
-        indices = [atom.GetIntProp('_ori_i') for atom in mol.GetAtoms()]
-        if include_collapsed:
-            for atom in self._get_collapsed_atoms(mol):
-                indices.extend(json.loads(atom.GetProp('_ori_is')))
-        else:
-            pass
-        return indices
-
-    def _get_collapsed_atoms(self, mol: Chem.Mol) -> List[Chem.Atom]:
-        return [atom for atom in mol.GetAtoms() if atom.GetIntProp('_ori_i') == -1]
-
-    def _get_new_index(self, mol: Chem.Mol, old: int, search_collapsed=True,
-                       name_restriction: Optional[str] = None) -> int:
-        """
-        Given an old index check in ``_ori_i`` for what the current one is.
-        NB. ring placeholder will be -1 and these also have ``_ori_is``. a JSON of the ori_i they summarise.
-
-        :param mol:
-        :param old: old index
-        :param search_collapsed: seach also in ``_ori_is``
-        :parm name_restriction: restrict to original name.
-        :return:
-        """
-        for i, atom in enumerate(mol.GetAtoms()):
-            if name_restriction is not None and atom.GetProp('_ori_name') != name_restriction:
-                pass
-            elif atom.GetIntProp('_ori_i') == old:
-                return i
-            elif search_collapsed and \
-                    atom.HasProp('_ori_is') and \
-                    old in json.loads(atom.GetProp('_ori_is')):
-                return i
-            else:
-                pass
-        else:
-            raise ValueError(f'Cannot find {old}')
-
-    def _get_mystery_ori_i(self, mol: Chem.Mol):
-        """
-        Collapsed rings may remember neighbors that do not exist any more...
-
-        :param mol:
-        :return:
-        """
-        present = self._get_ori_i(mol)
-        absent = []
-        for atom in self._get_collapsed_atoms(mol):
-            neighss = json.loads(atom.GetProp('_neighbors'))
-            absent.extend([n for neighs in neighss for n in neighs if n not in present])
-        return absent
+    # =========== Offset ===============================================================================================
 
     _collapsed_ring_offset = 0
 
@@ -197,6 +127,8 @@ class Ring:
             else:
                 pass
 
+    # =========== Exand ================================================================================================
+
     def _get_expansion_data(self, mol: Chem.Mol) -> List[Dict[str, List[Any]]]:
         """
         Returns a list for each collapsed ring marking atom each with a dictionary
@@ -219,47 +151,256 @@ class Ring:
     def _get_expansion_for_atom(self, data: Dict[str, List[Any]], i: int) -> Dict[str, Any]:
         return {k.replace('s', ''): data[k][i] if isinstance(data[k], list) else data[k] for k in data}
 
-    def expand_ring(self, mol: Chem.Mol):
+    def expand_ring(self, mol: Chem.Mol, bonded_as_original=False):
         """
         Undoes collapse ring
 
         :param mol:
+        :param bonded_as_original: if false bonds by proximity, if true bonds as remembered
         :return:
         """
-        mod = Chem.RWMol(mol)
-        conf = mod.GetConformer()
-        to_be_waited_for = []
-        rings = self._get_expansion_data(mod)
+        mol = Chem.RWMol(mol)
+        rings = self._get_expansion_data(mol)
+        self._place_ring_atoms(mol, rings)
+        mergituri = self._ring_overlap_scenario(mol, rings)
+        # bonding
+        if bonded_as_original:
+            self._restore_original_bonding(mol, rings)
+            self._fix_overlap(mol, mergituri)
+            self._delete_collapsed(mol)
+        else:
+            self._connenct_ring(mol, rings)
+            self._mark_neighbors(mol, rings)
+            self._fix_overlap(mol, mergituri)
+            self._delete_collapsed(mol)
+            self._infer_bonding_by_proximity(mol)
+        return mol.GetMol()
+
+    def _fix_overlap(self, mol, mergituri):
+        morituri = []
+        for pair in mergituri:
+            self._absorb(mol, *pair)
+            morituri.append(pair[1])
+        for i in sorted(morituri, reverse=True):
+            mol.RemoveAtom(i)
+
+
+    def _place_ring_atoms(self, mol, rings):
+        conf = mol.GetConformer()
         for ring in rings:
             # atom addition
             for i in range(len(ring['elements'])):
                 d = self._get_expansion_for_atom(ring, i)
-                print(i, d['ori_i'], self.is_present(mod, d['ori_i']))
-                if self.is_present(mod, d['ori_i']):
-                    natom = self._get_new_index(mod, d['ori_i'], search_collapsed=False)
+                if self._is_present(mol, d['ori_i']):
+                    natom = self._get_new_index(mol, d['ori_i'], search_collapsed=False)
                     if self._debug_draw:
                         print(f"{natom} (formerly {d['ori_i']} existed already!")
                 else:
-                    n = mod.AddAtom(Chem.Atom(d['element']))
-                    natom = mod.GetAtomWithIdx(n)
+                    n = mol.AddAtom(Chem.Atom(d['element']))
+                    natom = mol.GetAtomWithIdx(n)
                     conf.SetAtomPosition(n, Point3D(d['x'], d['y'], d['z']))
                     natom.SetIntProp('_ori_i', d['ori_i'])
                     natom.SetDoubleProp('_x', d['x'])
                     natom.SetDoubleProp('_y', d['y'])
                     natom.SetDoubleProp('_z', d['z'])
                     natom.SetProp('_ori_name', d['ori_name'])
-        # bonding
+
+    def _ring_overlap_scenario(self, mol, rings):
+        # resolve the case where a border of two rings is lost.
+        # the atoms have to be ajecent.
+        dm = Chem.Get3DDistanceMatrix(mol)
+        mergituri = []
+        for ring in rings:
+            for n in ring['atom'].GetNeighbors():
+                if n.GetIntProp('_ori_i') == -1 and ring['atom'].GetIdx() < n.GetIdx():  # it shares a border.
+                    A_idxs_old = ring['ori_is']
+                    A_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in A_idxs_old]
+                    B_idxs_old = json.loads(n.GetProp('_ori_is'))
+                    B_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in B_idxs_old]
+                    # do the have overlapping atoms already?
+                    if len(set(A_idxs).intersection(B_idxs)) != 0:
+                        continue
+                    else:
+                        #they still need merging
+                        # which atoms of A are closer to B center and vice versa
+                        pairs = []
+                        for G_idxs, ref_i in [(A_idxs, n.GetIdx()), (B_idxs, ring['atom'].GetIdx())]:
+                            tm = np.take(dm, G_idxs, 0)
+                            tm2 = np.take(tm, [ref_i], 1)
+                            p = np.where(tm2 == np.amin(tm2))
+                            f = G_idxs[int(p[0][0])]
+                            tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
+                            p = np.where(tm2 == np.amin(tm2))
+                            s = G_idxs[int(p[0][0])]
+                            pairs.append((f,s))
+                        # now determine which are closer
+                        if dm[pairs[0][0], pairs[1][0]] < dm[pairs[0][0], pairs[1][1]]:
+                            mergituri.append((pairs[0][0], pairs[1][0]))
+                            mergituri.append((pairs[0][1], pairs[1][1]))
+                        else:
+                            mergituri.append((pairs[0][0], pairs[1][1]))
+                            mergituri.append((pairs[0][1], pairs[1][0]))
+        return mergituri
+
+    def _delete_collapsed(self, mol: Chem.RWMol):
+        for a in reversed(range(mol.GetNumAtoms())):
+            if mol.GetAtomWithIdx(a).GetIntProp('_ori_i') == -1:
+                mol.RemoveAtom(a)
+
+    def _mark_neighbors(self, mol, rings):
+        # optional to help quinones
+        for ring in rings:
+            for n, bt in zip(ring['neighbors'], ring['bonds']):
+                try:
+                    ni = self._get_new_index(mol, n, search_collapsed=False)
+                    mol.GetAtomWithIdx(ni).SetProp('_ring_bond', bt)
+                except:
+                    pass
+
+    def _connenct_ring(self, mol, rings):
+        # get ring members.
+        old_ringers = []
+        new_ringers = []
+        for ring in rings:
+            for i in range(len(ring['elements'])):
+                new_i = self._get_new_index(mol, ring['ori_is'][i], search_collapsed=False)
+                old_ringers.append(i)
+                new_ringers.append(new_i)
+        # keep track of new atoms
+        for i in new_ringers:
+            mol.GetAtomWithIdx(i).SetIntProp('expanded', 1)
+        # fix ring neighbours
         for ring in rings:
             for i in range(len(ring['elements'])):
                 d = self._get_expansion_for_atom(ring, i)
-                new_i = self._get_new_index(mod, d['ori_i'], search_collapsed=False)
+                new_i = self._get_new_index(mol, d['ori_i'], search_collapsed=False)
+                # restore ring neighbours
+                for old_neigh, bond in zip(d['neighbor'], d['bond']):
+                    if old_neigh not in ring['ori_is']:
+                        continue
+                    bt = getattr(Chem.BondType, bond)
+                    new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
+                    present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
+                    if present_bond is None:
+                        mol.AddBond(new_i, new_neigh, bt)
+                    elif present_bond.GetBondType().name != bond:
+                        if self._debug_draw:
+                            print(
+                                f'bond between {new_i} {new_neigh} exists already (has {present_bond.GetBondType().name} expected {bt})')
+                        present_bond.SetBondType(bt)
+                    else:
+                        if self._debug_draw:
+                            print(f'bond between {new_i} {new_neigh} exists already ' + \
+                                  f'(has {present_bond.GetBondType().name} expected {bt})')
+                        pass
+
+    def _infer_bonding_by_proximity(self, mol):
+        # fix neighbours
+        # this should not happen. But just in case!
+        while True:
+            ringsatoms = self._get_ring_info(mol)
+            for ringA, ringB in itertools.combinations(ringsatoms, 2):
+                n = mol.GetNumAtoms()
+                self.absorb_overclose(mol, ringA, ringB, cutoff=1.)
+                if n != mol.GetNumAtoms():
+                    break
+            else:
+                break
+        new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
+        self.absorb_overclose(mol, new_ringers)
+        new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
+        self.join_overclose(mol, new_ringers)
+
+    def _get_ring_info(self, mol):
+        """
+        Indentical copy of fx in rectifier...
+        you cannot get ring info on an unsanitized mol. Ironically I need ring info for sanitization
+        :return:
+        """
+        mol2 = Chem.Mol(mol)
+        for bond in mol2.GetBonds():
+            bond.SetBondType(Chem.BondType.UNSPECIFIED)
+        for atom in mol2.GetAtoms():
+            atom.SetIsAromatic(False)
+            atom.SetAtomicNum(0)
+        Chem.SanitizeMol(mol2)
+        return mol2.GetRingInfo().AtomRings()
+
+    def join_overclose(self, mol, to_check, cutoff=1.9):
+        dm = Chem.Get3DDistanceMatrix(mol)
+        for i in to_check:
+            atom_i = mol.GetAtomWithIdx(i)
+            for j, atom_j in enumerate(mol.GetAtoms()):
+                if i == j or j in to_check:
+                    continue
+                elif dm[i, j] < cutoff:
+                    present_bond = mol.GetBondBetweenAtoms(i, j)
+                    if atom_j.HasProp('_ring_bond'):
+                        bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
+                    else:
+                        bt = Chem.BondType.SINGLE
+                    if present_bond is not None and bt.name == present_bond.GetBondType().name:
+                        pass # exists
+                    elif present_bond is not None:
+                        present_bond.SetBondType(bt)
+                    elif len(atom_i.GetNeighbors()) <= 2 and atom_i.GetIsAromatic():
+                        mol.AddBond(i, j, Chem.BondType.SINGLE)
+                    elif len(atom_i.GetNeighbors()) <= 3 and not atom_i.GetIsAromatic():
+                        mol.AddBond(i, j, bt)
+                    else:
+                        pass # too bonded already!
+
+    def absorb_overclose(self, mol, to_check=None, to_check2=None, cutoff:float=1.):
+        # to_check list of indices to check and absorb into, else all atoms are tested
+        dm = Chem.Get3DDistanceMatrix(mol)
+        morituri = []
+        if to_check is None:
+            to_check = list(range(mol.GetNumAtoms()))
+        if to_check2 is None:
+            to_check2 = list(range(mol.GetNumAtoms()))
+        for i in to_check:
+            if i in morituri:
+                continue
+            for j in to_check2:
+                if i == j or j in morituri:
+                    continue
+                elif dm[i, j] < cutoff:
+                    self._absorb(mol, i, j)
+                    morituri.append(j)
+                else:
+                    pass
+        # kill morituri
+        for i in sorted(morituri, reverse=True):
+            mol.RemoveAtom(i)
+        return len(morituri)
+
+    def _absorb(self, mol, i, j):
+        absorbiturum = mol.GetAtomWithIdx(j)
+        for neighbor in absorbiturum.GetNeighbors():
+            n = neighbor.GetIdx()
+            bt = mol.GetBondBetweenAtoms(j, n).GetBondType()
+            # mol.RemoveBond(j, n)
+            if i == n:
+                pass
+            elif mol.GetBondBetweenAtoms(i, n) is None:
+                mol.AddBond(i, n, bt)
+            else:
+                pass  # don't bother checking if differ
+
+
+    def _restore_original_bonding(self, mol: Chem.RWMol, rings) -> None:
+        to_be_waited_for = []
+        for ring in rings:
+            for i in range(len(ring['elements'])):
+                d = self._get_expansion_for_atom(ring, i)
+                new_i = self._get_new_index(mol, d['ori_i'], search_collapsed=False)
                 for old_neigh, bond in zip(d['neighbor'], d['bond']):
                     bt = getattr(Chem.BondType, bond)
                     try:
-                        new_neigh = self._get_new_index(mod, old_neigh, search_collapsed=False)
-                        present_bond = mod.GetBondBetweenAtoms(new_i, new_neigh)
+                        new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
+                        present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
                         if present_bond is None:
-                            mod.AddBond(new_i, new_neigh, bt)
+                            mol.AddBond(new_i, new_neigh, bt)
                         elif present_bond.GetBondType().name != bond:
                             if self._debug_draw:
                                 print(
@@ -276,19 +417,17 @@ class Ring:
                         to_be_waited_for.append((new_i, old_neigh, bt))
         for new_i, old_neigh, bt in to_be_waited_for:
             try:
-                new_neigh = self._get_new_index(mod, old_neigh, name_restriction=mod.GetAtomWithIdx(new_i).GetProp('_ori_name'))
+                new_neigh = self._get_new_index(mol, old_neigh, name_restriction=mol.GetAtomWithIdx(new_i).GetProp('_ori_name'))
                 if self._debug_draw:
                     print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
-                if not mod.GetBondBetweenAtoms(new_i, new_neigh):
-                    mod.AddBond(new_i, new_neigh, bt)
+                if not mol.GetBondBetweenAtoms(new_i, new_neigh):
+                    mol.AddBond(new_i, new_neigh, bt)
             except (KeyError, ValueError) as err:
                 warn(str(err))
-        for a in reversed(range(mod.GetNumAtoms())):
-            if mod.GetAtomWithIdx(a).GetIntProp('_ori_i') == -1:
-                mod.RemoveAtom(a)
-        return mod.GetMol()
 
-    def collapse_ring(self, mol: Chem.Mol):
+    # =========== Collapse =============================================================================================
+
+    def collapse_ring(self, mol: Chem.Mol) -> Chem.Mol:
         """
         Collapses a ring(s) into a single dummy atom(s).
         Stores data as JSON in the atom.
@@ -297,8 +436,8 @@ class Ring:
         :return:
         """
         self.store_positions(mol)
-        mod = Chem.RWMol(mol)
-        conf = mod.GetConformer()
+        mol = Chem.RWMol(mol)
+        conf = mol.GetConformer()
         center_idxs = []
         morituri = []
         old2center = defaultdict(list)
@@ -312,9 +451,9 @@ class Ring:
             zs = []
             elements = []
             # add elemental ring
-            c = mod.AddAtom(Chem.Atom('C'))
+            c = mol.AddAtom(Chem.Atom('C'))
             center_idxs.append(c)
-            central = mod.GetAtomWithIdx(c)
+            central = mol.GetAtomWithIdx(c)
             name = mol.GetProp('_Name') if mol.HasProp('_Name') else '???'
             central.SetProp('_ori_name', name),
             # get data for storage
@@ -340,9 +479,9 @@ class Ring:
             central.SetProp('_elements', json.dumps(elements))
             central.SetProp('_bonds', json.dumps(bonds))
             conf.SetAtomPosition(c, Point3D(*[sum(axis) / len(axis) for axis in (xs, ys, zs)]))
-        for atomset, center_i in zip(mod.GetRingInfo().AtomRings(), center_idxs):
+        for atomset, center_i in zip(mol.GetRingInfo().AtomRings(), center_idxs):
             # bond to elemental ring
-            central = mod.GetAtomWithIdx(center_i)
+            central = mol.GetAtomWithIdx(center_i)
             neighss = json.loads(central.GetProp('_neighbors'))
             bondss = json.loads(central.GetProp('_bonds'))
             for neighs, bonds in zip(neighss, bondss):
@@ -350,20 +489,95 @@ class Ring:
                     if neigh not in atomset:
                         bt = getattr(Chem.BondType, bond)
                         if neigh not in morituri:
-                            mod.AddBond(center_i, neigh, bt)
+                            mol.AddBond(center_i, neigh, bt)
                         else:
                             for other_center_i in old2center[neigh]:
                                 if center_i != other_center_i:
-                                    if not mod.GetBondBetweenAtoms(center_i, other_center_i):
-                                        mod.AddBond(center_i, other_center_i, bt)
+                                    if not mol.GetBondBetweenAtoms(center_i, other_center_i):
+                                        mol.AddBond(center_i, other_center_i, bt)
                                     break
                             else:
                                 raise ValueError(f'Cannot find what {neigh} became')
         for i in sorted(set(morituri), reverse=True):
-            mod.RemoveAtom(self._get_new_index(mod, i))
-        return mod.GetMol()
+            mol.RemoveAtom(self._get_new_index(mol, i))
+        return mol.GetMol()
 
-    def is_present(self, mol, i):
+    # =========== Misc =================================================================================================
+
+    def _print_stored(self, mol: Chem.Mol):
+        print('Idx', 'OriIdx', 'OriName')
+        for atom in mol.GetAtoms():
+            try:
+                if atom.GetIntProp('_ori_i') == -1:
+                    print(atom.GetIdx(),
+                          atom.GetSymbol(),
+                          atom.GetIntProp('_ori_i'),
+                          atom.GetProp('_ori_name'),
+                          atom.GetProp('_ori_is'),
+                          atom.GetProp('_neighbors')
+                          )
+                else:
+                    print(atom.GetIdx(),
+                          atom.GetSymbol(),
+                          atom.GetIntProp('_ori_i'),
+                          atom.GetProp('_ori_name'))
+            except KeyError:
+                print(atom.GetIdx(),
+                      atom.GetSymbol(), '!!!!')
+
+    def _get_ori_i(self, mol: Chem.Mol, include_collapsed=True):
+        indices = [atom.GetIntProp('_ori_i') for atom in mol.GetAtoms()]
+        if include_collapsed:
+            for atom in self._get_collapsed_atoms(mol):
+                indices.extend(json.loads(atom.GetProp('_ori_is')))
+        else:
+            pass
+        return indices
+
+    def _get_collapsed_atoms(self, mol: Chem.Mol) -> List[Chem.Atom]:
+        return [atom for atom in mol.GetAtoms() if atom.GetIntProp('_ori_i') == -1]
+
+    def _get_new_index(self, mol: Chem.Mol, old: int, search_collapsed=True,
+                       name_restriction: Optional[str] = None) -> int:
+        """
+        Given an old index check in ``_ori_i`` for what the current one is.
+        NB. ring placeholder will be -1 and these also have ``_ori_is``. a JSON of the ori_i they summarise.
+
+        :param mol:
+        :param old: old index
+        :param search_collapsed: seach also in ``_ori_is``
+        :parm name_restriction: restrict to original name.
+        :return:
+        """
+        for i, atom in enumerate(mol.GetAtoms()):
+            if name_restriction is not None and atom.GetProp('_ori_name') != name_restriction:
+                pass
+            elif atom.GetIntProp('_ori_i') == old:
+                return i
+            elif search_collapsed and \
+                    atom.HasProp('_ori_is') and \
+                    old in json.loads(atom.GetProp('_ori_is')):
+                return i
+            else:
+                pass
+        else:
+            raise ValueError(f'Cannot find {old}')
+
+    def _get_mystery_ori_i(self, mol: Chem.Mol):
+        """
+        Collapsed rings may remember neighbors that do not exist any more...
+
+        :param mol:
+        :return:
+        """
+        present = self._get_ori_i(mol)
+        absent = []
+        for atom in self._get_collapsed_atoms(mol):
+            neighss = json.loads(atom.GetProp('_neighbors'))
+            absent.extend([n for neighs in neighss for n in neighs if n not in present])
+        return absent
+
+    def _is_present(self, mol, i):
         try:
             self._get_new_index(mol, i, search_collapsed=False)
             # raises value error.
@@ -381,9 +595,9 @@ if __name__ == '__main__':
     #     Ring().store_positions(m)
     #     print('original')
     #     display(m)
-    #     mod = Ring().collapse_ring(m)
+    #     mol = Ring().collapse_ring(m)
     #     print('collapsed')
-    #     display(mod)
+    #     display(mol)
     #     print('expanded')
-    #     mod = Ring().expand_ring(mod)
-    #     display(mod)
+    #     mol = Ring().expand_ring(mol)
+    #     display(mol)

@@ -25,6 +25,7 @@ class _IgorInitMixin:
     atom_pair_constraint = 10
     angle_constraint = 10
     coordinate_constraint = 1
+    fa_intra_rep = 0.005
 
     # ============= Init ===============================================================================================
 

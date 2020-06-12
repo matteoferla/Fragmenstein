@@ -33,13 +33,13 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
-from ._victor_rectify_mixin import _VictorRectifyMixin
+from ._victor_automerge_mixin import _VictorAutomergeMixin
 from ..core import Fragmenstein
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
 
-class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
+class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
     """
     * ``smiles`` SMILES string (inputted)
     * ``long_name`` name for files
@@ -242,28 +242,12 @@ class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
-        ddG = 999
-        while ddG > 0:
-            self.journal.debug(f'{self.long_name} - Igor minimising')
-            self.igor.minimise(default_coord_constraint=False)
-            self.energy_score = self._calculate_score()
-            dG_bound = self.energy_score['ligand_ref2015']['total_score']
-            dG_unbound = self.energy_score['unbound_ref2015']['total_score']
-            ddG = dG_bound - dG_unbound
-            if ddG > 0:
-                self.igor.coordinate_constraint /= 2
-                self.journal.debug(f'{self.long_name} - coord_constraint lowered: {self.igor.coordinate_constraint}:  {ddG} kcal/mol.')
-            if self.igor.coordinate_constraint == 0.:
-                self.journal.warn(f'{self.long_name} - failed to minimise without constraints:  {ddG} kcal/mol.')
-                break
-            elif self.igor.coordinate_constraint < 0.005:
-                self.igor.coordinate_constraint = 0.
+        ddG = self.reanimate()
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
         self.minimised_mol = self._fix_minimised()
         self.mrmsd = self._calculate_rmsd()
         self.journal.info(f'{self.long_name} - final score: {ddG} kcal/mol {self.mrmsd.mrmsd}.')
-
         self._checkpoint_charlie()
         self.journal.debug(f'{self.long_name} - Completed')
 
@@ -355,6 +339,39 @@ class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
         return AllChem.AssignBondOrdersFromTemplate(template, ligand)
 
+    def reanimate(self) -> float:
+        """
+        Calls Igor recursively until the ddG is negative or zero.
+        igor.minimise does a good job. this is just to get everything as a normal molecule
+
+        :return: ddG (kcal/mol)
+        """
+        ddG = 999
+        self.igor.coordinate_constraint = 0.
+        #self.igor.fa_intra_rep = 0.02 # 4x
+        # quick unconstrained minimisation to wiggle it out of nasty local minima
+        self.igor.minimise(cycles=15, default_coord_constraint=False)
+        self.igor.coordinate_constraint = 2
+        self.igor.minimise(cycles=5, default_coord_constraint=False)
+        self.igor.coordinate_constraint = 1
+        while ddG > 0:
+            self.journal.debug(f'{self.long_name} - Igor minimising')
+            self.igor.minimise(default_coord_constraint=False)
+            self.energy_score = self.calculate_score()
+            dG_bound = self.energy_score['ligand_ref2015']['total_score']
+            dG_unbound = self.energy_score['unbound_ref2015']['total_score']
+            ddG = dG_bound - dG_unbound
+            if ddG > 0:
+                self.igor.coordinate_constraint /= 2
+                self.journal.debug(
+                    f'{self.long_name} - coord_constraint lowered: {self.igor.coordinate_constraint}:  {ddG} kcal/mol.')
+            if self.igor.coordinate_constraint == 0.:
+                self.journal.warn(f'{self.long_name} - failed to minimise without constraints:  {ddG} kcal/mol.')
+                break
+            elif self.igor.coordinate_constraint < 0.005:
+                self.igor.coordinate_constraint = 0.
+        return ddG
+
     # =================== Constraint & attachment ======================================================================
 
     def _get_constraint(self, extra_constraint: Optional[str] = None) -> Union[Constraints, None]:
@@ -417,7 +434,7 @@ class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
         self.journal.debug(f'{self.long_name} - calculating mRMSD')
         return mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.fragmenstein.positioned_mol)
 
-    def _calculate_score(self):
+    def calculate_score(self):
         return {**self.igor.ligand_score(),
                 'unbound_ref2015': self.igor.detailed_scores(self.unbound_pose, 1)}
 
@@ -518,24 +535,29 @@ class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
     def _checkpoint_bravo(self):
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving mols from fragmenstein')
-        scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
-        Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
-        if self.fragmenstein.scaffold.HasProp('parts'):
-            disregard = json.loads(self.fragmenstein.scaffold.GetProp('parts'))
-            self.journal.info(f'{self.long_name} - disregarded {disregard}')
-        else:
-            disregard = []
-        chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
-        Chem.MolToMolFile(self.fragmenstein.chimera, chimera_file, kekulize=False)
-        pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
-        Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
+        if self.fragmenstein.scaffold  is not None:
+            scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
+            Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
+            if self.fragmenstein.scaffold.HasProp('parts'):
+                disregard = json.loads(self.fragmenstein.scaffold.GetProp('parts'))
+                self.journal.info(f'{self.long_name} - disregarded {disregard}')
+            else:
+                disregard = []
+        if self.fragmenstein.chimera is not None:
+            chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
+            Chem.MolToMolFile(self.fragmenstein.chimera, chimera_file, kekulize=False)
+        if self.fragmenstein.positioned_mol is not None:
+            pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
+            Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
+        if self.fragmenstein.scaffold_options:
+            opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
+            writer = Chem.SDWriter(opt_file)
+            writer.SetKekulize(False)
+            for t in self.fragmenstein.scaffold_options:
+                writer.write(t)
+            writer.close()
+
         frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
-        opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
-        writer = Chem.SDWriter(opt_file)
-        writer.SetKekulize(False)
-        for t in self.fragmenstein.scaffold_options:
-            writer.write(t)
-        writer.close()
         data = {'smiles': self.smiles,
                'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
                'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)}
@@ -585,80 +607,3 @@ class Victor(_VictorUtilsMixin, _VictorRectifyMixin):
             unconn = float('nan')
         return unconn
 
-    @classmethod
-    def from_files(cls, folder:str) -> Victor:
-        """
-        This creates an instance form the output files. Likely to be unstable.
-        Assumes the checkpoints were not altered.
-        And is basically for analysis only.
-
-        :param folder: path
-        :return:
-        """
-        cls.journal.warning('`from_files`: You really should not use this.')
-        self = cls.__new__(cls)
-        self.tick = float('nan')
-        self.tock = float('nan')
-        self.ligand_resn = ''
-        self.ligand_resi = ''
-        self.covalent_resn = ''
-        self.covalent_resi = ''
-        self.hits = []
-        self.long_name = os.path.split(folder)[1]
-        posmol = os.path.join(folder, f'{self.long_name}.positioned.mol')
-        if os.path.exists(posmol):
-            self.mol = Chem.MolFromMolFile(posmol, sanitize=False, removeHs=False)
-        else:
-            self.journal.info(f'{self.long_name} - no positioned mol')
-            self.mol = None
-        fragjson = os.path.join(folder, f'{self.long_name}.fragmenstein.json')
-        if os.path.exists(fragjson):
-            fd = json.load(open(fragjson))
-            self.smiles = fd['smiles']
-            self.fragmenstein = Fragmenstein(mol=self.mol,
-                                             hits=self.hits,
-                                             attachment=None,
-                                             merging_mode='off',
-                                             average_position = self.fragmenstein_average_position
-                                            )
-            self.fragmenstein.positioned_mol = self.mol
-            self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
-        else:
-            self.smiles = ''
-            self.fragmenstein = None
-            self.journal.info(f'{self.long_name} - no fragmenstein json')
-            self.N_constrained_atoms = float('nan')
-        #
-        self.apo_pdbblock = None
-        #
-        self.atomnames = None
-        #
-        self.extra_constraint = ''
-        self.pose_fx = None
-        # these are calculated
-        self.is_covalent = None
-        self.params = None
-        self.constraint = None
-        self.unminimised_pdbblock = None
-        self.igor = None
-        self.minimised_pdbblock = None
-        # buffers etc.
-        self._warned = []
-        minjson = os.path.join(folder, f'{self.long_name}.minimised.json')
-        self.mrmsd = mRSMD.mock()
-        if os.path.exists(minjson):
-            md = json.load(open(minjson))
-            self.energy_score = md["Energy"]
-            self.mrmsd.mrmsd = md["mRMSD"]
-            self.mrmsd.rmsds = md["RMSDs"]
-        else:
-            self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
-                                 'unbound_ref2015': {'total_score': float('nan')}}
-
-            self.journal.info(f'{self.long_name} - no min json')
-        minmol = os.path.join(folder,  f'{self.long_name}.minimised.mol')
-        if os.path.exists(minmol):
-            self.minimised_mol = Chem.MolFromMolFile(minmol, sanitize=False, removeHs=False)
-        else:
-            self.minimised_mol = None
-        return self

@@ -16,10 +16,9 @@ __citation__ = ""
 
 import logging
 import os
-import pymol2
 import re
 import requests
-import sys
+import sys, json
 import unicodedata
 from typing import List, Union, Optional, Dict
 
@@ -27,6 +26,10 @@ from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem
 
 from ._victor_base_mixin import _VictorBaseMixin
+from ..m_rmsd import mRSMD
+from ..core import Fragmenstein
+from rdkit_to_params import Params
+from ..igor import Igor
 
 try:
     import pymol2
@@ -338,6 +341,98 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 mol.SetProp('_Name', name)
                 mols[name] = mol
         return mols
+
+    # =================== From Files ===================================================================================
+
+    @classmethod
+    def from_files(cls, folder: str) -> _VictorBaseMixin:
+        """
+        This creates an instance form the output files. Likely to be unstable.
+        Assumes the checkpoints were not altered.
+        And is basically for analysis only.
+
+        :param folder: path
+        :return:
+        """
+        cls.journal.warning('`from_files`: You really should not use this.')
+        self = cls.__new__(cls)
+        self.tick = float('nan')
+        self.tock = float('nan')
+        self.ligand_resn = ''
+        self.ligand_resi = ''
+        self.covalent_resn = ''
+        self.covalent_resi = ''
+        self.hits = []
+        self.long_name = os.path.split(folder)[1]
+        params = os.path.join(folder, f'{self.long_name}.params')
+        paramstemp = os.path.join(folder, f'{self.long_name}.params_template.mol')
+        if os.path.exists(params):
+            self.params = Params().load(params)
+            self.unbound_pose = Params.params_to_pose(params, self.params.NAME)
+            if os.path.exists(paramstemp):
+                self.params.mol = Chem.MolFromMolFile(paramstemp)
+        else:
+            self.params = None
+        posmol = os.path.join(folder, f'{self.long_name}.positioned.mol')
+        if os.path.exists(posmol):
+            self.mol = Chem.MolFromMolFile(posmol, sanitize=False, removeHs=False)
+        else:
+            self.journal.info(f'{self.long_name} - no positioned mol')
+            self.mol = None
+        fragjson = os.path.join(folder, f'{self.long_name}.fragmenstein.json')
+        if os.path.exists(fragjson):
+            fd = json.load(open(fragjson))
+            self.smiles = fd['smiles']
+            self.fragmenstein = Fragmenstein(mol=self.mol,
+                                             hits=self.hits,
+                                             attachment=None,
+                                             merging_mode='off',
+                                             average_position=self.fragmenstein_average_position
+                                             )
+            self.fragmenstein.positioned_mol = self.mol
+            self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
+        else:
+            self.smiles = ''
+            self.fragmenstein = None
+            self.journal.info(f'{self.long_name} - no fragmenstein json')
+            self.N_constrained_atoms = float('nan')
+        #
+        self.apo_pdbblock = None
+        #
+        self.atomnames = None
+        #
+        self.extra_constraint = ''
+        self.pose_fx = None
+        # these are calculated
+        self.is_covalent = None
+        self.constraint = None
+        self.unminimised_pdbblock = None
+        self.igor = None
+        self.minimised_pdbblock = None
+        # buffers etc.
+        self._warned = []
+        minjson = os.path.join(folder, f'{self.long_name}.minimised.json')
+        self.mrmsd = mRSMD.mock()
+        if os.path.exists(minjson):
+            md = json.load(open(minjson))
+            self.energy_score = md["Energy"]
+            self.mrmsd.mrmsd = md["mRMSD"]
+            self.mrmsd.rmsds = md["RMSDs"]
+            self.igor = Igor.from_pdbfile(
+                pdbfile=os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb'),
+                params_file=os.path.join(self.work_path, self.long_name, self.long_name + '.params'),
+                constraint_file=os.path.join(self.work_path, self.long_name, self.long_name + '.con'))
+        else:
+            self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
+                                 'unbound_ref2015': {'total_score': float('nan')}}
+
+            self.journal.info(f'{self.long_name} - no min json')
+        minmol = os.path.join(folder, f'{self.long_name}.minimised.mol')
+        if os.path.exists(minmol):
+            self.minimised_mol = Chem.MolFromMolFile(minmol, sanitize=False, removeHs=False)
+        else:
+            self.minimised_mol = None
+        return self
 
     # =================== Laboratory ===================================================================================
 

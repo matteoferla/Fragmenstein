@@ -34,7 +34,8 @@ class _IgorMinMixin:
         self.key_residues = []
         self.atom_pair_constraint = 10
         self.angle_constraint = 10
-        self.coordinate_constraint = 2
+        self.coordinate_constraint = 1
+        self.fa_intra_rep = 0.005 # default
 
     def pose2str(self, pose: Optional[pyrosetta.Pose] = None) -> str:
         """
@@ -143,6 +144,7 @@ class _IgorMinMixin:
         scorefxn.set_weight(stm.score_type_from_name("atom_pair_constraint"), self.atom_pair_constraint)
         scorefxn.set_weight(stm.score_type_from_name("angle_constraint"), self.angle_constraint)
         scorefxn.set_weight(stm.score_type_from_name("coordinate_constraint"), self.coordinate_constraint)
+        scorefxn.set_weight(stm.score_type_from_name("fa_intra_rep"), self.fa_intra_rep)
         return scorefxn
 
     def _get_selector(self,

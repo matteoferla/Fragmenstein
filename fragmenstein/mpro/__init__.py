@@ -26,6 +26,27 @@ import io
 import requests
 
 
+def pose_fx(pose):
+    """
+    Histidine in delta.
+    """
+    pose2pdb = pose.pdb_info().pdb2pose
+    r = pose2pdb(res=41, chain='A')
+    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+    MutateResidue(target=r, new_res='HIS').apply(pose)
+
+
+def poised_pose_fx(pose):
+    """
+    Histidine in delta and cysteine in thiolate.
+    """
+    pose2pdb = pose.pdb_info().pdb2pose
+    r = pose2pdb(res=41, chain='A')
+    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+    MutateResidue(target=r, new_res='HIS_D').apply(pose)
+    r = pose2pdb(res=145, chain='A')
+    MutateResidue(target=r, new_res='CYZ').apply(pose)
+
 class MProVictor(Victor):
     fragmenstein_merging_mode = 'none_permissive'
     constraint_function_type = 'FLAT_HARMONIC'
@@ -52,26 +73,6 @@ class MProVictor(Victor):
         return cls(smiles=smiles, hits=hits, long_name=long_name, category=category)
 
     def __init__(self, smiles: str, hits:List[Chem.Mol], long_name:str, category:Optional[str]=None):
-        def pose_fx(pose):
-            """
-            Histidine in delta.
-            """
-            pose2pdb = pose.pdb_info().pdb2pose
-            r = pose2pdb(res=41, chain='A')
-            MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-            MutateResidue(target=r, new_res='HIS').apply(pose)
-
-        def poised_pose_fx(pose):
-            """
-            Histidine in delta and cysteine in thiolate.
-            """
-            pose2pdb = pose.pdb_info().pdb2pose
-            r = pose2pdb(res=41, chain='A')
-            MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-            MutateResidue(target=r, new_res='HIS_D').apply(pose)
-            r = pose2pdb(res=145, chain='A')
-            MutateResidue(target=r, new_res='CYZ').apply(pose)
-
         mpro_folder = self.get_mpro_path()
         apo = os.path.join(mpro_folder, 'template.pdb')
         atomnames = {}
@@ -95,6 +96,28 @@ class MProVictor(Victor):
                          hits=hits,
                          pdb_filename=apo,
                          long_name=long_name,
+                         ligand_resn='LIG',
+                         ligand_resi='1B',
+                         covalent_resn='CYS', covalent_resi='145A',
+                         extra_constraint=extra_constraint,
+                         pose_fx=fx,
+                         atomnames=atomnames)
+
+    @classmethod
+    def combine_codes(cls, hit_codes: List[str]):
+        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
+        return cls.combine(hits=hits)
+
+
+    @classmethod
+    def combine(self, hits:List[Chem.Mol]):
+        mpro_folder = self.get_mpro_path()
+        apo = os.path.join(mpro_folder, 'template.pdb')
+        atomnames = {}
+        fx = pose_fx
+        extra_constraint = 'AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n'
+        return super().combine(hits=hits,
+                         pdb_filename=apo,
                          ligand_resn='LIG',
                          ligand_resi='1B',
                          covalent_resn='CYS', covalent_resi='145A',
