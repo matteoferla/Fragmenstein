@@ -45,6 +45,7 @@ class Rectifier:
             self.dprint = lambda *x: None
         self.mol = mol
         self._iterations_done = 0
+        self.ununspecified_bonds()
         self.triage_rings()
         self.fix_issues()
         Chem.SanitizeMol(self.mol, sanitizeOps=Chem.SanitizeFlags.SANITIZE_ALL)
@@ -208,6 +209,11 @@ class Rectifier:
 
     def _get_nitrogens(self, indices):
         return [i for i in indices if self.mol.GetAtomWithIdx(i).GetSymbol() == 'N']
+
+    def ununspecified_bonds(self):
+        for bond in self.mol.GetBonds():
+            if bond.GetBondType().name == 'UNSPECIFIED':
+                bond.SetBondType(Chem.BondType.SINGLE)
 
     # ========= shift/charge ===========================================================================================
 

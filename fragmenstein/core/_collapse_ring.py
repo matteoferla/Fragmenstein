@@ -20,7 +20,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 import numpy as np
 
 
@@ -173,7 +173,7 @@ class Ring:
             self._mark_neighbors(mol, rings)
             self._fix_overlap(mol, mergituri)
             self._delete_collapsed(mol)
-            self._infer_bonding_by_proximity(mol)
+            self._infer_bonding_by_proximity(mol) # absorb_overclose and join_overclose
         return mol.GetMol()
 
     def _fix_overlap(self, mol, mergituri):
@@ -212,34 +212,44 @@ class Ring:
         mergituri = []
         for ring in rings:
             for n in ring['atom'].GetNeighbors():
-                if n.GetIntProp('_ori_i') == -1 and ring['atom'].GetIdx() < n.GetIdx():  # it shares a border.
-                    A_idxs_old = ring['ori_is']
-                    A_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in A_idxs_old]
-                    B_idxs_old = json.loads(n.GetProp('_ori_is'))
-                    B_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in B_idxs_old]
-                    # do the have overlapping atoms already?
-                    if len(set(A_idxs).intersection(B_idxs)) != 0:
-                        continue
-                    else:
-                        #they still need merging
-                        # which atoms of A are closer to B center and vice versa
-                        pairs = []
-                        for G_idxs, ref_i in [(A_idxs, n.GetIdx()), (B_idxs, ring['atom'].GetIdx())]:
-                            tm = np.take(dm, G_idxs, 0)
-                            tm2 = np.take(tm, [ref_i], 1)
-                            p = np.where(tm2 == np.amin(tm2))
-                            f = G_idxs[int(p[0][0])]
-                            tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
-                            p = np.where(tm2 == np.amin(tm2))
-                            s = G_idxs[int(p[0][0])]
-                            pairs.append((f,s))
-                        # now determine which are closer
-                        if dm[pairs[0][0], pairs[1][0]] < dm[pairs[0][0], pairs[1][1]]:
-                            mergituri.append((pairs[0][0], pairs[1][0]))
-                            mergituri.append((pairs[0][1], pairs[1][1]))
+                if n.GetIntProp('_ori_i') == -1 and ring['atom'].GetIdx() < n.GetIdx():  # it may share a border.
+                    # variables to assess if overlap or bond
+                    conf = mol.GetConformer()
+                    rpos = np.array(conf.GetAtomPosition(ring['atom'].GetIdx()))
+                    npos = np.array(conf.GetAtomPosition(n.GetIdx()))
+                    if np.linalg.norm(rpos - npos) > 4: # is bond
+                        # is it connected via a bond and not an overlapping atom?
+                        # 2.8 ring dia vs. 2.8 + 1.5 CC bond
+                        # this will be fixed depending on if from history or not.
+                        pass
+                    else: # is overlap
+                        A_idxs_old = ring['ori_is']
+                        A_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in A_idxs_old]
+                        B_idxs_old = json.loads(n.GetProp('_ori_is'))
+                        B_idxs = [self._get_new_index(mol, i, search_collapsed=False) for i in B_idxs_old]
+                        # do the have overlapping atoms already?
+                        if len(set(A_idxs).intersection(B_idxs)) != 0:
+                            continue
                         else:
-                            mergituri.append((pairs[0][0], pairs[1][1]))
-                            mergituri.append((pairs[0][1], pairs[1][0]))
+                            #they still need merging
+                            # which atoms of A are closer to B center and vice versa
+                            pairs = []
+                            for G_idxs, ref_i in [(A_idxs, n.GetIdx()), (B_idxs, ring['atom'].GetIdx())]:
+                                tm = np.take(dm, G_idxs, 0)
+                                tm2 = np.take(tm, [ref_i], 1)
+                                p = np.where(tm2 == np.amin(tm2))
+                                f = G_idxs[int(p[0][0])]
+                                tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
+                                p = np.where(tm2 == np.amin(tm2))
+                                s = G_idxs[int(p[1][0])]
+                                pairs.append((f,s))
+                            # now determine which are closer
+                            if dm[pairs[0][0], pairs[1][0]] < dm[pairs[0][0], pairs[1][1]]:
+                                mergituri.append((pairs[0][0], pairs[1][0]))
+                                mergituri.append((pairs[0][1], pairs[1][1]))
+                            else:
+                                mergituri.append((pairs[0][0], pairs[1][1]))
+                                mergituri.append((pairs[0][1], pairs[1][0]))
         return mergituri
 
     def _delete_collapsed(self, mol: Chem.RWMol):
@@ -310,6 +320,8 @@ class Ring:
         self.absorb_overclose(mol, new_ringers)
         new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
         self.join_overclose(mol, new_ringers)
+        # special case: x0749. bond between two rings
+        self.join_rings(mol)
 
     def _get_ring_info(self, mol):
         """
@@ -326,14 +338,55 @@ class Ring:
         Chem.SanitizeMol(mol2)
         return mol2.GetRingInfo().AtomRings()
 
-    def join_overclose(self, mol, to_check, cutoff=1.9):
+    def join_rings(self, mol: Chem.RWMol, cutoff=1.8):
+        rings = self._get_ring_info(mol)
+        dm = Chem.Get3DDistanceMatrix(mol)
+        for ringA, ringB in itertools.combinations(rings, 2):
+            if not self._are_rings_bonded(mol, ringA, ringB):
+                mini = np.take(dm, ringA, 0)
+                mini = np.take(mini, ringB, 1)
+                d = np.amin(mini)
+                if d < cutoff:
+                    p = np.where(mini == d)
+                    f = ringA[int(p[0][0])]
+                    s = ringB[int(p[1][0])]
+                    mol.AddBond(f, s)
+
+
+
+    def _are_rings_bonded(self, mol: Chem.Mol, ringA: Tuple[int], ringB: Tuple[int]):
+        for i in ringA:
+            for j in ringB:
+                if mol.GetBondBetweenAtoms(i, j) is not None:
+                    return True
+        else:
+            return False
+
+
+    def join_overclose(self, mol: Chem.RWMol, to_check, cutoff=1.8):
+        """
+        Cutoff is adapted to element.
+
+        :param mol:
+        :param to_check: list of atoms indices that need joining (but not to each other)
+        :param cutoff: CC bond
+        :return:
+        """
+        pt = Chem.GetPeriodicTable()
         dm = Chem.Get3DDistanceMatrix(mol)
         for i in to_check:
             atom_i = mol.GetAtomWithIdx(i)
             for j, atom_j in enumerate(mol.GetAtoms()):
+                # calculate cutoff if not C-C
+                if atom_i.GetSymbol() == '*' or atom_j.GetSymbol() == '*':
+                    ij_cutoff = cutoff
+                elif atom_i.GetSymbol() == 'C' and atom_j.GetSymbol() == 'C':
+                    ij_cutoff = cutoff
+                else:
+                    ij_cutoff = cutoff - 1.36 + sum([pt.GetRcovalent(atom.GetAtomicNum()) for atom in (atom_i, atom_j)])
                 if i == j or j in to_check:
                     continue
-                elif dm[i, j] < cutoff:
+                elif dm[i, j] < ij_cutoff:
                     present_bond = mol.GetBondBetweenAtoms(i, j)
                     if atom_j.HasProp('_ring_bond'):
                         bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))

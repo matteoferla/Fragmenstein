@@ -145,6 +145,28 @@ class _FragmensteinUtil:
                 origin.append([])
         return origin
 
+    def guess_origins(self, mol: Chem.Mol = None, hits: Optional[List[Chem.Mol]]=None):
+        """
+        Given a positioned mol guess its origins...
+
+        :param mol:
+        :return:
+        """
+
+        if hits is None:
+            hits = self.hits
+        mappings = []
+        for h, hit in enumerate(hits):
+            hname = hit.GetProp('_Name')
+            for hi, mi in self.get_positional_mapping(hit, mol).items():
+                atom = mol.GetAtomWithIdx(mi)
+                if atom.HasProp('_Origin') and atom.GetProp('_Origin') != 'none':
+                    origin = json.loads(atom.GetProp('_Origin'))
+                else:
+                    origin = []
+                origin.append(f'{hname}.{hi}')
+                atom.SetProp('_Origin', json.dumps(origin))
+
 
     # class attribute for next method
     _i = 0

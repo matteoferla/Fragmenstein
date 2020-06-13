@@ -16,7 +16,7 @@ __citation__ = ""
 
 
 from rdkit import Chem
-from rdkit.Chem import rdFMCS
+from rdkit.Chem import rdFMCS, AllChem
 
 from typing import Sequence, List, Optional, Tuple
 
@@ -85,8 +85,22 @@ class mRSMD:
                             hits: Sequence[Chem.Mol],
                             placed_followup: Chem.Mol
                             ):
+        """
+        Mapping is done by positional overlap between placed_followup and hits
+        This mapping is the applied to moved_followup.
+
+        :param moved_followup: The mol to be scored
+        :param hits: the hits to score against
+        :param placed_followup: the mol to determine how to score
+        :return:
+        """
         mappings = []
-        assert moved_followup.GetNumAtoms() == placed_followup.GetNumAtoms(), 'moved and placed are different!'
+        moved_followup = AllChem.DeleteSubstructs(moved_followup, Chem.MolFromSmiles('*'))
+        placed_followup = AllChem.DeleteSubstructs(placed_followup, Chem.MolFromSmiles('*'))
+        if moved_followup.GetNumAtoms() != placed_followup.GetNumAtoms():
+            # they may differ just because protons
+            placed_followup = Chem.AddHs(placed_followup)
+            assert moved_followup.GetNumAtoms() == placed_followup.GetNumAtoms(), 'moved and placed are different!'
         for h, hit in enumerate(hits):
             mappings.append(list(Fragmenstein.get_positional_mapping(hit, placed_followup).items()))
         return cls(moved_followup, hits, mappings)

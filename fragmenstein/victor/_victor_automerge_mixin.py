@@ -61,24 +61,27 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 hits=[],
                 attachment=None,
                 merging_mode='off')
+        # collapse hits
         self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
+        # merge!
         self.fragmenstein.scaffold = self.fragmenstein.merge_hits()
         self.journal.debug(f'{self.long_name} - Merged')
         self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold, bonded_as_original=False)
         self.journal.debug(f'{self.long_name} - Expanded')
         self.fragmenstein.positioned_mol = Rectifier(self.fragmenstein.positioned_mol).mol
+        # the origins are obscured because of the collapsing...
+        self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)
+        self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
         self.mol = self.fragmenstein.positioned_mol
         self.journal.debug(f'{self.long_name} - Rectified')
         self.smiles = Chem.MolToSmiles(self.mol)
         if self.fragmenstein_debug_draw:
-            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), merged)
+            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.fragmenstein.positioned_mol)
             AllChem.Compute2DCoords(picture)
             self.fragmenstein.draw_nicely(picture)
         # making folder.
         self._make_output_folder()
         # paramterise
-        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False,
-                                         atomnames=self.atomnames)
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         self.params = Params.load_mol(self.mol, name=self.ligand_resn)
         self.params.NAME = self.ligand_resn # force it.
