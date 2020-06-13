@@ -110,8 +110,8 @@ class MProVictor(Victor):
 
 
     @classmethod
-    def combine(self, hits:List[Chem.Mol]):
-        mpro_folder = self.get_mpro_path()
+    def combine(cls, hits:List[Chem.Mol]):
+        mpro_folder = cls.get_mpro_path()
         apo = os.path.join(mpro_folder, 'template.pdb')
         atomnames = {}
         fx = pose_fx
@@ -160,7 +160,8 @@ class MProVictor(Victor):
 for cname, con in [('chloroacetamide', 'AtomPair  H  145A  OY  1B HARMONIC 2.1 0.2\n'),
                    ('nitrile', 'AtomPair  H  145A  NX  1B HARMONIC 2.1 0.2\n'),
                    ('acrylamide', 'AtomPair  H  143A  OZ  1B HARMONIC 2.1 0.2\n'),
-                   ('vinylsulfonamide', 'AtomPair  H  143A  OZ1 1B HARMONIC 2.1 0.2\n')
+                   ('vinylsulfonamide', 'AtomPair  H  143A  OZ1 1B HARMONIC 2.1 0.2\n'),
+                    ('bromoalkyne', 'AtomPair  H  145A  CY  1B HARMONIC 2.1 0.2\n'),
                    ]:
     MProVictor.add_constraint_to_warhead(name=cname, constraint=con)
 

@@ -28,13 +28,7 @@ class _VictorBaseMixin:
     journal.setLevel(logging.DEBUG)
 
     covalent_definitions = [{'residue': 'CYS', 'smiles': '*SC', 'atomnames': ['CONN3', 'SG', 'CB']}]
-    warhead_definitions = [{'name': 'nitrile',
-                            'covalent': 'C(=N)*',  # zeroth atom is attached to the rest
-                            'covalent_atomnames': ['CX', 'NX', 'CONN1'],
-                            'noncovalent': 'C(#N)',  # zeroth atom is attached to the rest
-                            'noncovalent_atomnames': ['CX', 'NX']
-                            },
-                           {'name': 'acrylamide',
+    warhead_definitions = [{'name': 'acrylamide',
                             'covalent': 'C(=O)CC*',  # the N may be secondary etc. so best not do mad substitutions.
                             'covalent_atomnames': ['CZ', 'OZ', 'CY', 'CX', 'CONN1'],
                             # OZ needs to tautomerise & h-bond happily.
@@ -47,23 +41,29 @@ class _VictorBaseMixin:
                             'noncovalent': 'C(=O)C[Cl]',
                             'noncovalent_atomnames': ['CY', 'OY', 'CX', 'CLX']
                             },
+                           {'name': 'nitrile',
+                            'covalent': 'C(=N)*',  # zeroth atom is attached to the rest
+                            'covalent_atomnames': ['CX', 'NX', 'CONN1'],
+                            'noncovalent': 'C(#N)',  # zeroth atom is attached to the rest
+                            'noncovalent_atomnames': ['CX', 'NX']
+                            },
                            {'name': 'vinylsulfonamide',
                             'covalent': 'S(=O)(=O)CC*',  # the N may be secondary etc. so best not do mad substitutions.
                             'covalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX', 'CONN1'],  # OZ tauto
                             'noncovalent': 'S(=O)(=O)C=C',
                             'noncovalent_atomnames': ['SZ', 'OZ1', 'OZ2', 'CY', 'CX']
-                            }
-                           ]
-
-    # these may be wrong and need checking.
-    possible_definitions =[{'name': 'bromoalkyne',
+                            },
+                            {'name': 'bromoalkyne',
                             'covalent': 'C(=C)*',
                             'covalent_atomnames': ['CX', 'CY', 'CONN1'],
                             # OY needs to tautomerise & h-bond happily.
                             'noncovalent': 'C#C[Br]',
                             'noncovalent_atomnames': ['CX', 'CY', 'BRX']
                             },
-                           {'name': 'aurothiol', # gold salt
+                           ]
+
+    # these may be wrong and need checking.
+    possible_definitions =[{'name': 'aurothiol', # gold salt
                             'covalent': 'S[Au]*',
                             'covalent_atomnames': ['SY', 'AUX', 'CONN1'],
                             # OY needs to tautomerise & h-bond happily.
