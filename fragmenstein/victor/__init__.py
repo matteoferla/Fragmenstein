@@ -394,41 +394,59 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
     def _fix_uncovalent(self):
         return Constraints.mock()
 
-    def _fix_covalent(self):
-        self.journal.debug(f'{self.long_name} - fixing for covalent')
-        # to make life easier for analysis, CX is the attachment atom, CY is the one before it.
+    def _get_war_def(self):
         for war_def in self.warhead_definitions:
             warhead = Chem.MolFromSmiles(war_def['covalent'])
             if self.params.mol.HasSubstructMatch(warhead):
-                self.params.rename_by_substructure(warhead, war_def['covalent_atomnames'])
-                cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
-                self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
-                cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
-                                   names=[*war_def['covalent_atomnames'], *cov_def['atomnames']],
-                                   ligand_res=self.ligand_resi,
-                                   target_res=self.covalent_resi)
-                # user added constraint
-                if 'constraint' in war_def:
-                    cons.custom_constraint = war_def['constraint']
-                return cons
+                return war_def
         else:
             raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
 
-    def _get_attachment_from_pdbblock(self) -> Chem.Mol:
+    def _fix_covalent(self):
+        self.journal.debug(f'{self.long_name} - fixing for covalent')
+        # to make life easier for analysis, CX is the attachment atom, CY is the one before it.
+        war_def = self._get_war_def()
+        warhead = Chem.MolFromSmiles(war_def['covalent'])
+        self.params.rename_by_substructure(warhead, war_def['covalent_atomnames'])
+        cov_def = [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn][0]
+        self.journal.debug(f'{self.long_name} - has a {war_def["name"]}')
+        cons = Constraints(smiles=(war_def['covalent'], cov_def['smiles']),
+                           names=[*war_def['covalent_atomnames'], *cov_def['atomnames']],
+                           ligand_res=self.ligand_resi,
+                           target_res=self.covalent_resi)
+        # user added constraint
+        if 'constraint' in war_def:
+            cons.custom_constraint = war_def['constraint']
+        return cons
+
+    def _get_attachment_from_pdbblock(self) -> Union[None, Chem.Mol]:
         """
         Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
         """
         self.journal.debug(f'{self.long_name} - getting attachemnt atom')
-        with pymol2.PyMOL() as pymol:
-            pymol.cmd.read_pdbstr(self.apo_pdbblock, 'prot')
-            name = self.constraint.target_con_name.strip()
-            resi = re.match('(\d+)', str(self.constraint.target_res)).group(1)
-            try:
-                chain = re.match('\D', str(self.constraint.target_res)).group(1)
-                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name} and chain {chain}')
-            except:
-                pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
-            return Chem.MolFromPDBBlock(pdb)
+        if not self.covalent_resn:
+            return None
+        else:
+            if isinstance(self.covalent_resi, str):
+                resi, chain = re.match('(\d+)(\w)', self.covalent_resi).groups()
+                resi = int(resi)
+            else:
+                resi = self.covalent_resi
+                chain = None
+            with pymol2.PyMOL() as pymol:
+                pymol.cmd.read_pdbstr(self.apo_pdbblock, 'prot')
+                if self.covalent_resn == 'CYS':
+                    name = 'SG'
+                else:
+                    raise NotImplementedError('only done for cys atm')
+                try:
+                    if chain is not None:
+                        pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name} and chain {chain}')
+                    else:
+                        pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
+                except:
+                    pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
+                return Chem.MolFromPDBBlock(pdb)
 
     def _calculate_rmsd(self):
         self.journal.debug(f'{self.long_name} - calculating mRMSD')

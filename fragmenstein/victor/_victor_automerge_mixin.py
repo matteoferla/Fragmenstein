@@ -35,7 +35,13 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.extra_constraint = extra_constraint
         self.pose_fx = pose_fx
         # these are calculated
-        self.is_covalent = None
+        starhits = any(['*' in Chem.MolToSmiles(h) for h in hits])
+        if starhits and (self.covalent_resi is None or self.covalent_resn is None):
+            raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
+        elif starhits:
+            self.is_covalent = True
+        else:
+            self.is_covalent = False
         self.params = None
         self.mol = None
         self.constraint = None
@@ -57,9 +63,10 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         return self
 
     def _combine_main(self):
+        attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self.fragmenstein = Fragmenstein(mol=Chem.Mol(),
                 hits=[],
-                attachment=None,
+                attachment=attachment,
                 merging_mode='off')
         # collapse hits
         self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
@@ -87,24 +94,19 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.NAME = self.ligand_resn # force it.
         self.params.fix_mol()
         self.params.polish_mol()
+        # get constraint
+        self.constraint = self._get_constraint(self.extra_constraint)
+        self.constraint.custom_constraint += self._make_coordinate_constraints_for_unnovels()
+        # _get_constraint will have changed the names in params.mol so the others need changing too!
+        # namely  self.params.rename_by_substructure happend.
         self.mol = Chem.Mol(self.params.mol)
         self.fragmenstein.positioned_mol = Chem.Mol(self.mol)
-        self.params.mol = AllChem.AddHs(self.params.mol)
-        AllChem.EmbedMolecule(self.params.mol)
-        AllChem.MMFFOptimizeMolecule(self.params.mol)
-        AllChem.ComputeGasteigerCharges(self.params.mol)
-        # those Hs lack correct names
-        self.params.fix_mol()
+        # those Hs lack correct names and charge!!
+        self.params.add_Hs()
         self.params.convert_mol()
         self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         self.params.CHI.data = []  # TODO fix chi
         self._log_warnings()
-        # get constraint
-        # todo enable covalent
-        ###self.constraint = self._get_constraint(self.extra_constraint)
-        ####attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.constraint = Constraints.mock()
-        self.constraint.custom_constraint += self._make_coordinate_constraints_for_unnovels()
         self._log_warnings()
         self.post_params_step()
         self.fragmenstein_merging_mode = 'full'
