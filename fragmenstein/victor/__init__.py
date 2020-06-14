@@ -397,10 +397,10 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
     def _get_war_def(self):
         for war_def in self.warhead_definitions:
             warhead = Chem.MolFromSmiles(war_def['covalent'])
-            if self.params.mol.HasSubstructMatch(warhead):
+            if self.mol.HasSubstructMatch(warhead):
                 return war_def
         else:
-            raise ValueError(f'{self.long_name} - Unsure what the warhead is.')
+            raise ValueError(f'{self.long_name} - Unsure what the warhead is {self.smiles}.')
 
     def _fix_covalent(self):
         self.journal.debug(f'{self.long_name} - fixing for covalent')

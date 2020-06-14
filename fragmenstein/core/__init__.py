@@ -59,6 +59,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
     cutoff = 2
+    joining_cutoff = 5
     die_if_unconnected = False
     matching_modes = [
                     dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
@@ -378,6 +379,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
     def _fuse(self, mol_A: Chem.Mol, mol_B: Chem.Mol, map_A: Dict[int, int], map_B: Dict[int, int]) -> Chem.Mol:
         """
         Merge two compounds... but that are unlinked, using the followup as a guide.
+        Conceptually different but overlapping is join_neighboring_mols
 
         :param mol_A:
         :param mol_B:
@@ -407,7 +409,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
                     return {n: path}
 
 
-    def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol, cutoff:float=5.):
+    def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
         # offset to avoid clashes.
         self._offset_collapsed_ring(mol_B)
         self._offset_origins(mol_B)
@@ -508,7 +510,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM): # Unmerge is called. Not inher
             ys = ys[:-1]
             zs = zs[:-1]
         # place new atoms
-        if d < cutoff:
+        if d < self.joining_cutoff:
             if self._debug_draw:
                 print(f'Adding {n_new} atoms between {anchor_A} and {anchor_B} ({d} jump)')
             previous = anchor_A

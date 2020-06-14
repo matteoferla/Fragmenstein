@@ -10,6 +10,7 @@ from rdkit_to_params import Params, Constraints
 import time
 
 class _VictorAutomergeMixin(_VictorBaseMixin):
+    throw_on_discard = False
 
     @classmethod
     def combine(cls,
@@ -44,6 +45,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
             self.is_covalent = False
         self.params = None
         self.mol = None
+        self.smiles = None
         self.constraint = None
         self.fragmenstein = None
         self.unminimised_pdbblock = None
@@ -72,6 +74,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
         # merge!
         self.fragmenstein.scaffold = self.fragmenstein.merge_hits()
+        if self.throw_on_discard and len(self.fragmenstein.unmatched):
+            raise ConnectionError(f'{self.long_name} - Could not combine with {self.fragmenstein.unmatched} '+\
+                                  f'(>{self.fragmenstein.joining_cutoff}')
         self.journal.debug(f'{self.long_name} - Merged')
         self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold, bonded_as_original=False)
         self.journal.debug(f'{self.long_name} - Expanded')
