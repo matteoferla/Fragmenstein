@@ -56,6 +56,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 'mode': self.fragmenstein_merging_mode,
                 '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
                        self.energy_score['unbound_ref2015']['total_score'],
+                '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
+                '∆G_unbound': self.energy_score['unbound_ref2015']['total_score'],
                 'comRMSD': self.mrmsd.mrmsd,
                 'N_constrained_atoms': self.constrained_atoms,
                 'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
@@ -233,7 +235,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         """
         mol = Chem.MolFromSmiles(smiles)
         if warhead_name:
-            war_defs = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()]
+            war_defs = cls._get_warhead_definitions(warhead_name)
         else:
             war_defs = cls.warhead_definitions
         for war_def in war_defs:
@@ -246,6 +248,24 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             return None
 
     @classmethod
+    def get_warhead_definition(cls, warhead_name: str):
+        return cls._get_warhead_definitions(warhead_name)[0]
+
+    @classmethod
+    def _get_warhead_definitions(cls, warhead_name: str):
+        """
+        It is unlikely that alternative definitions are present. hence why hidden method.
+
+        :param warhead_name:
+        :return:
+        """
+        options = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()]
+        if len(options) == 0:
+            raise ValueError(f'{warhead_name} is not valid.')
+        else:
+            return options
+
+    @classmethod
     def make_all_warhead_combinations(cls, smiles: str, warhead_name: str, canonical=True) -> Union[dict, None]:
         """
         Convert a unreacted warhead to a reacted one in the SMILES
@@ -256,7 +276,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :return: dictionary of SMILES
         """
         mol = Chem.MolFromSmiles(smiles)
-        war_def = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()][0]
+        war_def = cls.get_warhead_definition(warhead_name)
         ncv = Chem.MolFromSmiles(war_def['noncovalent'])
         if mol.HasSubstructMatch(ncv):
             combinations = {}

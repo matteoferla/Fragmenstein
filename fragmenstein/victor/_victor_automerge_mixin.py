@@ -7,10 +7,10 @@ from typing import List, Optional, Dict, Union, Callable
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
-import time
+import time, warnings
 
 class _VictorAutomergeMixin(_VictorBaseMixin):
-    throw_on_discard = False
+
 
     @classmethod
     def combine(cls,
@@ -22,12 +22,45 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 covalent_resi: Optional[Union[int, str]] = None,
                 extra_constraint: Union[str] = None,
                 pose_fx: Optional[Callable] = None,
-                atomnames: Optional[Dict[int, str]] = None
+                atomnames: Optional[Dict[int, str]] = None,
+                warhead_harmonisation: str='first'
                 ):
+        """
+        Combines the hits without a template.
+        If the class attribute ``fragmenstein_throw_on_discard`` is True, it will raise an exception if it cannot.
+
+        The cutoff distance is controlled by class attribute ``fragmenstein_joining_cutoff``.
+        At present this just adds a hydrocarbon chain, no fancy checking for planarity.
+
+        The hits are collapsed, merged, expanded and bonded by proximity.
+        In ``(self.fragmenstein.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
+
+        ``warhead_harmonisation`` fixes the warhead in the hits to be homogeneous.
+
+        * ``keep``. Don't do anything
+        * ``none``. strip warheads
+        * ``first``. Use first warhead
+        * warhead name. Use this warhead.
+
+        :param hits:
+        :param pdb_filename:
+        :param ligand_resn:
+        :param ligand_resi:
+        :param covalent_resn:
+        :param covalent_resi:
+        :param extra_constraint:
+        :param pose_fx:
+        :param atomnames:
+        :param warhead_harmonisation: keep | strip | first | chloracetimide | nitrile ...
+        :return:
+        """
         self = cls.__new__(cls)
         self.long_name = '-'.join([h.GetProp('_Name') for h in hits])
         self.apo_pdbblock = open(pdb_filename).read()
-        self.hits = hits
+        self.journal.debug(f'{self.long_name} - harmonising warheads on hits in "{warhead_harmonisation}" mode')
+        with warnings.catch_warnings(record=True) as self._warned:
+            self.hits = self.harmonise_warheads(hits, warhead_harmonisation, covalent_form=True)
+            self._log_warnings()
         self.ligand_resn = ligand_resn.upper()
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
@@ -52,6 +85,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
+        if self.fragmenstein_average_position:
+            # I need to code this case.
+            self.journal.warning('`fragmenstein_average_position` class attribute == True does not apply here')
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
@@ -71,16 +107,25 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 attachment=attachment,
                 merging_mode='off')
         # collapse hits
+        # fragmenstein_throw_on_discard controls if disconnected.
+        self.fragmenstein.throw_on_disconnect = self.fragmenstein_throw_on_discard
+        self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff
         self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
         # merge!
         self.fragmenstein.scaffold = self.fragmenstein.merge_hits()
-        if self.throw_on_discard and len(self.fragmenstein.unmatched):
+        self._log_warnings()
+        ## Discard can happen for other reasons than disconnect
+        if self.fragmenstein_throw_on_discard and len(self.fragmenstein.unmatched):
             raise ConnectionError(f'{self.long_name} - Could not combine with {self.fragmenstein.unmatched} '+\
                                   f'(>{self.fragmenstein.joining_cutoff}')
+        # expand and fix
+        self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
         self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold, bonded_as_original=False)
+        self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
         self.fragmenstein.positioned_mol = Rectifier(self.fragmenstein.positioned_mol).mol
+        self._log_warnings()
         # the origins are obscured because of the collapsing...
         self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)
         self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
@@ -111,7 +156,6 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.convert_mol()
         self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         self.params.CHI.data = []  # TODO fix chi
-        self._log_warnings()
         self._log_warnings()
         self.post_params_step()
         self.fragmenstein_merging_mode = 'full'
@@ -158,3 +202,104 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                              f'CA {self.covalent_resi} ' + \
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
+
+    @classmethod
+    def inventorise_warheads(cls, hits: List[Chem.Mol], covalent_form: bool=True) -> List[str]:
+        """
+        Get the warhead types of the list of hits
+
+        :param hits:
+        :param covalent_form: Are the hits already covalent (with *)
+        :return: list of non-covalent, chloroacetimide, etc.
+        """
+        inventory = ['noncovalent'] * len(hits)
+        for war_def in cls.warhead_definitions:
+            wh = cls._get_warhead_from_definition(war_def, covalent_form)
+            for i, hit in enumerate(hits):
+                if hit.HasSubstructMatch(wh):
+                    inventory[i] = war_def['name']
+        return inventory
+
+    @classmethod
+    def _get_warhead_from_name(cls, warhead_name:str, covalent_form:bool) -> Chem.Mol:
+        """
+        get_warhead_definition returns a definition, this retursn a mol.
+
+        :param warhead_name:
+        :param covalent_form:
+        :return:
+        """
+        war_def = cls.get_warhead_definition(warhead_name)
+        wh = cls._get_warhead_from_definition(war_def, covalent_form)
+        return wh
+
+    @classmethod
+    def _get_warhead_from_definition(cls, war_def:dict, covalent_form:bool):
+        if covalent_form:
+            wh = Chem.MolFromSmiles(war_def['covalent'])
+        else:
+            wh = Chem.MolFromSmiles(war_def['noncovalent'])
+        return wh
+
+    def harmonise_warheads(self, hits, warhead_harmonisation, covalent_form=True):
+        """
+        Harmonises and marks the atoms with `_Warhead` Prop.
+
+        :param hits:
+        :param warhead_harmonisation:
+        :param covalent_form:
+        :return:
+        """
+        inventory = self.inventorise_warheads(hits, covalent_form)
+        # mark warhead atoms.
+        for hit, warhead_name in zip(hits, inventory):
+            if warhead_name != 'noncovalent':
+                wh = self._get_warhead_from_name(warhead_name, covalent_form)
+                match = hit.GetSubstructMatch(wh)
+                if match == ():
+                    self.journal.warning(f'{self.long_name} - failed to mark warhead. What is it??')
+                else:
+                    for i in match:
+                        hit.GetAtomWithIdx(i).SetBoolProp('_Warhead', True)
+        # harmonise
+        if warhead_harmonisation == 'keep':
+            return hits
+        elif warhead_harmonisation == 'strip':
+            new_hits = []
+            for hit, warhead_name in zip(hits, inventory):
+                if warhead_name != 'noncovalent':
+                    wh = self._get_warhead_from_name(warhead_name, covalent_form)
+                    nhit = AllChem.DeleteSubstructs(hit, wh)
+                    Chem.SanitizeMol(nhit)
+                    new_hits.append(nhit)
+                else:
+                    new_hits.append(hit)
+
+            return new_hits
+        elif warhead_harmonisation == 'first':
+            if len(set(inventory) - {'noncovalent'}) <= 1:
+                return hits
+            else:
+                first = None
+                new_hits = []
+                for hit, warhead_name in zip(hits, inventory):
+                    if warhead_name != 'noncovalent':
+                        if first is None:
+                            first = warhead_name
+                            new_hits.append(hit)
+                        elif warhead_name == first:
+                            new_hits.append(hit)
+                        else:
+                            wh = self._get_warhead_from_name(warhead_name, covalent_form)
+                            nhit = AllChem.DeleteSubstructs(hit, wh)
+                            Chem.SanitizeMol(nhit)
+                            new_hits.append(nhit)
+                    else:
+                        new_hits.append(hit)
+                return new_hits
+        else: # it is a warhead name.
+            raise NotImplementedError
+
+
+
+

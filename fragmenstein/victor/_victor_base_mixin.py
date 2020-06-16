@@ -22,6 +22,8 @@ class _VictorBaseMixin:
     fragmenstein_merging_mode = 'partial'
     fragmenstein_debug_draw = False
     fragmenstein_average_position = False
+    fragmenstein_joining_cutoff = 5.
+    fragmenstein_throw_on_discard = False
     constraint_function_type = 'FLAT_HARMONIC'
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
@@ -69,6 +71,12 @@ class _VictorBaseMixin:
                             # OY needs to tautomerise & h-bond happily.
                             'noncovalent': 'S[Au]P(CC)(CC)CC',
                             'noncovalent_atomnames': ['SY', 'AUX', 'PL', 'CL1', 'CL2', 'CL3', 'CL4', 'CL5', 'CL6']
+                            },
+                           {'name': 'aldehyde',
+                            'covalent': 'C(O)*',
+                            'covalent_atomnames': ['CX', 'OX', 'CONN1'],
+                            'noncovalent': '[C:H1]=O', # this at
+                            'noncovalent_atomnames': ['CX', 'OX']
                             },
                            ]
 

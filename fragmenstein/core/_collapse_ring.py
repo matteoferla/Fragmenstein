@@ -362,8 +362,54 @@ class Ring:
         else:
             return False
 
+    def _is_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
+        """
+        Get bool of whether two atoms share a common neighbor. Ie. joining them would make a triangle.
 
-    def join_overclose(self, mol: Chem.RWMol, to_check, cutoff=1.8):
+        :param first:
+        :param second:
+        :return:
+        """
+        get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors()]
+        f_neighs = get_neigh_idxs(first)
+        s_neighs = get_neigh_idxs(second)
+        return not set(f_neighs).isdisjoint(set(s_neighs))
+
+    def _is_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
+        """
+        Get bool of whether two atoms share a common over-neighbor. Ie. joining them would make a square.
+
+        :param first:
+        :param second:
+        :return:
+        """
+        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
+            if self._is_triangle(first, third) is True:
+                return True
+        else:
+            return False
+
+    def _is_connected_warhead(self, atom, anchor_atom):
+        if not atom.HasProp('_Warhead'):
+            return False
+        elif atom.GetBoolProp('_Warhead') == False:
+            return False
+        else:
+            frags = Chem.GetMolFrags(atom.GetOwningMol())
+            if len(frags) == 1:
+                return True
+            else:
+                for frag in frags:
+                    if atom.GetIdx() in frag and anchor_atom.GetIdx() in frag:
+                        return True
+                    elif atom.GetIdx() in frag:
+                        return False
+                    else:
+                        pass
+                else:
+                    raise ValueError('I do not think this is possible.')
+
+    def join_overclose(self, mol: Chem.RWMol, to_check, cutoff=2.2): # was 1.8
         """
         Cutoff is adapted to element.
 
@@ -384,9 +430,18 @@ class Ring:
                     ij_cutoff = cutoff
                 else:
                     ij_cutoff = cutoff - 1.36 + sum([pt.GetRcovalent(atom.GetAtomicNum()) for atom in (atom_i, atom_j)])
+                # determine if to join
                 if i == j or j in to_check:
                     continue
-                elif dm[i, j] < ij_cutoff:
+                elif dm[i, j] > ij_cutoff:
+                    continue
+                elif self._is_triangle(atom_i, atom_j):
+                    continue
+                elif self._is_square(atom_i, atom_j):
+                    continue
+                elif self._is_connected_warhead(atom_j, atom_i):
+                    continue
+                else:
                     present_bond = mol.GetBondBetweenAtoms(i, j)
                     if atom_j.HasProp('_ring_bond'):
                         bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
