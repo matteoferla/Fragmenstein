@@ -16,9 +16,11 @@ __citation__ = ""
 
 
 from rdkit import Chem
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 import warnings, random
+import logging
 
+log = logging.getLogger('Fragmenstein')
 
 # when hits are combined they can result in odd valence and other issues.
 
@@ -39,11 +41,9 @@ class Rectifier:
 
     def __init__(self, mol: Chem.Mol, valence_correction: str = 'element', debug: bool = False):
         self.valence_correction = valence_correction
-        if debug:
-            self.dprint = print
-        else:
-            self.dprint = lambda *x: None
         self.mol = mol
+        self._valence_mode = 'max'
+        Chem.Cleanup(self.mol)
         self._iterations_done = 0
         self.ununspecified_bonds()
         self.triage_rings()
@@ -55,8 +55,13 @@ class Rectifier:
     def _get_valence_difference(self, atom: Chem.Atom) -> int:
         pt = Chem.GetPeriodicTable()
         valence = self._get_atom_valence(atom)
-        maxv = max(pt.GetValenceList(atom.GetAtomicNum()))
-        return valence - maxv
+        if self._valence_mode == 'max':
+            maxv = max(pt.GetValenceList(atom.GetAtomicNum()))
+            return valence - maxv
+        else:
+            d = pt.GetDefaultValence(atom.GetAtomicNum())
+            return valence - d
+
 
     def _get_atom_valence(self, atom: Chem.Atom):
         """
@@ -70,8 +75,12 @@ class Rectifier:
             valence += bond.GetBondTypeAsDouble()
         return valence - atom.GetFormalCharge()
 
-    def _has_correct_valence(self, atom: Chem.Atom):
-        return self._get_valence_difference(atom) <= 0
+    def _has_correct_valence(self, atom: Union[Chem.Atom, int]):
+        if isinstance(atom, Chem.Atom):
+            return self._get_valence_difference(atom) <= 0
+        elif isinstance(atom, int):
+            atom = self.mol.GetAtomWithIdx(atom)
+            return self._get_valence_difference(atom) <= 0
 
     def _get_ring_info(self):
         """
@@ -132,7 +141,7 @@ class Rectifier:
             else:  # non-ring
                 for bond in atom.GetBonds():
                     if bond.GetBondType().name == 'AROMATIC':
-                        self.dprint(f'donwgrading bond {i}')
+                        log.debug(f'donwgrading bond {i}')
                         bond.SetBondType(Chem.BondType.SINGLE)
         # aromatics
         for ring in sorted(rings, key=self._is_aromatic_ring):
@@ -156,7 +165,7 @@ class Rectifier:
 
     def downgrade_ring(self, atom: Chem.Atom):
         ## very crappy way of doing this
-        self.dprint(f'downgrading whole ring')
+        log.debug(f'downgrading whole ring')
         atom.SetIsAromatic(False)
         for bond in atom.GetBonds():
             bond.SetBondType(Chem.BondType.SINGLE)
@@ -176,6 +185,7 @@ class Rectifier:
 
     def fix_issues(self):
         if self._iterations_done > 10:
+            log.info(f'Iterations maxed out!')
             return None
         problems = Chem.DetectChemistryProblems(self.mol)
         if len(problems) == 0:
@@ -183,14 +193,32 @@ class Rectifier:
         else:
             self._iterations_done += 1
         for p in problems:
+            log.debug(f'(Iteration: {self._iterations_done}) Issue {p.GetType()}: {p.Message()}')
             ############################################################
             if p.GetType() == 'KekulizeException':
                 # plural GetAtomIndices. AtomKekulizeException, singular GetAtomIdx
                 print(p.Message())
                 N = self._get_nitrogens(p.GetAtomIndices())
                 if len(N) > 0:
+                    log.debug(f'KekulizeException likely caused by nitrogen')
                     random.shuffle(N)  # just in case.
                     self.mol.GetAtomWithIdx(N[0]).SetNumExplicitHs(1)
+                else:
+                    # triage rings should have altered any not ring atoms that are aromatic.
+                    # self._get_ring_info()
+                    # so it is likely a hetatom thing.
+                    log.info(f'Ring triages seems to have failed. Is it a valence thing?')
+                    valence_issues = [self._has_correct_valence(i) for i in p.GetAtomIndices()]
+                    if not all(valence_issues):
+                        for i in p.GetAtomIndices():
+                            self.fix_valence(i)
+                    else:
+                        log.warning(f'Attempting default valency (not max)')
+                        self._valence_mode = 'default'
+                        for i in p.GetAtomIndices():
+                            self.fix_valence(i)
+                        self._valence_mode = 'max'
+
             ############################################################
             elif p.GetType() == 'AtomKekulizeException' and 'non-ring atom' in p.Message():
                 atom = self.mol.GetAtomWithIdx(p.GetAtomIdx())
@@ -202,7 +230,7 @@ class Rectifier:
                 i = p.GetAtomIdx()
                 self.fix_valence(i)
             else:
-                self.dprint('???', p.GetType(), p.Message())
+                log.debug('???', p.GetType(), p.Message())
         self.fix_issues()
 
     # ========= other helpers ==========================================================================================
@@ -213,18 +241,23 @@ class Rectifier:
     def ununspecified_bonds(self):
         for bond in self.mol.GetBonds():
             if bond.GetBondType().name == 'UNSPECIFIED':
+                log.debug(f'Fixing unspecified bond {bond.GetIdx()}')
                 bond.SetBondType(Chem.BondType.SINGLE)
 
     # ========= shift/charge ===========================================================================================
 
     def _adjust_for_fix_valence(self, atom):
         df = self._get_valence_difference(atom)
+        ori = atom.GetSymbol()
         if self.valence_correction == 'charge':
             atom.SetFormalCharge(df)
         elif self.valence_correction == 'element':
-            if atom.GetSymbol == 'H':
-                atom.SetAtomicNum(8)
             n = atom.GetAtomicNum()
+            if n == 1:
+                atom.SetAtomicNum(8)
+            elif n > 10:
+                n = (n % 8) - 2 + 8
+                atom.SetAtomicNum(n)
             if len(atom.GetNeighbors()) > 4:
                 atom.SetAtomicNum(16)
             elif n - df < 6:  # C -> B no!
@@ -232,6 +265,7 @@ class Rectifier:
                     bond.SetBondType(Chem.BondType.SINGLE)
             else:  # N, O, F etc.
                 atom.SetAtomicNum(int(n - df))
+            log.info(f'Shifting atom from {ori} to {atom.GetSymbol()}')
         else:
             raise ValueError(f'self.valence_correction can only be "element"/"charge" not {self.valence_correction}.')
 
@@ -239,15 +273,15 @@ class Rectifier:
         atom = self.mol.GetAtomWithIdx(i)
         atom.SetFormalCharge(0)
         atom.SetNumExplicitHs(0)
-        self.dprint(f'{i} {atom.GetSymbol()}: {len(atom.GetNeighbors())} bonds {self._get_atom_valence(atom)}')
+        log.debug(f'{i} {atom.GetSymbol()}: {len(atom.GetNeighbors())} bonds {self._get_atom_valence(atom)}')
         if self._has_correct_valence(atom):
-            self.dprint('\tValence seems correct')
+            log.debug('\tValence seems correct')
             return None
         elif atom.GetSymbol() == 'C' and len(atom.GetNeighbors()) > 4:
-            self.dprint('\ttexas carbon --> S')
+            log.debug('\ttexas carbon --> S')
             atom.SetAtomicNum(16)
         elif atom.GetSymbol() == 'C' and atom.GetIsAromatic() and len(atom.GetNeighbors()) == 4:
-            self.dprint('\tDowngrading ring')
+            log.debug('\tDowngrading ring')
             self.downgrade_ring(atom)
         elif atom.GetSymbol() == 'C':
             for bond in atom.GetBonds():

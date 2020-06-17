@@ -117,7 +117,7 @@ class GPM:
         ## find the closest
         mapping = {}
         while 1 == 1:
-            d = np.amin(array)
+            d = np.nanmin(array)
             if d > cutoff:
                 break
             w = np.where(array == d)

@@ -66,7 +66,7 @@ class _FragmensteinJoinNeighMixin:
 
         previous = None
         while d == float('inf'):
-            d = np.amin(tm2)
+            d = np.nanmin(tm2)
             p = np.where(tm2 == d)
             anchor_A = int(A_idxs[p[0][0]])
             anchor_B = int(B_idxs[p[1][0]])

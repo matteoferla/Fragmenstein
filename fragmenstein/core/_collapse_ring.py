@@ -23,6 +23,10 @@ from rdkit.Chem import AllChem
 from typing import Optional, Dict, List, Any, Tuple
 import numpy as np
 
+import logging
+
+log = logging.getLogger('Fragmenstein')
+
 
 class Ring:
     def __init__(self, _debug_draw=False):
@@ -174,7 +178,44 @@ class Ring:
             self._fix_overlap(mol, mergituri)
             self._delete_collapsed(mol)
             self._infer_bonding_by_proximity(mol) # absorb_overclose and join_overclose
-        return mol.GetMol()
+        # this should not happen... but it can!
+        mol = self._emergency_joining(mol)
+        # _emergency_joining returns a Chem.Mol not a Chem.RWMol
+        if mol is None:
+            raise ValueError('(Impossible) Failed at some point...')
+        elif isinstance(mol, Chem.RWMol):
+            return mol.GetMol()
+        else:
+            return mol
+
+    def _emergency_joining(self, mol):
+        """
+        The last check to see if the mol is connected, before being rectified (valence fixes).
+        """
+        frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+        n = len(frags)
+        while n > 1:
+            log.warning(f'Molecule disconnected in {n} parts. Please inspect.')
+            name = mol.GetProp('_Name')
+            for i, frag in enumerate(frags):
+                frag.SetProp('_Name', f'name.{i}')
+            closeness = np.ones([n, n])
+            closeness.fill(float('nan'))
+            for a, b in itertools.combinations(list(range(n)), 2):
+                closeness[a, b] = self._find_closest(frags[a], frags[b])[3]
+            p = np.where(closeness == np.nanmin(closeness))
+            frags = list(frags)
+            first = frags[p[0][0]]
+            second = frags[p[1][0]]
+            mol = self.join_neighboring_mols(first, second)
+            frags.remove(first)
+            frags.remove(second)
+            for part in frags:
+                mol = Chem.CombineMols(mol, part)
+                mol.SetProp('_Name', name)
+            frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+            n = len(frags)
+        return mol
 
     def _fix_overlap(self, mol, mergituri):
         morituri = []
@@ -237,10 +278,10 @@ class Ring:
                             for G_idxs, ref_i in [(A_idxs, n.GetIdx()), (B_idxs, ring['atom'].GetIdx())]:
                                 tm = np.take(dm, G_idxs, 0)
                                 tm2 = np.take(tm, [ref_i], 1)
-                                p = np.where(tm2 == np.amin(tm2))
+                                p = np.where(tm2 == np.nanmin(tm2))
                                 f = G_idxs[int(p[0][0])]
                                 tm2[p[0][0], :] = np.ones(tm2.shape[1]) * float('inf')
-                                p = np.where(tm2 == np.amin(tm2))
+                                p = np.where(tm2 == np.nanmin(tm2))
                                 s = G_idxs[int(p[1][0])]
                                 pairs.append((f,s))
                             # now determine which are closer
@@ -345,7 +386,7 @@ class Ring:
             if not self._are_rings_bonded(mol, ringA, ringB):
                 mini = np.take(dm, ringA, 0)
                 mini = np.take(mini, ringB, 1)
-                d = np.amin(mini)
+                d = np.nanmin(mini)
                 if d < cutoff:
                     p = np.where(mini == d)
                     f = ringA[int(p[0][0])]
