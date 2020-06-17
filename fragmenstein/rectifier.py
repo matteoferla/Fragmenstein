@@ -223,8 +223,13 @@ class Rectifier:
             elif p.GetType() == 'AtomKekulizeException' and 'non-ring atom' in p.Message():
                 atom = self.mol.GetAtomWithIdx(p.GetAtomIdx())
                 atom.SetIsAromatic(False)
+                log.debug(f'Atom {p.GetAtomIdx()} set to non-aromatic.')
                 for bond in atom.GetBonds():
                     bond.SetBondType(Chem.BondType.SINGLE)
+            elif p.GetType() == 'AtomKekulizeException' and 'Aromatic bonds on non aromatic atom' in p.Message():
+                atom = self.mol.GetAtomWithIdx(p.GetAtomIdx())
+                log.debug(f'Atom {p.GetAtomIdx()} set to aromatic.')
+                atom.SetIsAromatic(True)
             ############################################################
             elif p.GetType() == 'AtomValenceException':
                 i = p.GetAtomIdx()
@@ -252,12 +257,14 @@ class Rectifier:
         if self.valence_correction == 'charge':
             atom.SetFormalCharge(df)
         elif self.valence_correction == 'element':
+            ## correct row
             n = atom.GetAtomicNum()
             if n == 1:
                 atom.SetAtomicNum(8)
             elif n > 10:
                 n = (n % 8) - 2 + 8
                 atom.SetAtomicNum(n)
+            ## correct column
             if len(atom.GetNeighbors()) > 4:
                 atom.SetAtomicNum(16)
             elif n - df < 6:  # C -> B no!

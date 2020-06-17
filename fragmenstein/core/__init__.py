@@ -453,6 +453,19 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                     warn(msg)
         return scaffold
 
+    def _prevent_two_bonds_on_dummy(self, mol: Chem.RWMol):
+        for atom in mol.GetAtomWithIdx():
+            if atom.GetSymbol() != '*':
+                pass
+            elif len(atom.GetNeighbors()) <= 1:
+                pass
+            elif len(atom.GetNeighbors()) >= 2:
+                neighs = atom.GetNeighbors()
+                for second in neighs[1:]:
+                    self._absorb(mol, atom, second)
+                    mol.RemoveAtom(second)
+
+
     # ================= Chimera ========================================================================================
 
     def make_chimera(self, min_mode_index=0) -> Chem.Mol:
@@ -677,6 +690,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         if self._debug_draw:
             print('Merged')
             self.draw_nicely(combo)
+        self._prevent_two_bonds_on_dummy(combo)
         scaffold = combo.GetMol()
         return scaffold
 

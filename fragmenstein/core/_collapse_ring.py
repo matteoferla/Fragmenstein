@@ -733,20 +733,3 @@ class Ring:
             return True
         except ValueError as err:  # no atom is present (actually the default)
             return False
-
-
-if __name__ == '__main__':
-    pass
-    # for m in (Chem.MolFromSmiles('c1ccccc1CCCCN'), #benzene
-    #           Chem.MolFromSmiles('c1ccccc1CCCCNCc2ccccc2'), #two benzenes
-    #           Chem.MolFromSmiles('c1ccc2ccccc2c1CC')): # napthalene.
-    #     AllChem.Compute2DCoords(m)
-    #     Ring().store_positions(m)
-    #     print('original')
-    #     display(m)
-    #     mol = Ring().collapse_ring(m)
-    #     print('collapsed')
-    #     display(mol)
-    #     print('expanded')
-    #     mol = Ring().expand_ring(mol)
-    #     display(mol)
