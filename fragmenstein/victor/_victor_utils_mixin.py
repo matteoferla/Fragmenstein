@@ -443,7 +443,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             self.params = Params().load(params)
             self.unbound_pose = Params.params_to_pose(params, self.params.NAME)
             if os.path.exists(paramstemp):
-                self.params.mol = Chem.MolFromMolFile(paramstemp)
+                self.params.mol = Chem.MolFromMolFile(paramstemp, removeHs=False)
         else:
             self.params = None
         posmol = os.path.join(folder, f'{self.long_name}.positioned.mol')
@@ -456,6 +456,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         if os.path.exists(fragjson):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
+            self.is_covalent = True if '*' in self.smiles else False
             self.fragmenstein = Fragmenstein(mol=self.mol,
                                              hits=self.hits,
                                              attachment=None,
@@ -464,11 +465,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                                              )
             self.fragmenstein.positioned_mol = self.mol
             self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
+
         else:
+            self.is_covalent = None
             self.smiles = ''
             self.fragmenstein = None
             self.journal.info(f'{self.long_name} - no fragmenstein json')
             self.N_constrained_atoms = float('nan')
+
         #
         self.apo_pdbblock = None
         #
@@ -477,7 +481,6 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         self.extra_constraint = ''
         self.pose_fx = None
         # these are calculated
-        self.is_covalent = None
         self.constraint = None
         self.unminimised_pdbblock = None
         self.igor = None

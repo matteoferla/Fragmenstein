@@ -178,6 +178,10 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
+        self.reanimate_n_store()
+        self.journal.debug(f'{self.long_name} - Completed')
+
+    def reanimate_n_store(self):
         ddG = self.reanimate()
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()

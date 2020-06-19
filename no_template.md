@@ -30,3 +30,8 @@ If two rings intersect perpendicularly (_e.g._ `x0708-x2193`) the resulting bond
 ![cross-ring](images/cross_ring.png)
 
 I have no idea how to resolve this.
+
+## Issues
+
+
+The azetine-benzene problem as seen in x1380,x0981 could be fixed to be like the indole seen in x0981,x2754
