@@ -43,10 +43,10 @@ class Rectifier:
         self.valence_correction = valence_correction
         self.mol = mol
         self._valence_mode = 'max'
-        Chem.Cleanup(self.mol)
         self._iterations_done = 0
         self.ununspecified_bonds()
         self.triage_rings()
+        Chem.Cleanup(self.mol)
         self.fix_issues()
         Chem.SanitizeMol(self.mol, sanitizeOps=Chem.SanitizeFlags.SANITIZE_ALL)
 
@@ -197,9 +197,12 @@ class Rectifier:
             ############################################################
             if p.GetType() == 'KekulizeException':
                 # plural GetAtomIndices. AtomKekulizeException, singular GetAtomIdx
-                print(p.Message())
+                #print(p.Message())
                 N = self._get_nitrogens(p.GetAtomIndices())
-                if len(N) > 0:
+                if self._iterations_done > 7: # it's probably had a few rounds already.
+                    for i in p.GetAtomIndices():
+                        self.downgrade_ring(self.mol.GetAtomWithIdx(i))
+                elif len(N) > 0:
                     log.debug(f'KekulizeException likely caused by nitrogen')
                     random.shuffle(N)  # just in case.
                     self.mol.GetAtomWithIdx(N[0]).SetNumExplicitHs(1)

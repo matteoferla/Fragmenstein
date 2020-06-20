@@ -154,6 +154,9 @@ class _FragmensteinJoinNeighMixin:
             ys = ys[:-1]
             zs = zs[:-1]
 
+        # notify that things could be leary.
+        if d < 0:
+            log.info(f'Two ring atoms detected to be too close. Joining for now. They should be merged.')
         # place new atoms
         if d < self.joining_cutoff:
             log.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({d} Å) via the addition of {n_new} atoms.')
@@ -163,7 +166,7 @@ class _FragmensteinJoinNeighMixin:
             for i in range(n_new):
                 idx = combo.AddAtom(Chem.Atom(6))
                 new = combo.GetAtomWithIdx(idx)
-                new.SetBoolProp('_novel', True)
+                new.SetBoolProp('_Novel', True)
                 new.SetIntProp('_ori_i', 999)
                 conf.SetAtomPosition(idx, Point3D(float(xs[i]), float(ys[i]), float(zs[i])))
                 combo.AddBond(idx, previous, Chem.BondType.SINGLE)

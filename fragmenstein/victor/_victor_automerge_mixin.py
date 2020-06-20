@@ -72,6 +72,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         starhits = any(['*' in Chem.MolToSmiles(h) for h in hits])
         if starhits and (self.covalent_resi is None or self.covalent_resn is None):
             raise ValueError(f'{self.long_name} - is covalent but without known covalent residues')
+        elif warhead_harmonisation == 'strip':
+            self.is_covalent = False
         elif starhits:
             self.is_covalent = True
         else:
@@ -102,7 +104,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
 
     def _combine_main(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.fragmenstein = Fragmenstein(mol=Chem.Mol(),
+        self.fragmenstein = Fragmenstein(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
                 hits=[],
                 attachment=attachment,
                 merging_mode='off')

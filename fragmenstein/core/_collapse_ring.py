@@ -22,6 +22,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from typing import Optional, Dict, List, Any, Tuple
 import numpy as np
+from collections import Counter
 
 import logging
 
@@ -181,6 +182,9 @@ class Ring:
         # this should not happen... but it can!
         mol = self._emergency_joining(mol)
         # _emergency_joining returns a Chem.Mol not a Chem.RWMol
+        # prevent weird nested rings.
+        mol = self._prevent_conjoined_ring(mol)
+        mol = self._prevent_weird_rings(mol)
         if mol is None:
             raise ValueError('(Impossible) Failed at some point...')
         elif isinstance(mol, Chem.RWMol):
@@ -224,6 +228,153 @@ class Ring:
             morituri.append(pair[1])
         for i in sorted(morituri, reverse=True):
             mol.RemoveAtom(i)
+
+    def _prevent_conjoined_ring(self, mol: Chem.Mol) -> Chem.Mol:
+        """
+        This kills bridging bonds with not atoms in the bridge within rings.
+        So it is bridged, fused and spiro safe.
+        It removes only one bond, so andamantane/norbornane are safe.
+        :param mol:
+        :return:
+        """
+        c = Counter([i for ring in self._get_ring_info(mol) for i in ring])
+        nested = [k for k in c if c[k] >= 3]
+        pairs = [(idx_a, idx_b) for idx_a, idx_b in itertools.combinations(nested, r=2) if
+                 mol.GetBondBetweenAtoms(idx_a, idx_b) is not None]
+        rank = sorted(pairs, key=lambda x: c[x[0]] + c[x[1]], reverse=True)
+        if len(rank) > 0:
+            idx_a, idx_b = rank[0]
+            if not isinstance(mol, Chem.RWMol):
+                mol = Chem.RWMol(mol)
+            mol.RemoveBond(idx_a, idx_b)
+            log.info(f'Zero-atom bridged ring issue: bond between {idx_a}-{idx_b} removed')
+            return self._prevent_conjoined_ring(mol)
+        elif isinstance(mol, Chem.RWMol):
+            return mol.GetMol()
+        else:
+            return mol
+
+    def _place_between(self, mol: Chem.RWMol, a: int, b: int, aromatic=True):
+        oribond = mol.GetBondBetweenAtoms(a, b)
+        if oribond is None:
+            print('FAIL')
+            return None  # fail
+        elif aromatic:
+            bt = Chem.BondType.AROMATIC
+        else:
+            bt = oribond.GetBondType()
+        idx = mol.AddAtom(Chem.Atom(6))
+        neoatom = mol.GetAtomWithIdx(idx)
+        atom_a = mol.GetAtomWithIdx(a)
+        atom_b = mol.GetAtomWithIdx(b)
+        if aromatic:
+            neoatom.SetIsAromatic(True)
+            atom_a.SetIsAromatic(True)
+            atom_b.SetIsAromatic(True)
+        # prevent constraints
+        neoatom.SetBoolProp('_Novel', True)
+        atom_a.SetBoolProp('_Novel', True)
+        atom_b.SetBoolProp('_Novel', True)
+        # fix position
+        conf = mol.GetConformer()
+        pos_A = conf.GetAtomPosition(a)
+        pos_B = conf.GetAtomPosition(b)
+        x = pos_A.x / 2 + pos_B.x / 2
+        y = pos_A.y / 2 + pos_B.y / 2
+        z = pos_A.z / 2 + pos_B.z / 2
+        conf.SetAtomPosition(idx, Point3D(x, y, z))
+        # fix bonds
+        mol.RemoveBond(a, b)
+        mol.AddBond(a, idx, bt)
+        mol.AddBond(b, idx, bt)
+
+    def _prevent_weird_rings(self, mol: Chem.Mol):
+        if not isinstance(mol, Chem.RWMol):
+            mol = Chem.RWMol(mol)
+        ringatoms = self._get_ring_info(mol) #GetRingInfo().AtomRings()
+        for ring_A, ring_B in itertools.combinations(ringatoms, r=2):
+            shared = set(ring_A).intersection(set(ring_B))
+            if len(shared) == 0:
+                log.debug('This molecule separate rings')
+                pass  # separate rings
+            elif len(shared) == 1:
+                log.debug('This molecule has a spiro bicycle')
+                pass  # spiro ring.
+            elif len(shared) == 2:
+                log.debug('This molecule has a fused ring')
+                if mol.GetBondBetweenAtoms(*shared) is not None:
+                    pass  # indole/naphtalene
+                    small, big = sorted([ring_A, ring_B], key=lambda ring: len(ring))
+                    if len(small) == 4:
+                        log.warning('This molecule has a benzo-azetine–kind-of-thing: expanding to indole')
+                        # Chem.MolFromSmiles('C12CCCCC1CC2')
+                        # benzo-azetine is likely an error: add and extra atom
+                        a, b = set(small).difference(big)
+                        self._place_between(mol, a, b)
+                    elif len(small) == 3:
+                        log.warning('This molecule has a benzo-cyclopropane–kind-of-thing: expanding to indole')
+                        # Chem.MolFromSmiles('C12CCCCC1C2')
+                        # benzo-cyclopronane is actually impossible at this stage.
+                        a = list(set(small).difference(big))[0]
+                        for b in shared:
+                            self._place_between(mol, a, b)
+                    else:
+                        pass  # indole and nathalene
+                elif (len(ring_A), len(ring_B)) == (6, 6):
+                    raise Exception('This is utterly impossible')
+                else:
+                    print(f'mysterious ring system {len(ring_A)} + {len(ring_B)}')
+                    pass  # ????
+            elif len(shared) < self.atoms_in_bridge_cutoff:
+                #adamantene/norbornane/tropinone kind of thing
+                log.warning('This molecule has a bridge: leaving')
+                pass  # ideally check if planar...
+            else:
+                log.warning('This molecule has a bridge that will be removed')
+                mol = self._prevent_bridge_ring(mol, ring_A)
+                # start from scratch.
+                return self._prevent_weird_rings(mol)
+        return mol.GetMol()
+
+    def _prevent_bridge_ring(self, mol: Chem.RWMol, examplar: Tuple[int]):
+        ## This is really
+        # examplar is ring
+        ringatoms = self._get_ring_info(mol) #GetRingInfo().AtomRings()
+        ringatoms = [ring for ring in ringatoms if set(ring).intersection(ringatoms[0])]
+        ring_idx = list(range(len(ringatoms)))
+        shared_count = {}
+        for ra, rb in itertools.combinations(ring_idx, r=2):
+            shared_count[(ra, rb)] = len(set(ringatoms[ra]).intersection(set(ringatoms[rb])))
+        ra, rb = list(shared_count.keys())[0]
+        shared = list(set(ringatoms[ra]).intersection(ringatoms[rb]))
+        pairs = [(a, b) for a, b in itertools.combinations(shared, r=2) if mol.GetBondBetweenAtoms(a, b) is not None]
+        c = Counter([i for pair in pairs for i in pair])
+        ring_A, ring_B = ringatoms[ra], ringatoms[rb]
+        small, big = sorted([ring_A, ring_B], key=lambda ring: len(ring))
+        inners = [i for i in c if c[i] > 1]
+        a, b = list(set(shared).difference(inners))
+        if len(big) > 6:
+            log.warning(f'Removing {len(inners)} bridging atoms and replacing with fused ring')
+            # bond the vertices
+            bt = Chem.BondType.SINGLE # ???
+            mol.AddBond(a, b, bt)
+            # remove the middle atoms.
+            for i in sorted(inners, reverse=True):
+                mol.RemoveAtom(i)
+        else:
+            log.warning(f'Shriking the smaller ring to change from bridged to fused.')
+            # get the neighbour in the small atom to a vertex.
+            neighs = [neigh for neigh in mol.GetAtomWithIdx(a).GetNeighbors() if
+                      neigh.GetIdx() not in shared and neigh.GetIdx() in small]
+            neigh = sorted(neighs, key=lambda atom: atom.GetSymbol() != 'C')[0]
+            bt = mol.GetBondBetweenAtoms(a, neigh.GetIdx()).GetBondType()
+            mol.RemoveBond(a, neigh.GetIdx())
+            new_neigh = [neigh for neigh in mol.GetAtomWithIdx(a).GetNeighbors() if neigh.GetIdx() in shared][0]
+            mol.AddBond(neigh.GetIdx(), new_neigh.GetIdx(), bt)
+            neigh.SetBoolProp('_Novel', True)
+            new_neigh.SetBoolProp('_Novel', True)
+            mol.GetAtomWithIdx(a).SetBoolProp('_Novel', True)
+        return mol
 
 
     def _place_ring_atoms(self, mol, rings):
@@ -487,14 +638,18 @@ class Ring:
                     if atom_j.HasProp('_ring_bond'):
                         bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
                     else:
-                        bt = Chem.BondType.SINGLE
-                    if present_bond is not None and bt.name == present_bond.GetBondType().name:
+                        bt = None
+                    if present_bond is not None and bt is None:
                         pass # exists
+                    if present_bond is not None and bt.name == present_bond.GetBondType().name:
+                        pass # exists and has correct bond
                     elif present_bond is not None:
                         present_bond.SetBondType(bt)
                     elif len(atom_i.GetNeighbors()) <= 2 and atom_i.GetIsAromatic():
                         mol.AddBond(i, j, Chem.BondType.SINGLE)
                     elif len(atom_i.GetNeighbors()) <= 3 and not atom_i.GetIsAromatic():
+                        if bt is None:
+                            bt = Chem.BondType.SINGLE
                         mol.AddBond(i, j, bt)
                     else:
                         pass # too bonded already!
@@ -524,6 +679,7 @@ class Ring:
         return len(morituri)
 
     def _absorb(self, mol, i, j):
+        log.debug(f'Absorbing atom {i} with {j}')
         absorbiturum = mol.GetAtomWithIdx(j)
         for neighbor in absorbiturum.GetNeighbors():
             n = neighbor.GetIdx()

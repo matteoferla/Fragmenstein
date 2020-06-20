@@ -104,13 +104,13 @@ class MProVictor(Victor):
                          atomnames=atomnames)
 
     @classmethod
-    def combine_codes(cls, hit_codes: List[str]):
+    def combine_codes(cls, hit_codes: List[str], warhead_harmonisation='first'):
         hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
-        return cls.combine(hits=hits)
+        return cls.combine(hits=hits, warhead_harmonisation=warhead_harmonisation)
 
 
     @classmethod
-    def combine(cls, hits:List[Chem.Mol]):
+    def combine(cls, hits:List[Chem.Mol], warhead_harmonisation='first'):
         mpro_folder = cls.get_mpro_path()
         apo = os.path.join(mpro_folder, 'template.pdb')
         atomnames = {}
@@ -123,7 +123,8 @@ class MProVictor(Victor):
                          covalent_resn='CYS', covalent_resi='145A',
                          extra_constraint=extra_constraint,
                          pose_fx=fx,
-                         atomnames=atomnames)
+                         atomnames=atomnames,
+                         warhead_harmonisation=warhead_harmonisation)
 
     # ======= postera csv file ops =====================================================================================
 

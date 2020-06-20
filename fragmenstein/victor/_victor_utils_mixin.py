@@ -428,6 +428,12 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :return:
         """
         cls.journal.warning('`from_files`: You really should not use this.')
+        if os.path.exists(folder):
+            pass # folder is fine
+        elif not os.path.exists(folder) and os.path.exists(os.path.join(cls.work_path, folder)):
+            folder = os.path.join(cls.work_path, folder)
+        else:
+            raise FileNotFoundError(f'Folder {folder} does not exist.')
         self = cls.__new__(cls)
         self.tick = float('nan')
         self.tock = float('nan')
