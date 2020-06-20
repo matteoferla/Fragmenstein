@@ -455,7 +455,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         return scaffold
 
     def _prevent_two_bonds_on_dummy(self, mol: Chem.RWMol):
-        for atom in mol.GetAtomWithIdx():
+        for atom in mol.GetAtoms():
             if atom.GetSymbol() != '*':
                 pass
             elif len(atom.GetNeighbors()) <= 1:
