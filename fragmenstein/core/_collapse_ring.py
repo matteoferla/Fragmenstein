@@ -354,7 +354,11 @@ class Ring:
         ring_A, ring_B = ringatoms[ra], ringatoms[rb]
         small, big = sorted([ring_A, ring_B], key=lambda ring: len(ring))
         inners = [i for i in c if c[i] > 1]
-        a, b = list(set(shared).difference(inners))
+        x = list(set(shared).difference(inners))
+        if x != 2:
+            log.CRITICAL(f'This is impossible. {ringatoms} share {shared} with {inners} in the inside and {x} on the edge?')
+            return mol
+        a, b = x
         if len(big) > 6:
             log.warning(f'Removing {len(inners)} bridging atoms and replacing with fused ring')
             # bond the vertices
