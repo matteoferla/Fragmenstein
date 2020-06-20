@@ -463,7 +463,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             elif len(atom.GetNeighbors()) >= 2:
                 neighs = atom.GetNeighbors()
                 for second in neighs[1:]:
-                    self._absorb(mol, atom, second)
+                    self._absorb(mol, atom.GetIdx(), second.GetIdx())
                     mol.RemoveAtom(second)
 
 

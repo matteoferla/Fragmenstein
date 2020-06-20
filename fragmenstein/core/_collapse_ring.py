@@ -345,6 +345,8 @@ class Ring:
         shared_count = {}
         for ra, rb in itertools.combinations(ring_idx, r=2):
             shared_count[(ra, rb)] = len(set(ringatoms[ra]).intersection(set(ringatoms[rb])))
+        if len(shared_count) == 0:
+            return mol
         ra, rb = list(shared_count.keys())[0]
         shared = list(set(ringatoms[ra]).intersection(ringatoms[rb]))
         pairs = [(a, b) for a, b in itertools.combinations(shared, r=2) if mol.GetBondBetweenAtoms(a, b) is not None]
@@ -357,7 +359,10 @@ class Ring:
             log.warning(f'Removing {len(inners)} bridging atoms and replacing with fused ring')
             # bond the vertices
             bt = Chem.BondType.SINGLE # ???
-            mol.AddBond(a, b, bt)
+            if mol.GetBondBetweenAtoms(a, b) is None:
+                mol.AddBond(a, b, bt)
+            else:
+                log.warning('This is really odd! Why is there a bond already??')
             # remove the middle atoms.
             for i in sorted(inners, reverse=True):
                 mol.RemoveAtom(i)
@@ -678,7 +683,7 @@ class Ring:
             mol.RemoveAtom(i)
         return len(morituri)
 
-    def _absorb(self, mol, i, j):
+    def _absorb(self, mol, i: int, j: int):
         log.debug(f'Absorbing atom {i} with {j}')
         absorbiturum = mol.GetAtomWithIdx(j)
         for neighbor in absorbiturum.GetNeighbors():

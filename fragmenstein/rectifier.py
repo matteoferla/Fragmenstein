@@ -202,6 +202,7 @@ class Rectifier:
                 if self._iterations_done > 7: # it's probably had a few rounds already.
                     for i in p.GetAtomIndices():
                         self.downgrade_ring(self.mol.GetAtomWithIdx(i))
+                    self.triage_rings()
                 elif len(N) > 0:
                     log.debug(f'KekulizeException likely caused by nitrogen')
                     random.shuffle(N)  # just in case.
