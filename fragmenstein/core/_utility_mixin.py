@@ -161,7 +161,7 @@ class _FragmensteinUtil:
             for hi, mi in self.get_positional_mapping(hit, mol).items():
                 atom = mol.GetAtomWithIdx(mi)
                 if atom.HasProp('_Novel') and atom.GetBoolProp('_Novel') == True:
-                    pass # flagged to avoid.
+                    continue # flagged to avoid.
                 elif atom.HasProp('_Origin') and atom.GetProp('_Origin') != 'none':
                     origin = json.loads(atom.GetProp('_Origin'))
                 else:
