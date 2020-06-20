@@ -340,7 +340,7 @@ class Ring:
         ## This is really
         # examplar is ring
         ringatoms = self._get_ring_info(mol) #GetRingInfo().AtomRings()
-        ringatoms = [ring for ring in ringatoms if set(ring).intersection(ringatoms[0])]
+        ringatoms = [ring for ring in ringatoms if set(ring).intersection(examplar)]
         ring_idx = list(range(len(ringatoms)))
         shared_count = {}
         for ra, rb in itertools.combinations(ring_idx, r=2):
@@ -646,7 +646,9 @@ class Ring:
                         bt = None
                     if present_bond is not None and bt is None:
                         pass # exists
-                    if present_bond is not None and bt.name == present_bond.GetBondType().name:
+                    elif present_bond is not None and present_bond.GetBondType() is None:
+                        present_bond.SetBondType(Chem.BondType.SINGLE)
+                    elif present_bond is not None and present_bond.GetBondType() is not None and bt.name == present_bond.GetBondType().name:
                         pass # exists and has correct bond
                     elif present_bond is not None:
                         present_bond.SetBondType(bt)

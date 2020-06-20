@@ -464,7 +464,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                 neighs = atom.GetNeighbors()
                 for second in neighs[1:]:
                     self._absorb(mol, atom.GetIdx(), second.GetIdx())
-                    mol.RemoveAtom(second)
+                    mol.RemoveAtom(second.GetIdx())
 
 
     # ================= Chimera ========================================================================================
