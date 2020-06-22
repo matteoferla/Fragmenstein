@@ -723,7 +723,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:
-            raise ConnectionError
+            raise ConnectionError('No overlap!')
         # store alternative atom symbols.
         for si, fi in A2B_mapping.items():
             sa = scaffold.GetAtomWithIdx(si)

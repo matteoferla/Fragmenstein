@@ -199,7 +199,7 @@ class Rectifier:
                 # plural GetAtomIndices. AtomKekulizeException, singular GetAtomIdx
                 #print(p.Message())
                 N = self._get_nitrogens(p.GetAtomIndices())
-                if self._iterations_done > 7: # it's probably had a few rounds already.
+                if self._iterations_done > 7: # it's probably had a few rounds already.--
                     for i in p.GetAtomIndices():
                         self.downgrade_ring(self.mol.GetAtomWithIdx(i))
                     self.triage_rings()

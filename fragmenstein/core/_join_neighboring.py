@@ -173,6 +173,7 @@ class _FragmensteinJoinNeighMixin:
                 previous = idx
             combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
         else:
-            log.warning(f'Atoms {anchor_A}+{anchor_B} are {d} Å away. Cutoff is {self.joining_cutoff}.')
-            raise ConnectionError
+            msg = f'Atoms {anchor_A}+{anchor_B} are {d} Å away. Cutoff is {self.joining_cutoff}.'
+            log.warning(msg)
+            raise ConnectionError(msg)
         return combo.GetMol()

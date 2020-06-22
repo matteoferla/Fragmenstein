@@ -355,8 +355,8 @@ class Ring:
         small, big = sorted([ring_A, ring_B], key=lambda ring: len(ring))
         inners = [i for i in c if c[i] > 1]
         x = list(set(shared).difference(inners))
-        if x != 2:
-            log.CRITICAL(f'This is impossible. {ringatoms} share {shared} with {inners} in the inside and {x} on the edge?')
+        if len(x) != 2:
+            log.critical(f'This is impossible. {ringatoms} share {shared} with {inners} in the inside and {x} on the edge?')
             return mol
         a, b = x
         if len(big) > 6:
@@ -551,7 +551,7 @@ class Ring:
                     p = np.where(mini == d)
                     f = ringA[int(p[0][0])]
                     s = ringB[int(p[1][0])]
-                    mol.AddBond(f, s)
+                    mol.AddBond(f, s, Chem.BondType.SINGLE)
 
 
 
