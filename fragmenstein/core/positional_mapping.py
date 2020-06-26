@@ -60,10 +60,10 @@ class GPM:
         if dummy_w_dummy:
             return {**cls._gpm_covert(distance_matrix, cls.cutoff),
                     **cls._gpm_covert(dummy_distance_matrix, cls.cutoff * 2),
-                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
+                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff)}
         else:
             return {**cls._gpm_covert(distance_matrix, cls.cutoff),
-                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff * 1.2)}
+                    **cls._gpm_covert(ring_distance_matrix, cls.cutoff)}
 
     @classmethod
     def _gpm_distance(cls, mols: List[Chem.Mol], confs: [Chem.Conformer], i, j, dummy_w_dummy=True) \

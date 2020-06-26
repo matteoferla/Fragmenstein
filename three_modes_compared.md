@@ -1,5 +1,9 @@
 ## Three modes
 
+> This page is a bit out of date as the full mode now includes various corrections, for automatic merging,
+> but the conclusion is the same. `none` mode of merging —i.e. mapping the followup molecule to each hit is the best
+> even when there are incorrect inspiration hits.
+
 As [discussed](README.md), it has three main parts:
 * the pipeline (Victor class)
 * the minimiser (Egor class) and

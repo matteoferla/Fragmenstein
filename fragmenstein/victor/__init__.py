@@ -625,3 +625,6 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
             unconn = float('nan')
         return unconn
 
+######### Make params use the same log.
+
+Params.log = Victor.journal

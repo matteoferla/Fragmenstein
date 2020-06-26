@@ -144,7 +144,6 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         self.params = Params.load_mol(self.mol, name=self.ligand_resn)
         self.params.NAME = self.ligand_resn # force it.
-        self.params.fix_mol()
         self.params.polish_mol()
         # get constraint
         self.constraint = self._get_constraint(self.extra_constraint)
@@ -157,7 +156,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.add_Hs()
         self.params.convert_mol()
         self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        self.params.CHI.data = []  # TODO fix chi
+        self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()
         self.fragmenstein_merging_mode = 'full'

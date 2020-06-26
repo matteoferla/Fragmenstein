@@ -20,7 +20,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from typing import Optional, Dict, List, Any, Tuple
+from typing import Optional, Dict, List, Any, Tuple, Union
 import numpy as np
 from collections import Counter
 
@@ -169,6 +169,7 @@ class Ring:
         self._place_ring_atoms(mol, rings)
         mergituri = self._ring_overlap_scenario(mol, rings)
         # bonding
+        log.debug('Starting ring expansion')
         if bonded_as_original:
             self._restore_original_bonding(mol, rings)
             self._fix_overlap(mol, mergituri)
@@ -177,20 +178,35 @@ class Ring:
             self._connenct_ring(mol, rings)
             self._mark_neighbors(mol, rings)
             self._fix_overlap(mol, mergituri)
+            log.debug('Deleting collapsed')
             self._delete_collapsed(mol)
+            log.debug('Infering bonding')
             self._infer_bonding_by_proximity(mol) # absorb_overclose and join_overclose
-        # this should not happen... but it can!
+        # this should not happen... but it can!)
         mol = self._emergency_joining(mol)
         # _emergency_joining returns a Chem.Mol not a Chem.RWMol
         # prevent weird nested rings.
         mol = self._prevent_conjoined_ring(mol)
         mol = self._prevent_weird_rings(mol)
+        mol = self._prevent_allene(mol)
         if mol is None:
             raise ValueError('(Impossible) Failed at some point...')
         elif isinstance(mol, Chem.RWMol):
             return mol.GetMol()
         else:
             return mol
+        
+    def _triangle_warn(self, mol):
+        # this is a debug function
+        pairs = []
+        for atom_i, atom_j in itertools.combinations(mol.GetAtoms(), r=2):
+            if mol.GetBondBetweenAtoms(atom_i.GetIdx(), atom_j.GetIdx()) is not None and \
+                    self._is_triangle(atom_i, atom_j):
+                pairs.append(f'{atom_i.GetIdx()} and {atom_j.GetIdx()}')
+        if pairs:
+            log.info(f'Triangle between '+', '.join(pairs))
+        else:
+            log.info(f'No triangles')
 
     def _emergency_joining(self, mol):
         """
@@ -199,7 +215,7 @@ class Ring:
         frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
         n = len(frags)
         while n > 1:
-            log.warning(f'Molecule disconnected in {n} parts. Please inspect.')
+            log.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
             name = mol.GetProp('_Name')
             for i, frag in enumerate(frags):
                 frag.SetProp('_Name', f'name.{i}')
@@ -246,13 +262,42 @@ class Ring:
             idx_a, idx_b = rank[0]
             if not isinstance(mol, Chem.RWMol):
                 mol = Chem.RWMol(mol)
-            mol.RemoveBond(idx_a, idx_b)
+            mol.RemoveBond(idx_a, idx_b) # SetBoolProp('_IsRingBond') is not important
             log.info(f'Zero-atom bridged ring issue: bond between {idx_a}-{idx_b} removed')
             return self._prevent_conjoined_ring(mol)
         elif isinstance(mol, Chem.RWMol):
             return mol.GetMol()
         else:
             return mol
+
+    def _prevent_allene(self, mol: Chem.Mol) -> Chem.Mol:
+        if not isinstance(mol, Chem.RWMol):
+            mol = Chem.RWMol(mol)
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() < 14:
+                n = []
+                for bond in atom.GetBonds():
+                    if bond.GetBondType().name in ('DOUBLE', 'TRIPLE'):
+                        n.append(bond)
+                    else:
+                        pass
+                if len(n) > 2:
+                    #this is a mess!
+                    log.info(f'Allene issue: {n} double bonds on {atom.GetSymbol()} atom {atom.GetIdx()}!')
+                    for bond in n:
+                        bond.SetBondType(Chem.BondType().SINGLE)
+                elif len(n) == 2:
+                    # downgrade the higher bonded one!
+                    others = [a for bond in n for a in (bond.GetBeginAtom(), bond.GetEndAtom()) if a.GetIdx() != atom.GetIdx()]
+                    others = sorted(others, key=lambda atom: sum([b.GetBondTypeAsDouble() for b in atom.GetBonds()]))
+                    log.info(f'Allene removed between {atom.GetIdx()} and {[a.GetIdx() for a in others]}')
+                    mol.GetBondBetweenAtoms(atom.GetIdx(), others[-1].GetIdx()).SetBondType(Chem.BondType.SINGLE)
+                else:
+                    pass
+            else:
+                continue
+        return mol
+
 
     def _place_between(self, mol: Chem.RWMol, a: int, b: int, aromatic=True):
         oribond = mol.GetBondBetweenAtoms(a, b)
@@ -295,7 +340,7 @@ class Ring:
         for ring_A, ring_B in itertools.combinations(ringatoms, r=2):
             shared = set(ring_A).intersection(set(ring_B))
             if len(shared) == 0:
-                log.debug('This molecule separate rings')
+                log.debug('This molecule has some separate rings')
                 pass  # separate rings
             elif len(shared) == 1:
                 log.debug('This molecule has a spiro bicycle')
@@ -504,6 +549,7 @@ class Ring:
                             print(f'bond between {new_i} {new_neigh} exists already ' + \
                                   f'(has {present_bond.GetBondType().name} expected {bt})')
                         pass
+                    mol.GetBondBetweenAtoms(new_i, new_neigh).SetBoolProp('_IsRingBond', True)
 
     def _infer_bonding_by_proximity(self, mol):
         # fix neighbours
@@ -521,8 +567,8 @@ class Ring:
         self.absorb_overclose(mol, new_ringers)
         new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
         self.join_overclose(mol, new_ringers)
-        # special case: x0749. bond between two rings
         self.join_rings(mol)
+        self._triangle_warn(mol)
 
     def _get_ring_info(self, mol):
         """
@@ -540,6 +586,8 @@ class Ring:
         return mol2.GetRingInfo().AtomRings()
 
     def join_rings(self, mol: Chem.RWMol, cutoff=1.8):
+        # special case: x0749. bond between two rings
+        # namely bonds are added to non-ring atoms. so in the case of bonded rings this is required.
         rings = self._get_ring_info(mol)
         dm = Chem.Get3DDistanceMatrix(mol)
         for ringA, ringB in itertools.combinations(rings, 2):
@@ -551,7 +599,8 @@ class Ring:
                     p = np.where(mini == d)
                     f = ringA[int(p[0][0])]
                     s = ringB[int(p[1][0])]
-                    mol.AddBond(f, s, Chem.BondType.SINGLE)
+                    #mol.AddBond(f, s, Chem.BondType.SINGLE)
+                    self._add_bond_if_possible(mol, mol.GetAtomWithIdx(f),  mol.GetAtomWithIdx(s))
 
 
 
@@ -566,19 +615,42 @@ class Ring:
     def _is_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
         """
         Get bool of whether two atoms share a common neighbor. Ie. joining them would make a triangle.
+        Direct bond does not count.
 
         :param first:
         :param second:
         :return:
         """
+        if self._get_triangle(first, second) is not None:
+            return True
+        else:
+            return False
+
+    def _get_triangle(self, first: Chem.Atom, second: Chem.Atom) -> Union[int, None]:
+        """
+        Get the third atom...
+
+        :param first: atom
+        :param second: atom
+        :return: atom index of third
+        """
         get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors()]
         f_neighs = get_neigh_idxs(first)
         s_neighs = get_neigh_idxs(second)
-        return not set(f_neighs).isdisjoint(set(s_neighs))
+        a = set(f_neighs) - {first.GetIdx(), second.GetIdx()}
+        b = set(s_neighs) - {first.GetIdx(), second.GetIdx()}
+        others = list(a.intersection(b))
+        if len(others) == 0: # is disjoined
+            return None
+        else:
+            return others[0]
+
+
 
     def _is_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
         """
         Get bool of whether two atoms share a common over-neighbor. Ie. joining them would make a square.
+        Direct bond does not count.
 
         :param first:
         :param second:
@@ -596,7 +668,8 @@ class Ring:
         elif atom.GetBoolProp('_Warhead') == False:
             return False
         else:
-            frags = Chem.GetMolFrags(atom.GetOwningMol())
+            # is it a single compound?
+            frags = Chem.GetMolFrags(atom.GetOwningMol(), sanitizeFrags=False)
             if len(frags) == 1:
                 return True
             else:
@@ -604,7 +677,7 @@ class Ring:
                     if atom.GetIdx() in frag and anchor_atom.GetIdx() in frag:
                         return True
                     elif atom.GetIdx() in frag:
-                        return False
+                        return False # if the warhead is not connected pretend it is not a warhead.
                     else:
                         pass
                 else:
@@ -636,34 +709,61 @@ class Ring:
                     continue
                 elif dm[i, j] > ij_cutoff:
                     continue
-                elif self._is_triangle(atom_i, atom_j):
-                    continue
-                elif self._is_square(atom_i, atom_j):
-                    continue
-                elif self._is_connected_warhead(atom_j, atom_i):
-                    continue
                 else:
-                    present_bond = mol.GetBondBetweenAtoms(i, j)
-                    if atom_j.HasProp('_ring_bond'):
-                        bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
-                    else:
-                        bt = None
-                    if present_bond is not None and bt is None:
-                        pass # exists
-                    elif present_bond is not None and present_bond.GetBondType() is None:
-                        present_bond.SetBondType(Chem.BondType.SINGLE)
-                    elif present_bond is not None and present_bond.GetBondType() is not None and bt.name == present_bond.GetBondType().name:
-                        pass # exists and has correct bond
-                    elif present_bond is not None:
-                        present_bond.SetBondType(bt)
-                    elif len(atom_i.GetNeighbors()) <= 2 and atom_i.GetIsAromatic():
-                        mol.AddBond(i, j, Chem.BondType.SINGLE)
-                    elif len(atom_i.GetNeighbors()) <= 3 and not atom_i.GetIsAromatic():
-                        if bt is None:
-                            bt = Chem.BondType.SINGLE
-                        mol.AddBond(i, j, bt)
-                    else:
-                        pass # too bonded already!
+                    self._add_bond_if_possible(mol, atom_i, atom_j)
+
+    def _add_bond_if_possible(self, mol, atom_i, atom_j):
+        i = atom_i.GetIdx()
+        j = atom_j.GetIdx()
+
+        def assess_atom(atom: Chem.Atom, bt: Chem.BondType) -> Tuple[bool, Chem.BondType]:
+            if atom.GetAtomicNum() > 8:
+                return True, bt
+            elif len(atom.GetNeighbors()) <= 2 and atom.GetIsAromatic():
+                return True, Chem.BondType.SINGLE
+            elif len(atom_i.GetNeighbors()) <= 3 and not atom.GetIsAromatic():
+                return True, bt
+            else:
+                return False, bt  # too bonded already!
+
+        if self._is_triangle(atom_i, atom_j):
+            log.debug(f'Bond between {i} and {j} would make a triangle, skipping')
+            return False
+        elif self._is_square(atom_i, atom_j):
+            log.debug(f'Bond between {i} and {j} would make a square, skipping')
+            return False
+        elif self._is_connected_warhead(atom_j, atom_i):
+            log.debug(f'Bond between {i} and {j} would break a warhead, skipping')
+            return False
+        else:
+            present_bond = mol.GetBondBetweenAtoms(i, j)
+            if atom_j.HasProp('_ring_bond'):
+                bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
+            else:
+                bt = None
+            if present_bond is not None and bt is None:
+                log.debug(f'Bond between {i} and {j} already exists')
+                pass  # exists
+            elif present_bond is not None and present_bond.GetBondType() is None:
+                present_bond.SetBondType(Chem.BondType.SINGLE)
+            elif present_bond is not None and present_bond.GetBondType() is not None and bt.name == present_bond.GetBondType().name:
+                pass  # exists and has correct bond
+            elif present_bond is not None:
+                present_bond.SetBondType(bt)
+                return True
+            else:
+                v, bt = assess_atom(atom_i, bt)
+                w, bt = assess_atom(atom_j, bt)
+                if v and w and bt is not None:
+                    mol.AddBond(i, j, bt)
+                    return True
+                elif v and w:
+                    mol.AddBond(i, j, Chem.BondType.SINGLE)
+                    return True
+                else:
+                    # len(Chem.GetMolFrags(mol, sanitizeFrags=False)) ought to be checked.
+                    # however, join_neighboring gets called by emergency bonding so should be fine.
+                    return False # too bonded etc.
 
     def absorb_overclose(self, mol, to_check=None, to_check2=None, cutoff:float=1.):
         # to_check list of indices to check and absorb into, else all atoms are tested
@@ -690,19 +790,36 @@ class Ring:
         return len(morituri)
 
     def _absorb(self, mol, i: int, j: int):
+        """
+        Misnomer. Preps for absorbing. remove J separately.
+
+        :param mol:
+        :param i:
+        :param j:
+        :return:
+        """
         log.debug(f'Absorbing atom {i} with {j}')
+        absorbenda = mol.GetAtomWithIdx(i)
         absorbiturum = mol.GetAtomWithIdx(j)
         for neighbor in absorbiturum.GetNeighbors():
             n = neighbor.GetIdx()
-            bt = mol.GetBondBetweenAtoms(j, n).GetBondType()
+            old_bond = mol.GetBondBetweenAtoms(j, n)
+            bt = old_bond.GetBondType()
+            if old_bond.HasProp('_IsRingBond'):
+                # the ring needs to be force!
+                force = True
+            else:
+                force = False
             # mol.RemoveBond(j, n)
             if i == n:
-                pass
-            elif mol.GetBondBetweenAtoms(i, n) is None:
-                mol.AddBond(i, n, bt)
+                continue
             else:
-                pass  # don't bother checking if differ
-
+                atom_i, atom_j = mol.GetAtomWithIdx(i), mol.GetAtomWithIdx(j)
+                if force and mol.GetBondBetweenAtoms(i, n) is None:
+                    log.debug(f'Forcing bond between {i} and {n}')
+                    mol.AddBond(i, n, bt)
+                else:
+                    self._add_bond_if_possible(mol, atom_i, atom_j)
 
     def _restore_original_bonding(self, mol: Chem.RWMol, rings) -> None:
         to_be_waited_for = []

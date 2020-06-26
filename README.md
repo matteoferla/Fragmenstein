@@ -4,14 +4,14 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 
 
 ## Aim
-Given a followup molecule and a series of hits it makes a spatially stitched together version of the followup based on the hits.
+Given a followup molecule (SMILES) and a series of hits it makes a spatially stitched together version of the followup based on the hits.
 Like Frankenstein's creation it may violate the laws of chemistry. Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
 This monstrosity is therefore then energy minimised with strong constraints.
 
 Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
 It is somewhat tolerant to erroneous/excessive submissions (by automatically excluding them)
-and can energy minimised strained conformations.
+and can energy minimise strained conformations.
 ![unconnected](images/unconnected.jpg)
 
 ### Side role: follow prediction

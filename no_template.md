@@ -25,13 +25,27 @@ Therefore, mergers may link up in unexpected ways, such as this, wherein two hit
 ![harmony](images/harmonising_warheads.png)
 
 ## Mad ones
-If two rings intersect perpendicularly (_e.g._ `x0708-x2193`) the resulting bonding will be unexpected ("emergency bonding" warning appears).
+If two rings intersect perpendicularly (_e.g._ `x0708-x2193`) the resulting bonding will be unexpected
+("emergency bonding" warning appears).
 
 ![cross-ring](images/cross_ring.png)
 
-I have no idea how to resolve this.
+I have no idea how to resolve this or whether it should be.
 
-## Issues
+NB. Spiro compounds are tolerated.
 
+## Fused rings
 
-The azetine-benzene problem as seen in x1380,x0981 could be fixed to be like the indole seen in x0981,x2754
+Even though azetine-benzene, cyclopropane-benzene and bridged compounds are chemically possible,
+these are corrected as they are unlikely to be intended. As a result bridges will be removed
+and for rings of size 3/4 will become 5.
+
+## Allenes
+
+Additionally, are forbidden.
+
+## Code caveat
+
+The code currently has many ring corrections in 'collapse ring' class (expansion part),
+while bond order corrections are in 'rectifier'.
+Ideally these should be merged...
