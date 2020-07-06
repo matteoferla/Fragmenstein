@@ -151,8 +151,7 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
             try:
                 if execute is not None:
                     execute()
-            except Exception as err: # todo reimplement self.error_to_catch
-                # why is self.error_to_catch not being caught!?
+            except self.error_to_catch as err:
                 if reject is not None:
                     reject(err)
             finally:
@@ -175,7 +174,7 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
         :param err: the error raised.
         :return:
         """
-        self.journal.exception(f'{self.long_name} — {err.__class__.__name__}: {err}')
+        self.journal.error(f'{self.long_name} — {err.__class__.__name__}: {err}')
 
     def _analyse(self) -> None:
         """
