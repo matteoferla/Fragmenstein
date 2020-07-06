@@ -30,8 +30,8 @@ def pose_fx(pose):
     """
     Histidine in delta.
     """
-    pose2pdb = pose.pdb_info().pdb2pose
-    r = pose2pdb(res=41, chain='A')
+    pdb2pose = pose.pdb_info().pdb2pose
+    r = pdb2pose(res=41, chain='A')
     MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
     MutateResidue(target=r, new_res='HIS').apply(pose)
 
@@ -40,11 +40,11 @@ def poised_pose_fx(pose):
     """
     Histidine in delta and cysteine in thiolate.
     """
-    pose2pdb = pose.pdb_info().pdb2pose
-    r = pose2pdb(res=41, chain='A')
+    pdb2pose = pose.pdb_info().pdb2pose
+    r = pdb2pose(res=41, chain='A')
     MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
     MutateResidue(target=r, new_res='HIS_D').apply(pose)
-    r = pose2pdb(res=145, chain='A')
+    r = pdb2pose(res=145, chain='A')
     MutateResidue(target=r, new_res='CYZ').apply(pose)
 
 class MProVictor(Victor):

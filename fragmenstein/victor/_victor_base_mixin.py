@@ -82,7 +82,7 @@ class _VictorBaseMixin:
 
     _connected_names = ('CONN', 'LOWE', 'UPPE', 'CONN1', 'CONN2', 'CONN3', 'LOWER', 'UPPER')
 
-    error_to_catch = Exception
+    error_to_catch = Exception # this has been disabled
 
     def __init__(self):
         # gets overridden

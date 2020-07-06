@@ -151,7 +151,8 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
             try:
                 if execute is not None:
                     execute()
-            except self.error_to_catch as err:
+            except Exception as err: # todo reimplement self.error_to_catch
+                # why is self.error_to_catch not being caught!?
                 if reject is not None:
                     reject(err)
             finally:
