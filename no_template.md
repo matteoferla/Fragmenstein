@@ -10,6 +10,34 @@ The method `Victor.combine` does this.
 The merging uses a 2 Å positional overlap mapping with the rings collapsed and subsequently expanded
 and re-bonded by proximity with several corrections done for corner cases.
 
+## Ring collapse
+
+This is a seemingly "simple" solution to avoid weird bonding issues —overlaps of 5-rings with 6-rings, perpendicular rings, etc.
+
+What happens is that all rings are replaced with a single atom that can be unpacked later.
+
+``Ring`` class in ``core._collapse_ring`` does exactly that (inherited by ``Frankenstein``).
+
+![collapse](images/atom_collapse.png)
+
+But it can be a bit unpredictable in the upacking step after merging,
+therefore it is not implemented in Victor with SMILES
+—although using full merge mode is inferior to permissive unmerged mode anyway.
+Instead, 
+
+* `.collapse_ring(mol)`
+* `.expand_ring(mol)`
+
+There are two ways. remembering the bonds or making new ones by proximity for the rings.
+The latter is a lot better for most cases as the rings are never 100% overlapping.
+
+## Logging
+
+> Depracation of `Fragmenstein.notebook` (txt dict for debug) in favour of `Victor.journal` (proper logging)
+
+The correct logging is via Victor's journal. The logging log `Fragmenstein`.
+However, Fragmenstein has `.logbook` which are more debug notes —dictionary. These should be integrated or removed.
+
 ## Valence
 
 The class `Rectifier` attempts to fix the various issues that may have arisen.

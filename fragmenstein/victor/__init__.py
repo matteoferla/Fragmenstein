@@ -33,13 +33,14 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
+from ._victor_validate_mixin import _VictorValidateMixin
 from ._victor_automerge_mixin import _VictorAutomergeMixin
 from ..core import Fragmenstein
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
 
-class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
+class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     """
     * ``smiles`` SMILES string (inputted)
     * ``long_name`` name for files
@@ -384,12 +385,10 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
             return constraint
         else:
             self.journal.debug(f'{self.long_name} - is not covalent.')
+            constraint = self._fix_uncovalent()
             if extra_constraint:
-                constraint = self._fix_uncovalent()
                 constraint.custom_constraint += self.extra_constraint
-                return constraint
-            else:
-                return None
+            return constraint
 
     def _fix_uncovalent(self):
         return Constraints.mock()
@@ -422,6 +421,8 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
     def _get_attachment_from_pdbblock(self) -> Union[None, Chem.Mol]:
         """
         Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
+        Hence why `find_attachment` will replace it.
+        todo `_get_attachment_from_pdbblock` --> `find_attachment`
         """
         self.journal.debug(f'{self.long_name} - getting attachemnt atom')
         if not self.covalent_resn:
@@ -516,11 +517,11 @@ class Victor(_VictorUtilsMixin, _VictorAutomergeMixin):
         with open(holo_file, 'w') as w:
             w.write(self.unminimised_pdbblock)
         # saving constraint
-        if self.constraint:
+        if self.constraint is not None:
             self.journal.debug(f'{self.long_name} - saving constraint')
             constraint_file = os.path.join(self.work_path, self.long_name, self.long_name + '.con')
             self.constraint.dump(constraint_file)
-        else:
+        else: # basically impossible.
             constraint_file = ''
         return params_file, holo_file, constraint_file
 

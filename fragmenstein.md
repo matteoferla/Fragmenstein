@@ -13,6 +13,7 @@ within a 2Å radius (see [Position Mapping code](fragmenstein/core/positional_ma
 </div>
 
 The three have different strengths. And which is better depends actually on the dataset.
+But most likely the no merging mode is like best for most datasets.
 
 The argument `merging_mode` (`full`|`partial`|`none`|`none_permissive`|`off`) chooses which is used.
 

@@ -44,7 +44,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
     * ``.chimera`` is the combined version of the hits, but with differing atoms made to match the followup (rdkit.Chem.Mol object).
     * ``.positioned_mol`` is the desired output (rdkit.Chem.Mol object)
 
-    Note, the hits have to be spatially aligned —i.e. extracted from crystal structures in bond form.
+    Note, the hits have to be spatially aligned —i.e. extracted from crystal structures in bond form (see. `extract_mol`).
 
     ``.get_positional_mapping``, which works also as a class method, creates a dictionary of mol_A atom index to mol_B atom index
     based on distance (cutoff 2&Aring;) and not MCS.
@@ -107,7 +107,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         :param merging_mode: full | partial | none | off
         """
         # starting attributes
-        self.logbook = {}
+        self.logbook = {} # todo convert to log
         self.initial_mol = mol  # untouched.
         if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
             self.attachement = attachment

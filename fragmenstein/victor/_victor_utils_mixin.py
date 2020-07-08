@@ -357,6 +357,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         """
          A key requirement for Fragmenstein is a separate mol file for the inspiration hits.
         This is however often a pdb. This converts.
+        `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimised()` calls mol_from_pose.
 
         :param folder: folder with pdbs
         :return:
@@ -373,41 +374,61 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     continue
                 else:
                     name = re.search(regex_name, file).group(1)
-                holo = Chem.MolFromPDBFile(fullfile, proximityBonding=False, removeHs=False)
-                mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
-                attachment, attachee = cls.find_attachment(holo, ligand_resn)
-                if attachment is not None: # covalent
-                    mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
-                    mod = Chem.RWMol(mol)
-                    attachment.SetAtomicNum(0)  # dummy atom.
-                    attachment.GetPDBResidueInfo().SetName('CONN')
-                    pos = holo.GetConformer().GetAtomPosition(attachment.GetIdx())
-                    ni = mod.AddAtom(attachment)
-                    mod.GetConformer().SetAtomPosition(ni, pos)
-                    attachee_name = attachee.GetPDBResidueInfo().GetName()
-                    for atom in mod.GetAtoms():
-                        if atom.GetPDBResidueInfo().GetName() == attachee_name:
-                            ai = atom.GetIdx()
-                            mod.AddBond(ai, ni, Chem.BondType.SINGLE)
-                            break
-                    mol = mod.GetMol()
                 if name in smilesdex:
-                    if '*' in Chem.MolToSmiles(mol) and '*' not in smilesdex[name]:
-                        smiles = cls.make_covalent(smilesdex[name])
-                        cls.journal.info(f'{name} is covalent but a non covalent SMILES was passed.')
-                    else:
-                        smiles = smilesdex[name]
-                    try:
-                        template = Chem.MolFromSmiles(smiles)
-                        #template = AllChem.DeleteSubstructs(template, Chem.MolFromSmiles('*'))
-                        mol = AllChem.AssignBondOrdersFromTemplate(template, mol)
-                    except ValueError as error:
-                        cls.journal.warning(f'{name} failed at bonding ({type(error)}: {error}).')
+                    smiles=smilesdex[name]
                 else:
                     cls.journal.warning(f'{name} could not be matched to a smiles.')
-                mol.SetProp('_Name', name)
-                mols[name] = mol
+                    smiles = None
+                try:
+                    mol = cls.extract_mol(name=name,
+                                          filepath=fullfile,
+                                          smiles=smiles,
+                                          ligand_resn=ligand_resn)
+                    if mol is not None:
+                        mols[name] = mol
+                except Exception as error:
+                    cls.journal.error(f'{error.__class__.__name__} for {name} - {error}')
         return mols
+
+    @classmethod
+    def extract_mol(cls,
+                     name: str,
+                     filepath: str,
+                     smiles: Optional[str] = None,
+                     ligand_resn: str = 'LIG') -> Chem.Mol:
+        holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=False)
+        mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
+        attachment, attachee = cls.find_attachment(holo, ligand_resn)
+        if attachment is not None:  # covalent
+            mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
+            mod = Chem.RWMol(mol)
+            attachment.SetAtomicNum(0)  # dummy atom.
+            attachment.GetPDBResidueInfo().SetName('CONN')
+            pos = holo.GetConformer().GetAtomPosition(attachment.GetIdx())
+            ni = mod.AddAtom(attachment)
+            mod.GetConformer().SetAtomPosition(ni, pos)
+            attachee_name = attachee.GetPDBResidueInfo().GetName()
+            for atom in mod.GetAtoms():
+                if atom.GetPDBResidueInfo().GetName() == attachee_name:
+                    ai = atom.GetIdx()
+                    mod.AddBond(ai, ni, Chem.BondType.SINGLE)
+                    break
+            mol = mod.GetMol()
+        if smiles is not None:
+            if '*' in Chem.MolToSmiles(mol) and '*' not in smiles:
+                smiles = cls.make_covalent(smiles)
+                cls.journal.info(f'{name} is covalent but a non covalent SMILES was passed.')
+            else:
+                pass
+            try:
+                template = Chem.MolFromSmiles(smiles)
+                # template = AllChem.DeleteSubstructs(template, Chem.MolFromSmiles('*'))
+                mol = AllChem.AssignBondOrdersFromTemplate(template, mol)
+            except ValueError as error:
+                cls.journal.warning(f'{name} failed at bonding ({type(error)}: {error}).')
+        mol.SetProp('_Name', name)
+        return mol
+
 
 
 
