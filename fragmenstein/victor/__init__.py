@@ -309,11 +309,15 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             p_chain = 'A'
         if not l_chain:
             l_chain = 'B'
+        mol = AllChem.DeleteSubstructs(self.fragmenstein.positioned_mol, Chem.Mol('*'))
+        if self.fragmenstein_mmff_minisation:
+            self.journal.debug(f'{self.long_name} - pre-minimising fragmenstein (MMFF)')
+            self.fragmenstein.mmff_minimise(mol)
         self.journal.debug(f'{self.long_name} - placing fragmenstein')
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             # distort positions
-            pos_mol = Chem.MolToPDBBlock(self.fragmenstein.positioned_mol)
+            pos_mol = Chem.MolToPDBBlock(mol)
             pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
             pymol.cmd.alter('scaffold', f'resi="{l_resi}"')
             pymol.cmd.alter('scaffold', f'chain="{l_chain}"')

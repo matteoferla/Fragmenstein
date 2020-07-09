@@ -29,8 +29,9 @@ from ._join_neighboring import _FragmensteinJoinNeighMixin
 from ._collapse_ring import Ring
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
-import itertools
+import itertools, logging
 
+log = logging.getLogger('Fragmenstein')
 
 ##################################################################
 
@@ -107,7 +108,6 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         :param merging_mode: full | partial | none | off
         """
         # starting attributes
-        self.logbook = {} # todo convert to log
         self.initial_mol = mol  # untouched.
         if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
             self.attachement = attachment
@@ -481,7 +481,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        self.logbook['scaffold-followup'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        log.trace(f"scaffold-followup: { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -536,7 +536,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            self.logbook['followup-chimera'] = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+            log.trace(f"followup-chimera' = { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:
@@ -953,3 +953,41 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                 rdMolAlign.AlignMol(target, ref, atomMap=A2B, maxIters=500)
             else:
                 warn(f'No overlap? {A2B}')
+
+    def mmff_minimise(self, mol: Optional[Chem.Mol]) -> None:
+        """
+        Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
+        Gets called by Victor if the flag .fragmenstein_mmff_minimisation is true during PDB template construction.
+
+        :param mol: opt. mol. modified in place.
+        :return: None
+        """
+        if mol is None:
+            mol = self.positioned_mol
+        # protect
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0)):
+            atom.SetBoolProp('_IsDummy', True)
+            atom.SetAtomicNum(16)
+        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
+        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
+        # restrain
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
+            i = atom.GetIdx()
+            ff.MMFFAddPositionConstraint(i, 2, 10)
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            i = atom.GetIdx()
+            ff.MMFFAddPositionConstraint(i, 0.1, 10)
+        m = ff.Minimize()
+        if m == -1:
+            log.error('MMFF Minisation could not be started')
+        elif m == 0:
+            log.info('Starting MMFF Minisation was successful')
+        elif m == 1:
+            log.info('Starting MMFF Minisation was unsuccessful')
+        else:
+            log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+        # deprotect
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            atom.SetAtomicNum(0)
+
+

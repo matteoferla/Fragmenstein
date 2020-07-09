@@ -10,12 +10,12 @@ import logging
 
 
 def test_molecule(name, smiles, hitnames):
+    Victor.enable_stdout(logging.TRACE)
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in hitnames]
     followup = Chem.MolFromSmiles(smiles)
     r = Chem.MolFromMolFile(f'../Mpro/Mpro-{hitnames[0]}_0/Mpro-{hitnames[0]}_0_SG.mol')
     f = Fragmenstein(followup, hits, attachment=r)
     f.make_pse(f'test_{name}.pse')
-    print(f.logbook)
 
 
 def easy_test():

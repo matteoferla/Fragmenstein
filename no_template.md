@@ -36,8 +36,6 @@ The latter is a lot better for most cases as the rings are never 100% overlappin
 > Depracation of `Fragmenstein.notebook` (txt dict for debug) in favour of `Victor.journal` (proper logging)
 
 The correct logging is via Victor's journal. The logging log `Fragmenstein`.
-However, Fragmenstein has `.logbook` which are more debug notes —dictionary. These should be integrated or removed.
-
 ## Valence
 
 The class `Rectifier` attempts to fix the various issues that may have arisen.

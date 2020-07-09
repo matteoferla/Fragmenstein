@@ -24,6 +24,7 @@ class _VictorBaseMixin:
     fragmenstein_average_position = False
     fragmenstein_joining_cutoff = 5.
     fragmenstein_throw_on_discard = False
+    fragmenstein_mmff_minisation = True
     constraint_function_type = 'FLAT_HARMONIC'
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
