@@ -981,9 +981,9 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         if m == -1:
             log.error('MMFF Minisation could not be started')
         elif m == 0:
-            log.info('Starting MMFF Minisation was successful')
+            log.info('MMFF Minisation was successful')
         elif m == 1:
-            log.info('Starting MMFF Minisation was unsuccessful')
+            log.info('MMFF Minisation was unsuccessful')
         else:
             log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
         # deprotect

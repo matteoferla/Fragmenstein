@@ -309,7 +309,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             p_chain = 'A'
         if not l_chain:
             l_chain = 'B'
-        mol = AllChem.DeleteSubstructs(self.fragmenstein.positioned_mol, Chem.Mol('*'))
+        mol = AllChem.DeleteSubstructs(self.fragmenstein.positioned_mol, Chem.MolFromSmiles('*'))
         if self.fragmenstein_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising fragmenstein (MMFF)')
             self.fragmenstein.mmff_minimise(mol)

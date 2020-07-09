@@ -77,14 +77,12 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :param level: logging level
         :return: None
         """
-        if len([h for h in cls.journal.handlers if h.name == 'stdout']):
-            return None
-        else:
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(level)
-            handler.set_name('stdout')
-            handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-            cls.journal.addHandler(handler)
+        cls.journal.handlers = [h for h in cls.journal.handlers if h.name != 'stdout']
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(level)
+        handler.set_name('stdout')
+        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
+        cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 
     @classmethod
@@ -96,14 +94,12 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :param level: logging level
         :return: None
         """
-        if len([h for h in cls.journal.handlers if h.name == 'logfile']):
-            return None
-        else:
-            handler = logging.FileHandler(filename)
-            handler.setLevel(level)
-            handler.set_name('logfile')
-            handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-            cls.journal.addHandler(handler)
+        cls.journal.handlers = [h for h in cls.journal.handlers if h.name != 'logfile']
+        handler = logging.FileHandler(filename)
+        handler.setLevel(level)
+        handler.set_name('logfile')
+        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
+        cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
 
     @classmethod
