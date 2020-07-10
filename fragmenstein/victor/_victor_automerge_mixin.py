@@ -163,7 +163,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.fragmenstein_merging_mode = 'full'
         self.unminimised_pdbblock = self._place_fragmenstein()
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.unbound_pose = self._check_params()
+        self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         self._checkpoint_bravo()
         self.igor = Igor.from_pdbblock(pdbblock=self.unminimised_pdbblock,

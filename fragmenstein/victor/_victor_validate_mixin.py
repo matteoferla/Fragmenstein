@@ -107,7 +107,7 @@ class _VictorValidateMixin(_VictorBaseMixin):
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.post_fragmenstein_step()
-        self.unbound_pose = self._check_params()
+        self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
         self.journal.debug(f'{self.long_name} - setting up Igor')

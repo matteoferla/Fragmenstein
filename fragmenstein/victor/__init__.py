@@ -225,7 +225,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.post_fragmenstein_step()
-        self.unbound_pose = self._check_params()
+        self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
         self.journal.debug(f'{self.long_name} - setting up Igor')
@@ -464,9 +464,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def _check_params(self):
         # checking all is in order
         self.journal.debug(f'{self.long_name} - saving params files')
-        params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
         self.journal.debug(f'{self.long_name} - checking params file works')
-        pose = Params.params_to_pose(params_file, self.params.NAME)
+
         return pose
 
     # =================== Other ========================================================================================

@@ -460,11 +460,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         self.covalent_resi = ''
         self.hits = []
         self.long_name = os.path.split(folder)[1]
-        params = os.path.join(folder, f'{self.long_name}.params')
+        paramsfiles = os.path.join(folder, f'{self.long_name}.params')
         paramstemp = os.path.join(folder, f'{self.long_name}.params_template.mol')
-        if os.path.exists(params):
-            self.params = Params().load(params)
-            self.unbound_pose = Params.params_to_pose(params, self.params.NAME)
+        if os.path.exists(paramsfiles):
+            self.params = Params().load(paramsfiles)
+            self.unbound_pose = self.params.test()
             if os.path.exists(paramstemp):
                 self.params.mol = Chem.MolFromMolFile(paramstemp, removeHs=False)
         else:
