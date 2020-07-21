@@ -136,12 +136,12 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             self.full_merging()
         elif merging_mode == 'partial':
             self.partial_merging()
-        elif merging_mode == 'none_permissive':
+        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
             self.no_merging(broad=True)
         elif merging_mode == 'none':
             self.no_merging()
         else:
-            raise ValueError(f"Merging mode can only be 'full' | 'partial' | 'none' | 'off', not '{merging_mode}'")
+            raise ValueError(f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
 
     def full_merging(self) -> None:
         """
@@ -158,7 +158,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         """
         self.scaffold_options = self.combine_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
-        used = self.fragmenstein.scaffold.GetProp('_Name').split('-')
+        used = self.scaffold.GetProp('_Name').split('-')
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
         self.scaffold = self.posthoc_refine(unrefined_scaffold)
         self.chimera = self.make_chimera(mode_index)

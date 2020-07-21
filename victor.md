@@ -153,3 +153,5 @@ intended to make subclassing Victor easier as these are meant to be overridden
 ## Coordinate constraint
 The coordinate constraint generated for Igor, the minimiser can be changed from `HARMONIC` (x = mean)
 to `FLAT_HARMONIC` (tol = max distance of contributing atoms) and `BOUNDED` (fixed penalty potential well).
+
+Do note that the reference atom for the constraint is the covalent residue, regardless of whether the ligand is covalent.

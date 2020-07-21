@@ -304,7 +304,10 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
 
     def _place_fragmenstein(self):
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
-        p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
+        if self.covalent_resi:
+            p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
+        else:
+            p_resi, p_chain = None, None
         if not p_chain:
             p_chain = 'A'
         if not l_chain:
