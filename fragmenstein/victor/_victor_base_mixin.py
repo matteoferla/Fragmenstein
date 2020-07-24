@@ -19,7 +19,7 @@ import logging
 
 
 class _VictorBaseMixin:
-    fragmenstein_merging_mode = 'partial'
+    fragmenstein_merging_mode = 'none_permissive'
     fragmenstein_debug_draw = False
     fragmenstein_average_position = False
     fragmenstein_joining_cutoff = 5.
