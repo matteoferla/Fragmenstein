@@ -275,6 +275,11 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             raise ValueError(f'{self.long_name} - Unrecognised type {self.covalent_resn}')
 
     def _make_coordinate_constraints(self):
+        """
+        See also ``_make_coordinate_constraints_for_unnovels`` in automerge.
+        This is the normal function and uses the origin data,
+        while the other constrains based on lack of novel attribute.
+        """
         lines = []
         origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
         std = self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)
@@ -284,6 +289,9 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             if len(origins[i]) > 0:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
                 if atom.GetSymbol() == '*':
+                    continue
+                elif atom.GetPDBResidueInfo() is None:
+                    self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
                     continue
                 pos = conf.GetAtomPosition(i)
                 if self.constraint_function_type.upper() == 'HARMONIC':
@@ -297,7 +305,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                     fxn = f'BOUNDED 0 {mx[i]} 1 0.5 TAG'
                 else:
                     raise ValueError(f'{self.constraint_function_type} is not HARMONIC or FADE or BOUNDED')
-                lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
+                atomname = atom.GetPDBResidueInfo().GetName()
+                lines.append(f'CoordinateConstraint {atomname} {self.ligand_resi} ' + \
                              f'CA {self.covalent_resi} ' + \
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
@@ -463,13 +472,6 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def calculate_score(self):
         return {**self.igor.ligand_score(),
                 'unbound_ref2015': self.igor.detailed_scores(self.unbound_pose, 1)}
-
-    def _check_params(self):
-        # checking all is in order
-        self.journal.debug(f'{self.long_name} - saving params files')
-        self.journal.debug(f'{self.long_name} - checking params file works')
-
-        return pose
 
     # =================== Other ========================================================================================
 

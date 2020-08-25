@@ -36,11 +36,9 @@ class _VictorValidateMixin(_VictorBaseMixin):
         self.apo_pdbblock = None
         self.hits = hits
         self.ligand_resn = ligand_resn
-        self.ligand_resi = None
-        attachment, attachee = self.find_attachment(Chem.MolFromPDBBlock(self.unminimised_pdbblock), ligand_resn)
+        pdb = Chem.MolFromPDBBlock(self.unminimised_pdbblock)
+        attachment, attachee = self.find_attachment(pdb, ligand_resn)
         if attachment is not None:
-            self.covalent_resn = attachment.GetPDBResidueInfo().GetResidueName()
-            self.covalent_resi = attachment.GetPDBResidueInfo().GetResidueNumber()
             self.is_covalent = True
             if '*' in smiles:
                 self.smiles = smiles
@@ -49,7 +47,13 @@ class _VictorValidateMixin(_VictorBaseMixin):
         else:
             self.smiles = smiles
             self.is_covalent = False
-        self.pose_fx = lambda: None
+            attachment, attachee = self.find_closest(pdb, ligand_resn)
+        info = attachment.GetPDBResidueInfo()
+        self.covalent_resn = info.GetResidueName()
+        self.covalent_resi = str(info.GetResidueNumber())+info.GetChainId()
+        info = attachee.GetPDBResidueInfo()
+        self.ligand_resi = str(info.GetResidueNumber())+info.GetChainId()
+        self.pose_fx = None
         # these are calculated
         self.params = None
         self.mol = None
@@ -68,6 +72,7 @@ class _VictorValidateMixin(_VictorBaseMixin):
         self.tock = float('inf')
         # analyse
         self._safely_do(execute=self._vanalyse, resolve=self._resolve, reject=self._reject)
+        return self
 
     def _vanalyse(self):
         # THIS IS A COPY PASTE EXCEPT FOR REANIMATE and Params!!
@@ -96,7 +101,7 @@ class _VictorValidateMixin(_VictorBaseMixin):
         # make fragmenstein
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        self.fragmenstein = Fragmenstein(mol=Chem.MolFromSmiles(self.smiles),
+        self.fragmenstein = Fragmenstein(mol=self.params.mol, #Chem.MolFromSmiles(self.smiles)
                                          hits=self.hits,
                                          attachment=attachment,
                                          merging_mode=self.fragmenstein_merging_mode,

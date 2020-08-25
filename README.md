@@ -5,18 +5,19 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 
 ## Aim
 Given a followup molecule (SMILES) and a series of hits it makes a spatially stitched together version of the followup based on the hits.
-Like Frankenstein's creation it may violate the laws of chemistry. Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
+Like Frankenstein's creation it may violate the laws of chemistry.
+Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
 This monstrosity is therefore then energy minimised with strong constraints.
 
 Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
-It is somewhat tolerant to erroneous/excessive submissions (by automatically excluding them)
+It is (somewhat) tolerant to erroneous/excessive submissions (by automatically excluding them)
 and can energy minimise strained conformations.
 ![unconnected](images/unconnected.jpg)
 
 ### Side role: follow prediction
 It can also merge fragment hits by itself and find the best scoring mergers
-—with a good amount of impossible chemistry thrown in ([example](https://www.well.ox.ac.uk/~matteo/fragmenstein_pairwise.html)).
+—with a good amount of impossible chemistry thrown in.
 
 ## Not-docking
 As a consequence, it is not really a docking algorithm as it does not find the pose with the lowest energy 

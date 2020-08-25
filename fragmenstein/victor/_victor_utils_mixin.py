@@ -20,6 +20,7 @@ import re
 import requests
 import sys, json
 import unicodedata
+import numpy as np
 from typing import List, Union, Optional, Dict, Tuple
 
 from rdkit import Chem
@@ -331,7 +332,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     # =================== extract_mols =================================================================================
 
     @classmethod
-    def find_attachment(self, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Union[Chem.Atom, None], Union[Chem.Atom, None]]:
+    def find_attachment(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Union[Chem.Atom, None], Union[Chem.Atom, None]]:
+        """
+        Finds the two atoms in a crosslink bond without looking at LINK record
+
+        :param pdb: a rdkit Chem object
+        :param ligand_resn: 3 letter code
+        :return: tuple of non-ligand atom and ligand atom
+        """
         for atom in pdb.GetAtoms():
             if atom.GetPDBResidueInfo().GetResidueName() == ligand_resn:
                 for neigh in atom.GetNeighbors():
@@ -343,6 +351,26 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             attachment = None
             attachee = None
             return (attachment, attachee)
+
+    @classmethod
+    def find_closest(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Chem.Atom, Chem.Atom]:
+        """
+        Find the closest atom to the ligand
+
+        :param pdb: a rdkit Chem object
+        :param ligand_resn: 3 letter code
+        :return: tuple of non-ligand atom and ligand atom
+        """
+        ligand = [atom.GetIdx() for atom in pdb.GetAtoms() if atom.GetPDBResidueInfo().GetResidueName() == ligand_resn]
+        dm = Chem.Get3DDistanceMatrix(pdb)
+        mini = np.take(dm, ligand, 0)
+        mini[mini == 0] = np.nan
+        mini[:, ligand] = np.nan
+        a, b = np.where(mini == np.nanmin(mini))
+        lig_atom = pdb.GetAtomWithIdx(ligand[int(a[0])])
+        nonlig_atom = pdb.GetAtomWithIdx(int(b[0]))
+        return (nonlig_atom, lig_atom)
+
 
     @classmethod
     def extract_mols(cls,

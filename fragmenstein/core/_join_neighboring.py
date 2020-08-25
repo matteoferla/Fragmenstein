@@ -29,6 +29,7 @@ class _FragmensteinJoinNeighMixin:
     def _find_closest(self, mol_A: Chem.Mol, mol_B: Chem.Mol) -> Tuple[Chem.RWMol, int, int, float]:
         """
         first step in join_neighboring_mols
+        This is not to be confused with cls.find_closest
 
         :param mol_A:
         :param mol_B:

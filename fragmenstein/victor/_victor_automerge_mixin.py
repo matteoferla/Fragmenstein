@@ -194,6 +194,11 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.journal.debug(f'{self.long_name} - Completed')
 
     def _make_coordinate_constraints_for_unnovels(self):
+        """
+        See also ``cls._make_coordinate_constraints``.
+        This operates based on ``atom.HasProp('_Novel')``, not origins!
+        :return:
+        """
         lines = []
         conf = self.fragmenstein.positioned_mol.GetConformer()
         for i, atom in enumerate(self.fragmenstein.positioned_mol.GetAtoms()):
@@ -201,6 +206,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 continue
             elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):
                 continue # novels
+            elif atom.GetPDBResidueInfo() is None:
+                self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
+                continue
             else:
                 pos = conf.GetAtomPosition(i)
                 fxn = f'HARMONIC 0 1' # the other do not make sense here.

@@ -22,7 +22,9 @@ import numpy as np
 import json
 from .positional_mapping import GPM
 from collections import deque
+import logging
 
+log = logging.getLogger(__name__)
 
 class Unmerge(GPM):
     """
@@ -42,6 +44,7 @@ class Unmerge(GPM):
     """
     max_strikes = 3  #: number of discrepancies tollerated.
     rotational_approach = True
+    pick = 0 # override to pick not the first(0) best match.
 
     def __init__(self, followup: Chem.Mol, mols: List[Chem.Mol], maps: Dict[str, List[Dict[int, int]]],
                  _debug_draw: bool = False):
@@ -89,7 +92,14 @@ class Unmerge(GPM):
         indices = sorted(range(len(self.c_options)),
                          key=goodness_sorter,
                          reverse=True)
-        i = indices[0]
+        if self.pick >= len(indices): # override N/A
+            i = indices[0]
+        else: # override applicable. self.pick = 0 generally
+            i = indices[self.pick]
+        ref = goodness_sorter(i)
+        equals = [j for j in indices if goodness_sorter(j) == ref]
+        if len(equals) > 1:
+            log.warning(f'There are {len(equals)} equally good mappings.')
         if self._debug_draw:
             print(f'## Option #{i}  for combinations:')
             for j in range(len(self.c_options)):
