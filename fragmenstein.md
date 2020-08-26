@@ -7,6 +7,7 @@ One problem in doing so is mapping atoms from the hits to the followup. Three mo
 The three modes rely heavily on mapping one-to-one atomic coordinates of overlapping atoms between hits
 within a 2Å radius (see [Position Mapping code](fragmenstein/core/positional_mapping.py)).
 
+<img src="images/position_over_mcs.jpg" width="300px">
 
 <div>
 <img src="images/image0.svg" alt="x0692 common with x0305" width="200px">

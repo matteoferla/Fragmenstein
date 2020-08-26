@@ -11,13 +11,17 @@ This monstrosity is therefore then energy minimised with strong constraints.
 
 Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
-It is (somewhat) tolerant to erroneous/excessive submissions (by automatically excluding them)
+It is rather tolerant to erroneous/excessive submissions (by automatically excluding them)
 and can energy minimise strained conformations.
-![unconnected](images/unconnected.jpg)
+![summary](images/new_summary.jpg)
+
+Three mapping approaches were tested, but the key is that hits are pairwise mapped to each other by means 
+of one-to-one atom matching based upon position.
+<img src="images/position_over_mcs.jpg" width="300px">
 
 ### Side role: follow prediction
-It can also merge fragment hits by itself and find the best scoring mergers
-—with a good amount of impossible chemistry thrown in.
+It can also merge fragment hits by itself and find the best scoring mergers.
+It uses the same overlapping position clustering, but also has a decent amount of impossible/uncommon chemistry prevention.
 
 ## Not-docking
 As a consequence, it is not really a docking algorithm as it does not find the pose with the lowest energy 
@@ -39,7 +43,7 @@ In the absence of `pyrosetta` (which requires an academic licence), `Fragmenstei
 
 ## Work in progress
 
-Some changes to the algorithm are currently underway, see [wip.md](wip.md) for more or drop me (matteo) an email.
+Some changes to the algorithm may happen, see [wip.md](wip.md) for more or drop me (matteo) an email.
 
 ## Laboratory
 
