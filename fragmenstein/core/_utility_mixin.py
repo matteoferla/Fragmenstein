@@ -20,7 +20,8 @@ from warnings import warn
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, Draw
 
-import json
+import json, logging
+log = logging.getLogger('Fragmenstein')
 
 try:
     from IPython.display import SVG, display
@@ -268,5 +269,54 @@ class _FragmensteinUtil:
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
+
+    def mmff_minimise(self, mol: Optional[Chem.Mol]=None) -> None:
+        """
+        Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
+        Gets called by Victor if the flag .fragmenstein_mmff_minimisation is true during PDB template construction.
+
+        :param mol: opt. mol. modified in place.
+        :return: None
+        """
+        if mol is None and self.positioned_mol is None:
+            raise ValueError('No valid molecule')
+        elif mol is None:
+            mol = self.positioned_mol
+        else:
+            pass # mol is fine
+        # protect
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0)):
+            atom.SetBoolProp('_IsDummy', True)
+            atom.SetAtomicNum(16)
+        #
+        mol.UpdatePropertyCache()
+        # Chem.GetSymmSSSR(mol)
+        # Chem.MolToMolFile(mol, 'test.mol')
+        Chem.SanitizeMol(mol)
+        #
+        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
+        if p is None:
+            log.error(f'MMFF cannot work on a molecule that has errors!')
+            return None
+        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
+        # restrain
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
+            i = atom.GetIdx()
+            ff.MMFFAddPositionConstraint(i, 2, 10)
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            i = atom.GetIdx()
+            ff.MMFFAddPositionConstraint(i, 0.1, 10)
+        m = ff.Minimize()
+        if m == -1:
+            log.error('MMFF Minisation could not be started')
+        elif m == 0:
+            log.info('MMFF Minisation was successful')
+        elif m == 1:
+            log.info('MMFF Minisation was unsuccessful')
+        else:
+            log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+        # deprotect
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            atom.SetAtomicNum(0)
 
 

@@ -116,10 +116,12 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.mol = None
         self.constraint = None
         self.fragmenstein = None
+        self.modifications = [] # used by automerger only
         self.unminimised_pdbblock = None
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
+        self.reference_mol = None # filled only for validate
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},

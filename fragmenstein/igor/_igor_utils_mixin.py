@@ -16,11 +16,17 @@ __citation__ = ""
 import requests, shutil, pyrosetta
 from typing import Optional
 
+import pyrosetta
+
 
 class _IgorUtilsMixin:
 
-    def dock(self):
-        """Docks the pose the normal way and without constraints"""
+    def dock(self) -> pyrosetta.Pose:
+        """
+        Docks the pose the normal way and without constraints.
+
+        :return:
+        """
         docked = self.pose.clone()
         docked.remove_constraints()
         pyrosetta.rosetta.protocols.docking.setup_foldtree(docked, 'A_B', pyrosetta.Vector1([1]))

@@ -63,6 +63,11 @@ class _VictorValidateMixin(_VictorBaseMixin):
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
+        # this is unique to validate
+        self.reference_mol = self.extract_mol(name='crystal',
+                                              filepath=pdb_filename,
+                                              smiles=smiles,
+                                              ligand_resn=ligand_resn)
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
@@ -107,6 +112,9 @@ class _VictorValidateMixin(_VictorBaseMixin):
                                          merging_mode=self.fragmenstein_merging_mode,
                                          debug_draw=self.fragmenstein_debug_draw,
                                          average_position=self.fragmenstein_average_position)
+        if self.fragmenstein_mmff_minisation:
+            self.journal.debug(f'{self.long_name} - pre-minimising fragmenstein (MMFF)')
+            self.fragmenstein.mmff_minimise(self.fragmenstein.positioned_mol)
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
@@ -130,18 +138,25 @@ class _VictorValidateMixin(_VictorBaseMixin):
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
         # DO NOT DO ddG = self.reanimate()
-        ddG = self.prod()
+        ddG = self.quick_renamiate() # put igor to work!
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
         self.minimised_mol = self._fix_minimised()
         self.mrmsd = self._calculate_rmsd()
         self.journal.info(f'{self.long_name} - final score: {ddG} kcal/mol {self.mrmsd.mrmsd}.')
         self._checkpoint_charlie()
+        #RMSD against self.reference_mol and docked
+        # mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.fragmenstein.positioned_mol)
+        #dock = self.igor.dock()
+        # dock.dump_pdb()
+        # self.igor.mol_from_pose(dock)
+        # RMSD again
         self.journal.debug(f'{self.long_name} - Completed')
 
-    def prod(self):
+    def quick_renamiate(self):
         """
         Correct small deviations from what the forcefield likes. Generally flattens buckled rings and that is it.
+        Reanimate is normal.
 
         :return:
         """

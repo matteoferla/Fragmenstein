@@ -31,11 +31,33 @@ Instead,
 There are two ways. remembering the bonds or making new ones by proximity for the rings.
 The latter is a lot better for most cases as the rings are never 100% overlapping.
 
+### Nitty Gritty
+If stuff goes wrong and after a few checks,
+one wished to debug the collapsed molecule. This is stored in `victor.fragmenstein.scaffold`:
+
+    print(victor.fragmenstein._get_expansion_data(victor.fragmenstein.scaffold))
+    
+The data return is a list of length number of collapsed rings (naphthalene = 2, camphor = 2 not 3), 
+here is the data for one "ringcore" atom:
+
+    {'_ori_name': 'toluene',
+     '_ori_i': -1,
+     '_ori_is': '[0, 5, 4, 3, 2, 1]',
+     '_neighbors': '[[1, 5], [4, 6, 0], [3, 5], [2, 4], [1, 3], [0, 2]]',
+     '_xs': '[1.5, 0.75, -0.75, -1.5, -0.75, 0.75]',
+     '_ys': '[0.0, 1.299, 1.299, 0.0, -1.299, -1.299]',
+     '_zs': '[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]',
+     '_elements': '["C", "C", "C", "C", "C", "C"]',
+     '_bonds': '[["AROMATIC", "AROMATIC"], ["AROMATIC", "SINGLE", "AROMATIC"], ["AROMATIC", "AROMATIC"], ["AROMATIC", "AROMATIC"], ["AROMATIC", "AROMATIC"], ["AROMATIC", "AROMATIC"]]'}
+
+Where `ori` is the original index. All ringcore atoms have an origin of -1.
+
 ## Logging
 
-> Depracation of `Fragmenstein.notebook` (txt dict for debug) in favour of `Victor.journal` (proper logging)
+> See [logging_and_debugging.md](logging_and_debugging.md) for more.
 
 The correct logging is via Victor's journal. The logging log `Fragmenstein`.
+
 ## Valence
 
 The class `Rectifier` attempts to fix the various issues that may have arisen.

@@ -108,6 +108,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         :param merging_mode: full | partial | none | off
         """
         # starting attributes
+        super().__init__()
         self.initial_mol = mol  # untouched.
         if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
             self.attachement = attachment
@@ -393,7 +394,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
     #     :param map_B:
     #     :return:
     #     """
-    #     # TODO: finish this!
+    #     # No longer needed.
     #     fusion = Chem.RwMol(Chem.CombineMols(mol_A, mol_B))
     #     t = mol_A.GetNumAtoms()
     #     new_map_B = {k+t: v for k, v in map_B.items()}
@@ -481,7 +482,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        log.trace(f"scaffold-followup: { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
+        log.debug(f"scaffold-followup: { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -536,7 +537,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            log.trace(f"followup-chimera' = { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
+            log.debug(f"followup-chimera' = { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:
@@ -614,13 +615,22 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         """
         This does the messy work for merge_pair.
 
-        :param scaffold:
-        :param fragmentanda:
-        :param anchor_index:
-        :param attachment_details:
+        :param scaffold: the Chem.Mol molecule onto whose copy the fragmentanda Chem.Mol gets added
+        :param fragmentanda: The other Chem.Mol molecule
+        :param anchor_index: the fragment-to-added's internal atom that attaches (hit indexed)
+        :param attachment_details: see `_pre_fragment_pairs` or example below fo an entry
+        :type attachment_details: List[Dict]
         :param other_attachments:
         :param other_attachment_details:
-        :return:
+        :return: a new Chem.Mol molecule
+
+        Details object example:
+
+            [{'idx': 5,
+              'type': rdkit.Chem.rdchem.BondType.SINGLE,
+              'idx_F': 5, # fragmentanda index
+              'idx_S': 1  # scaffold index
+              }], ...}
         """
         # get bit to add.
         bonds_to_frag = []
@@ -652,8 +662,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         frag_anchor_index = indices.index(anchor_index)
         # pre-emptively fix atom ori_i
         # offset collapsed to avoid clashes.
-        self._offset_collapsed_ring(frag)
-        self._offset_origins(frag)
+        self.offset(frag)
         # Experimental code.
         # TODO: finish!
         # frag_atom = frag.GetAtomWithIdx(frag_anchor_index)
@@ -673,10 +682,15 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             print(scaffold_anchor_index, attachment_details, anchor_index, scaffold.GetNumAtoms())
             self.draw_nicely(combo)
         for detail in attachment_details:
+            # scaffold_anchor_index : atom index in scaffold that needs to be added to scaffold_attachment_index
+            # but was originally attached to attachment_index in fragmentanda.
+            # the latter is not kept.
             attachment_index = detail['idx_F']  # fragmentanda attachment_index
-            scaffold_attachment_index = detail['idx_S']
+            scaffold_attachment_index = detail['idx_S'] # scaffold attachment index
             bond_type = detail['type']
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
+            # self.transfer_ring_data(fragmentanda.GetAtomWithIdx(attachment_index),
+            #                         combo.GetAtomWithIdx(scaffold_anchor_index))
         for oi, oad in zip(other_attachments, other_attachment_details):
             bond_type = oad[0]['type']
             scaffold_attachment_index = oad[0]['idx_S']
@@ -697,6 +711,18 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         scaffold = combo.GetMol()
         return scaffold
 
+    def transfer_ring_data(self, donor: Chem.Atom, acceptor: Chem.Atom):
+        """
+        Transfer the info if a ringcore atom.
+
+        :param donor:
+        :param acceptor:
+        :return:
+        """
+        # if donor.GetIntProp('_ori_i') == -1:
+        #     data = donor
+        pass
+
     def _pre_fragment_pairs(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, A2B_mapping: Optional = None) \
             -> Dict[int, List[Dict]]:
         """
@@ -708,6 +734,9 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                    'idx_S': 1}], ...}
 
         which is slight more than {5: [{'idx': 4, 'type': rdkit.Chem.rdchem.BondType.SINGLE}], ... from categories
+
+        idx_F: fragmentanda index
+        idx_S: scaffold index
 
         required for self.merge, the key is the index of anchoring atom.
 
@@ -954,40 +983,5 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             else:
                 warn(f'No overlap? {A2B}')
 
-    def mmff_minimise(self, mol: Optional[Chem.Mol]) -> None:
-        """
-        Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
-        Gets called by Victor if the flag .fragmenstein_mmff_minimisation is true during PDB template construction.
-
-        :param mol: opt. mol. modified in place.
-        :return: None
-        """
-        if mol is None:
-            mol = self.positioned_mol
-        # protect
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0)):
-            atom.SetBoolProp('_IsDummy', True)
-            atom.SetAtomicNum(16)
-        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
-        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
-        # restrain
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
-            i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, 2, 10)
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
-            i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, 0.1, 10)
-        m = ff.Minimize()
-        if m == -1:
-            log.error('MMFF Minisation could not be started')
-        elif m == 0:
-            log.info('MMFF Minisation was successful')
-        elif m == 1:
-            log.info('MMFF Minisation was unsuccessful')
-        else:
-            log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
-        # deprotect
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
-            atom.SetAtomicNum(0)
 
 

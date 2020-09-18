@@ -74,6 +74,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     def enable_stdout(cls, level=logging.INFO) -> None:
         """
         The ``cls.journal`` is output to the terminal.
+        Running it twice can be used to change level.
 
         :param level: logging level
         :return: None
@@ -90,6 +91,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     def enable_logfile(cls, filename='reanimation.log', level=logging.INFO) -> None:
         """
         The journal is output to a file.
+        Running it twice can be used to change level.
 
         :param filename: file to write.
         :param level: logging level
@@ -306,11 +308,13 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             for hit in self.hits:
                 hit_name = hit.GetProp('_Name')
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit), hit_name)
-                if hit_name in self.fragmenstein.unmatched:
+                if self.fragmenstein is None:
+                    pymol.cmd.color('grey50', f'element C and {hit_name}')
+                elif hit_name in self.fragmenstein.unmatched:
                     pymol.cmd.color('black', f'element C and {hit_name}')
                 else:
                     pymol.cmd.color('white', f'element C and {hit_name}')
-            if self.fragmenstein.positioned_mol is not None:
+            if self.fragmenstein is not None and self.fragmenstein.positioned_mol is not None:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.fragmenstein.positioned_mol), 'placed')
                 pymol.cmd.color('magenta', f'element C and placed')
             if self.minimised_mol is not None:
@@ -383,6 +387,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         This is however often a pdb. This converts.
         `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimised()` calls mol_from_pose.
 
+        See ``extract_mol`` for single.
+
         :param folder: folder with pdbs
         :return:
         """
@@ -419,8 +425,32 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                      name: str,
                      filepath: str,
                      smiles: Optional[str] = None,
-                     ligand_resn: str = 'LIG') -> Chem.Mol:
-        holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=False)
+                     ligand_resn: str = 'LIG',
+                     removeHs: bool = False,
+                     throw_on_error : bool = False) -> Chem.Mol:
+        """
+        Extracts the ligand of 3-name ``ligand_resn`` from the PDB file ``filepath``.
+        Corrects the bond order with SMILES if given.
+        If there is a covalent bond with another residue the bond is kept as a ``*``/R.
+        If the SMILES provided lacks the ``*`` element, the SMILES will be converted (if a warhead is matched),
+        making the bond order correction okay.
+
+        :param name: name of ligand
+        :type name: str
+        :param filepath: PDB file
+        :type filepath: str
+        :param smiles: SMILES
+        :type smiles: str
+        :param ligand_resn: 3letter PDB name of residue of ligand
+        :type ligand_resn: str
+        :param removeHs: Do you trust the hydrgens in the the PDB file?
+        :type removeHs: bool
+        :param throw_on_error: If an error occurs in the template step, raise error.
+        :type throw_on_error: bool
+        :return: rdkit Chem object
+        :rtype: Chem.Mol
+        """
+        holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=removeHs)
         mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
         attachment, attachee = cls.find_attachment(holo, ligand_resn)
         if attachment is not None:  # covalent
@@ -449,7 +479,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 # template = AllChem.DeleteSubstructs(template, Chem.MolFromSmiles('*'))
                 mol = AllChem.AssignBondOrdersFromTemplate(template, mol)
             except ValueError as error:
-                cls.journal.warning(f'{name} failed at bonding ({type(error)}: {error}).')
+                if throw_on_error:
+                    raise error
+                else:
+                    cls.journal.warning(f'{name} failed at template-guided bond order correction - ({type(error)}: {error}).')
         mol.SetProp('_Name', name)
         return mol
 

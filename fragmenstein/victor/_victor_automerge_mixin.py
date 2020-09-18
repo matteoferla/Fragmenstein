@@ -84,6 +84,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.smiles = None
         self.constraint = None
         self.fragmenstein = None
+        # ====== debug: absent in main mode.
+        self.modifications = []  # list of the various steps during fragment merging mode.
+        # ======
         self.unminimised_pdbblock = None
         self.igor = None
         self.minimised_pdbblock = None
@@ -116,6 +119,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
         # merge!
         self.fragmenstein.scaffold = self.fragmenstein.merge_hits()
+        self.modifications.append(Chem.Mol(self.fragmenstein.scaffold)) # backup for debug
         self._log_warnings()
         ## Discard can happen for other reasons than disconnect
         if self.fragmenstein_throw_on_discard and len(self.fragmenstein.unmatched):
@@ -124,12 +128,16 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # expand and fix
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
-        self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold, bonded_as_original=False)
+        self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold)
+        # bonded_as_original=False no longer needed.
+        self.modifications.append(Chem.Mol(self.fragmenstein.positioned_mol)) # backup for debug
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
-        self.fragmenstein.positioned_mol = Rectifier(self.fragmenstein.positioned_mol).mol
+        rect = Rectifier(self.fragmenstein.positioned_mol)
+        self.fragmenstein.positioned_mol = rect.mol
+        self.modifications.extend(rect.modifications)  # backup for debug
         self._log_warnings()
-        # the origins are obscured because of the collapsing...
+        # the origins are obscured because of the collapsing and rectification...
         self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)
         self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
         self.mol = self.fragmenstein.positioned_mol

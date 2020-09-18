@@ -86,6 +86,7 @@ class _VictorBaseMixin:
     error_to_catch = Exception
 
     def __init__(self):
+        # raise NotImplementedError('Abstract method')
         # gets overridden
         self.long_name = str()
         self.smiles = str()
@@ -103,6 +104,7 @@ class _VictorBaseMixin:
         self.mol = 'Chem.Mol'
         self.constraint = 'Constraint'
         self.fragmenstein = 'Fragmenstein'
+        self.modifications = []
         self.unminimised_pdbblock = str()
         self.igor = 'Igor'
         self.minimised_pdbblock = str()

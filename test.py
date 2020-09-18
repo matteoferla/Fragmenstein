@@ -1,11 +1,14 @@
+# These are not unit-tests!
+
 import pyrosetta
 
 pyrosetta.init(extra_options='-no_optH false -load_PDB_components false') #-mute all
 
-from fragmenstein import Fragmenstein, Victor, Igor
+from fragmenstein import Fragmenstein, Victor, Igor, Rectifier
 
 
 from rdkit import Chem
+from rdkit.Chem import AllChem
 import logging
 
 
@@ -106,7 +109,28 @@ def victor_test():
                             )
         return reanimator
 
-    reanimate(name='DAV-CRI-d1e-2_ACR', hit_codes=('x0305', 'x1386', 'x1418'), smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1')
+    reanimate(name='DAV-CRI-d1e-2_ACR',
+              hit_codes=('x0305', 'x1386', 'x1418'),
+              smiles='*CCC(=O)N1CCN(Cc2sccc2C#N)CC1')
+
+def rectifier_test():
+    # name: [before, after]
+    chemdex = {'phenylnaphthalene': ('c1ccc2ccccc2c1(c3ccccc3)', 'c1ccc(-c2cccc3ccccc23)cc1'),
+               'benzo-azetine': ('C12CCCCC1CC2', 'C1CCC2CCCC2C1'),
+               'conjoined': ('C1C2CCC2C1', 'C1CCCCC1'),
+               'allene': ('C=C=C', 'C=CC'),
+               'benzo-cyclopronane': ('C12CCCCC1C2', 'C1CCC2CCCC2C1'),
+               'norbornane': ('C1CC2CCC1C2', 'C1CC2CCC1C2')
+               }
+
+    for name in chemdex:
+        before, after = chemdex[name]
+        mol = Chem.MolFromSmiles(before)
+        AllChem.EmbedMolecule(mol)
+        recto = Rectifier(mol).fix()
+        gotten = Chem.MolToSmiles(recto.mol)
+        assert gotten == after, f'{name} failed {gotten} (expected {after})'
 
 if __name__ == '__main__':
-    victor_test()
+    #victor_test()
+    rectifier_test()
