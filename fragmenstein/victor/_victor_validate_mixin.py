@@ -47,7 +47,7 @@ class _VictorValidateMixin(_VictorBaseMixin):
         else:
             self.smiles = smiles
             self.is_covalent = False
-            attachment, attachee = self.find_closest(pdb, ligand_resn)
+            attachment, attachee = self.find_closest_to_ligand(pdb, ligand_resn)
         info = attachment.GetPDBResidueInfo()
         self.covalent_resn = info.GetResidueName()
         self.covalent_resi = str(info.GetResidueNumber())+info.GetChainId()

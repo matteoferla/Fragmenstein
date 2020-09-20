@@ -20,19 +20,27 @@ from rdkit.Geometry.rdGeometry import Point3D
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from typing import Optional, Dict, List, Any, Tuple, Union
+from typing import Optional, Dict, List, Any, Tuple, Union, Callable
 import numpy as np
 from collections import Counter
+from functools import partial
+from .bond_provenance import BondProvenance
+from ._base import _FragmensteinBaseMixin
 
 import logging
 
 log = logging.getLogger('Fragmenstein')
 
 
-class Ring:
+class _FragmensteinRing(_FragmensteinBaseMixin):
     def __init__(self, _debug_draw=False):
         # abstracted...
         self._debug_draw = _debug_draw
+
+    def collapse_mols(self, mols: List[Chem.Mol]):
+        mols = [self.collapse_ring(mol) for mol in mols]
+        [self.offset(mol) for mol in mols]
+        return mols
 
     def store_positions(self, mol: Chem.Mol) -> Chem.Mol:
         """
@@ -149,6 +157,7 @@ class Ring:
         self._restore_original_bonding(mol, rings)
         self._add_novel_bonding(mol, rings) # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
         self._delete_collapsed(mol)
+        self._detriangulate(mol)
         mol = self._emergency_joining(mol) # does not modify in place!
         if mol is None:
             raise ValueError('(Impossible) Failed at some point...')
@@ -172,20 +181,25 @@ class Ring:
         """
         self._collapsed_ring_offset += 100
         old2new = {}
+        # sort the not ringcore atoms
         for atom in mol.GetAtoms():
             if atom.GetIntProp('_ori_i') != -1:
                 o = atom.GetIntProp('_ori_i')
                 n = o + self._collapsed_ring_offset
                 atom.SetIntProp('_ori_i', n)
                 old2new[o] = n
+            else:
+                pass # ringcores have -1 ori_i
+        # sort the ringcore
         for atom in self._get_collapsed_atoms(mol):
             old = json.loads(atom.GetProp('_ori_is'))
             new = [i + self._collapsed_ring_offset for i in old]
             atom.SetProp('_ori_is', json.dumps(new))
             old2new = {**old2new, **dict(zip(old, new))}
-            log.debug(f'UPDATE {old2new}')
-            old_neighss = json.loads(atom.GetProp('_neighbors'))
-            new_neighss = [[old2new[i] if i in old2new else i for i in old_neighs] for old_neighs in old_neighss]
+        # this has to be done afterwards in case of a bonded mol
+        for atom in self._get_collapsed_atoms(mol):
+            old_neighss = json.loads(atom.GetProp('_neighbors')) #if i in old2new else i
+            new_neighss = [[old2new[i] for i in old_neighs if i in old2new] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
 
     def _renumber_original_indices(self, mol: Chem.Mol,
@@ -295,46 +309,52 @@ class Ring:
             ringcore.SetProp('_current_is', json.dumps(indices))
 
     def _restore_original_bonding(self, mol: Chem.RWMol, rings: List[Dict[str, List[Any]]]) -> None:
+        log.debug('Restoring original bonding if any.')
         to_be_waited_for = []
         for ring in rings:
             for i in range(len(ring['elements'])):
                 # iteration per atom:
                 collapsed_atom_data = self._get_expansion_for_atom(ring, i)
-                new_i = self._get_new_index(mol, collapsed_atom_data['ori_i'], search_collapsed=False)
+                old_i = collapsed_atom_data['ori_i']
+                new_i = self._get_new_index(mol, old_i, search_collapsed=False)
                 for old_neigh, bond in zip(collapsed_atom_data['neighbor'], collapsed_atom_data['bond']):
                     bt = getattr(Chem.BondType, bond)
-                    try:
-                        new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
-                        present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
-                        if present_bond is None:
-                            mol.AddBond(new_i, new_neigh, bt)
-                            present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
-                            present_bond.SetBoolProp('_IsRingBond', True)
-                        elif present_bond.GetBondType().name != bond:
-                            log.warning(f'bond between {new_i} {new_neigh} exists already ' +
-                                        f'(has {present_bond.GetBondType().name} expected {bt})')
-                            present_bond.SetBondType(bt)
-                            present_bond.SetBoolProp('_IsRingBond', True)
-                        else:
-                            log.debug(f'bond between {new_i} {new_neigh} exists already ' +
-                                      f'(has {present_bond.GetBondType().name} expected {bt})')
-                            pass
-                    except ValueError:
-                        log.warning(f"The neighbour {old_neigh} of {collapsed_atom_data['ori_i']} with {bt} " +
-                                    "does not yet exist")
-                        to_be_waited_for.append((new_i, old_neigh, bt))
-        for new_i, old_neigh, bt in to_be_waited_for:
-            try:
-                new_neigh = self._get_new_index(mol, old_neigh,
-                                                name_restriction=mol.GetAtomWithIdx(new_i).GetProp('_ori_name'))
-                if self._debug_draw:
-                    print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
-                if not mol.GetBondBetweenAtoms(new_i, new_neigh):
-                    mol.AddBond(new_i, new_neigh, bt)
+                    new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
+                    info = f'new_i={new_i}, new_neig={new_neigh}, old_i={old_i}, old_neigh={old_neigh}'
                     present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
-                    present_bond.SetBoolProp('_IsRingBond', True)
-            except (KeyError, ValueError) as err:
-                warn(str(err))
+                    if present_bond is None:
+                        assert new_i != new_neigh, f'Cannot bond to self. {info}'
+                        mol.AddBond(new_i, new_neigh, bt)
+                        present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
+                        present_bond.SetBoolProp('_IsRingBond', True)
+                        BondProvenance.set_bond(present_bond, 'original')
+                        distance = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), new_i, new_neigh)
+                        assert distance < 4, f'Bond length too long ({distance}. {info}'
+                    elif present_bond.GetBondType().name != bond:
+                        log.warning(f'bond between {new_i} {new_neigh} exists already ' +
+                                    f'(has {present_bond.GetBondType().name} expected {bt})')
+                        present_bond.SetBondType(bt)
+                        present_bond.SetBoolProp('_IsRingBond')
+                        BondProvenance.set_bond(present_bond, 'original')
+                    else:
+                        log.debug(f'bond between {new_i} {new_neigh} exists already ' +
+                                  f'(has {present_bond.GetBondType().name} expected {bt})')
+                        pass
+        #             try:
+        #
+        #             except ValueError:
+        #                 log.warning(f"The neighbour {old_neigh} of {collapsed_atom_data['ori_i']} with {bt} " +
+        #                             "does not yet exist")
+        #                 to_be_waited_for.append((new_i, old_neigh, bt))
+        # for new_i, old_neigh, bt in to_be_waited_for:
+        #     try:
+        #         new_neigh = self._get_new_index(mol, old_neigh,
+        #                                         name_restriction=mol.GetAtomWithIdx(new_i).GetProp('_ori_name'))
+        #         print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
+        #         if not mol.GetBondBetweenAtoms(new_i, new_neigh):
+        #             add_bond(mol, new_i, new_neigh, bt)
+        #     except (KeyError, ValueError) as err:
+        #         warn(str(err))
 
     def _delete_collapsed(self, mol: Chem.RWMol):
         for a in reversed(range(mol.GetNumAtoms())):
@@ -362,16 +382,19 @@ class Ring:
         :return:
         """
         # ===== Deal with Ring on ring bonding
+        log.debug('Adding novel bonding (if any)...')
         novel_ringcore_pairs = self._get_novel_ringcore_pairs(rings)
         for ringcore_A, ringcore_B in novel_ringcore_pairs:
+            log.debug(f'determining novel bond between {ringcore_A} and {ringcore_B}')
             # _determine_mergers_novel_ringcore_pair finds mergers
-            category = self._determine_mergers_novel_ringcore_pair(mol, ringcore_A, ringcore_B)
+            self._determine_mergers_novel_ringcore_pair(mol, ringcore_A, ringcore_B)
         # ===== Deal with Ring on other bonding
         # formerly: _infer_bonding_by_proximity
         novel_other_pairs = self._get_novel_other_pairs(rings)
         for ringcore, other in novel_other_pairs:
+            log.debug(f'determining novel bond between {ringcore} and {other}')
             # _determine_mergers_novel_ringcore_pair finds, bonds and marks for deletion.
-            category = self._determine_mergers_novel_other_pair(mol, ringcore, other)
+            self._determine_mergers_novel_other_pair(mol, ringcore, other)
         # ===== Clean up
         self._delete_marked(mol)
 
@@ -431,9 +454,9 @@ class Ring:
             ringcore = ring['atom']  # Chem.Atom
             for neigh in ringcore.GetNeighbors():
                 # find those ringcore atoms that are connected. via these conditions:
-                has_ringcore_neighbor = neigh.GetIntProp('_ori_i') == -1
+                has_ringcore_neighbor = neigh.HasProp('_ori_name') and neigh.GetIntProp('_ori_i') == -1
                 is_new_pair = ringcore.GetIdx() < neigh.GetIdx()  # to avoid doing it twice each direction
-                is_novel_connection = ring['ori_name'] != neigh.GetProp('_ori_name')
+                is_novel_connection = neigh.HasProp('_ori_name') and ring['ori_name'] != neigh.GetProp('_ori_name')
                 if has_ringcore_neighbor and is_new_pair and is_novel_connection:
                     # This ringcore atom shares a novel border with another ringcore atom
                     pairs.append((ringcore, neigh))
@@ -466,15 +489,18 @@ class Ring:
         # get closest pair.
         distance = np.nanmin(distance_matrix)
         if np.isnan(distance):
-            raise ConnectionError('This is impossible. Two neighbouring rings cannot be connected.')
+            log.critical('This is impossible. Two neighbouring rings cannot be connected.')
+            return []
         elif distance > absorption_distance: # bonded
             p = np.where(distance_matrix == distance)
             a = int(p[0][0])
             b = int(p[1][0])
-            bt = mol.GetBondBetweenAtoms(ringcore_A.GetIdx(), ringcore_B.GetIdx()).GetBondType()
+            present_bond = mol.GetBondBetweenAtoms(ringcore_A.GetIdx(), ringcore_B.GetIdx())
+            bt = present_bond.GetBondType()
             if bt is None or bt == Chem.BondType.UNSPECIFIED:
                 bt = Chem.BondType.SINGLE
-            mol.AddBond(a, b, bt)
+            n = mol.AddBond(a, b, bt)
+            BondProvenance.copy_bond(present_bond, mol.GetBondWithIdx(n))
             log.info('A novel bond-connected ring pair was found')
             self._mark_for_deletion(mol, b)
             self._copy_bonding(mol, a, b, force=True)
@@ -502,6 +528,27 @@ class Ring:
 
     # ==== Novel Ring to Ring bonding ==================================================================================
 
+    # def _infer_bonding_by_proximity(self, mol):
+    #     raise Exception
+    #     # fix neighbours
+    #     # this should not happen. But just in case!
+    #     while True:
+    #         ringsatoms = self._get_ring_info(mol)
+    #         for ringA, ringB in itertools.combinations(ringsatoms, 2):
+    #             n = mol.GetNumAtoms()
+    #             self.absorb_overclose(mol, ringA, ringB, cutoff=1.)
+    #             if n != mol.GetNumAtoms():
+    #                 break
+    #         else:
+    #             break
+    #     new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
+    #     self.absorb_overclose(mol, new_ringers)
+    #     new_ringers = [atom.GetIdx() for atom in mol.GetAtoms() if atom.HasProp('expanded')]
+    #     self.join_overclose(mol, new_ringers)
+    #     self.join_rings(mol)
+    #     self._triangle_warn(mol)
+
+
     def _get_novel_other_pairs(self, rings) -> List[Tuple[Chem.Atom, Chem.Atom]]:
         ## similar to novel ringcore..but opposite
         pairs = []
@@ -510,8 +557,8 @@ class Ring:
             ringcore = ring['atom']  # Chem.Atom
             for neigh in ringcore.GetNeighbors():
                 # find those ringcore-other atoms that are connected. via these conditions:
-                has_notringcore_neighbor = neigh.GetIntProp('_ori_i') != -1
-                is_novel_connection = ring['ori_name'] != neigh.GetProp('_ori_name')
+                has_notringcore_neighbor = (not neigh.HasProp('_ori_name')) or neigh.GetIntProp('_ori_i') != -1
+                is_novel_connection = (not neigh.HasProp('_ori_name')) or ring['ori_name'] != neigh.GetProp('_ori_name')
                 if has_notringcore_neighbor and is_novel_connection:
                     # This ringcore atom shares a novel border with another ringcore atom
                     pairs.append((ringcore, neigh))
@@ -520,7 +567,7 @@ class Ring:
     def _determine_mergers_novel_other_pair(self,
                                                mol: Chem.RWMol,
                                                ringcore: Chem.Atom,
-                                               other: Chem.Atom) -> str:
+                                               other: Chem.Atom) -> List[Tuple[int, int]]:
         absorption_distance = 1.  # Å
         indices_ring = json.loads(ringcore.GetProp('_current_is'))
         indices_other = [other.GetIdx()]
@@ -531,25 +578,58 @@ class Ring:
         others = np.array(list(set(range(mol.GetNumAtoms())).difference(indices_ring + indices_other)))
         distance_matrix[others, :] = np.nan
         distance_matrix[:, others] = np.nan
+        # penalties
+        penalties = np.zeros(distance_matrix.shape)
+        for i in indices_ring:
+            atom = mol.GetAtomWithIdx(i)
+            neighs = [neigh for neigh in atom.GetNeighbors() if self._is_count_valid(neigh)]
+            n_neighs = len(neighs)
+            if atom.GetAtomicNum() > 8:  # next row.
+                # weird chemistry... likely wrong!
+                penalties[i,:] = 2.
+                penalties[:,i] = 2.
+            elif n_neighs == 2:
+                pass # no penalty!
+            elif atom.GetIsAromatic():
+                penalties[i, :] = 2 # this would result in a ring downgrade...
+                penalties[:, i] = 2
+            elif n_neighs == 3:
+                penalties[i, :] = 1.  # 4 bonded carbon is not nice...
+                penalties[:, i] = 1.
+            else:
+                penalties[i, :] = np.nan  # this will likely crash things.
+                penalties[:, i] = np.nan
         # get closest pair.
-        distance = np.nanmin(distance_matrix)
-        if np.isnan(distance):
-            raise ConnectionError('This is impossible, no atom is connectable...')
+        pendist_matrix = penalties + distance_matrix
+        pendistance = np.nanmin(pendist_matrix)
+        if np.isnan(pendistance):
+            raise ValueError('This is impossible...')
         else:  # bonded
-            p = np.where(distance_matrix == distance)
+            p = np.where(pendist_matrix == pendistance)
             a = int(p[0][0])
             b = int(p[1][0])
-            bt = mol.GetBondBetweenAtoms(ringcore.GetIdx(), other.GetIdx()).GetBondType()
-            if bt is None or bt == Chem.BondType.UNSPECIFIED:
-                bt = Chem.BondType.SINGLE
-            if distance > absorption_distance:
-                #mol.AddBond(a, b, bt)
-                atom_a = mol.GetAtomWithIdx(a)
-                atom_b = mol.GetAtomWithIdx(b)
-                self._add_bond_if_possible(mol, atom_a, atom_b)
-                log.info('A novel bonded to ring was added')
+            # absorb or bond
+            distance = distance_matrix[a, b]
+            penalty = penalties[a, b]
+            if distance > 4:
+                raise ValueError(f'The bond between {a} and {b} too long {distance} '+\
+                                 f'from {indices_ring} and {indices_other}')
+            elif distance > absorption_distance:
+                # get bond type
+                present_bond = mol.GetBondBetweenAtoms(ringcore.GetIdx(), other.GetIdx())
+                bt = present_bond.GetBondType()
+                if bt is None or bt == Chem.BondType.UNSPECIFIED:
+                    bt = Chem.BondType.SINGLE
+                n = mol.AddBond(a, b, bt)
+                BondProvenance.copy_bond(present_bond, mol.GetBondWithIdx(n))
+                # This is no longer required:
+                # atom_a = mol.GetAtomWithIdx(a)
+                # atom_b = mol.GetAtomWithIdx(b)
+                #self._add_bond_if_possible(mol, atom_a, atom_b)
+                log.info(f'A novel bonding to ring was added {distance} {penalty}')
             else:
                 # absorb the non-ring atom!
+                log.info(f'An atom was absorbed to ring was added {distance} {penalty}')
                 if mol.GetAtomWithIdx(a).GetIntProp('_ori_i') == -1:
                     self._copy_bonding(mol, a, b)
                     self._mark_for_deletion(mol, b)
@@ -558,195 +638,6 @@ class Ring:
                     self._copy_bonding(mol, b, a)
                     self._mark_for_deletion(mol, a)
                     return [(b, a)]
-
-
-    # ============= Deletion ===========================================================================================
-
-    def _mark_for_deletion(self, mol: Chem.Mol, i: int):
-        mol.GetAtomWithIdx(i).SetBoolProp('DELETE', True)
-
-    def _delete_marked(self, mol: Chem.RWMol):
-        morituri = list(reversed(mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('DELETE'))))
-        for atom in morituri:
-            mol.RemoveAtom(atom.GetIdx())
-
-    # ============= Other ==============================================================================================
-
-    def _copy_bonding(self, mol, i: int, j: int, force:Optional[bool]=None):
-        """
-        formerly called `absorb`. Preps for absorbing. remove J separately.
-
-        :param mol:
-        :param i:
-        :param j:
-        :return:
-        """
-        log.debug(f'Absorbing atom {i} with {j}')
-        absorbenda = mol.GetAtomWithIdx(i)
-        absorbiturum = mol.GetAtomWithIdx(j)
-        for neighbor in absorbiturum.GetNeighbors():
-            n = neighbor.GetIdx()
-            old_bond = mol.GetBondBetweenAtoms(j, n)
-            bt = old_bond.GetBondType()
-            if force is not None:
-                pass
-            if old_bond.HasProp('_IsRingBond'):
-                # the ring needs to be force!
-                force = True
-            else:
-                force = False
-            # mol.RemoveBond(j, n)
-            if i == n:
-                continue
-            else:
-                atom_i, atom_j = mol.GetAtomWithIdx(i), mol.GetAtomWithIdx(j)
-                if force and mol.GetBondBetweenAtoms(i, n) is None:
-                    log.debug(f'Forcing bond between {i} and {n}')
-                    mol.AddBond(i, n, bt)
-                else:
-                    self._add_bond_if_possible(mol, atom_i, atom_j)
-
-    def _add_bond_if_possible(self, mol, atom_i, atom_j):
-        i = atom_i.GetIdx()
-        j = atom_j.GetIdx()
-
-        def assess_atom(atom: Chem.Atom, bt: Chem.BondType) -> Tuple[bool, Chem.BondType]:
-            """
-            True means add, False means delete
-
-            :param atom:
-            :param bt:
-            :return:
-            """
-            if atom.GetAtomicNum() > 8:
-                return True, bt
-            elif atom.HasProp('DELETE'): # if it is to be deleted it should be fine.
-                return True, bt
-            elif len(atom.GetNeighbors()) <= 2 and atom.GetIsAromatic():
-                return True, Chem.BondType.SINGLE
-            elif len(atom_i.GetNeighbors()) <= 3 and not atom.GetIsAromatic():
-                return True, bt
-            else:
-                return False, bt  # too bonded already!
-
-        if self._is_triangle(atom_i, atom_j):
-            log.debug(f'Bond between {i} and {j} would make a triangle, skipping')
-            return False
-        elif self._is_square(atom_i, atom_j):
-            log.debug(f'Bond between {i} and {j} would make a square, skipping')
-            return False
-        elif self._is_connected_warhead(atom_j, atom_i):
-            log.debug(f'Bond between {i} and {j} would break a warhead, skipping')
-            return False
-        else:
-            present_bond = mol.GetBondBetweenAtoms(i, j)
-            if atom_j.HasProp('_ring_bond'):
-                bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
-            else:
-                bt = None
-            if present_bond is not None and bt is None:
-                log.debug(f'Bond between {i} and {j} already exists')
-                pass  # exists
-            elif present_bond is not None and present_bond.GetBondType() is None:
-                present_bond.SetBondType(Chem.BondType.SINGLE)
-            elif present_bond is not None and present_bond.GetBondType() is not None and bt.name == present_bond.GetBondType().name:
-                pass  # exists and has correct bond
-            elif present_bond is not None:
-                present_bond.SetBondType(bt)
-                return True
-            else:
-                v, bt = assess_atom(atom_i, bt)
-                w, bt = assess_atom(atom_j, bt)
-                if v and w and bt is not None:
-                    mol.AddBond(i, j, bt)
-                    return True
-                elif v and w:
-                    mol.AddBond(i, j, Chem.BondType.SINGLE)
-                    return True
-                else:
-                    # len(Chem.GetMolFrags(mol, sanitizeFrags=False)) ought to be checked.
-                    # however, join_neighboring gets called by emergency bonding so should be fine.
-                    return False  # too bonded etc.
-
-    # === conditional selectors ========================================================================================
-
-    def _is_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
-        """
-        Get bool of whether two atoms share a common neighbor. Ie. joining them would make a triangle.
-        Direct bond does not count.
-
-        :param first:
-        :param second:
-        :return:
-        """
-        if self._get_triangle(first, second) is not None:
-            return True
-        else:
-            return False
-
-    def _get_triangle(self, first: Chem.Atom, second: Chem.Atom) -> Union[int, None]:
-        """
-        Get the third atom...
-
-        :param first: atom
-        :param second: atom
-        :return: atom index of third
-        """
-        get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors() if self._is_count_valid(neigh)]
-        f_neighs = get_neigh_idxs(first)
-        s_neighs = get_neigh_idxs(second)
-        a = set(f_neighs) - {first.GetIdx(), second.GetIdx()}
-        b = set(s_neighs) - {first.GetIdx(), second.GetIdx()}
-        others = list(a.intersection(b))
-        if len(others) == 0:  # is disjoined
-            return None
-        else:
-            return others[0]
-
-    def _is_count_valid(self, atom: Chem.Atom) -> bool:
-        if atom.HasProp('DELETE'):
-            return False
-        elif atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
-            return False
-        else:
-            return True
-
-
-    def _is_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
-        """
-        Get bool of whether two atoms share a common over-neighbor. Ie. joining them would make a square.
-        Direct bond does not count.
-
-        :param first:
-        :param second:
-        :return:
-        """
-        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
-            if self._is_triangle(first, third) is True:
-                return True
-        else:
-            return False
-
-    def _is_connected_warhead(self, atom, anchor_atom):
-        if not atom.HasProp('_Warhead'):
-            return False
-        elif atom.GetBoolProp('_Warhead') == False:
-            return False
-        else:
-            # is it a single compound?
-            frags = Chem.GetMolFrags(atom.GetOwningMol(), sanitizeFrags=False)
-            if len(frags) == 1:
-                return True
-            else:
-                for frag in frags:
-                    if atom.GetIdx() in frag and anchor_atom.GetIdx() in frag:
-                        return True
-                    elif atom.GetIdx() in frag:
-                        return False  # if the warhead is not connected pretend it is not a warhead.
-                    else:
-                        pass
-                else:
-                    raise ValueError('I do not think this is possible.')
 
     # ======== Emergency ===============================================================================================
 
@@ -810,6 +701,89 @@ class Ring:
         #     else:
         #         mergituri.append((pairs[0][0], pairs[1][1]))
         #         mergituri.append((pairs[0][1], pairs[1][0]))
+
+    def _detriangulate(self, mol: Chem.RWMol) -> None:
+        """
+        Prevents novel cyclopropanes and cyclobutanes.
+
+        :param mol:
+        :return:
+        """
+        for atom in mol.GetAtoms():
+            atom_i = atom.GetIdx()
+            for neigh in atom.GetNeighbors():
+                neigh_i = neigh.GetIdx()
+                if neigh_i < atom_i: # dont check twice...
+                    continue
+                # de triangulate
+                third_i = self._get_triangle(atom, neigh)
+                if third_i is not None:
+                    # it is a triangle
+                    third = mol.GetAtomWithIdx(third_i)
+                    log.debug(f'Triangle present {(atom_i, neigh_i, third_i)}.')
+                    self._detriangulate_inner(mol,
+                                              atoms=[atom, neigh, third],
+                                              atom_indices=[atom_i, neigh_i, third_i],
+                                              combinator=partial(itertools.combinations, r=2)
+                                              )
+                # de square-ify
+                sq = self._get_square(atom, neigh)
+                if sq is not None:
+                    far_i, close_i = sq
+                    far = mol.GetAtomWithIdx(far_i)
+                    close = mol.GetAtomWithIdx(close_i) # second neighbour of atom
+                    # bonding is:
+                    # atom - neigh - far - close - atom
+                    log.debug(f'Square present {(atom_i, neigh_i, far_i, close_i)}.')
+                    # combinations would fail at a atom - far bond
+                    # the order is irrelevant if the same fun is called
+                    combinator = lambda l: [[l[0], l[1]], [l[0], l[2]], [l[1], l[3]], [l[2], l[3]]]
+                    self._detriangulate_inner(mol,
+                                              atoms=[atom, neigh, close, far],
+                                              atom_indices=[atom_i, neigh_i, close_i, far_i],
+                                              combinator=combinator
+                                              )
+
+    def _detriangulate_inner(self,
+                             mol: Chem.RWMol,
+                             atoms: List[Chem.Atom],
+                             atom_indices: List[int],
+                             combinator: Callable):
+        """
+        Triangle/square agnostic.
+
+        :param mol:
+        :param atoms:
+        :param atom_indices:
+        :param combinator:
+        :return:
+        """
+        bonds = [mol.GetBondBetweenAtoms(a, b) for a, b in combinator(atom_indices)]
+        provenances = BondProvenance.get_bonds(bonds)
+        # original
+        originality = [p == BondProvenance.ORIGINAL for p in provenances]
+        if sum(originality) == 3:
+            log.warning('Triangle from original present. Kept, unless rectifiers is set to not tolerate')
+        # length
+        BL = partial(Chem.rdMolTransforms.GetBondLength, conf=mol.GetConformer())
+        lengths = [BL(iAtomId=b.GetBeginAtomIdx(), jAtomId=b.GetEndAtomIdx()) for b in bonds]
+        scores = np.array(lengths)
+        scores[originality] = np.nan
+        # atom properties. overbonded, ring etc.
+        for fun, weight in self.closeness_weights:
+            funscore = [fun(a) for a in atoms]
+            scores += np.sum(list(combinator(funscore)), axis=1)
+        d = np.nanmax(scores)
+        if np.isnan(d):
+            return None # impossible but okay.
+        doomed_i = int(np.where(scores == d)[0])
+        doomed_bond = bonds[doomed_i]
+        a, b = doomed_bond.GetBeginAtomIdx(), doomed_bond.GetEndAtomIdx()
+        log.debug(f'Removing triangle/square forming bond between {a} and {b}')
+        mol.RemoveBond(a, b)
+
+
+
 
 
 

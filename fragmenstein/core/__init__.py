@@ -26,16 +26,18 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 from ._utility_mixin import _FragmensteinUtil
 from ._join_neighboring import _FragmensteinJoinNeighMixin
-from ._collapse_ring import Ring
+from ._collapse_ring import _FragmensteinRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
+from .bond_provenance import BondProvenance
 import itertools, logging
 
 log = logging.getLogger('Fragmenstein')
 
+
 ##################################################################
 
-class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  # Unmerge is called. Not inherited.
+class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinNeighMixin):  # Unmerge is called. Not inherited.
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -59,37 +61,6 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
     If an atom in a Chem.Mol object is provided via ``attachment`` argument and the molecule contains a dummy atom as
     defined in the ``dummy`` class variable. Namely element R in mol file or * in string is the default.
     """
-    dummy_symbol = '*'
-    dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
-    cutoff = 2.
-    joining_cutoff = 5. #how distant is too much?
-    atoms_in_bridge_cutoff = 2 # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves adamantane)
-    throw_on_disconnect = False
-    matching_modes = [
-        dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-             bondCompare=rdFMCS.BondCompare.CompareAny,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=False),  # this shape based matching is too permissive,
-        dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-             bondCompare=rdFMCS.BondCompare.CompareOrder,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=False),
-        dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-             bondCompare=rdFMCS.BondCompare.CompareOrder,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=False),
-        dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-             bondCompare=rdFMCS.BondCompare.CompareAny,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=True),
-        dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
-             bondCompare=rdFMCS.BondCompare.CompareOrder,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=True),
-        dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-             bondCompare=rdFMCS.BondCompare.CompareOrder,
-             ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-             ringMatchesRingOnly=True)]
 
     def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
                  debug_draw: bool = False, merging_mode='partial', average_position=False):
@@ -142,7 +113,8 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         elif merging_mode == 'none':
             self.no_merging()
         else:
-            raise ValueError(f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
+            raise ValueError(
+                f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
 
     def full_merging(self) -> None:
         """
@@ -247,7 +219,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
 
     def combine_hits(self, hits: Optional[List[Chem.Mol]] = None) -> List[Chem.Mol]:
         """
-        This is the new algorithm, wherein the hits are attempted to be combined.
+        This is the partial merge algorithm, wherein the hits are attempted to be combined.
         If the combination is bad. It will not be combined.
         Returning a list of possible options.
         These will have the atoms changed too.
@@ -418,13 +390,17 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
     def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
         Recursively stick the hits together and average the positions.
-        This is the old way
+        This is the core of automerging, full-merging mapping and partial merging mapping.
+        The latter however uses `combine_hits` first.
+        The hits are not ring-collapsed and -expanded herein.
 
         :param hits: optionally give a hit list, else uses the attribute ``.hits``.
         :return: the rdkit.Chem.Mol object that will fill ``.scaffold``
         """
         if hits is None:
             hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
+        for hit in hits:
+            BondProvenance.set_all_bonds(hit, 'original')
         if self._debug_draw:
             print('Merging: ', [hit.GetProp('_Name') for hit in hits])
         scaffold = Chem.Mol(hits[0])
@@ -469,7 +445,6 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                     self._prevent_two_bonds_on_dummy(mol)
                     break
 
-
     # ================= Chimera ========================================================================================
 
     def make_chimera(self, min_mode_index=0) -> Chem.Mol:
@@ -482,7 +457,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        log.debug(f"scaffold-followup: { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
+        log.debug(f"scaffold-followup: {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -537,7 +512,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            log.debug(f"followup-chimera' = { {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)} }")
+            log.debug(f"followup-chimera' = {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:
@@ -686,7 +661,7 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
             # but was originally attached to attachment_index in fragmentanda.
             # the latter is not kept.
             attachment_index = detail['idx_F']  # fragmentanda attachment_index
-            scaffold_attachment_index = detail['idx_S'] # scaffold attachment index
+            scaffold_attachment_index = detail['idx_S']  # scaffold attachment index
             bond_type = detail['type']
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
             # self.transfer_ring_data(fragmentanda.GetAtomWithIdx(attachment_index),
@@ -982,6 +957,3 @@ class Fragmenstein(_FragmensteinUtil, Ring, GPM, _FragmensteinJoinNeighMixin):  
                 rdMolAlign.AlignMol(target, ref, atomMap=A2B, maxIters=500)
             else:
                 warn(f'No overlap? {A2B}')
-
-
-

@@ -56,11 +56,8 @@ class _RectifierRingMixin(_RectifierBaseMixin):
 
     def _prevent_weird_rings(self):
         ringatoms = self._get_ring_info()  # GetRingInfo().AtomRings()
-        print(ringatoms)
-        print(self.atoms_in_bridge_cutoff)
         for ring_A, ring_B in itertools.combinations(ringatoms, r=2):
             shared = set(ring_A).intersection(set(ring_B))
-            print(shared)
             if len(shared) == 0:
                 self.log.debug('This molecule has some separate rings')
                 pass  # separate rings
@@ -71,7 +68,7 @@ class _RectifierRingMixin(_RectifierBaseMixin):
                 self.log.warning('This molecule has a bridge: leaving')
                 pass  # ideally check if planar...
             elif len(shared) == 1:
-                self.log.debug('This self.rwmolecule has a spiro bicycle')
+                self.log.debug('This molecule has a spiro bicycle')
                 pass  # spiro ring.
             elif len(shared) == 2:
                 self.log.debug('This molecule has a fused ring')

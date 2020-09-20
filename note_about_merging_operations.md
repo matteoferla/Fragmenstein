@@ -12,6 +12,7 @@ Then to address the problem of rings merging oddly, the ring collapse functional
 and can be found in `_collapse_ring`.
 
 Then the ring rejoining algorithm was tweaked to bond by default by proximity and not memory.
+Now the rings are bonded by memory if original, by proximity if novel.
 
 Then to address odd bonding, the class `Rectifier` was added.
 This is a class called by Fragmenstein and not inherited.
@@ -25,7 +26,7 @@ This is used by both SMILES no-merging mode and the automerging mode.
 ## Future idea
 This is all a bit messy. 
 
-One _likely_ future change is moving ring corrections to `Rectifier`.
+~One _likely_ future change is moving ring corrections to `Rectifier`.~ —Done.
 
 Furthermore, the module is called `fragmenstein`,
 which contains a class `Fragmenstein`, yet the pipeline is called `Victor`.

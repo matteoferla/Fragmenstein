@@ -116,9 +116,10 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # fragmenstein_throw_on_discard controls if disconnected.
         self.fragmenstein.throw_on_disconnect = self.fragmenstein_throw_on_discard
         self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff
-        self.fragmenstein.hits = [self.fragmenstein.collapse_ring(h) for h in self.hits]
         # merge!
-        self.fragmenstein.scaffold = self.fragmenstein.merge_hits()
+        col_hits = self.fragmenstein.collapse_mols(self.hits)
+        self.modifications.extend(col_hits)
+        self.fragmenstein.scaffold = self.fragmenstein.merge_hits(col_hits)
         self.modifications.append(Chem.Mol(self.fragmenstein.scaffold)) # backup for debug
         self._log_warnings()
         ## Discard can happen for other reasons than disconnect
@@ -134,6 +135,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
         rect = Rectifier(self.fragmenstein.positioned_mol)
+        rect.fix()
         self.fragmenstein.positioned_mol = rect.mol
         self.modifications.extend(rect.modifications)  # backup for debug
         self._log_warnings()

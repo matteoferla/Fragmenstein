@@ -1,19 +1,22 @@
 # These are not unit-tests!
+import unittest, os
+
 
 import pyrosetta
 
-pyrosetta.init(extra_options='-no_optH false -load_PDB_components false') #-mute all
+pyrosetta.init(
+    extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 
 from fragmenstein import Fragmenstein, Victor, Igor, Rectifier
-
-
+from fragmenstein.mpro import MProVictor
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import logging
+Victor.enable_stdout(level=logging.DEBUG)
+Victor.work_path = 'test_output'
 
 
 def test_molecule(name, smiles, hitnames):
-    Victor.enable_stdout(logging.TRACE)
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in hitnames]
     followup = Chem.MolFromSmiles(smiles)
     r = Chem.MolFromMolFile(f'../Mpro/Mpro-{hitnames[0]}_0/Mpro-{hitnames[0]}_0_SG.mol')
@@ -130,6 +133,61 @@ def rectifier_test():
         recto = Rectifier(mol).fix()
         gotten = Chem.MolToSmiles(recto.mol)
         assert gotten == after, f'{name} failed {gotten} (expected {after})'
+
+def detriangulate_tets():
+    ## test triangle
+    mol = Chem.MolFromSmiles('C1CC1')
+    AllChem.EmbedMolecule(mol)
+    partA = Chem.GetMolFrags(Chem.FragmentOnBonds(mol, [0, 1], addDummies=False), asMols=True)[0]
+    partB = Chem.FragmentOnBonds(mol, [2], addDummies=False)
+
+def desquarify_test():
+    mol = Chem.MolFromSmiles('C1CCC1')
+    AllChem.EmbedMolecule(mol)
+    mol.SetProp('_Name', 'cyclobutane')
+    partA = Chem.GetMolFrags(Chem.FragmentOnBonds(mol, [0, 2], addDummies=False), asMols=True)[0]
+    partA.SetProp('_Name', 'small')
+    partB = Chem.FragmentOnBonds(mol, [1, 3], addDummies=False)
+    partB.SetProp('_Name', 'big')
+
+
+class Combine(unittest.TestCase):
+    def setUp(self):
+        mpro_folder = self.get_mpro_path()
+        self.template = os.path.join(mpro_folder, 'template.pdb')
+
+
+    def rings1(self):
+        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene.SetProp('_Name', 'toluene')
+        rototoluene = Chem.MolFromMolFile('rototoluene.mol')
+        rototoluene.SetProp('_Name', 'rototoluene')
+        v = Victor.combine(hits=[toluene, rototoluene],
+                           pdb_filename=self.template,
+                           covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
+                           covalent_resn='VAL')
+
+    def rings2(self):
+        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene.SetProp('_Name', 'toluene')
+        transtolueneF = Chem.MolFromMolFile('transtoluene.mol')
+        transtolueneF.SetProp('_Name', 'transtoluene-fuse')
+        v = Victor.combine(hits=[toluene, transtolueneF],
+                           pdb_filename=self.template,
+                           covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
+                           covalent_resn='VAL')
+
+    def rings3(self):
+        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene.SetProp('_Name', 'toluene')
+        transtolueneS = Chem.MolFromMolFile('transtoluene2.mol')
+        transtolueneS.SetProp('_Name', 'transtoluene-spiro')
+        # cmd.rotate('z', -90, 'rototoluene', camera=0)
+        v = Victor.combine(hits=[toluene, transtolueneS],
+                           pdb_filename=self.template,
+                           covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
+                           covalent_resn='VAL')
+
 
 if __name__ == '__main__':
     #victor_test()

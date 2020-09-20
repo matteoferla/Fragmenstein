@@ -122,12 +122,16 @@ class mRSMD:
         for h, hit in enumerate(hits):
             hname = hit.GetProp('_Name')
             mapping = []
-            for i in range(annotated_followup.GetNumAtoms()):
-                atom = annotated_followup.GetAtomWithIdx(i)
-                for oel in cls._get_origin(atom):
-                    if hname in oel:
-                        h = int(re.match(hname+'\.(\d+)', oel).group(1))
-                        mapping.append((i, h))
+            if hname == '':
+                print(f'{hit} has no name!')
+            else:
+                for i in range(annotated_followup.GetNumAtoms()):
+                    atom = annotated_followup.GetAtomWithIdx(i)
+                    for oel in cls._get_origin(atom):
+                        rex = re.match(hname+'\.(\d+)', oel)
+                        if rex is not None:
+                            h = int(rex.group(1))
+                            mapping.append((i, h))
             mappings.append(mapping)
         return cls(annotated_followup, hits, mappings)
 

@@ -333,6 +333,15 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             pymol.cmd.show('line', 'byres (placed around 4)')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
+    def make_steps_pse(self, filename: str='step.pse'):
+        assert '.pse' in filename, f'{filename} not .pse file'
+        with pymol2.PyMOL() as pymol:
+            for hit in self.hits:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), hit.GetProp('_Name'))
+            for i, mod in enumerate(self.modifications):
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(mod, kekulize=False), f'step{i}')
+            pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
+
     # =================== extract_mols =================================================================================
 
     @classmethod
@@ -357,7 +366,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             return (attachment, attachee)
 
     @classmethod
-    def find_closest(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Chem.Atom, Chem.Atom]:
+    def find_closest_to_ligand(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Chem.Atom, Chem.Atom]:
         """
         Find the closest atom to the ligand
 

@@ -306,15 +306,18 @@ class _FragmensteinUtil:
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             i = atom.GetIdx()
             ff.MMFFAddPositionConstraint(i, 0.1, 10)
-        m = ff.Minimize()
-        if m == -1:
-            log.error('MMFF Minisation could not be started')
-        elif m == 0:
-            log.info('MMFF Minisation was successful')
-        elif m == 1:
-            log.info('MMFF Minisation was unsuccessful')
-        else:
-            log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+        try:
+            m = ff.Minimize()
+            if m == -1:
+                log.error('MMFF Minisation could not be started')
+            elif m == 0:
+                log.info('MMFF Minisation was successful')
+            elif m == 1:
+                log.info('MMFF Minisation was unsuccessful')
+            else:
+                log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+        except RuntimeError as error:
+            log.error(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
