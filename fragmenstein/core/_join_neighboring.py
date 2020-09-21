@@ -5,9 +5,6 @@ import numpy as np
 from warnings import warn
 from .bond_provenance import BondProvenance
 from ._base import _FragmensteinBaseMixin
-import logging
-
-log = logging.getLogger('Fragmenstein')
 
 class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
     def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
@@ -73,17 +70,17 @@ class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
 
         # notify that things could be leary.
         if distance < 0:
-            log.debug(f'Two ring atoms detected to be close. Joining for now. They will be bonded/fused/spiro afterwards')
+            self.journal.debug(f'Two ring atoms detected to be close. Joining for now. They will be bonded/fused/spiro afterwards')
         # check if valid.
         if distance > self.joining_cutoff:
             msg = f'Atoms {anchor_A}+{anchor_B} are {distance} Å away. Cutoff is {self.joining_cutoff}.'
-            log.warning(msg)
+            self.journal.warning(msg)
             raise ConnectionError(msg)
         # place new atoms
-        log.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) via the addition of {n_new} atoms.')
+        self.journal.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) via the addition of {n_new} atoms.')
         previous = anchor_A
         if linking is False and n_new > 0:
-            log.warning(f'Was going to bond {anchor_A} and {anchor_B} but reconsidered.')
+            self.journal.warning(f'Was going to bond {anchor_A} and {anchor_B} but reconsidered.')
         elif linking is True and n_new <= 0:
             combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
             new_bond = combo.GetBondBetweenAtoms(previous, anchor_B)

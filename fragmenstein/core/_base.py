@@ -6,9 +6,9 @@ from typing import Optional, Dict, List, Any, Tuple, Union
 from .bond_provenance import BondProvenance
 import logging
 
-log = logging.getLogger('Fragmenstein')
-
 class _FragmensteinBaseMixin:
+
+    journal = logging.getLogger('Fragmenstein')
 
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
@@ -116,7 +116,7 @@ class _FragmensteinBaseMixin:
                 anchor_B = int(p[1][0])
                 distance = distance_matrix[anchor_A, anchor_B]
                 penalty = penalties[anchor_A, anchor_B]
-                log.debug(f'Connecting {anchor_A} with {anchor_B}, {penalty} penalised distance of {distance}')
+                self.journal.debug(f'Connecting {anchor_A} with {anchor_B}, {penalty} penalised distance of {distance}')
                 return anchor_A, anchor_B, distance
 
             anchor_A, anchor_B, distance = get_closest(pendistance)
@@ -214,7 +214,7 @@ class _FragmensteinBaseMixin:
         :param j:
         :return:
         """
-        log.debug(f'Absorbing atom {i} with {j}')
+        self.journal.debug(f'Absorbing atom {i} with {j}')
         absorbenda = mol.GetAtomWithIdx(i)
         absorbiturum = mol.GetAtomWithIdx(j)
         for neighbor in absorbiturum.GetNeighbors():
@@ -234,7 +234,7 @@ class _FragmensteinBaseMixin:
             else:
                 atom_i, atom_j = mol.GetAtomWithIdx(i), mol.GetAtomWithIdx(j)
                 if force and mol.GetBondBetweenAtoms(i, neigh_i) is None:
-                    log.debug(f'Forcing bond between {i} and {neigh_i}')
+                    self.journal.debug(f'Forcing bond between {i} and {neigh_i}')
                     mol.AddBond(i, neigh_i, bt)
                     new_bond = mol.GetBondBetweenAtoms(i, neigh_i)
                     BondProvenance.copy_bond(old_bond, new_bond)
@@ -258,21 +258,21 @@ class _FragmensteinBaseMixin:
                 return True, bt
             elif atom.HasProp('DELETE'):  # if it is to be deleted it should be fine.
                 return True, bt
-            elif len(n_neigh) <= 2 and atom.GetIsAromatic():
+            elif n_neigh <= 2 and atom.GetIsAromatic():
                 return True, Chem.BondType.SINGLE
-            elif len(n_neigh) <= 3 and not atom.GetIsAromatic():
+            elif n_neigh <= 3 and not atom.GetIsAromatic():
                 return True, bt
             else:
                 return False, bt  # too bonded already!
 
         if self._is_triangle(atom_i, atom_j):
-            log.debug(f'Bond between {i} and {j} would make a triangle, skipping')
+            self.journal.debug(f'Bond between {i} and {j} would make a triangle, skipping')
             return False
         elif self._is_square(atom_i, atom_j):
-            log.debug(f'Bond between {i} and {j} would make a square, skipping')
+            self.journal.debug(f'Bond between {i} and {j} would make a square, skipping')
             return False
         elif self._is_connected_warhead(atom_j, atom_i):
-            log.debug(f'Bond between {i} and {j} would break a warhead, skipping')
+            self.journal.debug(f'Bond between {i} and {j} would break a warhead, skipping')
             return False
         else:
             present_bond = mol.GetBondBetweenAtoms(i, j)
@@ -281,7 +281,7 @@ class _FragmensteinBaseMixin:
             else:
                 bt = None
             if present_bond is not None and bt is None:
-                log.debug(f'Bond between {i} and {j} already exists')
+                self.journal.debug(f'Bond between {i} and {j} already exists')
                 pass  # exists
             elif present_bond is not None and present_bond.GetBondType() is None:
                 present_bond.SetBondType(Chem.BondType.SINGLE)

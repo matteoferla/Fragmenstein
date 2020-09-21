@@ -20,8 +20,7 @@ from warnings import warn
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, Draw
 
-import json, logging
-log = logging.getLogger('Fragmenstein')
+import json
 
 try:
     from IPython.display import SVG, display
@@ -296,7 +295,7 @@ class _FragmensteinUtil:
         #
         p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
         if p is None:
-            log.error(f'MMFF cannot work on a molecule that has errors!')
+            self.journal.error(f'MMFF cannot work on a molecule that has errors!')
             return None
         ff = AllChem.MMFFGetMoleculeForceField(mol, p)
         # restrain
@@ -309,15 +308,15 @@ class _FragmensteinUtil:
         try:
             m = ff.Minimize()
             if m == -1:
-                log.error('MMFF Minisation could not be started')
+                self.journal.error('MMFF Minisation could not be started')
             elif m == 0:
-                log.info('MMFF Minisation was successful')
+                self.journal.info('MMFF Minisation was successful')
             elif m == 1:
-                log.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
+                self.journal.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
             else:
-                log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+                self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
         except RuntimeError as error:
-            log.error(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
+            self.journal.error(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)

@@ -31,7 +31,7 @@ class Rectifier(_RectifierRingMixin, _RectifierOddMixin, _RectifierValenceMixin)
 
     The steps can be found in ``.modifications``.
 
-    The .log is not given a handler.
+    The .journal log is not given a handler.
 
     New atoms with have the bool prop ``_Novel``.
 

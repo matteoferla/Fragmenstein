@@ -49,7 +49,7 @@ class _RectifierRingMixin(_RectifierBaseMixin):
         if len(rank) > 0:
             idx_a, idx_b = rank[0]
             self.rwmol.RemoveBond(idx_a, idx_b)  # SetBoolProp('_IsRingBond') is not important
-            self.log.info(f'Zero-atom bridged ring issue: bond between {idx_a}-{idx_b} removed')
+            self.journal.info(f'Zero-atom bridged ring issue: bond between {idx_a}-{idx_b} removed')
             # re-run:
             self._prevent_conjoined_ring()
         self.modifications.append(self.mol)
@@ -59,30 +59,30 @@ class _RectifierRingMixin(_RectifierBaseMixin):
         for ring_A, ring_B in itertools.combinations(ringatoms, r=2):
             shared = set(ring_A).intersection(set(ring_B))
             if len(shared) == 0:
-                self.log.debug('This molecule has some separate rings')
+                self.journal.debug('This molecule has some separate rings')
                 pass  # separate rings
             elif len(shared) < self.atoms_in_bridge_cutoff and \
                     self.atoms_in_bridge_cutoff >= 2 \
                     and len(ring_A) == len(ring_B):
                 # adamantene/norbornane/tropinone kind of thing
-                self.log.warning('This molecule has a bridge: leaving')
+                self.journal.warning('This molecule has a bridge: leaving')
                 pass  # ideally check if planar...
             elif len(shared) == 1:
-                self.log.debug('This molecule has a spiro bicycle')
+                self.journal.debug('This molecule has a spiro bicycle')
                 pass  # spiro ring.
             elif len(shared) == 2:
-                self.log.debug('This molecule has a fused ring')
+                self.journal.debug('This molecule has a fused ring')
                 if self.rwmol.GetBondBetweenAtoms(*shared) is not None:
                     pass  # indole/naphtalene
                     small, big = sorted([ring_A, ring_B], key=lambda ring: len(ring))
                     if len(small) == 4:
-                        self.log.warning('This molecule has a benzo-azetine–kind-of-thing: expanding to indole')
+                        self.journal.warning('This molecule has a benzo-azetine–kind-of-thing: expanding to indole')
                         # Chem.MolFromSmiles('C12CCCCC1CC2')
                         # benzo-azetine is likely an error: add and extra atom
                         a, b = set(small).difference(big)
                         self._place_between(a, b)
                     elif len(small) == 3:
-                        self.log.warning('This molecule has a benzo-cyclopropane–kind-of-thing: expanding to indole')
+                        self.journal.warning('This molecule has a benzo-cyclopropane–kind-of-thing: expanding to indole')
                         # Chem.MolFromSmiles('C12CCCCC1C2')
                         # benzo-cyclopronane is actually impossible at this stage.
                         a = list(set(small).difference(big))[0]
@@ -93,14 +93,14 @@ class _RectifierRingMixin(_RectifierBaseMixin):
                 elif (len(ring_A), len(ring_B)) == (6, 6):
                     raise Exception('This is utterly impossible')
                 else:
-                    log.warning(f'mysterious ring system {len(ring_A)} + {len(ring_B)}')
+                    self.journal.warning(f'mysterious ring system {len(ring_A)} + {len(ring_B)}')
                     pass  # ????
             elif len(shared) < self.atoms_in_bridge_cutoff:
                 # adamantene/norbornane/tropinone kind of thing
-                self.log.warning('This molecule has a bridge: leaving')
+                self.journal.warning('This molecule has a bridge: leaving')
                 pass  # ideally check if planar...
             else:
-                self.log.warning('This molecule has a bridge that will be removed')
+                self.journal.warning('This molecule has a bridge that will be removed')
                 self._prevent_bridge_ring(ring_A)
                 # start from scratch.
                 self._prevent_weird_rings()
@@ -120,7 +120,7 @@ class _RectifierRingMixin(_RectifierBaseMixin):
         """
         oribond = self.rwmol.GetBondBetweenAtoms(a, b)
         if oribond is None:
-            self.log.critical(f'FAIL. There should be a bond btween {a} and {b}')
+            self.journal.critical(f'FAIL. There should be a bond btween {a} and {b}')
             return None  # fail
         elif aromatic is True:
             bt = Chem.BondType.AROMATIC
@@ -173,23 +173,23 @@ class _RectifierRingMixin(_RectifierBaseMixin):
         inners = [i for i in c if c[i] > 1]
         x = list(set(shared).difference(inners))
         if len(x) != 2:
-            self.log.critical(
+            self.journal.critical(
                 f'This is impossible. {ringatoms} share {shared} with {inners} in the inside and {x} on the edge?')
             return None
         a, b = x
         if len(big) > 6:
-            self.log.warning(f'Removing {len(inners)} bridging atoms and replacing with fused ring')
+            self.journal.warning(f'Removing {len(inners)} bridging atoms and replacing with fused ring')
             # bond the vertices
             bt = Chem.BondType.SINGLE  # ???
             if self.rwmol.GetBondBetweenAtoms(a, b) is None:
                 self.rwmol.AddBond(a, b, bt)
             else:
-                self.log.warning('This is really odd! Why is there a bond already??')
+                self.journal.warning('This is really odd! Why is there a bond already??')
             # remove the middle atoms.
             for i in sorted(inners, reverse=True):
                 self.rwmol.RemoveAtom(i)
         else:
-            self.log.warning(f'Shriking the smaller ring to change from bridged to fused.')
+            self.journal.warning(f'Shriking the smaller ring to change from bridged to fused.')
             # get the neighbour in the small atom to a vertex.
             neighs = [neigh for neigh in self.rwmol.GetAtomWithIdx(a).GetNeighbors() if
                       neigh.GetIdx() not in shared and neigh.GetIdx() in small]

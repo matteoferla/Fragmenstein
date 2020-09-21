@@ -27,10 +27,6 @@ from functools import partial
 from .bond_provenance import BondProvenance
 from ._base import _FragmensteinBaseMixin
 
-import logging
-
-log = logging.getLogger('Fragmenstein')
-
 
 class _FragmensteinRing(_FragmensteinBaseMixin):
     def __init__(self, _debug_draw=False):
@@ -153,7 +149,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
         :param mol: untouched.
         :return:
         """
-        log.debug('Starting ring expansion')
+        self.journal.debug('Starting ring expansion')
         mol = Chem.RWMol(mol)
         rings = self._get_expansion_data(mol)  # List[Dict[str, List[Any]]]
         self._place_ring_atoms(mol, rings)
@@ -295,7 +291,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                 # atom will be added if it is not already present!
                 if self._is_present(mol, collapsed_atom_data['ori_i']):
                     natom = self._get_new_index(mol, collapsed_atom_data['ori_i'], search_collapsed=False)
-                    log.debug(f"{natom} (formerly {collapsed_atom_data['ori_i']} existed already." +
+                    self.journal.debug(f"{natom} (formerly {collapsed_atom_data['ori_i']} existed already." +
                                   "Fused ring or similar.")
                 else:
                     n = mol.AddAtom(Chem.Atom(collapsed_atom_data['element']))
@@ -313,7 +309,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
             ringcore.SetProp('_current_is', json.dumps(indices))
 
     def _restore_original_bonding(self, mol: Chem.RWMol, rings: List[Dict[str, List[Any]]]) -> None:
-        log.debug('Restoring original bonding if any.')
+        self.journal.debug('Restoring original bonding if any.')
         to_be_waited_for = []
         for ring in rings:
             for i in range(len(ring['elements'])):
@@ -335,13 +331,13 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                         distance = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), new_i, new_neigh)
                         assert distance < 4, f'Bond length too long ({distance}. {info}'
                     elif present_bond.GetBondType().name != bond:
-                        log.warning(f'bond between {new_i} {new_neigh} exists already ' +
+                        self.journal.warning(f'bond between {new_i} {new_neigh} exists already ' +
                                     f'(has {present_bond.GetBondType().name} expected {bt})')
                         present_bond.SetBondType(bt)
                         present_bond.SetBoolProp('_IsRingBond')
                         BondProvenance.set_bond(present_bond, 'original')
                     else:
-                        log.debug(f'bond between {new_i} {new_neigh} exists already ' +
+                        self.journal.debug(f'bond between {new_i} {new_neigh} exists already ' +
                                   f'(has {present_bond.GetBondType().name} expected {bt})')
                         pass
         #             try:
@@ -386,17 +382,17 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
         :return:
         """
         # ===== Deal with Ring on ring bonding
-        log.debug('Adding novel bonding (if any)...')
+        self.journal.debug('Adding novel bonding (if any)...')
         novel_ringcore_pairs = self._get_novel_ringcore_pairs(rings)
         for ringcore_A, ringcore_B in novel_ringcore_pairs:
-            log.debug(f'determining novel bond between {ringcore_A} and {ringcore_B}')
+            self.journal.debug(f'determining novel bond between {ringcore_A} and {ringcore_B}')
             # _determine_mergers_novel_ringcore_pair finds mergers
             self._determine_mergers_novel_ringcore_pair(mol, ringcore_A, ringcore_B)
         # ===== Deal with Ring on other bonding
         # formerly: _infer_bonding_by_proximity
         novel_other_pairs = self._get_novel_other_pairs(rings)
         for ringcore, other in novel_other_pairs:
-            log.debug(f'determining novel bond between {ringcore} and {other}')
+            self.journal.debug(f'determining novel bond between {ringcore} and {other}')
             # _determine_mergers_novel_ringcore_pair finds, bonds and marks for deletion.
             self._determine_mergers_novel_other_pair(mol, ringcore, other)
         # ===== Clean up
@@ -493,7 +489,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
         # get closest pair.
         distance = np.nanmin(distance_matrix)
         if np.isnan(distance):
-            log.critical('This is impossible. Two neighbouring rings cannot be connected.')
+            self.journal.critical('This is impossible. Two neighbouring rings cannot be connected.')
             return []
         elif distance > absorption_distance: # bonded
             p = np.where(distance_matrix == distance)
@@ -506,7 +502,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
             n = mol.AddBond(a, b, bt)
             new_bond = mol.GetBondBetweenAtoms(a, b)
             BondProvenance.copy_bond(present_bond, new_bond)
-            log.info('A novel bond-connected ring pair was found')
+            self.journal.info('A novel bond-connected ring pair was found')
             self._mark_for_deletion(mol, b)
             self._copy_bonding(mol, a, b, force=True)
             return [] #bonded
@@ -525,10 +521,10 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                 d = int(p[1][0])
                 self._mark_for_deletion(mol, d)
                 self._copy_bonding(mol, c, d, force=True)
-                log.info('A novel fused ring pair was found')
+                self.journal.info('A novel fused ring pair was found')
                 return [(a, b), (c, d)] #fused
             else:
-                log.info('A novel spiro ring pair was found')
+                self.journal.info('A novel spiro ring pair was found')
                 return [(a,b)] # spiro
 
     # ==== Novel Ring to Ring bonding ==================================================================================
@@ -633,10 +629,10 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                 # atom_a = mol.GetAtomWithIdx(a)
                 # atom_b = mol.GetAtomWithIdx(b)
                 #self._add_bond_if_possible(mol, atom_a, atom_b)
-                log.info(f'A novel bonding to ring was added {distance} {penalty}')
+                self.journal.info(f'A novel bonding to ring was added {distance} {penalty}')
             else:
                 # absorb the non-ring atom!
-                log.info(f'An atom was absorbed to ring was added {distance} {penalty}')
+                self.journal.info(f'An atom was absorbed to ring was added {distance} {penalty}')
                 if mol.GetAtomWithIdx(a).GetIntProp('_ori_i') == -1:
                     self._copy_bonding(mol, a, b)
                     self._mark_for_deletion(mol, b)
@@ -658,7 +654,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
             return mol
         else:
             while n > 1:
-                log.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
+                self.journal.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
                 name = mol.GetProp('_Name')
                 for i, frag in enumerate(frags):
                     frag.SetProp('_Name', f'name.{i}')
@@ -727,7 +723,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                 if third_i is not None:
                     # it is a triangle
                     third = mol.GetAtomWithIdx(third_i)
-                    log.debug(f'Triangle present {(atom_i, neigh_i, third_i)}.')
+                    self.journal.debug(f'Triangle present {(atom_i, neigh_i, third_i)}.')
                     self._detriangulate_inner(mol,
                                               atoms=[atom, neigh, third],
                                               atom_indices=[atom_i, neigh_i, third_i],
@@ -741,7 +737,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                     close = mol.GetAtomWithIdx(close_i) # second neighbour of atom
                     # bonding is:
                     # atom - neigh - far - close - atom
-                    log.debug(f'Square present {(atom_i, neigh_i, far_i, close_i)}.')
+                    self.journal.debug(f'Square present {(atom_i, neigh_i, far_i, close_i)}.')
                     # combinations would fail at a atom - far bond
                     # the order is irrelevant if the same fun is called
                     combinator = lambda l: [[l[0], l[1]], [l[0], l[2]], [l[1], l[3]], [l[2], l[3]]]
@@ -766,11 +762,14 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
         :return:
         """
         bonds = [mol.GetBondBetweenAtoms(a, b) for a, b in combinator(atom_indices)]
+        if any([bond is None for bond in bonds]):
+            self.journal.critical(f'IMPOSSIBLE ERROR: detriangulate missing bond. {atom_indices}, {atoms}')
+            return None
         provenances = BondProvenance.get_bonds(bonds)
         # original
         originality = [p == BondProvenance.ORIGINAL for p in provenances]
         if sum(originality) == 3:
-            log.warning('Triangle from original present. Kept, unless rectifiers is set to not tolerate')
+            self.journal.warning('Triangle from original present. Kept, unless rectifiers is set to not tolerate')
         # length
         BL = partial(Chem.rdMolTransforms.GetBondLength, conf=mol.GetConformer())
         lengths = [BL(iAtomId=b.GetBeginAtomIdx(), jAtomId=b.GetEndAtomIdx()) for b in bonds]
@@ -786,7 +785,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
         doomed_i = int(np.where(scores == d)[0])
         doomed_bond = bonds[doomed_i]
         a, b = doomed_bond.GetBeginAtomIdx(), doomed_bond.GetEndAtomIdx()
-        log.debug(f'Removing triangle/square forming bond between {a} and {b}')
+        self.journal.debug(f'Removing triangle/square forming bond between {a} and {b}')
         mol.RemoveBond(a, b)
 
 

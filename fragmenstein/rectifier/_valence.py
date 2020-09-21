@@ -44,7 +44,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
         """
         for bond in self.rwmol.GetBonds():
             if bond.GetBondType().name == 'UNSPECIFIED':
-                self.log.debug(f'Fixing unspecified bond {bond.GetIdx()}')
+                self.journal.debug(f'Fixing unspecified bond {bond.GetIdx()}')
                 bond.SetBondType(Chem.BondType.SINGLE)
                 # debug:
                 self.modifications.append(self.mol)
@@ -70,7 +70,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
             else:  # non-ring
                 for bond in atom.GetBonds():
                     if bond.GetBondType().name == 'AROMATIC':
-                        self.log.debug(f'donwgrading bond {i}')
+                        self.journal.debug(f'donwgrading bond {i}')
                         bond.SetBondType(Chem.BondType.SINGLE)
         # aromatics
         for ring in sorted(rings, key=self._is_aromatic_ring):
@@ -94,17 +94,17 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
         self.modifications.append(self.mol)  # may not have changed.
         problems = Chem.DetectChemistryProblems(self.rwmol)
         if self._iterations_done > 100:
-            self.log.error(f'Iterations maxed out!')
+            self.journal.error(f'Iterations maxed out!')
             return None
         elif self._subiterations_done > 5:
-            self.log.error(f'Unfixable')
+            self.journal.error(f'Unfixable')
             return None
         elif len(problems) == 0:
             return None
         else:
-            self.log.debug(f'(Iteration: {self._iterations_done}) N problems {len(problems)}')
+            self.journal.debug(f'(Iteration: {self._iterations_done}) N problems {len(problems)}')
             p = problems[0]
-            self.log.debug(f'(Iteration: {self._iterations_done}) Issue {p.GetType()}: {p.Message()}')
+            self.journal.debug(f'(Iteration: {self._iterations_done}) Issue {p.GetType()}: {p.Message()}')
             if p.Message() == _previous:
                 self.triage_rings()
             ############################################################
@@ -117,13 +117,13 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
                         # triage rings should have altered any not ring atoms that are aromatic.
                         # self._get_ring_info()
                         # so it is likely a hetatom thing.
-                        self.log.info(f'Ring triages seems to have failed. Is it a valence thing?')
+                        self.journal.info(f'Ring triages seems to have failed. Is it a valence thing?')
                         valence_issues = [self._has_correct_valence(i) for i in p.GetAtomIndices()]
                         if not all(valence_issues):
                             for i in p.GetAtomIndices():
                                 self.fix_valence(i)
                         else:
-                            self.log.warning(f'Attempting default valency (not max)')
+                            self.journal.warning(f'Attempting default valency (not max)')
                             self._valence_mode = 'default'
                             for i in p.GetAtomIndices():
                                 self.fix_valence(i)
@@ -136,26 +136,26 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
             elif p.GetType() == 'AtomKekulizeException' and 'non-ring atom' in p.Message():
                 atom = self.rwmol.GetAtomWithIdx(p.GetAtomIdx())
                 atom.SetIsAromatic(False)
-                self.log.debug(f'Atom {p.GetAtomIdx()} set to non-aromatic.')
+                self.journal.debug(f'Atom {p.GetAtomIdx()} set to non-aromatic.')
                 for bond in atom.GetBonds():
                     bond.SetBondType(Chem.BondType.SINGLE)
             elif p.GetType() == 'AtomKekulizeException' and 'Aromatic bonds on non aromatic atom' in p.Message():
                 atom = self.rwmol.GetAtomWithIdx(p.GetAtomIdx())
-                self.log.debug(f'Atom {p.GetAtomIdx()} set to aromatic.')
+                self.journal.debug(f'Atom {p.GetAtomIdx()} set to aromatic.')
                 atom.SetIsAromatic(True)
             ############################################################
             elif p.GetType() == 'AtomValenceException':
                 i = p.GetAtomIdx()
                 self.fix_valence(i)
             else:
-                self.log.error('???', p.GetType(), p.Message())
+                self.journal.error('???', p.GetType(), p.Message())
             self._iterations_done += 1
             if _previous != p.Message():
-                self.log.debug(f'{self._iterations_done} appears successful.')
+                self.journal.debug(f'{self._iterations_done} appears successful.')
                 self._subiterations_done = 0
             else:
                 self._subiterations_done += 1
-                self.log.debug(f'{self._iterations_done} appears unsuccessful.')
+                self.journal.debug(f'{self._iterations_done} appears unsuccessful.')
             return self.fix_issues(_previous=p.Message())
 
     # ========= Methods that circumvent the nonsanitization ============================================================
@@ -244,7 +244,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
 
     def downgrade_ring(self, atom: Chem.Atom):
         ## very crappy way of doing this
-        self.log.debug(f'downgrading whole ring!')
+        self.journal.debug(f'downgrading whole ring!')
         atom.SetIsAromatic(False)
         ringinfo = self._get_ring_info(mode='atom')
         get_atomrings = lambda ai: [ring for ring in ringinfo if ai in ring]
@@ -304,7 +304,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
                     return True
         return False
 
-        self.log.debug(f'KekulizeException likely caused by nitrogen')
+        self.journal.debug(f'KekulizeException likely caused by nitrogen')
 
     # ========= other helpers ==========================================================================================
 
@@ -340,7 +340,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
                     bond.SetBondType(Chem.BondType.SINGLE)
             else:  # N, O, F etc.
                 atom.SetAtomicNum(int(n - df))
-            self.log.info(f'Shifting atom from {ori} to {atom.GetSymbol()}')
+            self.journal.info(f'Shifting atom from {ori} to {atom.GetSymbol()}')
         else:
             raise ValueError(f'self.valence_correction can only be "element"/"charge" not {self.valence_correction}.')
 
@@ -348,15 +348,15 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
         atom = self.rwmol.GetAtomWithIdx(i)
         atom.SetFormalCharge(0)
         atom.SetNumExplicitHs(0)
-        self.log.debug(f'{i} {atom.GetSymbol()}: {len(atom.GetNeighbors())} bonds {self._get_atom_valence(atom)}')
+        self.journal.debug(f'{i} {atom.GetSymbol()}: {len(atom.GetNeighbors())} bonds {self._get_atom_valence(atom)}')
         if self._has_correct_valence(atom):
-            self.log.debug('\tValence seems correct')
+            self.journal.debug('\tValence seems correct')
             return None
         elif atom.GetSymbol() == 'C' and len(atom.GetNeighbors()) > 4:
-            self.log.debug('\ttexas carbon --> S')
+            self.journal.debug('\ttexas carbon --> S')
             atom.SetAtomicNum(16)
         elif atom.GetSymbol() == 'C' and atom.GetIsAromatic() and len(atom.GetNeighbors()) == 4:
-            self.log.debug('\tDowngrading ring')
+            self.journal.debug('\tDowngrading ring')
             self.downgrade_ring(atom)
         elif atom.GetSymbol() == 'C':
             for bond in atom.GetBonds():

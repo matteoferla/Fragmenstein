@@ -30,9 +30,7 @@ from ._collapse_ring import _FragmensteinRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
 from .bond_provenance import BondProvenance
-import itertools, logging
-
-log = logging.getLogger('Fragmenstein')
+import itertools
 
 ##################################################################
 
@@ -456,7 +454,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        log.debug(f"scaffold-followup: {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+        self.journal.debug(f"scaffold-followup: {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -511,7 +509,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            log.debug(f"followup-chimera' = {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+            self.journal.debug(f"followup-chimera' = {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:

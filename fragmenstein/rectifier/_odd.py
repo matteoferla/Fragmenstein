@@ -46,7 +46,7 @@ class _RectifierOddMixin(_RectifierBaseMixin):
                         pass
                 if len(n) > 2:
                     # this is a mess!
-                    self.log.info(f'Allene issue: {n} double bonds on {atom.GetSymbol()} atom {atom.GetIdx()}!')
+                    self.journal.info(f'Allene issue: {n} double bonds on {atom.GetSymbol()} atom {atom.GetIdx()}!')
                     for bond in n:
                         bond.SetBondType(Chem.BondType().SINGLE)
                 elif len(n) == 2:
@@ -54,7 +54,7 @@ class _RectifierOddMixin(_RectifierBaseMixin):
                     others = [a for bond in n for a in (bond.GetBeginAtom(), bond.GetEndAtom()) if
                               a.GetIdx() != atom.GetIdx()]
                     others = sorted(others, key=lambda atom: sum([b.GetBondTypeAsDouble() for b in atom.GetBonds()]))
-                    self.log.info(f'Allene removed between {atom.GetIdx()} and {[a.GetIdx() for a in others]}')
+                    self.journal.info(f'Allene removed between {atom.GetIdx()} and {[a.GetIdx() for a in others]}')
                     self.rwmol.GetBondBetweenAtoms(atom.GetIdx(), others[-1].GetIdx()).SetBondType(Chem.BondType.SINGLE)
                 else:
                     pass

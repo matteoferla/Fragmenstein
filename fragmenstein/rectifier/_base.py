@@ -28,7 +28,7 @@ import logging
 
 class _RectifierBaseMixin:
 
-    log = logging.getLogger('Fragmenstein')
+    journal = logging.getLogger('Fragmenstein')
 
     def __init__(self, mol: Chem.Mol,
                  atoms_in_bridge_cutoff:int = 2,
