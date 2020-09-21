@@ -9,6 +9,7 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 import time, warnings
 
+
 class _VictorAutomergeMixin(_VictorBaseMixin):
 
 
@@ -115,7 +116,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # collapse hits
         # fragmenstein_throw_on_discard controls if disconnected.
         self.fragmenstein.throw_on_disconnect = self.fragmenstein_throw_on_discard
-        self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff
+        self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff # Å
         # merge!
         col_hits = self.fragmenstein.collapse_mols(self.hits)
         self.modifications.extend(col_hits)
@@ -134,10 +135,10 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.modifications.append(Chem.Mol(self.fragmenstein.positioned_mol)) # backup for debug
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
-        rect = Rectifier(self.fragmenstein.positioned_mol)
-        rect.fix()
-        self.fragmenstein.positioned_mol = rect.mol
-        self.modifications.extend(rect.modifications)  # backup for debug
+        recto = Rectifier(self.fragmenstein.positioned_mol)
+        recto.fix()
+        self.fragmenstein.positioned_mol = recto.mol
+        self.modifications.extend(recto.modifications)  # backup for debug
         self._log_warnings()
         # the origins are obscured because of the collapsing and rectification...
         self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)

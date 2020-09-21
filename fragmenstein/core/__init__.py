@@ -663,6 +663,8 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             scaffold_attachment_index = detail['idx_S']  # scaffold attachment index
             bond_type = detail['type']
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
+            new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
+            #BondProvenance.set_bond(new_bond, '???')
             # self.transfer_ring_data(fragmentanda.GetAtomWithIdx(attachment_index),
             #                         combo.GetAtomWithIdx(scaffold_anchor_index))
         for oi, oad in zip(other_attachments, other_attachment_details):
@@ -670,6 +672,8 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             scaffold_attachment_index = oad[0]['idx_S']
             scaffold_anchor_index = indices.index(oi) + scaffold.GetNumAtoms()
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
+            new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
+            #BondProvenance.set_bond(new_bond, '???')
             if self._debug_draw:
                 print(
                     f"Added additional {bond_type.name} bond between {scaffold_attachment_index} and {scaffold_anchor_index} " + \

@@ -313,7 +313,7 @@ class _FragmensteinUtil:
             elif m == 0:
                 log.info('MMFF Minisation was successful')
             elif m == 1:
-                log.info('MMFF Minisation was unsuccessful')
+                log.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
             else:
                 log.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
         except RuntimeError as error:

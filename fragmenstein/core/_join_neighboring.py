@@ -85,11 +85,13 @@ class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
         if linking is False and n_new > 0:
             log.warning(f'Was going to bond {anchor_A} and {anchor_B} but reconsidered.')
         elif linking is True and n_new <= 0:
-            new_bond_i = combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
-            BondProvenance.set_bond(combo.GetBondWithIdx(new_bond_i), 'main_novel')
+            combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
+            new_bond = combo.GetBondBetweenAtoms(previous, anchor_B)
+            BondProvenance.set_bond(new_bond, 'main_novel')
         elif linking is False and n_new <= 0:
-            new_bond_i = combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
-            BondProvenance.set_bond(combo.GetBondWithIdx(new_bond_i), 'other_novel')
+            combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
+            new_bond = combo.GetBondBetweenAtoms(previous, anchor_B)
+            BondProvenance.set_bond(new_bond, 'other_novel')
         elif linking is True and n_new > 0:
             for i in range(n_new):
                 idx = combo.AddAtom(Chem.Atom(6))
@@ -97,11 +99,13 @@ class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
                 new.SetBoolProp('_Novel', True)
                 new.SetIntProp('_ori_i', 999)
                 conf.SetAtomPosition(idx, Point3D(float(xs[i]), float(ys[i]), float(zs[i])))
-                new_bond_i = combo.AddBond(idx, previous, Chem.BondType.SINGLE)
-                BondProvenance.set_bond(combo.GetBondWithIdx(new_bond_i), 'linker')
+                combo.AddBond(idx, previous, Chem.BondType.SINGLE)
+                new_bond = combo.GetBondBetweenAtoms(idx, previous)
+                BondProvenance.set_bond(new_bond, 'linker')
                 previous = idx
-            new_bond_i = combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
-            BondProvenance.set_bond(combo.GetBondWithIdx(new_bond_i), 'linker')
+            combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
+            new_bond = combo.GetBondBetweenAtoms(previous, anchor_B)
+            BondProvenance.set_bond(new_bond, 'linker')
         else:
             raise ValueError('Impossible')
         return combo.GetMol()

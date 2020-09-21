@@ -129,11 +129,15 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                         bt = getattr(Chem.BondType, bond)
                         if neigh not in morituri:
                             mol.AddBond(center_i, neigh, bt)
+                            new_bond = mol.GetBondBetweenAtoms(center_i, neigh)
+                            BondProvenance.set_bond(new_bond, 'original')
                         else:
                             for other_center_i in old2center[neigh]:
                                 if center_i != other_center_i:
                                     if not mol.GetBondBetweenAtoms(center_i, other_center_i):
                                         mol.AddBond(center_i, other_center_i, bt)
+                                        new_bond = mol.GetBondBetweenAtoms(center_i, other_center_i)
+                                        BondProvenance.set_bond(new_bond, 'original')
                                     break
                             else:
                                 raise ValueError(f'Cannot find what {neigh} became')
@@ -500,7 +504,8 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
             if bt is None or bt == Chem.BondType.UNSPECIFIED:
                 bt = Chem.BondType.SINGLE
             n = mol.AddBond(a, b, bt)
-            BondProvenance.copy_bond(present_bond, mol.GetBondWithIdx(n))
+            new_bond = mol.GetBondBetweenAtoms(a, b)
+            BondProvenance.copy_bond(present_bond, new_bond)
             log.info('A novel bond-connected ring pair was found')
             self._mark_for_deletion(mol, b)
             self._copy_bonding(mol, a, b, force=True)
@@ -620,8 +625,10 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                 bt = present_bond.GetBondType()
                 if bt is None or bt == Chem.BondType.UNSPECIFIED:
                     bt = Chem.BondType.SINGLE
-                n = mol.AddBond(a, b, bt)
-                BondProvenance.copy_bond(present_bond, mol.GetBondWithIdx(n))
+                mol.AddBond(a, b, bt)
+                new_bond = mol.GetBondBetweenAtoms(a, b)
+                BondProvenance.set_bond(new_bond, 'original')
+                BondProvenance.copy_bond(present_bond, new_bond)
                 # This is no longer required:
                 # atom_a = mol.GetAtomWithIdx(a)
                 # atom_b = mol.GetAtomWithIdx(b)

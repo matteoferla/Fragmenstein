@@ -13,7 +13,7 @@ class _FragmensteinBaseMixin:
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
     cutoff = 2.
-    joining_cutoff = 5.  # how distant is too much?
+    joining_cutoff = 5.  # how distant (in Å) is too much?
     atoms_in_bridge_cutoff = 2  # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves adamantane)
     throw_on_disconnect = False
     matching_modes = [
@@ -235,8 +235,9 @@ class _FragmensteinBaseMixin:
                 atom_i, atom_j = mol.GetAtomWithIdx(i), mol.GetAtomWithIdx(j)
                 if force and mol.GetBondBetweenAtoms(i, neigh_i) is None:
                     log.debug(f'Forcing bond between {i} and {neigh_i}')
-                    n = mol.AddBond(i, neigh_i, bt)
-                    BondProvenance.copy_bond(old_bond, mol.GetBondWithIdx(n))
+                    mol.AddBond(i, neigh_i, bt)
+                    new_bond = mol.GetBondBetweenAtoms(i, neigh_i)
+                    BondProvenance.copy_bond(old_bond, new_bond)
                 else:
                     self._add_bond_if_possible(mol, atom_i, atom_j)
 
@@ -293,12 +294,14 @@ class _FragmensteinBaseMixin:
                 v, bt = assess_atom(atom_i, bt)
                 w, bt = assess_atom(atom_j, bt)
                 if v and w and bt is not None:
-                    new_bond_i = mol.AddBond(i, j, bt)
-                    BondProvenance.set_bond(mol.GetBondWithIdx(new_bond_i), provenance)
+                    mol.AddBond(i, j, bt)
+                    new_bond = mol.GetBondBetweenAtoms(i, j)
+                    BondProvenance.set_bond(new_bond, provenance)
                     return True
                 elif v and w:
-                    new_bond_i = mol.AddBond(i, j, Chem.BondType.SINGLE)
-                    BondProvenance.set_bond(mol.GetBondWithIdx(new_bond_i), provenance)
+                    mol.AddBond(i, j, Chem.BondType.SINGLE)
+                    new_bond = mol.GetBondBetweenAtoms(i, j)
+                    BondProvenance.set_bond(new_bond, provenance)
                     return True
                 else:
                     # len(Chem.GetMolFrags(mol, sanitizeFrags=False)) ought to be checked.
