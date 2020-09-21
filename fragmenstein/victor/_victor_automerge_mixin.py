@@ -136,7 +136,13 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
         recto = Rectifier(self.fragmenstein.positioned_mol)
-        recto.fix()
+        try:
+            recto.fix()
+        except ConnectionError:
+            self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
+            mol = self.fragmenstein._emergency_joining(recto.mol)
+            recto = Rectifier(self.fragmenstein.positioned_mol)
+            recto.fix()
         self.fragmenstein.positioned_mol = recto.mol
         self.modifications.extend(recto.modifications)  # backup for debug
         self._log_warnings()

@@ -334,7 +334,9 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
                 atom.SetAtomicNum(n)
             # ## correct column
             if len(atom.GetNeighbors()) > 4:
-                atom.SetAtomicNum(16)
+                self._break_bonds(atom)
+            # elif len(atom.GetNeighbors()) > 4 and n <= 16: # S...
+            #     atom.SetAtomicNum(16)
             elif n - df < 6:  # C -> B no!
                 for bond in atom.GetBonds():
                     bond.SetBondType(Chem.BondType.SINGLE)
@@ -343,6 +345,23 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
             self.journal.info(f'Shifting atom from {ori} to {atom.GetSymbol()}')
         else:
             raise ValueError(f'self.valence_correction can only be "element"/"charge" not {self.valence_correction}.')
+
+    def _break_bonds(self, atom):
+        """
+        Extreme last ditch. Breaks off all non-ring bonds to atom.
+        Will likely trigger emergency_joining.
+
+        :param atom:
+        :return:
+        """
+        self.journal.warning(f'In molecule ({self.rwmol.GetProp("_Name")}) reaking bond to atom {atom.GetIdx()}')
+        ring_indices = [a for ring in self._get_ring_info() for a in ring]
+        for neigh in atom.GetNeighbors():
+            if neigh.GetIdx() in ring_indices:
+                continue
+            else:
+                self.rwmol.RemoveBond(atom.GetIdx(), neigh.GetIdx())
+
 
     def fix_valence(self, i):
         atom = self.rwmol.GetAtomWithIdx(i)

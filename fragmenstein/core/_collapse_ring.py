@@ -334,7 +334,7 @@ class _FragmensteinRing(_FragmensteinBaseMixin):
                         self.journal.warning(f'bond between {new_i} {new_neigh} exists already ' +
                                     f'(has {present_bond.GetBondType().name} expected {bt})')
                         present_bond.SetBondType(bt)
-                        present_bond.SetBoolProp('_IsRingBond')
+                        present_bond.SetBoolProp('_IsRingBond', True)
                         BondProvenance.set_bond(present_bond, 'original')
                     else:
                         self.journal.debug(f'bond between {new_i} {new_neigh} exists already ' +
