@@ -34,7 +34,6 @@ import itertools, logging
 
 log = logging.getLogger('Fragmenstein')
 
-
 ##################################################################
 
 class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinNeighMixin):  # Unmerge is called. Not inherited.

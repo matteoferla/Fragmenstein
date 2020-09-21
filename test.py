@@ -134,6 +134,20 @@ def rectifier_test():
         gotten = Chem.MolToSmiles(recto.mol)
         assert gotten == after, f'{name} failed {gotten} (expected {after})'
 
+def mixed_ring():
+    mol = Chem.MolFromSmiles('c1cccc2c1CCCC2')
+    mol = Chem.MolFromSmiles('C1CCCc2c1cccc2')
+
+def cyclopentine():
+    # aromatic cyclopent-ine -> cyclopentadiene
+    mol = Chem.MolFromSmiles('[nH]1cccc1')
+    AllChem.EmbedMolecule(mol)
+    mod = Chem.RWMol(mol)
+    mod.GetAtomWithIdx(0).SetAtomicNum(6)
+    mol = mod.GetMol()
+    recto = Rectifier(mol, atoms_in_bridge_cutoff=3).fix()
+    recto.mol #C1=CCC=C1
+
 def detriangulate_tets():
     ## test triangle
     mol = Chem.MolFromSmiles('C1CC1')

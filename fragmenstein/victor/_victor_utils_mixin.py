@@ -31,6 +31,7 @@ from ..m_rmsd import mRSMD
 from ..core import Fragmenstein
 from rdkit_to_params import Params
 from ..igor import Igor
+from ._loggerwriter import LoggerWriter
 
 try:
     import pymol2
@@ -104,6 +105,18 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
         cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
+
+    @classmethod
+    def log_errors(cls):
+        """
+        RDKit spits a few warning and errors.
+        Pyrosetta sends messages to stdout. I might implement a tracer capturing.
+        This makes them inline with the logger.
+
+        :return:
+        """
+        Chem.WrapLogs()
+        sys.stderr = LoggerWriter(cls.journal.warning)
 
     @classmethod
     def slack_me(cls, msg: str) -> bool:
