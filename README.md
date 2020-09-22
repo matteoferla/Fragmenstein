@@ -16,7 +16,9 @@ and can energy minimise strained conformations.
 ![summary](images/new_summary.jpg)
 
 Three mapping approaches were tested, but the key is that hits are pairwise mapped to each other by means 
-of one-to-one atom matching based upon position.
+of one-to-one atom matching based upon position as opposed to similarity which is easily led astray. 
+For example, note here that the benzene and the pyridine rings overlap, not the two pyridine rings:
+
 <img src="images/position_over_mcs.jpg" width="300px">
 
 ### Side role: follow prediction
@@ -32,14 +34,18 @@ Hence the minimised pose should be assessed by the RMSD metric and the ∆∆G s
 
 > Victor, the pipeline, requires my [rdkit to params module](https://github.com/matteoferla/rdkit_to_params).
 
-There are four main classes:
+There are three main classes, named after characters from the Fragmenstein book and movies:
 
 * ``Fragmenstein`` makes the stitched together molecules — [documentation](fragmenstein.md)
 * ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup — [documentation](igor.md)
 * ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](victor.md)
-* ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates —[documentation](mrmsd.md)
 
-In the absence of `pyrosetta` (which requires an academic licence), `Fragmenstein` and `mRMSD` work.
+An honourable mention goes to:
+
+* ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates —[documentation](mrmsd.md)
+* ``rectifier`` is a class that corrects mistakes in the molecule automatically merged by ``Fragmenstein``.
+
+In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work.
 
 ## Work in progress
 

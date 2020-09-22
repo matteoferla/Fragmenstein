@@ -330,6 +330,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             if self.fragmenstein is not None and self.fragmenstein.positioned_mol is not None:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.fragmenstein.positioned_mol), 'placed')
                 pymol.cmd.color('magenta', f'element C and placed')
+                pymol.cmd.zoom('byres (placed expand 4)')
+                pymol.cmd.show('line', 'byres (placed around 4)')
             if self.minimised_mol is not None:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimised_mol), 'minimised')
                 pymol.cmd.color('green', f'element C and minimised')
@@ -342,8 +344,6 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 pymol.cmd.color('gray20', f'element C and unmin_protein')
                 pymol.cmd.hide('sticks', 'unmin_protein')
                 pymol.cmd.disable('unmin_protein')
-            pymol.cmd.zoom('byres (placed expand 4)')
-            pymol.cmd.show('line', 'byres (placed around 4)')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     def make_steps_pse(self, filename: str='step.pse'):
