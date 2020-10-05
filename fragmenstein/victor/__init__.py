@@ -129,6 +129,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.mrmsd = mRSMD.mock()
         self.tick = time.time()
         self.tock = float('inf')
+        self.error = ''
         # analyse
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
 
@@ -155,6 +156,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                 if execute is not None:
                     execute()
             except self.error_to_catch as err:
+                self.error = f'{err.__class__.__name__}: {err}'
                 if reject is not None:
                     reject(err)
             finally:
