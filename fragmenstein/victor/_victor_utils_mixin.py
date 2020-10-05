@@ -59,22 +59,39 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
 
     def summarise(self):
-        return {'name': self.long_name,
-                'smiles': self.smiles,
-                'error': self.error,
-                'mode': self.fragmenstein_merging_mode,
-                '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
-                       self.energy_score['unbound_ref2015']['total_score'],
-                '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
-                '∆G_unbound': self.energy_score['unbound_ref2015']['total_score'],
-                'comRMSD': self.mrmsd.mrmsd,
-                'N_constrained_atoms': self.constrained_atoms,
-                'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
-                'runtime': self.tock - self.tick,
-                'regarded': [h.GetProp('_Name') for h in self.hits if
-                             h.GetProp('_Name') not in self.fragmenstein.unmatched],
-                'disregarded': self.fragmenstein.unmatched
-                }
+        if self.error:
+            return {'name': self.long_name,
+                    'smiles': self.smiles,
+                    'error': self.error,
+                    'mode': self.fragmenstein_merging_mode,
+                    '∆∆G': float('nan'),
+                    '∆G_bound': float('nan'),
+                    '∆G_unbound': float('nan'),
+                    'comRMSD': float('nan'),
+                    'N_constrained_atoms': self.constrained_atoms if self.fragmenstein.positioned_mol is not None else float('nan'),
+                    'N_unconstrained_atoms': self.unconstrained_heavy_atoms if self.fragmenstein.positioned_mol is not None else float('nan'),
+                    'runtime': self.tock - self.tick,
+                    'regarded': [h.GetProp('_Name') for h in self.hits if
+                                 h.GetProp('_Name') not in self.fragmenstein.unmatched],
+                    'disregarded': self.fragmenstein.unmatched
+                    }
+        else:
+            return {'name': self.long_name,
+                    'smiles': self.smiles,
+                    'error': self.error,
+                    'mode': self.fragmenstein_merging_mode,
+                    '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
+                           self.energy_score['unbound_ref2015']['total_score'],
+                    '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
+                    '∆G_unbound': self.energy_score['unbound_ref2015']['total_score'],
+                    'comRMSD': self.mrmsd.mrmsd,
+                    'N_constrained_atoms': self.constrained_atoms,
+                    'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
+                    'runtime': self.tock - self.tick,
+                    'regarded': [h.GetProp('_Name') for h in self.hits if
+                                 h.GetProp('_Name') not in self.fragmenstein.unmatched],
+                    'disregarded': self.fragmenstein.unmatched
+                    }
 
     # =================== Logging ======================================================================================
 
