@@ -357,7 +357,7 @@ class _RectifierValenceMixin(_RectifierBaseMixin):
         self.journal.warning(f'In molecule ({self.rwmol.GetProp("_Name")}) reaking bond to atom {atom.GetIdx()}')
         ring_indices = [a for ring in self._get_ring_info() for a in ring]
         for neigh in atom.GetNeighbors():
-            if neigh.GetIdx() in ring_indices:
+            if neigh.GetIdx() in ring_indices or neigh.GetSymbol() == '*':
                 continue
             else:
                 self.rwmol.RemoveBond(atom.GetIdx(), neigh.GetIdx())
