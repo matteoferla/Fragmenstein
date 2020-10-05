@@ -1,3 +1,4 @@
+from __future__ import annotations
 ########################################################################################################################
 
 __doc__ = \
@@ -84,7 +85,7 @@ class mRSMD:
                             moved_followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
                             placed_followup: Chem.Mol
-                            ):
+                            ) -> mRSMD:
         """
         Mapping is done by positional overlap between placed_followup and hits
         This mapping is the applied to moved_followup.
@@ -109,7 +110,7 @@ class mRSMD:
     def from_annotated_mols(cls,
                   annotated_followup: Chem.Mol,
                   hits: Sequence[Chem.Mol]
-                  ):
+                  ) -> mRSMD:
         """
         Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         This classmethod accepts a followup with has this.
@@ -140,9 +141,16 @@ class mRSMD:
                             followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
                             annotated: Chem.Mol
-                            ):
-        cls.copy_origins(annotated, followup)
-        return cls.from_annotated_mols(followup, hits)
+                            ) -> mRSMD:
+        # the former way has issues with isomorphisms
+        # cls.copy_origins(annotated, followup)
+        # return cls.from_annotated_mols(followup, hits)
+        targets, _ = cls.copy_all_possible_origins(annotated, followup)
+        assert targets, 'Molecule could not be mapped.'
+        results = [(target, cls.from_annotated_mols(target, hits)) for target in targets]
+        return list(sorted(results, key=lambda x: x[1].mrmsd))[0][1]
+
+
 
     def calculate_msd(self, molA, molB, mapping):
         """
@@ -197,6 +205,39 @@ class mRSMD:
                 o = cls._get_origin(atom)
                 tatom.SetProp('_Origin', json.dumps(o))
         return origins
+
+    @classmethod
+    def copy_all_possible_origins(cls, annotated: Chem.Mol, target: Chem.Mol) -> Tuple[List[Chem.Mol], List[List[int]]]:
+        """
+        Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
+        However, the atom order seems to be maintained but I dont trust it. Also dummy atoms are stripped.
+
+        :param annotated:
+        :param target:
+        :return: a list of mols and a list of orgins (a list too)
+        """
+        mcs = rdFMCS.FindMCS([target, annotated],
+                             atomCompare=rdFMCS.AtomCompare.CompareElements,
+                             bondCompare=rdFMCS.BondCompare.CompareAny,
+                             ringMatchesRingOnly=True)
+        common = Chem.MolFromSmarts(mcs.smartsString)
+        options = []
+        originss = []
+        for target_match in target.GetSubstructMatches(common):
+            for anno_match in annotated.GetSubstructMatches(common):
+                dmapping = dict(zip(target_match, anno_match))
+                origins = []
+                option = Chem.Mol(target)
+                for i in range(option.GetNumAtoms()):
+                    if i in dmapping:
+                        atom = annotated.GetAtomWithIdx(dmapping[i])
+                        tatom = option.GetAtomWithIdx(i)
+                        o = cls._get_origin(atom)
+                        tatom.SetProp('_Origin', json.dumps(o))
+                options.append(option)
+                originss.append(origins)
+        return options, originss
+
 
     @classmethod
     def migrate_origin(cls, mol: Chem.Mol, tag='_Origin') -> Chem.Mol:

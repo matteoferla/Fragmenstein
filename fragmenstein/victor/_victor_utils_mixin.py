@@ -42,12 +42,18 @@ except ImportError:
 class _VictorUtilsMixin(_VictorBaseMixin):
 
     def dock(self) -> Chem.Mol:
+        """
+        The docking is done by ``igor.dock()``. This basically does that, extacts ligand, saves etc.
+
+        :return:
+        """
         docked = self.igor.dock()
         self.docked_pose = docked
         docked.dump_pdb(f'{self.work_path}/{self.long_name}/{self.long_name}.holo_docked.pdb')
         ligand = self.igor.mol_from_pose(docked)
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
         lig_chem = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        lig_chem.SetProp('_Name', 'docked')
         Chem.MolToMolFile(lig_chem, f'{self.work_path}/{self.long_name}/{self.long_name}.docked.mol')
         return lig_chem
         # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
@@ -309,9 +315,9 @@ class _VictorUtilsMixin(_VictorBaseMixin):
 
     # =================== save  ========================================================================================
 
-    def make_pse(self, filename: str = 'combo.pse'):
+    def make_pse(self, filename: str = 'combo.pse', extra_mols:Optional[Chem.Mol]=None):
         """
-        Save a pse in the relevant folder.
+        Save a pse in the relevant folder. This is the Victor one.
 
         :param filename:
         :return:
@@ -344,6 +350,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 pymol.cmd.color('gray20', f'element C and unmin_protein')
                 pymol.cmd.hide('sticks', 'unmin_protein')
                 pymol.cmd.disable('unmin_protein')
+            if extra_mols:
+                for mol in extra_mols:
+                    name = mol.GetProp('_Name')
+                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
+                    pymol.cmd.color('magenta', f'{name} and name C*')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     def make_steps_pse(self, filename: str='step.pse'):
@@ -403,7 +414,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                      folder: str,
                      smilesdex: Dict[str, str],
                      ligand_resn: str = 'LIG',
-                     regex_name: Optional[str]= None) -> Dict[str, Chem.Mol]:
+                     regex_name: Optional[str]= None,
+                     throw_on_error:bool=False) -> Dict[str, Chem.Mol]:
         """
          A key requirement for Fragmenstein is a separate mol file for the inspiration hits.
         This is however often a pdb. This converts.
@@ -428,6 +440,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     name = re.search(regex_name, file).group(1)
                 if name in smilesdex:
                     smiles=smilesdex[name]
+                elif throw_on_error:
+                    raise ValueError(f'{name} could not be matched to a smiles.')
                 else:
                     cls.journal.warning(f'{name} could not be matched to a smiles.')
                     smiles = None
@@ -439,6 +453,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     if mol is not None:
                         mols[name] = mol
                 except Exception as error:
+                    if throw_on_error:
+                        raise error
                     cls.journal.error(f'{error.__class__.__name__} for {name} - {error}')
         return mols
 
@@ -473,6 +489,9 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :rtype: Chem.Mol
         """
         holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=removeHs)
+        if holo is None:
+            cls.journal.warning(f'PDB {filepath} is problematic. Skipping sanitization.')
+            holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=True, sanitize=False)
         mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
         attachment, attachee = cls.find_attachment(holo, ligand_resn)
         if attachment is not None:  # covalent
@@ -492,8 +511,12 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             mol = mod.GetMol()
         if smiles is not None:
             if '*' in Chem.MolToSmiles(mol) and '*' not in smiles:
-                smiles = cls.make_covalent(smiles)
-                cls.journal.info(f'{name} is covalent but a non covalent SMILES was passed.')
+                new_smiles = cls.make_covalent(smiles)
+                if new_smiles:
+                    cls.journal.info(f'{name} is covalent but a non covalent SMILES was passed, which was converted')
+                    smiles = new_smiles
+                else:
+                    cls.journal.warning(f'{name} is covalent but a non covalent SMILES was passed, which failed to convert')
             else:
                 pass
             try:

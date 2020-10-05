@@ -72,6 +72,33 @@ class MProVictor(Victor):
         hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
         return cls(smiles=smiles, hits=hits, long_name=long_name, category=category)
 
+    @classmethod
+    def from_postera_row(cls, row: pd.Series, results:Optional=None):
+        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
+            # these are not hit inspired.
+            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
+            return None
+        elif results and row.CID in results:
+            cls.journal.info(f'{row.CID} has already been done.')
+            return None
+        elif row.covalent_warhead in (False, 'False', 'false'):
+            # parse
+            return cls.from_hit_codes(long_name=row.CID,
+                                      hit_codes=row.fragments.split(','),
+                                      smiles=row.SMILES,
+                                      category='noncolavent')
+        elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
+            return cls.from_hit_codes(long_name=row.CID,
+                                      hit_codes=row.fragments.split(','),
+                                      smiles=row.SMILES,
+                                      category='noncolavent')
+        else:
+            return cls.from_hit_codes(long_name=row.CID,
+                                      hit_codes=row.fragments.split(','),
+                                      smiles=cls.make_covalent(row.SMILES),
+                                      category=row.category)
+
     def __init__(self, smiles: str, hits:List[Chem.Mol], long_name:str, category:Optional[str]=None):
         mpro_folder = self.get_mpro_path()
         apo = os.path.join(mpro_folder, 'template.pdb')

@@ -363,14 +363,16 @@ class _IgorMinMixin:
         self.repack_neighbors()
         mover.apply(self.pose)
 
-    def score_split(self, repack=False):
+    def score_split(self, repack=False, pose: Optional[pyrosetta.Pose]=None):
+        if pose is None:
+            pose = self.pose
         split_pose = pyrosetta.Pose()
-        split_pose.assign(self.pose)
+        split_pose.assign(pose)
         ResidueVector = pyrosetta.rosetta.core.select.residue_selector.ResidueVector
         x = self._get_selector(ligand_only=True).apply(split_pose)
         lig_pos = list(ResidueVector(self._get_selector(ligand_only=True).apply(split_pose)))[0]
-        if self.pose.residue(lig_pos).connect_map_size() > 0:
-            cys_pos = self.pose.residue(lig_pos).connect_map(1).resid()
+        if pose.residue(lig_pos).connect_map_size() > 0:
+            cys_pos = pose.residue(lig_pos).connect_map(1).resid()
             # RESCON: 305 LIG n-conn= 1 n-poly= 0 n-nonpoly= 1 conn# 1 22 145 3
             split_pose.conformation().sever_chemical_bond(seqpos1=cys_pos, res1_resconn_index=3, seqpos2=lig_pos,
                                                           res2_resconn_index=1)
@@ -400,5 +402,5 @@ class _IgorMinMixin:
             packer.task_factory(tf)
             packer.apply(split_pose)
         x = scorefxn(split_pose)
-        b = scorefxn(self.pose)
+        b = scorefxn(pose)
         return {'xyz_unbound': x, 'xyz_bound': b, 'xyz_∆∆G': b - x}

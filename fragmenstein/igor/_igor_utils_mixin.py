@@ -28,6 +28,7 @@ class _IgorUtilsMixin:
         :return:
         """
         docked = self.pose.clone()
+        docked.pdb_info().set_resinfo(res=self.ligand_residue[0], chain_id='B', pdb_res=1)
         docked.remove_constraints()
         pyrosetta.rosetta.protocols.docking.setup_foldtree(docked, 'A_B', pyrosetta.Vector1([1]))
         scorefxn = pyrosetta.create_score_function('ligand')

@@ -19,6 +19,7 @@ import logging
 
 
 class _VictorBaseMixin:
+    quick_renanimation = False  # thorugh reanimation?
     fragmenstein_merging_mode = 'none_permissive'
     fragmenstein_debug_draw = False
     fragmenstein_average_position = False

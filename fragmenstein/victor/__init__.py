@@ -245,7 +245,10 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
-        ddG = self.reanimate()
+        if self.quick_renanimation:
+            ddG = self.quick_reanimate()
+        else:
+            ddG = self.reanimate()
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()
         self.minimised_mol = self._fix_minimised()
@@ -357,6 +360,22 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         ligand = self.igor.mol_from_pose()
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
         return AllChem.AssignBondOrdersFromTemplate(template, ligand)
+
+    def quick_reanimate(self) -> float:
+        """
+        Correct small deviations from what the forcefield likes. Generally flattens buckled rings and that is it.
+        Reanimate is normal.
+
+        :return:
+        """
+        self.igor.coordinate_constraint = 10.
+        self.igor.minimise(cycles=5, default_coord_constraint=False)
+        self.energy_score = self.calculate_score()
+        dG_bound = self.energy_score['ligand_ref2015']['total_score']
+        dG_unbound = self.energy_score['unbound_ref2015']['total_score']
+        ddG = dG_bound - dG_unbound
+        return ddG
+
 
     def reanimate(self) -> float:
         """

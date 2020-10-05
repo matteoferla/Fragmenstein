@@ -201,7 +201,7 @@ class _FragmensteinUtil:
             with open(filename, 'w') as w:
                 w.write(d.GetDrawingText())
 
-    def make_pse(self, filename='test.pse'):
+    def make_pse(self, filename='test.pse', extra_mols:Optional[Chem.Mol]=None):
         """
         This is specifically for debugging the full fragment merging mode.
         For general use. Please use the Victor method ``make_pse``.
@@ -236,6 +236,11 @@ class _FragmensteinUtil:
                 pymol.cmd.show('sticks', 'chimera')
             if self.positioned_mol:
                 pymol.cmd.show('sticks', 'followup')
+            if extra_mols:
+                for mol in extra_mols:
+                    name = mol.GetProp('_Name')
+                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
+                    pymol.cmd.color('magenta', f'{name} and name C*')
             pymol.cmd.save(filename)
 
     def draw_nicely(self, mol, show=True, **kwargs) -> Draw.MolDraw2DSVG:
