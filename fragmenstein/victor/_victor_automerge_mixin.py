@@ -102,6 +102,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.mrmsd = mRSMD.mock()
         self.tick = time.time()
         self.tock = float('inf')
+        self.error = ''
         self._safely_do(execute=self._combine_main,
                         resolve=self._resolve,
                         reject=self._reject)
