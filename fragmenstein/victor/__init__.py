@@ -439,10 +439,10 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             if self.mol.HasSubstructMatch(Chem.MolFromSmiles('*C')):
                 self.journal.warning('Unknown type of covalent')
                 return {'name': 'unknown',
-                        'covalent': 'C*',
-                        'covalent_atomnames': ['CX', 'CONN1'],
-                        'noncovalent': '[C+]', # clearly not
-                        'noncovalent_atomnames': ['CX']
+                        'covalent': 'C~C*',
+                        'covalent_atomnames': ['CY', 'CX', 'CONN1'],
+                        'noncovalent': 'C~[C+]', # clearly not
+                        'noncovalent_atomnames': ['CY', 'CX']
                         }
             else:
                 raise ValueError(f'{self.long_name} - Unsure what the warhead is {self.smiles}.')
