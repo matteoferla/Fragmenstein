@@ -436,7 +436,16 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             if self.mol.HasSubstructMatch(warhead):
                 return war_def
         else:
-            raise ValueError(f'{self.long_name} - Unsure what the warhead is {self.smiles}.')
+            if self.mol.HasSubstructMatch(Chem.MolFromSmiles('*C')):
+                self.journal.warning('Unknown type of covalent')
+                return {'name': 'unknown',
+                        'covalent': 'C*',
+                        'covalent_atomnames': ['CX', 'CONN1'],
+                        'noncovalent': '[C+]', # clearly not
+                        'noncovalent_atomnames': ['CX']
+                        }
+            else:
+                raise ValueError(f'{self.long_name} - Unsure what the warhead is {self.smiles}.')
 
     def _fix_covalent(self):
         self.journal.debug(f'{self.long_name} - fixing for covalent')
