@@ -60,6 +60,15 @@ class _VictorUtilsMixin(_VictorBaseMixin):
 
     def summarise(self):
         if self.error:
+            if self.fragmenstein is None:
+                N_constrained_atoms = float('nan')
+                N_unconstrained_atoms = float('nan')
+            elif self.fragmenstein.positioned_mol is None:
+                N_constrained_atoms = float('nan')
+                N_unconstrained_atoms = float('nan')
+            else:
+                N_constrained_atoms = self.constrained_atoms
+                N_unconstrained_atoms = self.unconstrained_heavy_atoms
             return {'name': self.long_name,
                     'smiles': self.smiles,
                     'error': self.error,
@@ -68,8 +77,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     '∆G_bound': float('nan'),
                     '∆G_unbound': float('nan'),
                     'comRMSD': float('nan'),
-                    'N_constrained_atoms': self.constrained_atoms if self.fragmenstein.positioned_mol is not None else float('nan'),
-                    'N_unconstrained_atoms': self.unconstrained_heavy_atoms if self.fragmenstein.positioned_mol is not None else float('nan'),
+                    'N_constrained_atoms': N_constrained_atoms,
+                    'N_unconstrained_atoms': N_unconstrained_atoms,
                     'runtime': self.tock - self.tick,
                     'regarded': [h.GetProp('_Name') for h in self.hits if
                                  h.GetProp('_Name') not in self.fragmenstein.unmatched],

@@ -216,6 +216,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # ***** FRAGMENSTEIN *******
         # make fragmenstein
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
+        # fragmenstein_throw_on_discard controls if disconnected.
+        Fragmenstein.throw_on_discard = self.fragmenstein_throw_on_discard
         self.fragmenstein = Fragmenstein(mol=self.mol,
                                          hits=self.hits,
                                          attachment=attachment,

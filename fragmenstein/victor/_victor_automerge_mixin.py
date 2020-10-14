@@ -116,7 +116,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 merging_mode='off')
         # collapse hits
         # fragmenstein_throw_on_discard controls if disconnected.
-        self.fragmenstein.throw_on_disconnect = self.fragmenstein_throw_on_discard
+        self.fragmenstein.throw_on_discard = self.fragmenstein_throw_on_discard
         self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff # Å
         # merge!
         col_hits = self.fragmenstein.collapse_mols(self.hits)

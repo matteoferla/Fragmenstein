@@ -155,12 +155,12 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
                      maps=maps,
-                     no_discard=self.throw_on_disconnect,
+                     no_discard=self.throw_on_discard,
                      _debug_draw=self._debug_draw)
         self.scaffold = um.combined
         full_atom_map = um.combined_map
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
-        if self.throw_on_disconnect and len(self.unmatched):
+        if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
         self.chimera = um.combined_bonded
         if self._debug_draw:
@@ -428,7 +428,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             except ConnectionError:
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
                 msg = f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!'
-                if self.throw_on_disconnect:
+                if self.throw_on_discard:
                     raise ConnectionError(msg)
                 else:
                     warn(msg)

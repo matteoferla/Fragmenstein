@@ -193,6 +193,16 @@ class Unmerge(GPM):
                       combined_map: Dict[int, int],
                       others: List[Chem.Mol],
                       disregarded: List[Chem.Mol]) -> None:
+        """
+        Assesses a combination of maps
+        rejections: unmapped (nothing maps) / unnovel (adds nothing)
+
+        :param combined:
+        :param combined_map:
+        :param others:
+        :param disregarded:
+        :return:
+        """
         # stop
         if len(others) == 0:
             if self._debug_draw:

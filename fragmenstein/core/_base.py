@@ -15,7 +15,7 @@ class _FragmensteinBaseMixin:
     cutoff = 2.
     joining_cutoff = 5.  # how distant (in Å) is too much?
     atoms_in_bridge_cutoff = 2  # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves adamantane)
-    throw_on_disconnect = False
+    throw_on_discard = False
     matching_modes = [
         dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
              bondCompare=rdFMCS.BondCompare.CompareAny,
