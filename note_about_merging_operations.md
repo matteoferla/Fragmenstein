@@ -23,6 +23,16 @@ However, the ring collapse code deals with odd ring sizes.
 Also, mapping is done by the class `GPM` in `positional_mapping.py`.
 This is used by both SMILES no-merging mode and the automerging mode.
 
+## Add to documentation somewhere
+If the `no_merge` is unable to make a compound with `fragmenstein_throw_on_discard = True`
+consider doing the following:
+
+    from fragmenstein.core import Unmerge
+    Unmerge.max_strikes = 100
+    Unmerge.distance_cutoff = 100
+
+This disables the safeties on problematic overlaps and how much to tollerate a bond.
+
 ## Future idea
 This is all a bit messy. 
 

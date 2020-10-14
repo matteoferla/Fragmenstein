@@ -48,6 +48,7 @@ class Unmerge(GPM):
     distance_cutoff = 3 #: how distance is too distant in Å
 
     def __init__(self, followup: Chem.Mol, mols: List[Chem.Mol], maps: Dict[str, List[Dict[int, int]]],
+                 no_discard:bool=False,
                  _debug_draw: bool = False):
         """
 
@@ -58,11 +59,13 @@ class Unmerge(GPM):
         :type mols: List[Chem.Mol]
         :param maps: can be generated outseide of Fragmenstein by ``.make_maps``.
         :type maps: Dict[List[Dict[int, int]]]
+        :param no_discard: do not allow any to be discarded
         :param _debug_draw:
         """
         self.followup = followup
         self.mols = mols
         self.maps = maps
+        self.no_discard = no_discard
         self._debug_draw = _debug_draw
         accounted_for = set()
         self.c_map_options = []
@@ -90,7 +93,13 @@ class Unmerge(GPM):
                 not_alt = set([o for o in others if o.GetProp('_Name') != aname])
                 self.unmerge_inner(Chem.Mol(), {}, [alt] + list(not_alt), [])
         # find best
-        indices = sorted(range(len(self.c_options)),
+        if self.no_discard:
+            valids = [i for i, v in enumerate(self.c_disregarded_options) if len(v) == 0]
+            if len(valids) == 0:
+                raise ConnectionError('No valid mappings that do not disregard compounds.')
+        else:
+            valids = list(range(len(self.c_options)))
+        indices = sorted(valids,
                          key=goodness_sorter,
                          reverse=True)
         if self.pick >= len(indices): # override N/A

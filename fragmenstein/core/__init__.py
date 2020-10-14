@@ -152,10 +152,16 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
                                                        matchChiralTag=True)
                 pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
-        um = Unmerge(followup=self.initial_mol, mols=self.hits, maps=maps, _debug_draw=self._debug_draw)
+        um = Unmerge(followup=self.initial_mol,
+                     mols=self.hits,
+                     maps=maps,
+                     no_discard=self.throw_on_disconnect,
+                     _debug_draw=self._debug_draw)
         self.scaffold = um.combined
         full_atom_map = um.combined_map
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
+        if self.throw_on_disconnect and len(self.unmatched):
+            raise ConnectionError(f'{self.unmatched} was rejected.')
         self.chimera = um.combined_bonded
         if self._debug_draw:
             print('followup to scaffold', full_atom_map)
