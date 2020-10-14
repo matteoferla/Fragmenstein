@@ -45,6 +45,7 @@ class Unmerge(GPM):
     max_strikes = 3  #: number of discrepancies tollerated.
     rotational_approach = True
     pick = 0 # override to pick not the first(0) best match.
+    distance_cutoff = 3 #: how distance is too distant in Å
 
     def __init__(self, followup: Chem.Mol, mols: List[Chem.Mol], maps: Dict[str, List[Dict[int, int]]],
                  _debug_draw: bool = False):
@@ -319,7 +320,7 @@ class Unmerge(GPM):
             if self._debug_draw:
                 print(f'{label} got {strikes} strikes')
             return {}
-        elif not self.check_possible_distances(other, possible_map, combined, combined_map):
+        elif not self.check_possible_distances(other, possible_map, combined, combined_map, cutoff=self.distance_cutoff):
             if self._debug_draw:
                 print(f'{label} gives too long bonds')
             return {}
