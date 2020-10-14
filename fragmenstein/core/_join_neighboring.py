@@ -91,7 +91,14 @@ class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
             BondProvenance.set_bond(new_bond, 'other_novel')
         elif linking is True and n_new > 0:
             for i in range(n_new):
-                idx = combo.AddAtom(Chem.Atom(6))
+                # make oxygen the first and last bridging atom.
+                if i == 0 and combo.GetAtomWithIdx(anchor_A).GetSymbol() == 'C':
+                    new_atomic = 8
+                elif i > 2 and i == n_new -1 and combo.GetAtomWithIdx(anchor_B).GetSymbol() == 'C':
+                    new_atomic = 8
+                else:
+                    new_atomic = 6
+                idx = combo.AddAtom(Chem.Atom(new_atomic))
                 new = combo.GetAtomWithIdx(idx)
                 new.SetBoolProp('_Novel', True)
                 new.SetIntProp('_ori_i', 999)
