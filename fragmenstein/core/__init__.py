@@ -906,7 +906,8 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             else:
                 return [dict(n) for n in neolax], mode
         else:
-            raise ValueError('This is chemically impossible: nothing matches')
+            raise ValueError('This is chemically impossible: nothing matches in the MCS step ' +\
+                             f'({len(self.matching_modes)}')
 
     def get_mcs_mapping(self, molA, molB, min_mode_index: int = 0) -> Tuple[Dict[int, int], dict]:
         """

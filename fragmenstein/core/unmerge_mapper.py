@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 class Unmerge(GPM):
     """
     This class tries to solve the mapping problem by try all possible mappings of the target to the ligand.
-    It is one of three in Fragmenstein (full merge, partial merge (preferred), unmerge.
+    It is one of three in Fragmenstein (full merge, partial merge, unmerge.
 
     It is great with fragments that do not connect, but is bad when a hit has a typo.
 
