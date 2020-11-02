@@ -888,11 +888,12 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         :param min_mode_index: the lowest index to try (opt. speed reasons)
         :return: mappings and mode
         """
-        strict = self._get_atom_maps(molA, molB, atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                     bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                     ringMatchesRingOnly=True,
-                                     ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                     matchChiralTag=True)
+        strict_settings = dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                               bondCompare=rdFMCS.BondCompare.CompareOrder,
+                               ringMatchesRingOnly=True,
+                               ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                               matchChiralTag=True)
+        strict = self._get_atom_maps(molA, molB, **strict_settings)
         for i, mode in enumerate(self.matching_modes):
             if i < min_mode_index:
                 continue
@@ -906,7 +907,8 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             else:
                 return [dict(n) for n in neolax], mode
         else:
-            return [dict(n) for n in strict], {}  # tuple to dict
+            # Then the strict will have to do.
+            return [dict(n) for n in strict], strict_settings # tuple to dict
             # raise ValueError('This is chemically impossible: nothing matches in the MCS step ' +\
             #                  f'({len(self.matching_modes)} modes tried')
 
