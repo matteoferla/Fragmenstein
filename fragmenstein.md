@@ -5,7 +5,7 @@ The `Fragmenstein` class places the followup placing algorithm.
 One problem in doing so is mapping atoms from the hits to the followup. Three modes were tested.
 
 The three modes rely heavily on mapping one-to-one atomic coordinates of overlapping atoms between hits
-within a 2Å radius (see [Position Mapping code](fragmenstein/core/positional_mapping.py)).
+within a 2Å radius (see [Position Mapping code](fragmenstein/monster/positional_mapping.py)).
 
 <img src="images/position_over_mcs.jpg" width="300px">
 

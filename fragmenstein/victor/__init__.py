@@ -3,7 +3,7 @@ from __future__ import annotations
 
 __doc__ = \
     """
-Victor (after Dr Victor Frankenstein) is a class that uses both Adam (makes blended compounds) and Igor (energy minimises).
+Victor (after Dr Victor Frankenstein) is a class that uses both Monster (makes blended compounds) and Igor (energy minimises).
 This master reanimator keeps a ``.journal`` (logging, class attribute).
 And can be called via the class method ``.laboratory`` where he can process multiple compounds at once.
 
@@ -35,7 +35,7 @@ from rdkit_to_params import Params, Constraints
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
 from ._victor_validate_mixin import _VictorValidateMixin
 from ._victor_automerge_mixin import _VictorAutomergeMixin
-from ..core import Adam
+from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
@@ -67,7 +67,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     The need for atomnames is actually not for the code but to allow lazy tweaks and analysis downstream
     (say typing in pymol: `show sphere, name CX`).
     Adding a 'constraint' to an entry will apply that constraint.
-    ``adam_debug_draw:bool`` and ``adam_merging_mode:str`` are class attributes that control Adam.
+    ``monster_debug_draw:bool`` and ``monster_merging_mode:str`` are class attributes that control Monster.
 
     """
 
@@ -115,7 +115,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.params = None
         self.mol = None
         self.constraint = None
-        self.adam = None
+        self.monster = None
         self.modifications = [] # used by automerger only
         self.unminimised_pdbblock = None
         self.igor = None
@@ -134,7 +134,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
 
 
-    # =================== Init core methods ============================================================================
+    # =================== Init monster methods ============================================================================
 
     def _safely_do(self,
                    execute: Optional[Callable] = None,
@@ -183,7 +183,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
 
     def _analyse(self) -> None:
         """
-        This is the actual core of the class.
+        This is the actual monster of the class.
 
         :return:
         """
@@ -214,23 +214,23 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self._log_warnings()
         self.post_params_step()
         # ***** FRAGMENSTEIN *******
-        # make adam
+        # make monster
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
         # fragmenstein_throw_on_discard controls if disconnected.
-        Adam.throw_on_discard = self.fragmenstein_throw_on_discard
-        self.adam = Adam(mol=self.mol,
+        Monster.throw_on_discard = self.fragmenstein_throw_on_discard
+        self.monster = Monster(mol=self.mol,
                                          hits=self.hits,
                                          attachment=attachment,
-                                         merging_mode=self.adam_merging_mode,
-                                         debug_draw=self.adam_debug_draw,
-                                         average_position=self.adam_average_position)
-        self.journal.debug(f'{self.long_name} - Tried {len(self.adam.scaffold_options)} combinations')
-        self.unminimised_pdbblock = self._place_adam()
+                                         merging_mode=self.monster_merging_mode,
+                                         debug_draw=self.monster_debug_draw,
+                                         average_position=self.monster_average_position)
+        self.journal.debug(f'{self.long_name} - Tried {len(self.monster.scaffold_options)} combinations')
+        self.unminimised_pdbblock = self._place_monster()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.post_adam_step()
+        self.post_monster_step()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
@@ -290,11 +290,11 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         while the other constrains based on lack of novel attribute.
         """
         lines = []
-        origins = self.adam.origin_from_mol(self.adam.positioned_mol)
-        std = self.adam.stdev_from_mol(self.adam.positioned_mol)
-        mx = self.adam.max_from_mol(self.adam.positioned_mol)
-        conf = self.adam.positioned_mol.GetConformer()
-        for i in range(self.adam.positioned_mol.GetNumAtoms()):
+        origins = self.monster.origin_from_mol(self.monster.positioned_mol)
+        std = self.monster.stdev_from_mol(self.monster.positioned_mol)
+        mx = self.monster.max_from_mol(self.monster.positioned_mol)
+        conf = self.monster.positioned_mol.GetConformer()
+        for i in range(self.monster.positioned_mol.GetNumAtoms()):
             if len(origins[i]) > 0:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
                 if atom.GetSymbol() == '*':

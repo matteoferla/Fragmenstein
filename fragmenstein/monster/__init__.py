@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-This is Adam proper. and contains the class ``Adam``.
+This is Monster proper. and contains the class ``Monster``.
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
@@ -24,9 +24,9 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
 from rdkit.Geometry.rdGeometry import Point3D
 
-from ._utility_mixin import _AdamUtil
-from ._join_neighboring import _AdamJoinNeighMixin
-from ._collapse_ring import _AdamRing
+from ._utility_mixin import _MonsterUtil
+from ._join_neighboring import _MonsterJoinNeighMixin
+from ._collapse_ring import _MonsterRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
 from .bond_provenance import BondProvenance
@@ -34,7 +34,7 @@ import itertools
 
 ##################################################################
 
-class Adam(_AdamUtil, _AdamRing, GPM, _AdamJoinNeighMixin):  # Unmerge is called. Not inherited.
+class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmerge is called. Not inherited.
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -393,7 +393,7 @@ class Adam(_AdamUtil, _AdamRing, GPM, _AdamJoinNeighMixin):  # Unmerge is called
     def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
         Recursively stick the hits together and average the positions.
-        This is the core of automerging, full-merging mapping and partial merging mapping.
+        This is the monster of automerging, full-merging mapping and partial merging mapping.
         The latter however uses `combine_hits` first.
         The hits are not ring-collapsed and -expanded herein.
 

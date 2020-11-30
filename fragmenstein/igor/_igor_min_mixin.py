@@ -322,7 +322,7 @@ class _IgorMinMixin:
         movemap.set_bb(False)
         movemap.set_chi(False)
         movemap.set_chi(allow_chi=ns.apply(self.pose))
-        #print(pyrosetta.rosetta.core.select.residue_selector.ResidueVector(ns.apply(self.pose)))
+        #print(pyrosetta.rosetta.monster.select.residue_selector.ResidueVector(ns.apply(self.pose)))
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, 2)
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
