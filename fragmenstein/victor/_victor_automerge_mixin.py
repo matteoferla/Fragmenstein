@@ -1,5 +1,5 @@
 from ._victor_base_mixin import _VictorBaseMixin
-from ..core import Fragmenstein
+from ..core import Adam
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 from ..rectifier import Rectifier
@@ -28,13 +28,13 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 ):
         """
         Combines the hits without a template.
-        If the class attribute ``fragmenstein_throw_on_discard`` is True, it will raise an exception if it cannot.
+        If the class attribute ``adam_throw_on_discard`` is True, it will raise an exception if it cannot.
 
-        The cutoff distance is controlled by class attribute ``fragmenstein_joining_cutoff``.
+        The cutoff distance is controlled by class attribute ``adam_joining_cutoff``.
         At present this just adds a hydrocarbon chain, no fancy checking for planarity.
 
         The hits are collapsed, merged, expanded and bonded by proximity.
-        In ``(self.fragmenstein.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
+        In ``(self.adam.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
 
         ``warhead_harmonisation`` fixes the warhead in the hits to be homogeneous.
 
@@ -56,7 +56,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         :return:
         """
         self = cls.__new__(cls)
-        self.fragmenstein_merging_mode = 'full' # needed solely for logkeeping
+        self.adam_merging_mode = 'full' # needed solely for logkeeping
         self.long_name = '-'.join([h.GetProp('_Name') for h in hits])
         self.apo_pdbblock = open(pdb_filename).read()
         self.journal.debug(f'{self.long_name} - harmonising warheads on hits in "{warhead_harmonisation}" mode')
@@ -84,7 +84,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.mol = None
         self.smiles = None
         self.constraint = None
-        self.fragmenstein = None
+        self.adam = None
         # ====== debug: absent in main mode.
         self.modifications = []  # list of the various steps during fragment merging mode.
         # ======
@@ -92,9 +92,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
-        if self.fragmenstein_average_position:
+        if self.adam_average_position:
             # I need to code this case.
-            self.journal.warning('`fragmenstein_average_position` class attribute == True does not apply here')
+            self.journal.warning('`adam_average_position` class attribute == True does not apply here')
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
@@ -110,45 +110,45 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
 
     def _combine_main(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.fragmenstein = Fragmenstein(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
+        self.adam = Adam(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
                 hits=[],
                 attachment=attachment,
                 merging_mode='off')
         # collapse hits
-        # fragmenstein_throw_on_discard controls if disconnected.
-        self.fragmenstein.throw_on_discard = self.fragmenstein_throw_on_discard
-        self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff # Å
+        # adam_throw_on_discard controls if disconnected.
+        self.adam.throw_on_discard = self.adam_throw_on_discard
+        self.adam.joining_cutoff = self.adam_joining_cutoff # Å
         # merge!
-        col_hits = self.fragmenstein.collapse_mols(self.hits)
+        col_hits = self.adam.collapse_mols(self.hits)
         self.modifications.extend(col_hits)
-        self.fragmenstein.scaffold = self.fragmenstein.merge_hits(col_hits)
-        self.modifications.append(Chem.Mol(self.fragmenstein.scaffold)) # backup for debug
+        self.adam.scaffold = self.adam.merge_hits(col_hits)
+        self.modifications.append(Chem.Mol(self.adam.scaffold)) # backup for debug
         self._log_warnings()
         ## Discard can happen for other reasons than disconnect
-        if self.fragmenstein_throw_on_discard and len(self.fragmenstein.unmatched):
-            raise ConnectionError(f'{self.long_name} - Could not combine with {self.fragmenstein.unmatched} '+\
-                                  f'(>{self.fragmenstein.joining_cutoff}')
+        if self.adam_throw_on_discard and len(self.adam.unmatched):
+            raise ConnectionError(f'{self.long_name} - Could not combine with {self.adam.unmatched} '+\
+                                  f'(>{self.adam.joining_cutoff}')
         # expand and fix
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
-        self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold)
+        self.adam.positioned_mol = self.adam.expand_ring(self.adam.scaffold)
         # bonded_as_original=False no longer needed.
-        self.modifications.append(Chem.Mol(self.fragmenstein.positioned_mol)) # backup for debug
+        self.modifications.append(Chem.Mol(self.adam.positioned_mol)) # backup for debug
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
-        recto = Rectifier(self.fragmenstein.positioned_mol)
+        recto = Rectifier(self.adam.positioned_mol)
         try:
             recto.fix()
         except ConnectionError:
             self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
-            mol = self.fragmenstein._emergency_joining(recto.mol)
-            recto = Rectifier(self.fragmenstein.positioned_mol)
+            mol = self.adam._emergency_joining(recto.mol)
+            recto = Rectifier(self.adam.positioned_mol)
             recto.fix()
-        self.fragmenstein.positioned_mol = recto.mol
+        self.adam.positioned_mol = recto.mol
         self.modifications.extend(recto.modifications)  # backup for debug
         self._log_warnings()
         # the origins are obscured because of the collapsing and rectification...
-        self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)
+        self.adam.guess_origins(self.fragmenstein.positioned_mol, self.hits)
         self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
         self.mol = self.fragmenstein.positioned_mol
         self.journal.debug(f'{self.long_name} - Rectified')

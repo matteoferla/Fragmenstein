@@ -35,7 +35,7 @@ class Rectifier(_RectifierRingMixin, _RectifierOddMixin, _RectifierValenceMixin)
 
     New atoms with have the bool prop ``_Novel``.
 
-    Does not link distant atoms. For that see joining methods in Fragmenstein.
+    Does not link distant atoms. For that see joining methods in Adam.
 
     >>> Rectifier(mol).fix().mol
     """

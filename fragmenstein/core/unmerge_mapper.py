@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 class Unmerge(GPM):
     """
     This class tries to solve the mapping problem by try all possible mappings of the target to the ligand.
-    It is one of three in Fragmenstein (full merge, partial merge, unmerge.
+    It is one of three in Adam (full merge, partial merge, unmerge.
 
     It is great with fragments that do not connect, but is bad when a hit has a typo.
 
@@ -57,7 +57,7 @@ class Unmerge(GPM):
         :type followup: Chem.Mol
         :param mols: 3D molecules
         :type mols: List[Chem.Mol]
-        :param maps: can be generated outseide of Fragmenstein by ``.make_maps``.
+        :param maps: can be generated outseide of Adam by ``.make_maps``.
         :type maps: Dict[List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
         :param _debug_draw:
@@ -129,11 +129,11 @@ class Unmerge(GPM):
     def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol], mode: Optional[Dict[str, Any]] = None) \
             -> Dict[str, List[Dict[int, int]]]:
         """
-        This is basically if someone is using this class outside of Fragmenstein
+        This is basically if someone is using this class outside of Adam
 
         Returns a dictionary of key mol name and
         value a list of possible dictionary with idex of target to the index given mol.
-        Note that a bunch of mapping modes can be found in Fragmenstein init mixin class.
+        Note that a bunch of mapping modes can be found in Adam init mixin class.
 
         :param target: the molecule to be mapped
         :param mols: the list of molecules with positional data to be mapped to

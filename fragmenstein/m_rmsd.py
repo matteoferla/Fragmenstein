@@ -23,7 +23,7 @@ from typing import Sequence, List, Optional, Tuple
 
 import json, re
 
-from .core import Fragmenstein
+from .core import Adam
 
 class mRSMD:
     """RMSD are unaligned and in Å.
@@ -53,7 +53,7 @@ class mRSMD:
 
 
         The hit _Name must match that in origin!
-        currected output of fragmenstein.origin_from_mol() or cls.get_origins(to-be-scored-mol, annotated)
+        currected output of adam.origin_from_mol() or cls.get_origins(to-be-scored-mol, annotated)
 
         :param followup: the followup compounds
         :param hits: the fragment hits
@@ -103,7 +103,7 @@ class mRSMD:
             placed_followup = Chem.AddHs(placed_followup)
             assert moved_followup.GetNumAtoms() == placed_followup.GetNumAtoms(), 'moved and placed are different!'
         for h, hit in enumerate(hits):
-            mappings.append(list(Fragmenstein.get_positional_mapping(hit, placed_followup).items()))
+            mappings.append(list(Adam.get_positional_mapping(hit, placed_followup).items()))
         return cls(moved_followup, hits, mappings)
 
     @classmethod
@@ -112,7 +112,7 @@ class mRSMD:
                   hits: Sequence[Chem.Mol]
                   ) -> mRSMD:
         """
-        Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
+        Adam leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         This classmethod accepts a followup with has this.
 
         :param annotated_followup:
@@ -184,7 +184,7 @@ class mRSMD:
     @classmethod
     def copy_origins(cls, annotated: Chem.Mol, target: Chem.Mol):
         """
-        Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
+        Adam leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         However, the atom order seems to be maintained but I dont trust it. Also dummy atoms are stripped.
 
         :param annotated:
@@ -209,7 +209,7 @@ class mRSMD:
     @classmethod
     def copy_all_possible_origins(cls, annotated: Chem.Mol, target: Chem.Mol) -> Tuple[List[Chem.Mol], List[List[int]]]:
         """
-        Fragmenstein leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
+        Adam leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         However, the atom order seems to be maintained but I dont trust it. Also dummy atoms are stripped.
 
         :param annotated:

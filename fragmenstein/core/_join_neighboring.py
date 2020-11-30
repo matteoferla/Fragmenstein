@@ -4,9 +4,9 @@ from typing import Tuple, List, Dict, Optional, Union
 import numpy as np
 from warnings import warn
 from .bond_provenance import BondProvenance
-from ._base import _FragmensteinBaseMixin
+from ._base import _AdamBaseMixin
 
-class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
+class _AdamJoinNeighMixin(_AdamBaseMixin):
     def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
         """
         Joins two molecules by first calling _find_closest to find closest.

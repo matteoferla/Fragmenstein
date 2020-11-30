@@ -3,7 +3,7 @@ from __future__ import annotations
 
 __doc__ = \
     """
-Victor (after Dr Victor Frankenstein) is a class that uses both Fragmenstein (makes blended compounds) and Igor (energy minimises).
+Victor (after Dr Victor Frankenstein) is a class that uses both Adam (makes blended compounds) and Igor (energy minimises).
 This master reanimator keeps a ``.journal`` (logging, class attribute).
 And can be called via the class method ``.laboratory`` where he can process multiple compounds at once.
 
@@ -35,7 +35,7 @@ from rdkit_to_params import Params, Constraints
 from ._victor_utils_mixin import _VictorUtilsMixin  # <--- _VictorBaseMixin
 from ._victor_validate_mixin import _VictorValidateMixin
 from ._victor_automerge_mixin import _VictorAutomergeMixin
-from ..core import Fragmenstein
+from ..core import Adam
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
@@ -67,7 +67,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     The need for atomnames is actually not for the code but to allow lazy tweaks and analysis downstream
     (say typing in pymol: `show sphere, name CX`).
     Adding a 'constraint' to an entry will apply that constraint.
-    ``fragmenstein_debug_draw:bool`` and ``fragmenstein_merging_mode:str`` are class attributes that control Fragmenstein.
+    ``adam_debug_draw:bool`` and ``adam_merging_mode:str`` are class attributes that control Adam.
 
     """
 
@@ -115,7 +115,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.params = None
         self.mol = None
         self.constraint = None
-        self.fragmenstein = None
+        self.adam = None
         self.modifications = [] # used by automerger only
         self.unminimised_pdbblock = None
         self.igor = None
@@ -214,23 +214,23 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self._log_warnings()
         self.post_params_step()
         # ***** FRAGMENSTEIN *******
-        # make fragmenstein
+        # make adam
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
         # fragmenstein_throw_on_discard controls if disconnected.
-        Fragmenstein.throw_on_discard = self.fragmenstein_throw_on_discard
-        self.fragmenstein = Fragmenstein(mol=self.mol,
+        Adam.throw_on_discard = self.fragmenstein_throw_on_discard
+        self.adam = Adam(mol=self.mol,
                                          hits=self.hits,
                                          attachment=attachment,
-                                         merging_mode=self.fragmenstein_merging_mode,
-                                         debug_draw=self.fragmenstein_debug_draw,
-                                         average_position=self.fragmenstein_average_position)
-        self.journal.debug(f'{self.long_name} - Tried {len(self.fragmenstein.scaffold_options)} combinations')
-        self.unminimised_pdbblock = self._place_fragmenstein()
+                                         merging_mode=self.adam_merging_mode,
+                                         debug_draw=self.adam_debug_draw,
+                                         average_position=self.adam_average_position)
+        self.journal.debug(f'{self.long_name} - Tried {len(self.adam.scaffold_options)} combinations')
+        self.unminimised_pdbblock = self._place_adam()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.post_fragmenstein_step()
+        self.post_adam_step()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
@@ -290,11 +290,11 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         while the other constrains based on lack of novel attribute.
         """
         lines = []
-        origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
-        std = self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)
-        mx = self.fragmenstein.max_from_mol(self.fragmenstein.positioned_mol)
-        conf = self.fragmenstein.positioned_mol.GetConformer()
-        for i in range(self.fragmenstein.positioned_mol.GetNumAtoms()):
+        origins = self.adam.origin_from_mol(self.adam.positioned_mol)
+        std = self.adam.stdev_from_mol(self.adam.positioned_mol)
+        mx = self.adam.max_from_mol(self.adam.positioned_mol)
+        conf = self.adam.positioned_mol.GetConformer()
+        for i in range(self.adam.positioned_mol.GetNumAtoms()):
             if len(origins[i]) > 0:
                 atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
                 if atom.GetSymbol() == '*':

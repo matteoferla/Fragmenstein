@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-This is Fragmenstein proper. and contains the class ``Fragmenstein``.
+This is Adam proper. and contains the class ``Adam``.
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
@@ -24,9 +24,9 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
 from rdkit.Geometry.rdGeometry import Point3D
 
-from ._utility_mixin import _FragmensteinUtil
-from ._join_neighboring import _FragmensteinJoinNeighMixin
-from ._collapse_ring import _FragmensteinRing
+from ._utility_mixin import _AdamUtil
+from ._join_neighboring import _AdamJoinNeighMixin
+from ._collapse_ring import _AdamRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
 from .bond_provenance import BondProvenance
@@ -34,7 +34,7 @@ import itertools
 
 ##################################################################
 
-class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinNeighMixin):  # Unmerge is called. Not inherited.
+class Adam(_AdamUtil, _AdamRing, GPM, _AdamJoinNeighMixin):  # Unmerge is called. Not inherited.
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.

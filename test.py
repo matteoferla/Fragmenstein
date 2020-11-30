@@ -7,7 +7,7 @@ import pyrosetta
 pyrosetta.init(
     extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 
-from fragmenstein import Fragmenstein, Victor, Igor, Rectifier
+from fragmenstein import Adam, Victor, Igor, Rectifier
 from fragmenstein.mpro import MProVictor
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -20,7 +20,7 @@ def test_molecule(name, smiles, hitnames):
     hits = [Chem.MolFromMolFile(f'../Mpro/Mpro-{i}_0/Mpro-{i}_0.mol') for i in hitnames]
     followup = Chem.MolFromSmiles(smiles)
     r = Chem.MolFromMolFile(f'../Mpro/Mpro-{hitnames[0]}_0/Mpro-{hitnames[0]}_0_SG.mol')
-    f = Fragmenstein(followup, hits, attachment=r)
+    f = Adam(followup, hits, attachment=r)
     f.make_pse(f'test_{name}.pse')
 
 

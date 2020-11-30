@@ -30,7 +30,7 @@ class DeleteMe:
         # ***** STORE *******
         # entry attributes
         self = cls.__new__(cls)
-        self.fragmenstein_merging_mode = 'none_permissive'
+        self.adam_merging_mode = 'none_permissive'
         fname = long_name = os.path.split(followup_pdb_filename)[-1]
         long_name = os.path.splitext(fname)[0] + '_validation'
         self.long_name = self.slugify(long_name)
@@ -62,7 +62,7 @@ class DeleteMe:
         self.mol = None
         self.constraint = None
         self.extra_constraint = None
-        self.fragmenstein = None
+        self.adam = None
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
@@ -106,24 +106,24 @@ class DeleteMe:
         self._log_warnings()
         self.post_params_step()
         # ***** FRAGMENSTEIN *******
-        # make fragmenstein
+        # make adam
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        self.fragmenstein = Fragmenstein(mol=self.params.mol,  # Chem.MolFromSmiles(self.smiles)
+        self.journal.debug(f'{self.long_name} - Starting adam')
+        self.adam = Adam(mol=self.params.mol,  # Chem.MolFromSmiles(self.smiles)
                                          hits=self.hits,
                                          attachment=attachment,
-                                         merging_mode=self.fragmenstein_merging_mode,
-                                         debug_draw=self.fragmenstein_debug_draw,
-                                         average_position=self.fragmenstein_average_position)
-        self.unminimised_pdbblock = self._place_fragmenstein()
-        if self.fragmenstein_mmff_minisation:
-            self.journal.debug(f'{self.long_name} - pre-minimising fragmenstein (MMFF)')
-            self.fragmenstein.mmff_minimise(self.fragmenstein.positioned_mol)
+                                         merging_mode=self.adam_merging_mode,
+                                         debug_draw=self.adam_debug_draw,
+                                         average_position=self.adam_average_position)
+        self.unminimised_pdbblock = self._place_adam()
+        if self.adam_mmff_minisation:
+            self.journal.debug(f'{self.long_name} - pre-minimising adam (MMFF)')
+            self.adam.mmff_minimise(self.adam.positioned_mol)
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.post_fragmenstein_step()
+        self.post_adam_step()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
@@ -151,7 +151,7 @@ class DeleteMe:
         self.journal.info(f'{self.long_name} - final score: {ddG} kcal/mol {self.mrmsd.mrmsd}.')
         self._checkpoint_charlie()
         # RMSD against self.reference_mol and docked_mol
-        m = mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.fragmenstein.positioned_mol)
+        m = mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.adam.positioned_mol)
 
         docked_mol = self.dock()
         # RMSD again

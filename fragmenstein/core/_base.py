@@ -6,7 +6,7 @@ from typing import Optional, Dict, List, Any, Tuple, Union
 from .bond_provenance import BondProvenance
 import logging
 
-class _FragmensteinBaseMixin:
+class _AdamBaseMixin:
 
     journal = logging.getLogger('Fragmenstein')
 
