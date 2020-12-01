@@ -1,6 +1,6 @@
 ##############################################
 cores = 2
-out_path = 'mpro_output'
+out_path = 'junk/mpro_output'
 ##############################################
 
 import pandas as pd

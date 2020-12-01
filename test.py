@@ -172,9 +172,9 @@ class Combine(unittest.TestCase):
 
 
     def rings1(self):
-        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
         toluene.SetProp('_Name', 'toluene')
-        rototoluene = Chem.MolFromMolFile('rototoluene.mol')
+        rototoluene = Chem.MolFromMolFile('test_mols/rototoluene.mol')
         rototoluene.SetProp('_Name', 'rototoluene')
         v = Victor.combine(hits=[toluene, rototoluene],
                            pdb_filename=self.template,
@@ -182,9 +182,9 @@ class Combine(unittest.TestCase):
                            covalent_resn='VAL')
 
     def rings2(self):
-        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
         toluene.SetProp('_Name', 'toluene')
-        transtolueneF = Chem.MolFromMolFile('transtoluene.mol')
+        transtolueneF = Chem.MolFromMolFile('test_mols/transtoluene.mol')
         transtolueneF.SetProp('_Name', 'transtoluene-fuse')
         v = Victor.combine(hits=[toluene, transtolueneF],
                            pdb_filename=self.template,
@@ -192,9 +192,9 @@ class Combine(unittest.TestCase):
                            covalent_resn='VAL')
 
     def rings3(self):
-        toluene = Chem.MolFromMolFile('toluene.mol')
+        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
         toluene.SetProp('_Name', 'toluene')
-        transtolueneS = Chem.MolFromMolFile('transtoluene2.mol')
+        transtolueneS = Chem.MolFromMolFile('test_mols/transtoluene2.mol')
         transtolueneS.SetProp('_Name', 'transtoluene-spiro')
         # cmd.rotate('z', -90, 'rototoluene', camera=0)
         v = Victor.combine(hits=[toluene, transtolueneS],
