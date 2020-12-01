@@ -5,13 +5,13 @@ The `Fragmenstein` class places the followup placing algorithm.
 One problem in doing so is mapping atoms from the hits to the followup. Three modes were tested.
 
 The three modes rely heavily on mapping one-to-one atomic coordinates of overlapping atoms between hits
-within a 2Å radius (see [Position Mapping code](fragmenstein/monster/positional_mapping.py)).
+within a 2Å radius (see [Position Mapping code](../fragmenstein/monster/positional_mapping.py)).
 
-<img src="images/position_over_mcs.jpg" width="300px">
+<img src="../images/position_over_mcs.jpg" width="300px">
 
 <div>
-<img src="images/image0.svg" alt="x0692 common with x0305" width="200px">
-<img src="images/image1.svg" alt="x0305 common with x0692" width="200px">
+<img src="../images/image0.svg" alt="x0692 common with x0305" width="200px">
+<img src="../images/image1.svg" alt="x0305 common with x0692" width="200px">
 </div>
 
 The three have different strengths. And which is better depends actually on the dataset.
@@ -32,7 +32,7 @@ This makes it much faster than the unmerged mode, so sliding scale of MCS mappin
 
 This was the primary method used, until partial mapping was introduced to overcome the incorrect hit issue.
 
-![grid](images/grid.jpg)
+![grid](../images/grid.jpg)
 
 #### Pros
 
@@ -114,15 +114,15 @@ Consequently, this is not possible.
 Therefore in the case of sidechains that are novel in the followup a optimised conformer is a aligned against the half placed followup
 using the 3-4 atoms that are the closest neighbours within the half-placed structure and the side chain position copied from there for each bit.
 
-<img src="images/grid.jpg" alt="fragments of x0305" width="400px">
-<img src="images/overlay.png" alt="fragments of x0305" width="400px">
+<img src="../images/grid.jpg" alt="fragments of x0305" width="400px">
+<img src="../images/overlay.png" alt="fragments of x0305" width="400px">
 
 ### Imperfect projection
 
 The projection approach is not perfect, but it is not constrained so generally gets fixed without issue during minimisation.
 This problem is quite apparent in the cases where atoms connecting to the sulfur are added:
 
-![deviant](images/S_deviant.png)
+![deviant](../images/S_deviant.png)
 
 The way the projection is done is via a single conformer.
 

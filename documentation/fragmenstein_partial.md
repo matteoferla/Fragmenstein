@@ -66,7 +66,7 @@ Gives
     5 ['x1093', 'x0395', 'x0967', 'x0107']
     10 ['x0395', 'x1093', 'x0967', 'x0434']
     
-![toomany](images/dodgy_killer.png)
+![toomany](../images/dodgy_killer.png)
     
 x1093 and x0107 are removed at 2 Å due to the ring.
 Consequently, the code implemented to get rid of dodgy mappings does not include rings.

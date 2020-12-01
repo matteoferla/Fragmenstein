@@ -4,7 +4,7 @@
 > but the conclusion is the same. `none` mode of merging —i.e. mapping the followup molecule to each hit is the best
 > even when there are incorrect inspiration hits.
 
-As [discussed](README.md), it has three main parts:
+As [discussed](../README.md), it has three main parts:
 * the pipeline (Victor class)
 * the minimiser (Egor class) and
 * the followup placing algorithm (Fragmenstein class)
@@ -26,24 +26,24 @@ The medians of the various scores are:
 No merging mapping is better for both number of atoms used and the ∆∆G_bind.
 It scored worse for time and slightly for RMSD.
 
-![compare-N-atoms.png](images/compare-N-atoms.png)
-![compare-rmsd.png](images/compare-rmsd.png)
-![compare-∆∆G.png](images/compare-∆∆G.png)
-![compare-runtime.png](images/compare-runtime.png)
+![compare-N-atoms.png](../images/compare-N-atoms.png)
+![compare-rmsd.png](../images/compare-rmsd.png)
+![compare-∆∆G.png](../images/compare-∆∆G.png)
+![compare-runtime.png](../images/compare-runtime.png)
 It is clear that the no merging mapping when it fails it fails badly.
 So let's look solely at all ∆∆G < 0 ones:
-![compare-∆∆G2.png](images/compare-∆∆G2.png)
+![compare-∆∆G2.png](../images/compare-∆∆G2.png)
 
 The outliers in ∆∆G are caused by erroneous hits being claimed to be inspirations.
 Here is one of these, WAR-XCH-b6889685-63 in the same colours as the graphs:
 
-![image](images/WAR-XCH-b6889685-63.png)
+![image](../images/WAR-XCH-b6889685-63.png)
 
 Namely the outlier is chosen as an inspiration and the bond length is not violated as the atoms from the mapped parts are 
 not neighbours, so the 3 Å limit does not apply. Curiously, full-merger mapped to one cluster, while partial merger to the loner.
 
 The time problem is substantial for the none.
-![compare-timeproblem.png](images/compare-timeproblem.png).
+![compare-timeproblem.png](../images/compare-timeproblem.png).
 
 These are the offenders:
 |     | name                | mode    |       ∆∆G |   comRMSD |   N_constrained_atoms |   runtime |   N_hits |

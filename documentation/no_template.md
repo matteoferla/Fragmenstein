@@ -18,7 +18,7 @@ What happens is that all rings are replaced with a single atom that can be unpac
 
 ``Ring`` class in ``core._collapse_ring`` does exactly that (inherited by ``Frankenstein``).
 
-![collapse](images/atom_collapse.png)
+![collapse](../images/atom_collapse.png)
 
 But it can be a bit unpredictable in the upacking step after merging,
 therefore it is not implemented in Victor with SMILES
@@ -70,13 +70,13 @@ A issue arises merging different warheads. In which case they can be ignore, kep
 Bonding to a warhead is forbidden.
 Therefore, mergers may link up in unexpected ways, such as this, wherein two hits actually have different warheads.
 
-![harmony](images/harmonising_warheads.png)
+![harmony](../images/harmonising_warheads.png)
 
 ## Mad ones
 If two rings intersect perpendicularly (_e.g._ `x0708-x2193`) the resulting bonding will be unexpected
 ("emergency bonding" warning appears).
 
-![cross-ring](images/cross_ring.png)
+![cross-ring](../images/cross_ring.png)
 
 I have no idea how to resolve this or whether it should be.
 

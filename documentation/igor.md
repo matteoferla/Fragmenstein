@@ -10,7 +10,7 @@ Igor has three minimisers that I tried:
 * cartesian MinMover which gets stuck in local minimum in hard cases.
 * PertMinMover which behaves weirdly...
 
-<img src="images/movers.jpg" alt="movers" width="400px">
+<img src="../images/movers.jpg" alt="movers" width="400px">
 
 Igor gets run as follows:
 
