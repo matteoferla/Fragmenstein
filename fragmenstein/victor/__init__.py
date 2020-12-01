@@ -216,8 +216,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # ***** FRAGMENSTEIN *******
         # make monster
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
-        # fragmenstein_throw_on_discard controls if disconnected.
-        Monster.throw_on_discard = self.fragmenstein_throw_on_discard
+        # monster_throw_on_discard controls if disconnected.
+        Monster.throw_on_discard = self.monster_throw_on_discard
         self.monster = Monster(mol=self.mol,
                                          hits=self.hits,
                                          attachment=attachment,
@@ -296,7 +296,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         conf = self.monster.positioned_mol.GetConformer()
         for i in range(self.monster.positioned_mol.GetNumAtoms()):
             if len(origins[i]) > 0:
-                atom = self.fragmenstein.positioned_mol.GetAtomWithIdx(i)
+                atom = self.monster.positioned_mol.GetAtomWithIdx(i)
                 if atom.GetSymbol() == '*':
                     continue
                 elif atom.GetPDBResidueInfo() is None:
@@ -320,7 +320,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
 
-    def _place_fragmenstein(self):
+    def _place_monster(self):
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
         if self.covalent_resi:
             p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
@@ -330,11 +330,11 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             p_chain = 'A'
         if not l_chain:
             l_chain = 'B'
-        mol = AllChem.DeleteSubstructs(self.fragmenstein.positioned_mol, Chem.MolFromSmiles('*'))
-        if self.fragmenstein_mmff_minisation:
-            self.journal.debug(f'{self.long_name} - pre-minimising fragmenstein (MMFF)')
-            self.fragmenstein.mmff_minimise(mol)
-        self.journal.debug(f'{self.long_name} - placing fragmenstein')
+        mol = AllChem.DeleteSubstructs(self.monster.positioned_mol, Chem.MolFromSmiles('*'))
+        if self.monster_mmff_minisation:
+            self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
+            self.monster.mmff_minimise(mol)
+        self.journal.debug(f'{self.long_name} - placing monster')
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             # distort positions
@@ -501,7 +501,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
 
     def _calculate_rmsd(self):
         self.journal.debug(f'{self.long_name} - calculating mRMSD')
-        return mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.fragmenstein.positioned_mol)
+        return mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.monster.positioned_mol)
 
     def calculate_score(self):
         return {**self.igor.ligand_score(),
@@ -524,7 +524,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         """
         pass
 
-    def post_fragmenstein_step(self):
+    def post_monster_step(self):
         """
         This method is intended for make inherited mods easier.
         :return:
@@ -595,33 +595,33 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
 
     def _checkpoint_bravo(self):
         self._log_warnings()
-        self.journal.debug(f'{self.long_name} - saving mols from fragmenstein')
-        if self.fragmenstein.scaffold  is not None:
+        self.journal.debug(f'{self.long_name} - saving mols from monster')
+        if self.monster.scaffold  is not None:
             scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
-            Chem.MolToMolFile(self.fragmenstein.scaffold, scaffold_file, kekulize=False)
-            if self.fragmenstein.scaffold.HasProp('parts'):
-                disregard = json.loads(self.fragmenstein.scaffold.GetProp('parts'))
+            Chem.MolToMolFile(self.monster.scaffold, scaffold_file, kekulize=False)
+            if self.monster.scaffold.HasProp('parts'):
+                disregard = json.loads(self.monster.scaffold.GetProp('parts'))
                 self.journal.info(f'{self.long_name} - disregarded {disregard}')
             else:
                 disregard = []
-        if self.fragmenstein.chimera is not None:
+        if self.monster.chimera is not None:
             chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
-            Chem.MolToMolFile(self.fragmenstein.chimera, chimera_file, kekulize=False)
-        if self.fragmenstein.positioned_mol is not None:
+            Chem.MolToMolFile(self.monster.chimera, chimera_file, kekulize=False)
+        if self.monster.positioned_mol is not None:
             pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
-            Chem.MolToMolFile(self.fragmenstein.positioned_mol, pos_file, kekulize=False)
-        if self.fragmenstein.scaffold_options:
+            Chem.MolToMolFile(self.monster.positioned_mol, pos_file, kekulize=False)
+        if self.monster.scaffold_options:
             opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
             writer = Chem.SDWriter(opt_file)
             writer.SetKekulize(False)
-            for t in self.fragmenstein.scaffold_options:
+            for t in self.monster.scaffold_options:
                 writer.write(t)
             writer.close()
 
-        frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.fragmenstein.json')
+        frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.monster.json')
         data = {'smiles': self.smiles,
-               'origin': self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol),
-               'stdev': self.fragmenstein.stdev_from_mol(self.fragmenstein.positioned_mol)}
+               'origin': self.monster.origin_from_mol(self.monster.positioned_mol),
+               'stdev': self.monster.stdev_from_mol(self.monster.positioned_mol)}
         if disregard:
             data['disregard'] = disregard
         with open(frag_file, 'w') as w:
@@ -652,7 +652,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         :return:
         """
         try:
-            conn = sum([o != [] for o in self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)])
+            conn = sum([o != [] for o in self.monster.origin_from_mol(self.monster.positioned_mol)])
         except Exception as err:
             self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
             conn = float('nan')
@@ -661,8 +661,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     @property
     def unconstrained_heavy_atoms(self) -> int:
         try:
-            origins = self.fragmenstein.origin_from_mol(self.fragmenstein.positioned_mol)
-            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in zip(origins, self.fragmenstein.positioned_mol.GetAtoms())])
+            origins = self.monster.origin_from_mol(self.monster.positioned_mol)
+            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in zip(origins, self.monster.positioned_mol.GetAtoms())])
         except Exception as err:
             self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
             unconn = float('nan')

@@ -104,7 +104,7 @@ class _VictorBaseMixin:
         self.params = 'Params'
         self.mol = 'Chem.Mol'
         self.constraint = 'Constraint'
-        self.fragmenstein = 'Monster'
+        self.monster = 'Monster'
         self.modifications = []
         self.unminimised_pdbblock = str()
         self.igor = 'Igor'

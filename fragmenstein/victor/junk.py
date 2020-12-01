@@ -16,7 +16,7 @@ class DeleteMe:
         The purpose of this is to get a DDG and a RMSD of a given followup for validation purposes.
         It is a bit convoluted solely to have consistent atom names with the followup,
         as opposed to changing them afterwards —safer for any arbitrary test.
-        The followup pdb is not used for fragmenstein placement as that would bias the test!
+        The followup pdb is not used for monster placement as that would bias the test!
 
         :param hits:
         :param smiles:

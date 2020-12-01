@@ -148,15 +148,15 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.modifications.extend(recto.modifications)  # backup for debug
         self._log_warnings()
         # the origins are obscured because of the collapsing and rectification...
-        self.monster.guess_origins(self.fragmenstein.positioned_mol, self.hits)
-        self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
-        self.mol = self.fragmenstein.positioned_mol
+        self.monster.guess_origins(self.monster.positioned_mol, self.hits)
+        self.monster.positioned_mol.SetProp('_Name', self.long_name)
+        self.mol = self.monster.positioned_mol
         self.journal.debug(f'{self.long_name} - Rectified')
         self.smiles = Chem.MolToSmiles(self.mol)
-        if self.fragmenstein_debug_draw:
-            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.fragmenstein.positioned_mol)
+        if self.monster_debug_draw:
+            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.monster.positioned_mol)
             AllChem.Compute2DCoords(picture)
-            self.fragmenstein.draw_nicely(picture)
+            self.monster.draw_nicely(picture)
         # making folder.
         self._make_output_folder()
         # paramterise
@@ -170,7 +170,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # _get_constraint will have changed the names in params.mol so the others need changing too!
         # namely  self.params.rename_by_substructure happend.
         self.mol = Chem.Mol(self.params.mol)
-        self.fragmenstein.positioned_mol = Chem.Mol(self.mol)
+        self.monster.positioned_mol = Chem.Mol(self.mol)
         # those Hs lack correct names and charge!!
         self.params.add_Hs()
         self.params.convert_mol()
@@ -178,8 +178,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()
-        self.fragmenstein_merging_mode = 'full'
-        self.unminimised_pdbblock = self._place_fragmenstein()
+        self.monster_merging_mode = 'full'
+        self.unminimised_pdbblock = self._place_monster()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
@@ -218,8 +218,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         :return:
         """
         lines = []
-        conf = self.fragmenstein.positioned_mol.GetConformer()
-        for i, atom in enumerate(self.fragmenstein.positioned_mol.GetAtoms()):
+        conf = self.monster.positioned_mol.GetConformer()
+        for i, atom in enumerate(self.monster.positioned_mol.GetAtoms()):
             if atom.GetSymbol() == '*':
                 continue
             elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):

@@ -80,8 +80,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     'N_constrained_atoms': N_constrained_atoms,
                     'N_unconstrained_atoms': N_unconstrained_atoms,
                     'runtime': self.tock - self.tick,
-                    'regarded': [h.GetProp('_Name') for h in self.hits if
-                                 h.GetProp('_Name') not in self.monster.unmatched],
+                    'regarded': self.monster.matched,
                     'disregarded': self.monster.unmatched
                     }
         else:
@@ -97,8 +96,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     'N_constrained_atoms': self.constrained_atoms,
                     'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
                     'runtime': self.tock - self.tick,
-                    'regarded': [h.GetProp('_Name') for h in self.hits if
-                                 h.GetProp('_Name') not in self.monster.unmatched],
+                    'regarded': self.monster.matched,
                     'disregarded': self.monster.unmatched
                     }
 
@@ -608,7 +606,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         else:
             self.journal.info(f'{self.long_name} - no positioned mol')
             self.mol = None
-        fragjson = os.path.join(folder, f'{self.long_name}.fragmenstein.json')
+        fragjson = os.path.join(folder, f'{self.long_name}.monster.json')
         if os.path.exists(fragjson):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
@@ -626,7 +624,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             self.is_covalent = None
             self.smiles = ''
             self.monster = None
-            self.journal.info(f'{self.long_name} - no fragmenstein json')
+            self.journal.info(f'{self.long_name} - no monster json')
             self.N_constrained_atoms = float('nan')
 
         #
