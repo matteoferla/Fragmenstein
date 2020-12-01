@@ -152,6 +152,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                                                        matchChiralTag=True)
                 pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
+        if self.throw_on_discard:
+            Unmerge.max_strikes = 20
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
                      maps=maps,
@@ -968,3 +970,14 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                 rdMolAlign.AlignMol(target, ref, atomMap=A2B, maxIters=500)
             else:
                 warn(f'No overlap? {A2B}')
+
+    @property
+    def matched(self):
+        """
+        This is the counter to unmatched.
+        It's dynamic as you never know...
+
+        :return:
+        """
+        return [h.GetProp('_Name') for h in self.hits if
+                h.GetProp('_Name') not in self.unmatched]
