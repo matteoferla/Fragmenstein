@@ -28,7 +28,7 @@ from rdkit.Chem import rdFMCS, AllChem
 
 from ._victor_base_mixin import _VictorBaseMixin
 from ..m_rmsd import mRSMD
-from ..core import Fragmenstein
+from ..monster import Monster
 from rdkit_to_params import Params
 from ..igor import Igor
 from ._loggerwriter import LoggerWriter
@@ -60,10 +60,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
 
     def summarise(self):
         if self.error:
-            if self.fragmenstein is None:
+            if self.monster is None:
                 N_constrained_atoms = float('nan')
                 N_unconstrained_atoms = float('nan')
-            elif self.fragmenstein.positioned_mol is None:
+            elif self.monster.positioned_mol is None:
                 N_constrained_atoms = float('nan')
                 N_unconstrained_atoms = float('nan')
             else:
@@ -72,7 +72,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             return {'name': self.long_name,
                     'smiles': self.smiles,
                     'error': self.error,
-                    'mode': self.fragmenstein_merging_mode,
+                    'mode': self.monster_merging_mode,
                     '∆∆G': float('nan'),
                     '∆G_bound': float('nan'),
                     '∆G_unbound': float('nan'),
@@ -80,15 +80,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     'N_constrained_atoms': N_constrained_atoms,
                     'N_unconstrained_atoms': N_unconstrained_atoms,
                     'runtime': self.tock - self.tick,
-                    'regarded': [h.GetProp('_Name') for h in self.hits if
-                                 h.GetProp('_Name') not in self.fragmenstein.unmatched],
-                    'disregarded': self.fragmenstein.unmatched
+                    'regarded': self.monster.matched,
+                    'disregarded': self.monster.unmatched
                     }
         else:
             return {'name': self.long_name,
                     'smiles': self.smiles,
                     'error': self.error,
-                    'mode': self.fragmenstein_merging_mode,
+                    'mode': self.monster_merging_mode,
                     '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
                            self.energy_score['unbound_ref2015']['total_score'],
                     '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
@@ -97,9 +96,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     'N_constrained_atoms': self.constrained_atoms,
                     'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
                     'runtime': self.tock - self.tick,
-                    'regarded': [h.GetProp('_Name') for h in self.hits if
-                                 h.GetProp('_Name') not in self.fragmenstein.unmatched],
-                    'disregarded': self.fragmenstein.unmatched
+                    'regarded': self.monster.matched,
+                    'disregarded': self.monster.unmatched
                     }
 
     # =================== Logging ======================================================================================
@@ -354,14 +352,14 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             for hit in self.hits:
                 hit_name = hit.GetProp('_Name')
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit), hit_name)
-                if self.fragmenstein is None:
+                if self.monster is None:
                     pymol.cmd.color('grey50', f'element C and {hit_name}')
-                elif hit_name in self.fragmenstein.unmatched:
+                elif hit_name in self.monster.unmatched:
                     pymol.cmd.color('black', f'element C and {hit_name}')
                 else:
                     pymol.cmd.color('white', f'element C and {hit_name}')
-            if self.fragmenstein is not None and self.fragmenstein.positioned_mol is not None:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.fragmenstein.positioned_mol), 'placed')
+            if self.monster is not None and self.monster.positioned_mol is not None:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.monster.positioned_mol), 'placed')
                 pymol.cmd.color('magenta', f'element C and placed')
                 pymol.cmd.zoom('byres (placed expand 4)')
                 pymol.cmd.show('line', 'byres (placed around 4)')
@@ -444,7 +442,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                      regex_name: Optional[str]= None,
                      throw_on_error:bool=False) -> Dict[str, Chem.Mol]:
         """
-         A key requirement for Fragmenstein is a separate mol file for the inspiration hits.
+         A key requirement for Monster is a separate mol file for the inspiration hits.
         This is however often a pdb. This converts.
         `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimised()` calls mol_from_pose.
 
@@ -608,25 +606,25 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         else:
             self.journal.info(f'{self.long_name} - no positioned mol')
             self.mol = None
-        fragjson = os.path.join(folder, f'{self.long_name}.fragmenstein.json')
+        fragjson = os.path.join(folder, f'{self.long_name}.monster.json')
         if os.path.exists(fragjson):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
             self.is_covalent = True if '*' in self.smiles else False
-            self.fragmenstein = Fragmenstein(mol=self.mol,
+            self.monster = Monster(mol=self.mol,
                                              hits=self.hits,
                                              attachment=None,
                                              merging_mode='off',
-                                             average_position=self.fragmenstein_average_position
+                                             average_position=self.monster_average_position
                                              )
-            self.fragmenstein.positioned_mol = self.mol
-            self.fragmenstein.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
+            self.monster.positioned_mol = self.mol
+            self.monster.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
 
         else:
             self.is_covalent = None
             self.smiles = ''
-            self.fragmenstein = None
-            self.journal.info(f'{self.long_name} - no fragmenstein json')
+            self.monster = None
+            self.journal.info(f'{self.long_name} - no monster json')
             self.N_constrained_atoms = float('nan')
 
         #

@@ -38,7 +38,7 @@ class _RectifierBaseMixin:
         Instantiates but does not call ``fix`` (or its specific methods).
 
         :param mol: Does not get edited. ``.mol`` does (but is a``Chem.RWMol``, so use ``mol.GetMol()``)
-        # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves adamantane)
+        # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves monsterantane)
 
         :param valence_correction:
         :param debug:

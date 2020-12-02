@@ -1,5 +1,5 @@
 from ._victor_base_mixin import _VictorBaseMixin
-from ..core import Fragmenstein
+from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 from ..rectifier import Rectifier
@@ -28,13 +28,13 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                 ):
         """
         Combines the hits without a template.
-        If the class attribute ``fragmenstein_throw_on_discard`` is True, it will raise an exception if it cannot.
+        If the class attribute ``monster_throw_on_discard`` is True, it will raise an exception if it cannot.
 
-        The cutoff distance is controlled by class attribute ``fragmenstein_joining_cutoff``.
+        The cutoff distance is controlled by class attribute ``monster_joining_cutoff``.
         At present this just adds a hydrocarbon chain, no fancy checking for planarity.
 
         The hits are collapsed, merged, expanded and bonded by proximity.
-        In ``(self.fragmenstein.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
+        In ``(self.monster.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
 
         ``warhead_harmonisation`` fixes the warhead in the hits to be homogeneous.
 
@@ -56,7 +56,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         :return:
         """
         self = cls.__new__(cls)
-        self.fragmenstein_merging_mode = 'full' # needed solely for logkeeping
+        self.monster_merging_mode = 'full' # needed solely for logkeeping
         self.long_name = '-'.join([h.GetProp('_Name') for h in hits])
         self.apo_pdbblock = open(pdb_filename).read()
         self.journal.debug(f'{self.long_name} - harmonising warheads on hits in "{warhead_harmonisation}" mode')
@@ -84,7 +84,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.mol = None
         self.smiles = None
         self.constraint = None
-        self.fragmenstein = None
+        self.monster = None
         # ====== debug: absent in main mode.
         self.modifications = []  # list of the various steps during fragment merging mode.
         # ======
@@ -92,9 +92,9 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
-        if self.fragmenstein_average_position:
+        if self.monster_average_position:
             # I need to code this case.
-            self.journal.warning('`fragmenstein_average_position` class attribute == True does not apply here')
+            self.journal.warning('`monster_average_position` class attribute == True does not apply here')
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
@@ -110,53 +110,53 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
 
     def _combine_main(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.fragmenstein = Fragmenstein(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
+        self.monster = Monster(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
                 hits=[],
                 attachment=attachment,
                 merging_mode='off')
         # collapse hits
-        # fragmenstein_throw_on_discard controls if disconnected.
-        self.fragmenstein.throw_on_discard = self.fragmenstein_throw_on_discard
-        self.fragmenstein.joining_cutoff = self.fragmenstein_joining_cutoff # Å
+        # monster_throw_on_discard controls if disconnected.
+        self.monster.throw_on_discard = self.monster_throw_on_discard
+        self.monster.joining_cutoff = self.monster_joining_cutoff # Å
         # merge!
-        col_hits = self.fragmenstein.collapse_mols(self.hits)
+        col_hits = self.monster.collapse_mols(self.hits)
         self.modifications.extend(col_hits)
-        self.fragmenstein.scaffold = self.fragmenstein.merge_hits(col_hits)
-        self.modifications.append(Chem.Mol(self.fragmenstein.scaffold)) # backup for debug
+        self.monster.scaffold = self.monster.merge_hits(col_hits)
+        self.modifications.append(Chem.Mol(self.monster.scaffold)) # backup for debug
         self._log_warnings()
         ## Discard can happen for other reasons than disconnect
-        if self.fragmenstein_throw_on_discard and len(self.fragmenstein.unmatched):
-            raise ConnectionError(f'{self.long_name} - Could not combine with {self.fragmenstein.unmatched} '+\
-                                  f'(>{self.fragmenstein.joining_cutoff}')
+        if self.monster_throw_on_discard and len(self.monster.unmatched):
+            raise ConnectionError(f'{self.long_name} - Could not combine with {self.monster.unmatched} '+\
+                                  f'(>{self.monster.joining_cutoff}')
         # expand and fix
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
-        self.fragmenstein.positioned_mol = self.fragmenstein.expand_ring(self.fragmenstein.scaffold)
+        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
         # bonded_as_original=False no longer needed.
-        self.modifications.append(Chem.Mol(self.fragmenstein.positioned_mol)) # backup for debug
+        self.modifications.append(Chem.Mol(self.monster.positioned_mol)) # backup for debug
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Expanded')
-        recto = Rectifier(self.fragmenstein.positioned_mol)
+        recto = Rectifier(self.monster.positioned_mol)
         try:
             recto.fix()
         except ConnectionError:
             self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
-            mol = self.fragmenstein._emergency_joining(recto.mol)
-            recto = Rectifier(self.fragmenstein.positioned_mol)
+            mol = self.monster._emergency_joining(recto.mol)
+            recto = Rectifier(self.monster.positioned_mol)
             recto.fix()
-        self.fragmenstein.positioned_mol = recto.mol
+        self.monster.positioned_mol = recto.mol
         self.modifications.extend(recto.modifications)  # backup for debug
         self._log_warnings()
         # the origins are obscured because of the collapsing and rectification...
-        self.fragmenstein.guess_origins(self.fragmenstein.positioned_mol, self.hits)
-        self.fragmenstein.positioned_mol.SetProp('_Name', self.long_name)
-        self.mol = self.fragmenstein.positioned_mol
+        self.monster.guess_origins(self.monster.positioned_mol, self.hits)
+        self.monster.positioned_mol.SetProp('_Name', self.long_name)
+        self.mol = self.monster.positioned_mol
         self.journal.debug(f'{self.long_name} - Rectified')
         self.smiles = Chem.MolToSmiles(self.mol)
-        if self.fragmenstein_debug_draw:
-            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.fragmenstein.positioned_mol)
+        if self.monster_debug_draw:
+            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.monster.positioned_mol)
             AllChem.Compute2DCoords(picture)
-            self.fragmenstein.draw_nicely(picture)
+            self.monster.draw_nicely(picture)
         # making folder.
         self._make_output_folder()
         # paramterise
@@ -170,7 +170,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # _get_constraint will have changed the names in params.mol so the others need changing too!
         # namely  self.params.rename_by_substructure happend.
         self.mol = Chem.Mol(self.params.mol)
-        self.fragmenstein.positioned_mol = Chem.Mol(self.mol)
+        self.monster.positioned_mol = Chem.Mol(self.mol)
         # those Hs lack correct names and charge!!
         self.params.add_Hs()
         self.params.convert_mol()
@@ -178,8 +178,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()
-        self.fragmenstein_merging_mode = 'full'
-        self.unminimised_pdbblock = self._place_fragmenstein()
+        self.monster_merging_mode = 'full'
+        self.unminimised_pdbblock = self._place_monster()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
@@ -218,8 +218,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         :return:
         """
         lines = []
-        conf = self.fragmenstein.positioned_mol.GetConformer()
-        for i, atom in enumerate(self.fragmenstein.positioned_mol.GetAtoms()):
+        conf = self.monster.positioned_mol.GetConformer()
+        for i, atom in enumerate(self.monster.positioned_mol.GetAtoms()):
             if atom.GetSymbol() == '*':
                 continue
             elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):

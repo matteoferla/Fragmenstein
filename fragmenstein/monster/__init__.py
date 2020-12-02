@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-This is Fragmenstein proper. and contains the class ``Fragmenstein``.
+This is Monster proper. and contains the class ``Monster``.
     """
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
 __email__ = "matteo.ferla@gmail.com"
@@ -24,9 +24,9 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
 from rdkit.Geometry.rdGeometry import Point3D
 
-from ._utility_mixin import _FragmensteinUtil
-from ._join_neighboring import _FragmensteinJoinNeighMixin
-from ._collapse_ring import _FragmensteinRing
+from ._utility_mixin import _MonsterUtil
+from ._join_neighboring import _MonsterJoinNeighMixin
+from ._collapse_ring import _MonsterRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
 from .bond_provenance import BondProvenance
@@ -34,7 +34,7 @@ import itertools
 
 ##################################################################
 
-class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinNeighMixin):  # Unmerge is called. Not inherited.
+class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmerge is called. Not inherited.
     """
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
@@ -152,6 +152,8 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
                                                        matchChiralTag=True)
                 pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
+        if self.throw_on_discard:
+            Unmerge.max_strikes = 20
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
                      maps=maps,
@@ -393,7 +395,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
     def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
         Recursively stick the hits together and average the positions.
-        This is the core of automerging, full-merging mapping and partial merging mapping.
+        This is the monster of automerging, full-merging mapping and partial merging mapping.
         The latter however uses `combine_hits` first.
         The hits are not ring-collapsed and -expanded herein.
 
@@ -980,3 +982,14 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
                 rdMolAlign.AlignMol(target, ref, atomMap=A2B, maxIters=500)
             else:
                 warn(f'No overlap? {A2B}')
+
+    @property
+    def matched(self):
+        """
+        This is the counter to unmatched.
+        It's dynamic as you never know...
+
+        :return:
+        """
+        return [h.GetProp('_Name') for h in self.hits if
+                h.GetProp('_Name') not in self.unmatched]

@@ -20,12 +20,12 @@ import logging
 
 class _VictorBaseMixin:
     quick_renanimation = False  # thorugh reanimation?
-    fragmenstein_merging_mode = 'none_permissive'
-    fragmenstein_debug_draw = False
-    fragmenstein_average_position = False
-    fragmenstein_joining_cutoff = 5.  # Å
-    fragmenstein_throw_on_discard = False
-    fragmenstein_mmff_minisation = True
+    monster_merging_mode = 'none_permissive'
+    monster_debug_draw = False
+    monster_average_position = False
+    monster_joining_cutoff = 5.  # Å
+    monster_throw_on_discard = False
+    monster_mmff_minisation = True
     constraint_function_type = 'FLAT_HARMONIC'
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
@@ -104,7 +104,7 @@ class _VictorBaseMixin:
         self.params = 'Params'
         self.mol = 'Chem.Mol'
         self.constraint = 'Constraint'
-        self.fragmenstein = 'Fragmenstein'
+        self.monster = 'Monster'
         self.modifications = []
         self.unminimised_pdbblock = str()
         self.igor = 'Igor'

@@ -25,10 +25,10 @@ import numpy as np
 from collections import Counter
 from functools import partial
 from .bond_provenance import BondProvenance
-from ._base import _FragmensteinBaseMixin
+from ._base import _MonsterBaseMixin
 
 
-class _FragmensteinRing(_FragmensteinBaseMixin):
+class _MonsterRing(_MonsterBaseMixin):
     def __init__(self, _debug_draw=False):
         # abstracted...
         self._debug_draw = _debug_draw

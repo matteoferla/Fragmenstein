@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-These are extras for the Fragmenstein step
+These are extras for the Monster step
     """
 
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
@@ -38,7 +38,7 @@ except ImportError:
 ########################################################################################################################
 
 
-class _FragmensteinUtil:
+class _MonsterUtil:
 
     @classmethod
     def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol] = None,
@@ -55,7 +55,7 @@ class _FragmensteinUtil:
         As a classmethod ``followup_placed`` and ``hits`` must be provided. But as an instance method they don't.
 
         :param followup_moved: followup compound moved by Igor or similar
-        :param followup_placed: followup compound as placed by Fragmenstein
+        :param followup_placed: followup compound as placed by Monster
         :param hits: list of hits.
         :return: combined RMSD
         """
@@ -107,7 +107,7 @@ class _FragmensteinUtil:
 
     def stdev_from_mol(self, mol: Chem.Mol=None):
         """
-        these values are stored from Fragmenstein for scaffold, chimera and positioned_mol
+        these values are stored from Monster for scaffold, chimera and positioned_mol
 
         :param mol: Chem.Mol
         :return: stdev list for each atom
@@ -124,7 +124,7 @@ class _FragmensteinUtil:
 
     def origin_from_mol(self, mol: Chem.Mol = None):
         """
-        these values are stored from Fragmenstein for scaffold, chimera and positioned_mol
+        these values are stored from Monster for scaffold, chimera and positioned_mol
 
         :param mol: Chem.Mol
         :return: stdev list for each atom
@@ -277,7 +277,7 @@ class _FragmensteinUtil:
     def mmff_minimise(self, mol: Optional[Chem.Mol]=None) -> None:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
-        Gets called by Victor if the flag .fragmenstein_mmff_minimisation is true during PDB template construction.
+        Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
 
         :param mol: opt. mol. modified in place.
         :return: None
