@@ -199,7 +199,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
             # fix rings.
             uniques = {atom.GetIdx() for atom in fragmentanda.GetAtoms() if
                        'overlapping' not in atom.GetProp('_Category')}
-            team = self._recruit_team(fragmentanda, anchor_index, uniques)
+            team = self._recruit_team(fragmentanda, anchor_index, uniques) #team: all the unique atom idxs connected to anchor
             other_attachments = list((team & set(fp.keys())) - {anchor_index})
             other_attachment_details = []
             for other in other_attachments:
@@ -412,7 +412,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         for fragmentanda in hits[1:]:
             try:
                 scaffold = self.merge_pair(scaffold, fragmentanda)
-            except ConnectionError:
+            except ConnectionError: #TODO: This should be a package defined exception
                 save_for_later.append(fragmentanda)
         # second try
         join_later = []
@@ -425,7 +425,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         for fragmentanda in join_later:
             try:
                 scaffold = self.join_neighboring_mols(scaffold, fragmentanda)
-            except ConnectionError:
+            except ConnectionError: #TODO: This should be a package defined exception
                 self.unmatched.append(fragmentanda.GetProp("_Name"))
                 msg = f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!'
                 if self.throw_on_discard:
@@ -598,7 +598,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         :param anchor_index: the fragment-to-added's internal atom that attaches (hit indexed)
         :param attachment_details: see `_pre_fragment_pairs` or example below fo an entry
         :type attachment_details: List[Dict]
-        :param other_attachments:
+        :param other_attachments: as attachment_details. It is used when the attachement is a ring.
         :param other_attachment_details:
         :return: a new Chem.Mol molecule
 
@@ -635,7 +635,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
                 break
             ii += len(indices)
         else:
-            raise Exception
+            raise Exception("Error, anchor_index was not found in fragment splits")
         frag = fragmols[mol_N]
         frag_anchor_index = indices.index(anchor_index)
         # pre-emptively fix atom ori_i
@@ -836,7 +836,7 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         """
         Averages the overlapping atoms.
 
-        :param scaffold:
+        :param scaffold: a rdkit.Chem.Mol that is ussed as scaffold
         :return:
         """
         if indices is None:
@@ -945,6 +945,18 @@ class Fragmenstein(_FragmensteinUtil, _FragmensteinRing, GPM, _FragmensteinJoinN
         return self._get_atom_maps(molA, molB, **mode)[0]
 
     def _recruit_team(self, mol: Chem.Mol, starting: int, uniques: set, team: Optional[set] = None) -> set:
+        '''
+        Recursive method that add neighbours idxs of atoms to the team set. The set is initializaed to starting index,
+        generally the anchor_atom index. Only atom indices included in uniques set will be considered to be added to
+        team
+
+        :param mol: The molecule where we want to build the team
+        :param starting: atom index to start with.
+        :param uniques: Atom indices that will be considered to join the team if they are neighbours of one of the atoms
+            of the team
+        :param team: a set of atom indices that are unique and neighbours of starting index atom in molecule mol
+        :return: team: a set of atom indices that are unique and neighbours of starting index atom in molecule mol
+        '''
         if team is None:
             team = set()
         team.add(starting)

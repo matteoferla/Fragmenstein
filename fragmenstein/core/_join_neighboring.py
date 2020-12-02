@@ -7,6 +7,7 @@ from .bond_provenance import BondProvenance
 from ._base import _FragmensteinBaseMixin
 
 class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
+    #TODO: add DeLinker option here
     def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
         """
         Joins two molecules by first calling _find_closest to find closest.
@@ -75,7 +76,7 @@ class _FragmensteinJoinNeighMixin(_FragmensteinBaseMixin):
         if distance > self.joining_cutoff:
             msg = f'Atoms {anchor_A}+{anchor_B} are {distance} Å away. Cutoff is {self.joining_cutoff}.'
             self.journal.warning(msg)
-            raise ConnectionError(msg)
+            raise ConnectionError(msg) #TODO: Define package exceptions
         # place new atoms
         self.journal.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) via the addition of {n_new} atoms.')
         previous = anchor_A
