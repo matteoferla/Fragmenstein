@@ -121,7 +121,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # merge!
         col_hits = self.monster.collapse_mols(self.hits)
         self.modifications.extend(col_hits)
-        self.monster.scaffold = self.monster.merge_hits(col_hits)
+        self.monster.scaffold = self.monster.merge_hits(col_hits) #Here is where join_neighboring_mols can be reached
         self.modifications.append(Chem.Mol(self.monster.scaffold)) # backup for debug
         self._log_warnings()
         ## Discard can happen for other reasons than disconnect
@@ -159,13 +159,14 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
             self.monster.draw_nicely(picture)
         # making folder.
         self._make_output_folder()
+
         # paramterise
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         self.params = Params.load_mol(self.mol, name=self.ligand_resn)
         self.params.NAME = self.ligand_resn # force it.
         self.params.polish_mol()
         # get constraint
-        self.constraint = self._get_constraint(self.extra_constraint)
+        self.constraint = self._get_constraint(self.extra_constraint) #Covalent fixing happens here
         self.constraint.custom_constraint += self._make_coordinate_constraints_for_unnovels()
         # _get_constraint will have changed the names in params.mol so the others need changing too!
         # namely  self.params.rename_by_substructure happend.
