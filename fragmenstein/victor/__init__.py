@@ -101,7 +101,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # entry attributes
         self.long_name = self.slugify(long_name)
         self.smiles = smiles
-        self.apo_pdbblock = open(pdb_filename).read()
+        with  open(pdb_filename) as f:
+            self.apo_pdbblock = f.read()
         self.hits = hits
         self.ligand_resn = ligand_resn.upper()
         self.ligand_resi = ligand_resi
