@@ -133,7 +133,7 @@ class _IgorMinMixin:
         # ref2015_cart_cst.wts
         # constrain
         if self.constraint_file:
-            self.pose.dump_pdb('test.pdb')
+            self.pose.dump_pdb('test.pdb') #TODO; Replace fname and/or make it optional. fname -> fname, ext= os.path.splitext(renamee); fname+="_test.pdb"
             setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
             setup.constraint_file(self.constraint_file)
             setup.apply(self.pose)

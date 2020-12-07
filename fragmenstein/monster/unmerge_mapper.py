@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 class Unmerge(GPM):
     """
     This class tries to solve the mapping problem by try all possible mappings of the target to the ligand.
-    It is one of three in Monster (full merge, partial merge, unmerge.
+    It is one of three in Monster (full merge, partial merge, unmerge).
 
     It is great with fragments that do not connect, but is bad when a hit has a typo.
 
@@ -55,9 +55,9 @@ class Unmerge(GPM):
 
         :param followup: the molecule to place
         :type followup: Chem.Mol
-        :param mols: 3D molecules
+        :param mols: 3D molecules. E.g. Hits
         :type mols: List[Chem.Mol]
-        :param maps: can be generated outseide of Monster by ``.make_maps``.
+        :param maps: can be generated outside of Monster by ``.make_maps``.
         :type maps: Dict[List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
         :param _debug_draw:
@@ -423,4 +423,4 @@ class Unmerge(GPM):
         """
         d = self.measure_map(mol, mapping)
         # return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
-        return sum(d > 2.5) * 3
+        return sum(d > 2.5) * 3 #TODO: set threshold as argument

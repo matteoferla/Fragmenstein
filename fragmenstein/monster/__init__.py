@@ -69,9 +69,9 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         * 'none': no merging is done. The hits are mapped individually. Not great for small fragments.
         * 'off': do nothing.
 
-        :param mol:
-        :param hits:
-        :param attachment:
+        :param mol: rdkit.Chem.Mol The follow-up compound
+        :param hits: List[rdkit.Chem.Mol] The hits to merge
+        :param attachment: warhead?
         :param debug_draw:
         :param merging_mode: full | partial | none | off
         """
@@ -137,10 +137,11 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     def no_merging(self, broad=False) -> None:
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
+        :param broad: boolean. ???
         """
         maps = {}
         for template in self.hits:
-            if broad:
+            if broad: #TODO: Document this
                 pair_atom_maps, _ = self.get_mcs_mappings(self.initial_mol, template)
                 maps[template.GetProp('_Name')] = pair_atom_maps
             else:
@@ -309,7 +310,11 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                     new += 1
         return new
 
-    def pick_best(self):
+    def pick_best(self): #TODO. Add top 3 search as default argument instead hardcoded L 340
+        '''
+
+        :return: Tuple (S, N). S: rdkit.Chem.Mol candidate scaffold, N: int index mode, the lowest index to try when building chimera
+        '''
         if len(self.scaffold_options) == 1:
             return self.scaffold_options[0], 0
         elif len(self.scaffold_options) == 0:
@@ -327,7 +332,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             ## get data
             # presort as this is expensive.
             for template in self.scaffold_options:
-                # _get_atom_maps returns a list of alternative mappings which are lists of template to initail mol
+                # _get_atom_maps returns a list of alternative mappings which are lists of template to initial mol
                 atom_maps = self._get_atom_maps(template, self.initial_mol,
                                                 atomCompare=rdFMCS.AtomCompare.CompareElements,
                                                 bondCompare=rdFMCS.BondCompare.CompareOrder,
@@ -470,7 +475,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         for scaff_ai, follow_ai in atom_map.items():
             if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(
                     follow_ai).GetSymbol():
-                v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'Se': 2, 'P': 6}
+                v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'Se': 2, 'P': 6} #TODO: Move it outside the loop
                 wanted = self.initial_mol.GetAtomWithIdx(follow_ai)
                 if wanted.GetSymbol() == '*':  # all good then!
                     continue
@@ -948,7 +953,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
 
     def _recruit_team(self, mol: Chem.Mol, starting: int, uniques: set, team: Optional[set] = None) -> set:
         '''
-        Recursive method that add neighbours idxs of atoms to the team set. The set is initializaed to starting index,
+        Recursive method that add neighbours idxs of atoms to the team set. The set is initialized to starting index,
         generally the anchor_atom index. Only atom indices included in uniques set will be considered to be added to
         team
 

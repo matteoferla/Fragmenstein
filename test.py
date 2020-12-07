@@ -11,7 +11,15 @@ from fragmenstein import Monster, Victor, Igor, Rectifier
 from fragmenstein.mpro import MProVictor
 
 # ======================================================================================================================
+'''
+To execute a single test:
+python -m unittest test.MProTargetTester.test_easy
 
+To execute all test in a directory
+
+python -m unittest discover path/to/tests/dir
+
+'''
 
 class MProTargetTester(unittest.TestCase):
 
