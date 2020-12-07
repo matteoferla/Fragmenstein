@@ -467,7 +467,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        self.journal.debug(f"scaffold-followup: {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+        self.journal.debug( "scaffold-followup: " +str({**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}) )
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -522,7 +522,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            self.journal.debug(f"followup-chimera' = {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+            self.journal.debug( "scaffold-followup: " +str({**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}))
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:
@@ -542,7 +542,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                 c_atom = self.chimera.GetAtomWithIdx(ci)
                 if c_atom.HasProp('_Stdev'):
                     stdev = c_atom.GetDoubleProp('_Stdev')
-                    origin = c_atom.GetAtomWithIdx(ci).GetProp('_Origin')
+                    origin = c_atom.GetProp('_Origin')
                     p_atom.SetDoubleProp('_Stdev', stdev)
                     p_atom.SetProp('_Origin', origin)
                 pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
