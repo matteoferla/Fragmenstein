@@ -25,7 +25,13 @@ class _MonsterJoinNeighMixin(_MonsterBaseMixin):
         for anchor_A, anchor_B, distance in candidates[1:]:
             mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=False)
 
+        print(combo, candidates)
+        for atom in mol.GetAtoms():
+            print(atom.GetPropsAsDict())
 
+        conf = mol.GetConformer()
+        print( conf.GetPositions())
+        input( "join_neighboring_mols reached: "+Chem.MolToSmiles(mol))
         mol.SetProp('_Name', mol_A.GetProp('_Name') + '~' + mol_B.GetProp('_Name'))
         return mol
 

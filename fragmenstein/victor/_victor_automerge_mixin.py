@@ -131,7 +131,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # expand and fix
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
-        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
+        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold) #TODO: Here we have lost the Covalent attatchment symbol *
         # bonded_as_original=False no longer needed.
         self.modifications.append(Chem.Mol(self.monster.positioned_mol)) # backup for debug
         self._log_warnings()
@@ -166,7 +166,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.params.NAME = self.ligand_resn # force it.
         self.params.polish_mol()
         # get constraint
-        self.constraint = self._get_constraint(self.extra_constraint) #Covalent fixing happens here
+        self.constraint = self._get_constraint(self.extra_constraint) #Covalent fixing happens hie
         self.constraint.custom_constraint += self._make_coordinate_constraints_for_unnovels()
         # _get_constraint will have changed the names in params.mol so the others need changing too!
         # namely  self.params.rename_by_substructure happend.
@@ -174,7 +174,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.monster.positioned_mol = Chem.Mol(self.mol)
         # those Hs lack correct names and charge!!
         self.params.add_Hs()
-        self.params.convert_mol()
+        self.params.convert_mol() #TODO: Uderstand if this goes well.
         self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()

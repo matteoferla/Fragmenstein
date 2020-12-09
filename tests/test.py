@@ -13,11 +13,11 @@ from fragmenstein.mpro import MProVictor
 # ======================================================================================================================
 '''
 To execute a single test:
-python -m unittest test.MProTargetTester.test_easy
+python -m unittest tests.test.MProTargetTester.test_easy
 
 To execute all test in a directory
 
-python -m unittest discover path/to/tests/dir
+python -m unittest discover tests/
 
 '''
 
@@ -185,6 +185,7 @@ class RingTestsVictor(unittest.TestCase):
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_spirodituluene(self):
+        #TODO: Make it pass.
         name = 'spirodituluene'
         after = 'C[C@@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1'
         template = os.path.join(MProVictor.get_mpro_path(), 'template.pdb')

@@ -335,6 +335,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             self.monster.mmff_minimise(mol)
+            # print(Chem.MolToSmiles(self.monster.positioned_mol))
+            # input(Chem.MolToPDBBlock(self.monster.positioned_mol))
         self.journal.debug(f'{self.long_name} - placing monster')
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
@@ -420,6 +422,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def _get_constraint(self, extra_constraint: Optional[str] = None) -> Union[Constraints, None]:
         # deal with covalent and non covalent separately
         if self.is_covalent:
+
             self.journal.debug(f'{self.long_name} - is covalent.')
             constraint = self._fix_covalent()
             if extra_constraint:
