@@ -1,12 +1,12 @@
 # Victor
 
-Victor is a pipeline class. This has many features and can be rather complicated in its setup: but then a point and click
+Victor is the overarching class. This has many features and can be rather complicated in its setup: but then a point and click
 solution that works universally without customisation is a bad solution for molecular modelling.
 
 Victor does the following steps:
 
 * Is given a followup to test and the mol objects of its inspiration and the pdb template file.
-* Calls Fragmenstein class
+* Calls Monster class
 * Parameterises the mol
 * Generates the constraints
 * Calls Igor
@@ -15,7 +15,7 @@ Victor does the following steps:
 Whereas each instance call of Victor can be customised with various arguments, such as `smiles` and `hits` etc.
 Core settings controlling its behaviour can be set via class attributes:
 
-The following control fragmenstein and are described in [Fragmenstein class documentation](fragmenstein.md).
+The following control fragmenstein and are described in [Fragmenstein class documentation](monster/monster.md).
 
 * `fragmenstein_merging_mode`
 * `fragmenstein_debug_draw`
