@@ -537,7 +537,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                 c_atom = self.chimera.GetAtomWithIdx(ci)
                 if c_atom.HasProp('_Stdev'):
                     stdev = c_atom.GetDoubleProp('_Stdev')
-                    origin = c_atom.GetAtomWithIdx(ci).GetProp('_Origin')
+                    origin = c_atom.GetProp('_Origin')
                     p_atom.SetDoubleProp('_Stdev', stdev)
                     p_atom.SetProp('_Origin', origin)
                 pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
