@@ -1,0 +1,2 @@
+MPRO_RAW_DATA_DIR = "/home/ruben/oxford/myProjects/diamondCovid/data/Mpro"
+RAW_SUBMISSIONS_TABLE_URL = "https://raw.githubusercontent.com/postera-ai/COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
