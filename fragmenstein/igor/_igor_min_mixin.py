@@ -128,12 +128,13 @@ class _IgorMinMixin:
             warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
             return float('nan')
 
-    def _get_scorefxn(self, name: str = "ref2015"):
+    def _get_scorefxn(self, name: str = "ref2015", dumpPdbPose: bool = None):
         scorefxn = pyrosetta.create_score_function(name)
         # ref2015_cart_cst.wts
         # constrain
         if self.constraint_file:
-            self.pose.dump_pdb('test.pdb') #TODO; Replace fname and/or make it optional. fname -> fname, ext= os.path.splitext(renamee); fname+="_test.pdb"
+            if dumpPdbPose:
+                self.pose.dump_pdb('test.pdb') #Pose is written in working dir
             setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
             setup.constraint_file(self.constraint_file)
             setup.apply(self.pose)

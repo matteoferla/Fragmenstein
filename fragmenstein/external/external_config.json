@@ -1,0 +1,17 @@
+{
+  "DeLinker": {
+    "ROOT_DIR": "/home/ruben/oxford/tools/DeLinker",
+    "PYTHONPATH": [
+      "%(ROOT_DIR)s",
+      "%(ROOT_DIR)s/analysis",
+      "%(ROOT_DIR)s/examples"
+    ],
+    "POST_IMPORT":[]
+  },
+
+    "pyrosetta": {
+    "ROOT_DIR": "/home/ruben/app/anaconda3/envs/Fragmenstein/lib/python3.7/site-packages/pyrosetta/__init__.py",
+    "PYTHONPATH": [],
+     "POST_IMPORT":["import pyrosetta", "pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')"]
+  }
+}

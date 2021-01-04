@@ -24,6 +24,7 @@ python -m unittest discover tests/
 class MProTargetTester(unittest.TestCase):
 
     def test_easy(self):
+        print(self.test_easy.__name__)
         MProVictor.quick_renanimation = True
         victor = MProVictor.from_hit_codes(smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1',
                                   hit_codes=['x0692', 'x0305', 'x1249'],
@@ -33,6 +34,7 @@ class MProTargetTester(unittest.TestCase):
         victor.make_pse()
 
     def test_nasty(self):
+        print(self.test_nasty.__name__)
         MProVictor.quick_renanimation = True
         victor = MProVictor.from_hit_codes(smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
                                            hit_codes=['x0434', 'x0540'],
@@ -48,6 +50,7 @@ class MProTargetTester(unittest.TestCase):
 
         :return:
         """
+        print(self.test_incorrect.__name__)
         MProVictor.quick_renanimation = True
         victor = MProVictor.from_hit_codes(smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
                                            hit_codes='x0692,x0770,x0995'.split(','),
@@ -71,6 +74,7 @@ class MProTargetTester(unittest.TestCase):
 
         :return:
         """
+        print(self.test_pentachromatic.__name__)
         MProVictor.quick_renanimation = True
         # ,'x2646'
         Victor.monster_throw_on_discard = True
@@ -92,6 +96,7 @@ class MProTargetTester(unittest.TestCase):
 
 class RectifierTester(unittest.TestCase):
     def test_rectifier(self):
+        print(self.test_rectifier.__name__)
         # name: [before, after]
         chemdex = {'phenylnaphthalene': ('c1ccc2ccccc2c1(c3ccccc3)', 'c1ccc(-c2cccc3ccccc23)cc1'),
                    'benzo-azetine': ('C12CCCCC1CC2', 'C1CCC2CCCC2C1'),
@@ -115,6 +120,7 @@ class RectifierTester(unittest.TestCase):
 
     def test_cyclopentine(self):
         # aromatic cyclopent-ine -> cyclopentadiene
+        print(self.test_cyclopentine.__name__)
         name = 'cyclopentine'
         mol = Chem.MolFromSmiles('[nH]1cccc1')
         mol.SetProp('_Name', name)
@@ -128,6 +134,7 @@ class RectifierTester(unittest.TestCase):
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_bad_ring(self):
+        print(self.test_bad_ring.__name__)
         name = 'bad ring'
         after = 'c1ccc2c(c1)CCCC2'
         mol = Chem.MolFromSmiles(after)
@@ -139,6 +146,7 @@ class RectifierTester(unittest.TestCase):
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_bad_ring2(self):
+        print(self.test_bad_ring2.__name__)
         name = 'bad ring2'
         before = 'c1ccc2c(c1)CCCC2'
         after = 'c1ccc2ccccc2c1'
@@ -155,6 +163,7 @@ class RectifierTester(unittest.TestCase):
 class RingTestsVictor(unittest.TestCase):
 
     def test_orthomethyltoluene(self):
+        print(self.test_orthomethyltoluene.__name__)
         name = 'orthomethyltoluene'
         after = 'Cc1cccc(C)c1'
         template = os.path.join(MProVictor.get_mpro_path(), 'template.pdb')
@@ -170,6 +179,7 @@ class RingTestsVictor(unittest.TestCase):
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_peridimethylnaphthalene(self):
+        print(self.test_peridimethylnaphthalene.__name__)
         name = 'peridimethylnaphthalene'
         after = 'Cc1cccc2cccc(C)c12'
         template = os.path.join(MProVictor.get_mpro_path(), 'template.pdb')
@@ -185,6 +195,7 @@ class RingTestsVictor(unittest.TestCase):
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_spirodituluene(self):
+        print(self.test_spirodituluene.__name__)
         #TODO: Make it pass.
         name = 'spirodituluene'
         after = 'C[C@@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1'

@@ -131,7 +131,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # expand and fix
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - Merged')
-        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold) #TODO: Here we have lost the Covalent attatchment symbol *
+        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
         # bonded_as_original=False no longer needed.
         self.modifications.append(Chem.Mol(self.monster.positioned_mol)) # backup for debug
         self._log_warnings()

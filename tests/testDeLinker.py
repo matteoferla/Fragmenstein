@@ -1,5 +1,9 @@
 import unittest, os
+from itertools import cycle, chain
+
 # ======================================================================================================================
+from typing import List
+
 import pyrosetta
 pyrosetta.init(
     extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
@@ -34,7 +38,7 @@ class DeLinkerTester(unittest.TestCase):
         hit_codes= ['x0104', 'x1458']
         hits = self.load_hits(hit_codes= hit_codes )
         print( [ Chem.MolToSmiles(hit) for hit in hits])
-        name = 'DeLinker-'+"-".join(hit_codes)
+        name = 'DeLinker_to_remove-'+"-".join(hit_codes)
         Victor.monster_merging_mode="full"
         Victor.monster_joining_cutoff=10
         victor = Victor.combine(hits= hits,
@@ -44,6 +48,31 @@ class DeLinkerTester(unittest.TestCase):
         gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         victor.make_pse()
 
+    @classmethod
+    def make_pse_generic(cls, mols: List[Chem.Mol], filename='test.pse', pdbFanme=None):
+            """
+            This is specifically for debugging the full fragment merging mode.
+            For general use. Please use the Victor method ``make_pse``.
+            :param mols: A list of molecules to display in pymol
+            :param filename: pse file name
+            :param tints: The colors for the molecules
+            :return:
+            """
+            import pymol2
+            tints = cycle(['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange',
+                          'bluewhite'])
+            assert '.pse' in filename, 'Must be a pymol pse extension!'
+            with pymol2.PyMOL() as pymol:
+                if pdbFanme:
+                    pymol.cmd.load(pdbFanme)
+                for i, mol in enumerate(mols):
+                    try:
+                        name = mol.GetProp('_Name')
+                    except KeyError:
+                        name= "mol_%d"%i
+                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
+                    pymol.cmd.color(next(tints), f'{name} and name C*')
+                pymol.cmd.save(filename)
 
     def test_no_linker_required(self):
         name = 'peridimethylnaphthalene'
@@ -60,6 +89,14 @@ class DeLinkerTester(unittest.TestCase):
         gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
         victor.make_pse()
+
+    def test_pse(self):
+      from joblib import load
+      from random import sample
+      generated_mols = load("/home/ruben/oxford/tools/Fragmenstein/fragmenstein/external/DeLinker_to_remove/molecules_generated.pkl")
+
+      type(self).make_pse_generic(sample(list( chain.from_iterable(generated_mols[0].values())), 25),
+                                  "/home/ruben/oxford/tools/Fragmenstein/fragmenstein/external/DeLinker_to_remove/molecules_generated.pse", pdbFanme=type(self).mPro_pdb)
 
     # def test_easy(self):
     #

@@ -83,6 +83,7 @@ class _MonsterUtil:
             d += cls._get_square_deviation(followup_moved, hit, mapping)
         return d / tatoms ** 0.5
 
+
     @classmethod
     def get_pair_rmsd(cls, molA, molB, mapping: List[Tuple[int, int]]) -> float:
         return (cls._get_square_deviation(molA, molB, mapping) / len(mapping)) ** 0.5
