@@ -4,7 +4,6 @@
 This is a reimplementation/modification of the XCos code that was originally written by Warren Thompson
 <warren.thompson@diamond.ac.uk> taken from (https://github.com/InformaticsMatters/pipelines/blob/master/src/python/pipelines/xchem/xcos.py)
 """
-import argparse
 import os
 
 from rdkit import Chem
@@ -18,35 +17,42 @@ import numpy as np
 from fragmenstein.scoring._scorer_base import _ScorerBase
 
 
+feature_factory_objs = [] #this global object used as a cache is required because BuildFeatureFactory produces non pickleble objects
+def get_feature_factory():
+    if len(feature_factory_objs)==0:
+        feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
+        fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
+        keep_featnames = list(fmParams.keys())
+        feature_factory_objs.extend([feature_factory, fmParams, keep_featnames ] )
+
+    return feature_factory_objs
+
 
 class XcosComputer(_ScorerBase):
 
 
-    def __init__(self, wdir, perBit_score_threshold=0.4, perFragment_score_threshold=6.0, feature_factory = None):
+    def __init__(self, wdir, perBit_score_threshold=0.4, perFragment_score_threshold=6.0,):
         '''
         This params are generally provided through the class method computeScoreForMolecules
         :param wdir:
         :param perBit_score_threshold:
         :param perFragment_score_threshold:
-        :param feature_factory: AllChem.BuildFeatureFactor. Should be created within subprocess for parallelism.
         '''
         super().__init__(wdir)
         self.perBit_score_threshold = perBit_score_threshold
         self.perFragment_score_threshold = perFragment_score_threshold
-        if feature_factory is None:
-            feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
-        self.feature_factory = feature_factory
-        self.fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
-        self.keep_featnames = list( self.fmParams.keys() )
+
 
     def getFeatureMapScore(self, small_m, large_m, score_mode=FeatMaps.FeatMapScoreMode.All):
+
+        feature_factory, fmParams, keep_featnames = get_feature_factory()
         try:
             featLists = []
             for m in [small_m, large_m]:
-                rawFeats = self.feature_factory.GetFeaturesForMol(m)
+                rawFeats = feature_factory.GetFeaturesForMol(m)
                 # filter that list down to only include the ones we're intereted in
-                featLists.append([f for f in rawFeats if f.GetFamily() in self.keep_featnames])
-            fms = [FeatMaps.FeatMap(feats=x, weights=[1] * len(x), params= self.fmParams) for x in featLists]
+                featLists.append([f for f in rawFeats if f.GetFamily() in keep_featnames])
+            fms = [FeatMaps.FeatMap(feats=x, weights=[1] * len(x), params= fmParams) for x in featLists]
             fms[0].scoreMode = score_mode
             fm_score = fms[0].ScoreFeats(featLists[1]) / min(fms[0].GetNumFeatures(), len(featLists[1]))
             return fm_score
@@ -100,6 +106,7 @@ class XcosComputer(_ScorerBase):
 
     def computeScoreOneBit(self, bit, frags_dict):
         '''
+        compute the score associated to input molecule bit and select mathcing fragments
         :param bit: A piece of the molecule to evaluate
         :param frags_dict: a dict of frag_id -> Chem.Mol to compare with bit
         :return: an iterator  ( (frag_id , score ) or None  if no suitable bit provided
@@ -172,6 +179,8 @@ class XcosComputer(_ScorerBase):
 
 
 if __name__ == "__main__":
+
+    # from fragmenstein.scoring._scorer_utils import prepare_paralell_execution
     XcosComputer.evalPipeline(initiaze_parallel_execution=True)
 
 '''

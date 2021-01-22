@@ -20,72 +20,6 @@ class _ScorerBase(_ScorerUtils):
     '''
 
     @classmethod
-    def processOneMolecule(cls, mol_id, mol, frag_dict, *args, **kwargs):
-
-        computer = cls(*args,**kwargs)
-        result =  computer.loadPreviousResult(mol_id)
-        if result is not None:
-            return result
-
-        if isinstance(mol, str):
-            try:
-                mol = cls.load_molecule( mol)
-            except OSError:
-                print("OSError", mol_id, mol, )
-                mol = None
-        if mol is None:
-            result = None
-        else:
-            result = computer.computeScoreOneMolecule(mol_id, mol, frag_dict, *args, **kwargs)
-
-        with open( computer.getCheckpointName( mol_id), "w") as f:
-            json.dump(result, f)
-
-        return result
-
-    @classmethod
-    def computeScoreForMolecules(cls, molId_to_mol_fragIds: Dict[str, Tuple[Union[Chem.Mol, str], List[str]]], frag_dict: Dict[str, Chem.Mol], results_table_fname: str= None
-                                 , *args, **kwargs):
-        '''
-        :param molId_to_mol_fragIds: dict of molecules to evaluate. mol_id -> (mol, [frag_ids]). If frag_ids is None, use all fragments
-                                mol can be either a Chem.Mol or a filename
-        :param frag_dict: a dict of frag_id -> Chem.Mol to compare with bit
-        :param results_table_fname: string : fname where summary table will be saved.
-        :return:
-        '''
-
-        computer = cls(*args,**kwargs)
-
-
-        alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_mol_fragIds.keys()))
-        not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_mol_fragIds.items()) if elem is None)
-
-        results_computed = []
-        for mol_id, (mol, fragIds) in not_computed_mols:
-            if fragIds is None:
-                current_frag_dict = frag_dict
-            else:
-                current_frag_dict = { key: frag_dict[key] for key in fragIds}
-            result = dask.delayed(cls.processOneMolecule)(mol_id, mol, current_frag_dict, *args, **kwargs)
-            results_computed.append( result )
-        results_computed = dask.compute(results_computed)[0]
-
-        results_computed = chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] )
-
-
-        if results_table_fname:
-            panda_rows = []
-            for record in results_computed:
-                if record is None: continue
-                panda_rows.append( [record["mol_name"], record["score"], ",".join(record["fragments"]) ] )
-            df = pd.DataFrame(panda_rows, columns=["mol_name", "score", "fragments"])
-            df.sort_values(by="score", inplace=True)
-            df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
-
-        return results_computed
-
-
-    @classmethod
     def parseCmd(cls, description, additional_args: List[Tuple[str,str,Dict]] = {}):
         '''
 
@@ -184,6 +118,49 @@ class _ScorerBase(_ScorerUtils):
 
         cls.computeScoreForMolecules( molId_to_mol_fragIds, fragments_dict, results_table_fname= args["output"], wdir = args["working_dir"])
 
+    @classmethod
+    def computeScoreForMolecules(cls, molId_to_mol_fragIds: Dict[str, Tuple[Union[Chem.Mol, str], List[str]]], frag_dict: Dict[str, Chem.Mol], results_table_fname: str= None
+                                 , *args, **kwargs):
+        '''
+        :param molId_to_mol_fragIds: dict of molecules to evaluate. mol_id -> (mol, [frag_ids]). If frag_ids is None, use all fragments
+                                mol can be either a Chem.Mol or a filename
+        :param frag_dict: a dict of frag_id -> Chem.Mol to compare with bit
+        :param results_table_fname: string : fname where summary table will be saved.
+        :return:
+        '''
+
+        computer = cls(*args,**kwargs)
+
+
+        alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_mol_fragIds.keys()))
+        not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_mol_fragIds.items()) if elem is None)
+
+        results_computed = []
+        for mol_id, (mol, fragIds) in not_computed_mols:
+            if fragIds is None:
+                current_frag_dict = frag_dict
+            else:
+                current_frag_dict = { key: frag_dict[key] for key in fragIds}
+            result = dask.delayed(computer.processOneMolecule)(mol_id, mol, current_frag_dict, *args, **kwargs)
+            results_computed.append( result )
+        results_computed = dask.compute(results_computed)[0]
+
+        results_computed = chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] )
+
+
+        if results_table_fname:
+            panda_rows = []
+            for record in results_computed:
+                if record is None: continue
+                panda_rows.append( [record["mol_name"], record["score"], ",".join(record["fragments"]) ] )
+            df = pd.DataFrame(panda_rows, columns=["mol_name", "score", "fragments"])
+            df.sort_values(by="score", inplace=True)
+            df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
+
+        return results_computed
+
+
+
     def __init__(self, wdir):
         self.wdir = wdir
 
@@ -204,6 +181,29 @@ class _ScorerBase(_ScorerUtils):
             return data
         except FileNotFoundError:
             return None
+
+
+    def processOneMolecule(self, mol_id, mol, frag_dict, *args, **kwargs):
+
+        result =  self.loadPreviousResult(mol_id)
+        if result is not None:
+            return result
+
+        if isinstance(mol, str):
+            try:
+                mol = self.load_molecule( mol)
+            except OSError:
+                print("OSError", mol_id, mol, )
+                mol = None
+        if mol is None:
+            result = None
+        else:
+            result = self.computeScoreOneMolecule(mol_id, mol, frag_dict, *args, **kwargs)
+
+        with open( self.getCheckpointName( mol_id), "w") as f:
+            json.dump(result, f)
+
+        return result
 
     def computeScoreOneMolecule(self):
         raise NotImplementedError("This is an abstact method that have to be overwritten")
