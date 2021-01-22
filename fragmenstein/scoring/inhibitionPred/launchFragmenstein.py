@@ -1,7 +1,5 @@
-import json
 import os
 import numpy as np
-from multiprocessing import Pool
 from typing import List, Dict, Tuple
 
 import joblib
@@ -24,7 +22,7 @@ import pandas as pd
 FRAGMENSTEIN_FEATURES= ['∆∆G', '∆G_bound', '∆G_unbound', 'comRMSD']
 MOLECULE_FEATURES= ['Synthetic_accessibility', 'WC_LogP' ]
 
-class StatsComputer():
+class ComputeFragmenstein():
 
     [sascorer] = ExternalToolImporter.import_tool("DeLinker", ["sascorer"])
     def __init__(self, raw_data_path= MPRO_RAW_DATA_DIR, results_dir=FEATURES_DIR, n_jobs=1):
@@ -42,29 +40,22 @@ class StatsComputer():
         self.n_jobs = n_jobs
 
 
-    def compute_stats(self, compoundIds_to_fragmentsAndSmile: Dict[str, Tuple[List[str], str]]):
+    def compute_all(self, compoundIds_to_fragmentsAndSmile: Dict[str, Tuple[List[str], str]]):
         '''
-        :param compoundIds_to_fragmentsAndSmile: Dict of compound_ids-> [fragment_compound_id] to study
+        :param compoundIds_to_fragmentsAndSmile: Dict of compound_ids-> [fragment_compound_id, smiles] to study
         :return:
         '''
-        # compound_id_fragments = []
-        # for elem in self.all_compounds_aligned_path:
-        #     compound_xid = elem.split("_")[0].split("-")[-1]
-        #     if compound_xid in compoundIds_to_fragmentsAndSmile:
-        #         compound_id_fragments.append(( elem, compoundIds_to_fragmentsAndSmile[compound_xid] ) )
-
-
         compound_id_fragments= ((key,) + compoundIds_to_fragmentsAndSmile[key] for key in compoundIds_to_fragmentsAndSmile)
         results=Parallel(n_jobs=self.n_jobs, backend="multiprocessing", batch_size=1)( delayed(self.safe_compute_stats_one_compound)(* args) for args in  compound_id_fragments )
         return results
 
     def safe_compute_stats_one_compound(self, compound_id:str, fragments: List[str], smiles:str):
         try:
-            return self.compute_stats_one_compound( compound_id, fragments, smiles)
+            return self.compute_one_compound(compound_id, fragments, smiles)
         except Exception as e:
             return None
 
-    def compute_stats_one_compound(self, compound_id:str, fragments: List[str], smiles=None):
+    def compute_one_compound(self, compound_id:str, fragments: List[str], smiles=None):
         '''
         :param compound_id:
         :param fragments: List of fragment codes
@@ -94,7 +85,7 @@ class StatsComputer():
                                                long_name=compound_id)
             scores = victor.summarise()
             # print( scores  )
-            scores["Synthetic_accessibility"] = StatsComputer.sascorer.calculateScore( mol )
+            scores["Synthetic_accessibility"] = ComputeFragmenstein.sascorer.calculateScore(mol)
             scores["WC_LogP"] = Crippen.MolLogP( mol )
             # print(compound_id, scores)
             joblib.dump(scores, result_fname)
@@ -109,17 +100,15 @@ def generateData():
     id_to_y={}
     data_to_frag={}
     for i, row in df.iterrows():
-        if isinstance(row["Structure ID"], float) and np.isnan(row["Structure ID"]):
-            xid = row["CID"]
-        else:
-            xid = row["Structure ID"]
-        data_to_frag[ xid ] = (row["fragments"].split(","), row["SMILES"])
-        id_to_y[xid] = row[LABEL_FEATURE]
+        c_id = row["CID"]
+        data_to_frag[ c_id ] = (row["fragments"].split(","), row["SMILES"])
+        id_to_y[c_id] = row[LABEL_FEATURE]
 
-    print("Number to compute %s"%len(data_to_frag) )
-    computer = StatsComputer(n_jobs=n_jobs)
-    stats = computer.compute_stats( data_to_frag )
+    print("Number of compounds to compute: %s"%len(data_to_frag) )
+    computer = ComputeFragmenstein(n_jobs=n_jobs)
+    stats = computer.compute_all(data_to_frag)
     rows=[]
+
     selected_fields = FRAGMENSTEIN_FEATURES + MOLECULE_FEATURES
     for ddict in stats:
         if not ddict:
@@ -143,5 +132,5 @@ if __name__=="__main__":
 
 
     '''
-python -m fragmenstein.scoring.computeFeatures 4
+python -m fragmenstein.scoring.launchFragmenstein 4
     '''
