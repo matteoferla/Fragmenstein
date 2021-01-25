@@ -1,11 +1,10 @@
 import os
-import numpy as np
+import sys
 from typing import List, Dict, Tuple
 
 import joblib
+import pandas as pd
 import pyrosetta
-import sys
-
 from joblib import Parallel
 from joblib import delayed
 from rdkit import Chem
@@ -13,11 +12,8 @@ from rdkit.Chem import Crippen
 
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.mpro import MProVictor
-from fragmenstein.scoring.retrieveExamples import retrieve_Mpro_structure_compounds, LABEL_FEATURE
+from fragmenstein.scoring.inhibitionPred.retrieveExamples import retrieve_Mpro_structure_compounds, LABEL_FEATURE
 from fragmenstein.scoring.scoring_config import MPRO_RAW_DATA_DIR, FEATURES_DIR, FRAGMENSTEIN_OUT_DIR
-
-import pandas as pd
-
 
 FRAGMENSTEIN_FEATURES= ['∆∆G', '∆G_bound', '∆G_unbound', 'comRMSD']
 MOLECULE_FEATURES= ['Synthetic_accessibility', 'WC_LogP' ]

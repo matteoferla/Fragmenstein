@@ -7,12 +7,11 @@ import numpy as np
 import pandas as pd
 
 from itertools import chain
-
 from typing import Dict, List, Tuple, Union
 from rdkit import Chem
 
 from fragmenstein.scoring._scorer_utils import _ScorerUtils, prepare_paralell_execution
-
+from fragmenstein.scoring.scoring_config import SDF_SCORES_HEADER_INFO
 
 class _ScorerBase(_ScorerUtils):
     '''
@@ -52,14 +51,10 @@ class _ScorerBase(_ScorerUtils):
         #input_file example
         '''
         mol_id, mol_fname, fragment_ids
-        x10322_0A, % (input_dir)
-        s / Mpro - x10322_0A / Mpro - x10322_0A.mol, x1234,x1324
-        x11810_0A, % (input_dir)
-        s / Mpro - x11810_0A / Mpro - x11810_0A.mol, nan
-        x0464_0A, % (input_dir)
-        s / Mpro - x0464_0A / Mpro - x0464_0A.mol, x1234
-        x12177_0A, % (input_dir)
-        s / Mpro - x12177_0A / Mpro - x12177_0A.mol, nan
+        x10322_0A,%(input_dir)s/Mpro-x10322_0A/Mpro-x10322_0A.mol,"x1234,x1324"
+        x11810_0A,%(input_dir)s/Mpro-x11810_0A/Mpro-x11810_0A.mol,nan
+        x0464_0A,%(input_dir)s/Mpro-x0464_0A/Mpro-x0464_0A.mol,x1234
+        x12177_0A,%(input_dir)s/Mpro-x12177_0A/Mpro-x12177_0A.mol,nan
         '''
 
         import argparse
@@ -76,7 +71,9 @@ class _ScorerBase(_ScorerUtils):
 
         parser.add_argument('-p', '--fragment_id_pattern', required=False, help='Regex pattern for the fragment files.', default=r"(.+)\.mol$")
 
-        parser.add_argument('-o', '--output', required=True, type=str, help='Fname for results table')
+        parser.add_argument('-o', '--table_output', required=False, default=None, type=str, help='Fname for results table')
+
+        parser.add_argument('-s', '--sdf_output', required=False, default=None, type=str, help='Fname for an sdf file of the evaluated molecules')
 
         parser.add_argument('-w', '--working_dir', required=True, type=str, help='Directory where partial results will be saved')
 
@@ -116,22 +113,25 @@ class _ScorerBase(_ScorerUtils):
                 raise ValueError("Error in file format %s"%(args["input_file"]))
         molId_to_mol_fragIds = { molId:(fname, processFragList(fragLists)) for molId,fname,fragLists in input_table.values }
 
-        cls.computeScoreForMolecules( molId_to_mol_fragIds, fragments_dict, results_table_fname= args["output"], wdir = args["working_dir"])
+        assert  args["table_output"] is not None or args["sdf_output"] is not None, "Error, at least one of the following outputs should be provided: 'table_output', 'sdf_output'"
+        cls.computeScoreForMolecules( molId_to_mol_fragIds, fragments_dict, results_sdf_file= args["sdf_output"], results_table_fname= args["table_output"], wdir = args["working_dir"])
 
     @classmethod
-    def computeScoreForMolecules(cls, molId_to_mol_fragIds: Dict[str, Tuple[Union[Chem.Mol, str], List[str]]], frag_dict: Dict[str, Chem.Mol], results_table_fname: str= None
-                                 , *args, **kwargs):
+    def computeScoreForMolecules(cls, molId_to_mol_fragIds: Dict[str, Tuple[Union[Chem.Mol, str], List[str]]], frag_dict: Dict[str, Chem.Mol],
+                                 results_sdf_file: str = None, results_table_fname: str= None,
+                                 *args, **kwargs):
         '''
         :param molId_to_mol_fragIds: dict of molecules to evaluate. mol_id -> (mol, [frag_ids]). If frag_ids is None, use all fragments
                                 mol can be either a Chem.Mol or a filename
         :param frag_dict: a dict of frag_id -> Chem.Mol to compare with bit
+        :param results_sdf_file: an sdf file where the molecules would be stored and the scores, fragments found and additional
+                                information would be stored as molecule properties. First molecule is a dummy molecule that describe
+                                the fields.
         :param results_table_fname: string : fname where summary table will be saved.
         :return:
         '''
 
         computer = cls(*args,**kwargs)
-
-
         alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_mol_fragIds.keys()))
         not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_mol_fragIds.items()) if elem is None)
 
@@ -145,14 +145,47 @@ class _ScorerBase(_ScorerUtils):
             results_computed.append( result )
         results_computed = dask.compute(results_computed)[0]
 
-        results_computed = chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] )
+        results_computed = list( chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] ) )
 
+        scores_ids = None
+        for record in results_computed:
+            if record is None: continue
+            scores_ids = [ elem for elem in record.keys() if elem.startswith("score") ]
+            break
 
+        assert  scores_ids is not None, "Error, not even a single molecule was scored"
+
+        if results_sdf_file:
+            with open(results_sdf_file, "w") as f:
+                f.write("ver_1.2")
+                w = Chem.SDWriter(f)
+                #create dummy mol as file header
+                mol = Chem.MolFromSmiles("C")
+                for key, value in SDF_SCORES_HEADER_INFO.items():
+                    mol.SetProp(key, value)
+                w.write( mol )
+                for record in results_computed:
+                    if record is None: continue
+                    if len(record["fragments"])==0: continue
+                    mol_name = record["mol_name"]
+                    mol = molId_to_mol_fragIds[mol_name][0]
+                    mol = cls.load_mol_if_str(mol)
+                    if mol is None: continue
+                    mol.SetProp("Name", mol_name)
+                    mol.SetProp("original SMILES", Chem.MolToSmiles(mol))
+                    fragments = record["fragments"]
+                    fragments = [fragName+"_0" if not "_" in fragName else fragName for fragName in fragments]
+                    mol.SetProp("ref_mols", ",".join(fragments))
+                    mol.SetProp("ref_pdb", SDF_SCORES_HEADER_INFO["ref_pdb"]) #TODO: allow for more flexible future usage. see scoring_config.py
+                    for score_id in scores_ids:
+                        mol.SetProp(score_id, str( round(record[score_id], ndigits=6 ) ))
+                    w.write(mol)
+                w.close()
         if results_table_fname:
             panda_rows = []
             for record in results_computed:
                 if record is None: continue
-                panda_rows.append( [record["mol_name"], record["score"], ",".join(record["fragments"]) ] )
+                panda_rows.append( [record["mol_name"]] + [ record[score_id] for score_id in scores_ids] + [  ",".join(record["fragments"]) ] )
             df = pd.DataFrame(panda_rows, columns=["mol_name", "score", "fragments"])
             df.sort_values(by="score", inplace=True)
             df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
@@ -189,12 +222,7 @@ class _ScorerBase(_ScorerUtils):
         if result is not None:
             return result
 
-        if isinstance(mol, str):
-            try:
-                mol = self.load_molecule( mol)
-            except OSError:
-                print("OSError", mol_id, mol, )
-                mol = None
+        mol = self.load_mol_if_str(mol)
         if mol is None:
             result = None
         else:

@@ -26,6 +26,11 @@ def prepare_paralell_execution(threads_per_worker=N_THREADS_PER_WORKERS, n_worke
 
     return DASK_CLIENT
 
+
+def mol(args):
+    pass
+
+
 class _ScorerUtils():
     '''
     Class that provides some utilities
@@ -48,7 +53,7 @@ class _ScorerUtils():
 
 
     @classmethod
-    def splitMolToBits(cls, mol):
+    def split_mol_to_Bits(cls, mol):
         '''
         :param mol. Chem.Mol object to be broken up into fragments by breaking rotable bonds
         :return:  a list of Chem.Mol objects that reprsent the bits in which input mol was broken.
@@ -61,6 +66,15 @@ class _ScorerUtils():
         mols = [mol for mol in Chem.GetMolFrags(p, asMols=True)]
         return mols
 
+    @classmethod
+    def load_mol_if_str(cls, mol_or_str):
+        if isinstance(mol_or_str, str):
+            try:
+                mol = cls.load_molecule( mol_or_str)
+            except OSError:
+                print("OSError", mol_or_str, )
+                mol = None
+        return mol
 
     @classmethod
     def clean_pdb_mol(cls, pdb_mol, ):

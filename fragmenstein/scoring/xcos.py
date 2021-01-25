@@ -148,9 +148,8 @@ class XcosComputer(_ScorerBase):
         :return:
         '''
         # Get the bits
-        compound_bits = self.splitMolToBits(mol)
+        compound_bits = self.split_mol_to_Bits(mol)
         fragName_score_per_bit = map(lambda bit: self.computeScoreOneBit(bit, frags_dict), compound_bits)
-
         fragments = set([])
         score = 0
         for bit_result in fragName_score_per_bit:
@@ -162,7 +161,7 @@ class XcosComputer(_ScorerBase):
                 #TODO: Penalty
                 pass
 
-        partial_results = {"mol_name": mol_id, "score": score, "fragments": list(fragments) }
+        partial_results = {"mol_name": mol_id, "score_xcos": score, "fragments": list(fragments) }
         return partial_results
 
     @classmethod
@@ -184,5 +183,6 @@ if __name__ == "__main__":
     XcosComputer.evalPipeline(initiaze_parallel_execution=True)
 
 '''
-python -m fragmenstein.scoring.xcos -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/tools/Fragmenstein/fragmenstein/mpro/data/hit_mols  -o xcos_out.csv -p "Mpro-(\w+)\.mol" -w ~/tmp/test_dask
+python -m fragmenstein.scoring.xcos -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/hit_mols  -o xcos_out.csv -s xcos_out.sdf -p "Mpro-(\w+)\.mol" -w ~/tmp/test_dask
+
 '''

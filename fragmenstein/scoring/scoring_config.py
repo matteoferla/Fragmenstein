@@ -1,4 +1,6 @@
 import os
+from collections import OrderedDict
+from datetime import date
 
 N_WORKERS=4
 N_THREADS_PER_WORKERS=1
@@ -12,3 +14,16 @@ FEATURES_DIR = os.path.expanduser("~/oxford/myProjects/diamondCovid/scoring/comp
 FRAGMENSTEIN_OUT_DIR = os.path.expanduser("~/oxford/myProjects/diamondCovid/scoring/fragmenstein_out")
 
 TMP_DIR = os.path.expanduser("~/tmp/")
+
+SDF_SCORES_HEADER_INFO = OrderedDict([
+    ("submitter_name", "Ruben Sanchez Garcia"),
+    ("submitter_email", "ruben.sanchez-garcia@stats.ox.ac.uk"),
+    ("submitter_institution", "University of Oxford"),
+    ("generation_date", date.today().strftime("%Y-%m-%d")),
+    ("method", "scoring_trial"),
+    ("ref_url", "http://www.notprovided.com"),
+    ("Name", "The name of the compound"),
+    ("original SMILES", "The SMILES of the compound"),
+    ("ref_pdb", "x0830_0"), # TODO: CURRENTLY, it works only with a ref_pdb for all molecules, the ref_pdb should be already available.
+    ("score_xcos", "Score computed using Warren's XCOS") #TODO: autodetect
+])
