@@ -13,7 +13,6 @@ class ExternalToolImporter():
   with open(config_json_fname) as f:
     config_data = json.load( f )
 
-
   @classmethod
   def _get_data_dict(cls, toolName: str) -> Dict[str, Dict]:
     try:
@@ -23,11 +22,13 @@ class ExternalToolImporter():
 
   @classmethod
   def get_rootdir(cls, toolName):
-    return  cls._get_data_dict(toolName)["ROOT_DIR"]
+    return  os.path.expanduser( cls._get_data_dict(toolName)["ROOT_DIR"] )
 
   @classmethod
   def import_tool(cls, toolName: str, moduleNames: List[str]) -> List['class_module']:
     data = cls._get_data_dict(toolName)
+    data["ROOT_DIR"] = os.path.expanduser(data["ROOT_DIR"] )
+
     for dir in data["PYTHONPATH"]:
       dir = dir % data
       if dir not in sys.path:
