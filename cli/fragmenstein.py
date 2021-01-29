@@ -112,5 +112,8 @@ class FragmensteinParser:
 
 # ======================================================================================================================
 
+def main():
+    FragmensteinParser()
+
 if __name__ == '__main__':
     FragmensteinParser()

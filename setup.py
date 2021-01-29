@@ -15,5 +15,7 @@ setup(
     author='Matteo Ferla',
     author_email='matteo.ferla@gmail.com',
     description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
-    scripts=['fragmenstein=cli/fragmenstein.py'],
+    entry_points={
+        'console_scripts': ['fragmenstein=cli/fragmenstein.py:main'],
+    }
 )
