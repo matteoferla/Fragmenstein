@@ -294,3 +294,5 @@ class UnresolvedProblems(unittest.TestCase):
         recto = Rectifier(monster.positioned_mol)
         # ======
         self.assertEqual(Chem.MolToSmiles(recto.mol), Chem.MolToSmiles(methylchlorotoluene))
+
+# Todo: add a class to test missing modules.
