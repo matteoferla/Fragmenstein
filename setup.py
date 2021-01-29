@@ -9,10 +9,11 @@ setup(
     install_requires=['numpy', 'rdkit'],
     extras_require={'minimization': ['pyrosetta','rdkit_to_params'],
                       'pse-export': ['pymol'],
-                    'jupyter': ['jupyter']},
+                      'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
     license='MIT',
     author='Matteo Ferla',
     author_email='matteo.ferla@gmail.com',
-    description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse'
+    description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
+    scripts=['fragmenstein=cli/fragmenstein.py'],
 )
