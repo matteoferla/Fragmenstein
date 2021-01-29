@@ -14,7 +14,7 @@ extract the mol files (with covalent atom if present) in an output folder (`-o <
 
 
 ## position
-    
+
 NB. Please no spaces in the filenames. If spaces are present quote/double-quote the fle path.
 """.strip()
 
@@ -25,7 +25,7 @@ import argparse
 # from fragmenstein import Victor
 
 class FragmensteinParser:
-    ___doc__ = __doc__  # this works (in a function it doesn't as the global cmd is called for)
+    ___doc__ = __doc__  # this works (it is in a function it doesn't as the global cmd is called for)
 
     # ===================== Actions ====================================================================================
 
@@ -38,7 +38,7 @@ class FragmensteinParser:
     def place(self, target_filenames: List, smiles: str):
         pass
 
-    def set_verbosity(verbose:int):
+    def set_verbosity(verbose: int):
         # set logging stdout
         # logging.ERROR, logging.CRITICAL --> 0 ?
         # logging.WARNING --> 1 ?
@@ -57,7 +57,7 @@ class FragmensteinParser:
             self.args = self.parser.parse_args()
         # ---- verify --------------------------------------------------------------------------------------------------
         self.verify()
-        # ---- route --------------------------------------------------------------------------------------------------
+        # ---- route ---------------------------------------------------------------------------------------------------
         self.route()
 
     @classmethod
@@ -115,5 +115,6 @@ class FragmensteinParser:
 def main():
     FragmensteinParser()
 
+
 if __name__ == '__main__':
-    FragmensteinParser()
+    main()
