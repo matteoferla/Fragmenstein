@@ -532,8 +532,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                 neighs = atom.GetNeighbors()
                 first = neighs[0]
                 for second in neighs[1:]:
-                    rejected = second.GetIdx() # that will be absorbed (deleted)
-                    keeper = first.GetIdx()   # that absorbs (kept)
+                    rejected = second.GetIdx()  # that will be absorbed (deleted)
+                    keeper = first.GetIdx()  # that absorbs (kept)
                     self._copy_bonding(mol, keeper, rejected)
                     self._mark_for_deletion(mol, rejected)
                 self._delete_marked(mol)
@@ -555,7 +555,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.journal.debug(f"scaffold-followup: {follow}")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
-        ## make the scaffold more like the followup to avoid weird matches.
+        # make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
         for scaff_ai, follow_ai in atom_map.items():
             if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(

@@ -1,6 +1,7 @@
 import unittest, os
 # ======================================================================================================================
 import pyrosetta
+
 pyrosetta.init(
     extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 # ======================================================================================================================
@@ -9,6 +10,8 @@ from rdkit.Chem import AllChem
 
 from fragmenstein import Monster, Victor, Igor, Rectifier
 from fragmenstein.mpro import MProVictor
+from typing import *
+
 
 # ======================================================================================================================
 
@@ -25,15 +28,14 @@ class MProTargetTester(unittest.TestCase):
         # PAU-UNI-52c0427f-1
         MProVictor.quick_renanimation = True
         victor = MProVictor.from_hit_codes(smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1',
-                                  hit_codes=['x0692', 'x0305', 'x1249'],
-                                  long_name='2_ACL')
-        self.assertEqual(victor.error, '',victor.error)
+                                           hit_codes=['x0692', 'x0305', 'x1249'],
+                                           long_name='2_ACL')
+        self.assertEqual(victor.error, '', victor.error)
         self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
-        msg = f'x1249 is the red herring, prediction: {victor.monster.unmatched}, '+\
+        msg = f'x1249 is the red herring, prediction: {victor.monster.unmatched}, ' + \
               f'while x0305 and x0692 the true inspirations {victor.monster.matched}'
         self.assertIn('x1249', victor.monster.unmatched, msg)
         self.assertIn('x0305', victor.monster.matched, msg)
-
 
         victor.make_pse()
 
@@ -88,8 +90,8 @@ class MProTargetTester(unittest.TestCase):
         # ,'x2646'
         Victor.monster_throw_on_discard = True
         victor = MProVictor.from_hit_codes(smiles='Cc1ccncc1NC(=O)Cc1cccc(Cl)c1',
-                                           #hit_codes=['x0107','x0434','x0678','x0995','x1382'],
-                                           hit_codes=['x0107' ,'x0434', 'x1382'],
+                                           # hit_codes=['x0107','x0434','x0678','x0995','x1382'],
+                                           hit_codes=['x0107', 'x0434', 'x1382'],
                                            long_name='TRY-UNI-714a760b-6')
         self.assertEqual(victor.error, '', victor.error)
         self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
@@ -97,8 +99,9 @@ class MProTargetTester(unittest.TestCase):
         victor.make_pse(extra_mols=[actual])
         rmsd = victor.validate(reference_mol=actual)
         self.assertLess(rmsd, 1, f'The RMSD is large...')
-        #self.assertIn('x1382', victor.monster.matched)
-        #self.assertIn('x0995', victor.monster.unmatched) # red herring
+        # self.assertIn('x1382', victor.monster.matched)
+        # self.assertIn('x0995', victor.monster.unmatched) # red herring
+
 
 # ======================================================================================================================
 
@@ -108,10 +111,10 @@ class RectifierTester(unittest.TestCase):
         # name: [before, after]
         chemdex = {'phenylnaphthalene': ('c1ccc2ccccc2c1(c3ccccc3)', 'c1ccc(-c2cccc3ccccc23)cc1'),
                    'benzo-azetine': ('C12CCCCC1CC2', 'C1CCC2CCCC2C1'),
-                   #'conjoined': ('C1C2CCC2C1', 'C1CCCCC1'), # bridged hexane
+                   # 'conjoined': ('C1C2CCC2C1', 'C1CCCCC1'), # bridged hexane
                    'allene': ('C=C=C', 'C=CC'),
                    'benzo-cyclopronane': ('C12CCCCC1C2', 'C1CCC2CCCC2C1'),
-                   #'norbornane': ('C1CC2CCC1C2', 'C1CC2CCC1C2'),
+                   # 'norbornane': ('C1CC2CCC1C2', 'C1CC2CCC1C2'),
                    'mixed ring': ('c1cccc2c1CCCC2', 'c1ccc2c(c1)CCCC2'),
                    'mixed ring': ('C1CCCc2c1cccc2', 'c1ccc2c(c1)CCCC2'),
                    }
@@ -124,7 +127,6 @@ class RectifierTester(unittest.TestCase):
             recto = Rectifier(mol).fix()
             gotten = Chem.MolToSmiles(recto.mol)
             self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after}) from {before}')
-
 
     def test_cyclopentine(self):
         # aromatic cyclopent-ine -> cyclopentadiene
@@ -145,7 +147,7 @@ class RectifierTester(unittest.TestCase):
         after = 'c1ccc2c(c1)CCCC2'
         mol = Chem.MolFromSmiles(after)
         mol.SetProp('_Name', name)
-        mol.GetBondBetweenAtoms(0,1).SetBondType(Chem.BondType.SINGLE)
+        mol.GetBondBetweenAtoms(0, 1).SetBondType(Chem.BondType.SINGLE)
         before = Chem.MolToSmiles(mol)
         recto = Rectifier(mol).fix()
         gotten = Chem.MolToSmiles(recto.mol)
@@ -157,8 +159,8 @@ class RectifierTester(unittest.TestCase):
         after = 'c1ccc2ccccc2c1'
         mol = Chem.MolFromSmiles(before)
         mol.SetProp('_Name', name)
-        mol.GetBondBetweenAtoms(0,1).SetBondType(Chem.BondType.SINGLE)
-        mol.GetBondBetweenAtoms(6,7).SetBondType(Chem.BondType.AROMATIC)
+        mol.GetBondBetweenAtoms(0, 1).SetBondType(Chem.BondType.SINGLE)
+        mol.GetBondBetweenAtoms(6, 7).SetBondType(Chem.BondType.AROMATIC)
         before = Chem.MolToSmiles(mol)
         recto = Rectifier(mol).fix()
         gotten = Chem.MolToSmiles(recto.mol)
@@ -213,6 +215,7 @@ class RingTestsVictor(unittest.TestCase):
         gotten = Chem.MolToSmiles(Chem.RemoveHs(v.minimised_mol))
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 
@@ -227,15 +230,51 @@ class Internals(unittest.TestCase):
         zeroth = probanda.GetAtomWithIdx(0)
         second = probanda.GetAtomWithIdx(2)
         # 0 - 2 would make a triangle
-        self.assertTrue(monster._is_would_be_triangle(zeroth, second)) # connecting zeroth and second would make a triangle
-        self.assertEqual(monster._get_triangle(zeroth, second),1)  # connecting 0+2, would make 1 the vertex.
+        self.assertTrue(
+            monster._is_would_be_triangle(zeroth, second))  # connecting zeroth and second would make a triangle
+        self.assertEqual(monster._get_triangle(zeroth, second), 1)  # connecting 0+2, would make 1 the vertex.
+
+    def make_mol(self, smiles: str) -> Chem.Mol:
+        mol = Chem.MolFromSmiles(smiles)
+        dummies = mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0))
+        for dummy in dummies:
+            dummy.SetAtomicNum(6)  # carbon is 6 not 12!
+        AllChem.EmbedMolecule(mol)
+        for dummy in dummies:
+            dummy.SetAtomicNum(0)
+        return mol
+
+    def make_pair_by_split(self, conjoined: Chem.Mol, atom_idx: int) -> Tuple[Chem.Mol]:
+        # make overlapping mols by getting a single molecule, and split it
+        # this gives more control over Chem.rdMolAlign.AlignMol as this may overlap other atoms.
+        # negative weights does not work...
+        # fore
+        bond = conjoined.GetBondBetweenAtoms(atom_idx, atom_idx + 1)
+        fragged = Chem.FragmentOnBonds(conjoined, [bond.GetIdx()], addDummies=False)
+        fore = Chem.GetMolFrags(fragged, asMols=True)[0]
+        bond = conjoined.GetBondBetweenAtoms(atom_idx - 1, atom_idx)
+        fragged = Chem.FragmentOnBonds(conjoined, [bond.GetIdx()], addDummies=False)
+        aft = Chem.GetMolFrags(fragged, asMols=True)[1]
+        return fore, aft
+
+    def test_merge_on_same_dummy(self):
+        conjoined = self.make_mol('O=C(O)CSCC#N')
+        acetyl, nitrile = self.make_pair_by_split(conjoined, 4)
+        # merge
+        monster = Monster([acetyl, nitrile])
+        merger = monster.merge_hits()
+        dummies = merger.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0))
+        for dummy in dummies:
+            self.assertEqual(len(dummy.GetNeighbors()), 1)
+        self.assertEqual(len(Chem.GetMolFrags(merger)), 1)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
     def test_recto_fail_A(self):
         """Not too sure why this fails. I think it is the alphatic - ring merger"""
         MProVictor.monster_throw_on_discard = True
-        victor = MProVictor.combine_codes(hit_codes=['x11612','x11475'])
+        victor = MProVictor.combine_codes(hit_codes=['x11612', 'x11475'])
         self.assertEqual(victor.error, '', victor.error)
 
     def test_supplementary1_to_recto_fail_A(self):
@@ -272,8 +311,7 @@ class UnresolvedProblems(unittest.TestCase):
         monster.positioned_mol = monster.expand_ring(monster.scaffold)
         recto = Rectifier(monster.positioned_mol)
         # ======
-        self.assertEqual(Chem.MolToSmiles(recto.mol), Chem.MolToSmiles(chlorotoluene)) #CC(Cl)CCc1ccccc1
-
+        self.assertEqual(Chem.MolToSmiles(recto.mol), Chem.MolToSmiles(chlorotoluene))  # CC(Cl)CCc1ccccc1
 
     def test_supplementary2_to_recto_fail_A(self):
         """
