@@ -66,6 +66,8 @@ class Unmerge(GPM):
         self.mols = mols
         self.maps = maps
         self.no_discard = no_discard
+        if self.no_discard:
+            self.max_strikes = 100
         self._debug_draw = _debug_draw
         accounted_for = set()
         self.c_map_options = []

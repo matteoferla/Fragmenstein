@@ -30,7 +30,9 @@ from ._collapse_ring import _MonsterRing
 from .positional_mapping import GPM
 from .unmerge_mapper import Unmerge
 from .bond_provenance import BondProvenance
+from ..rectifier import Rectifier
 import itertools
+
 
 ##################################################################
 
@@ -59,60 +61,140 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     defined in the ``dummy`` class variable. Namely element R in mol file or * in string is the default.
     """
 
-    def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
-                 debug_draw: bool = False, merging_mode='partial', average_position=False):
+    def __init__(self,
+                 hits: List[Chem.Mol],
+                 attachment: Optional[Chem.Mol] = None,
+                 debug_draw: bool = False,
+                 average_position=False):
         """
-        Merging mode controls what algorithm to use.
+        Initialisation starts Monster, but it does not do any mergers or placements.
+        This is changed in revision 0.6.
 
-        * 'full': a single scaffold is made
-        * 'partial': multiple possible scaffolds and best is chosen
-        * 'none': no merging is done. The hits are mapped individually. Not great for small fragments.
-        * 'off': do nothing.
-
-        :param mol:
-        :param hits:
+        :param hits: hits are a list of rdkit molecules
         :param attachment:
         :param debug_draw:
-        :param merging_mode: full | partial | none | off
+        :param average_position:
         """
         # starting attributes
-        super().__init__()
-        self.initial_mol = mol  # untouched.
-        if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
-            self.attachement = attachment
-        elif self.initial_mol.HasSubstructMatch(self.dummy):
-            warn('No attachment atom provided but dummy atom present --- ignoring.')
-            self.attachement = None
-        elif attachment:
-            warn('Attachment atom provided but dummy atom not present --- ignoring.')
-            self.attachement = None
-        else:
-            self.attachement = None
-        # Chem.RemoveHs(self.initial_mol)
+        # formerly this was present... but it does nothing.
+        # super().__init__()
+        # bar for self._debug_draw = _debug_draw from _MonsterRing
+        # ==== hits ===========================================
         self.hits = self.fix_hits(hits)  # list of hits
+        # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
+        # ==== other ==========================================
         self._debug_draw = debug_draw  # Jupyter notebook only.
-        self.unmatched = []
         self.average_position = average_position
-        # derived attributes
-        self.scaffold = None  #: template which may have wrong elements
-        self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
+        # ==== To do be filled ================================
+        # List[str]
+        self.unmatched = []  #: rejected hits
+        # self.matched is dynamic.  #: accepted hits
+        # Chem.Mol or List[Chem.Mol]
+        self.modifications = []
+        self.initial_mol = None
+        # self.scaffold = None  #: template which may have wrong elements
+        # self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
+        self.scaffolds = []  #: templates which may have wrong elements
         self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
         self.positioned_mol = None  #: final molecule
-        # do calculations
-        if merging_mode == 'off':
-            pass
-        elif merging_mode == 'full':
-            self.full_merging()
-        elif merging_mode == 'partial':
-            self.partial_merging()
-        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
-            self.no_merging(broad=True)
-        elif merging_mode == 'none':
-            self.no_merging()
-        else:
-            raise ValueError(
-                f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
 
+    def place(self, mol: Chem.Mol):
+        pass
+
+    def place_smiles(self, smiles: str):
+        mol = Chem.MolFromSmiles(smiles)
+        self.place(mol)
+
+    def merge(self, keep_all=False, collapse_rings=True):
+        """
+        :return:
+        """
+        # merge!
+        col_hits = self.collapse_mols(self.hits)
+        self.modifications.extend(col_hits)
+        self.monster.scaffold = self.merge_hits(col_hits)
+        self.modifications.append(Chem.Mol(self.monster.scaffold))  # backup for debug
+        self._log_warnings()
+        ## Discard can happen for other reasons than disconnect
+        if self.monster_throw_on_discard and len(self.monster.unmatched):
+            raise ConnectionError(f'{self.long_name} - Could not combine with {self.monster.unmatched} ' + \
+                                  f'(>{self.monster.joining_cutoff}')
+        # expand and fix
+        self._log_warnings()
+        self.journal.debug(f'{self.long_name} - Merged')
+        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
+        # bonded_as_original=False no longer needed.
+        self.modifications.append(Chem.Mol(self.monster.positioned_mol))  # backup for debug
+        self._log_warnings()
+        self.journal.debug(f'{self.long_name} - Expanded')
+        recto = Rectifier(self.monster.positioned_mol)
+        try:
+            recto.fix()
+        except ConnectionError:
+            self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
+            mol = self.monster._emergency_joining(recto.mol)
+            recto = Rectifier(self.monster.positioned_mol)
+            recto.fix()
+        self.monster.positioned_mol = recto.mol
+        self.modifications.extend(recto.modifications)  # backup for debug
+
+    #
+    # def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
+    #              debug_draw: bool = False, merging_mode='partial', average_position=False):
+    #     """
+    #     Merging mode controls what algorithm to use.
+    #
+    #     * 'full': a single scaffold is made
+    #     * 'partial': multiple possible scaffolds and best is chosen
+    #     * 'none': no merging is done. The hits are mapped individually. Not great for small fragments.
+    #     * 'off': do nothing.
+    #
+    #     :param mol:
+    #     :param hits:
+    #     :param attachment:
+    #     :param debug_draw:
+    #     :param merging_mode: full | partial | none | off
+    #     """
+    #     # starting attributes
+    #     # self._debug_draw = _debug_draw from _MonsterRing
+    #     super().__init__()
+    #     self.initial_mol = mol  # untouched.
+    #     if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
+    #         self.attachement = attachment
+    #     elif self.initial_mol.HasSubstructMatch(self.dummy):
+    #         warn('No attachment atom provided but dummy atom present --- ignoring.')
+    #         self.attachement = None
+    #     elif attachment:
+    #         warn('Attachment atom provided but dummy atom not present --- ignoring.')
+    #         self.attachement = None
+    #     else:
+    #         self.attachement = None
+    #     # Chem.RemoveHs(self.initial_mol)
+    #     self.hits = self.fix_hits(hits)  # list of hits
+    #     self._debug_draw = debug_draw  # Jupyter notebook only.
+    #     self.unmatched = []
+    #     self.average_position = average_position
+    #     # derived attributes
+    #     self.scaffold = None  #: template which may have wrong elements
+    #     self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
+    #     self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
+    #     self.positioned_mol = None  #: final molecule
+    #     # do calculations
+    #     if merging_mode == 'off':
+    #         pass
+    #     elif merging_mode == 'full':
+    #         self.full_merging()
+    #     elif merging_mode == 'partial':
+    #         self.partial_merging()
+    #     elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
+    #         self.no_merging(broad=True)
+    #     elif merging_mode == 'none':
+    #         self.no_merging()
+    #     else:
+    #         raise ValueError(
+    #             f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
+
+    @classmethod
     def full_merging(self) -> None:
         """
         a single scaffold is made (except for ``.unmatched``)
@@ -152,8 +234,6 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                                                        matchChiralTag=True)
                 pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
-        if self.throw_on_discard:
-            Unmerge.max_strikes = 20
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
                      maps=maps,
@@ -437,18 +517,27 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         return scaffold
 
     def _prevent_two_bonds_on_dummy(self, mol: Chem.RWMol):
+        """
+        The case '*(C)C' is seen legitimately in some warheads... but in most cases these are not.
+        :param mol:
+        :return:
+        """
         for atom in mol.GetAtoms():
             if atom.GetSymbol() != '*':
                 pass
             elif len(atom.GetNeighbors()) <= 1:
                 pass
             elif len(atom.GetNeighbors()) >= 2:
+                self.journal.info(f'Dummy atom (idx={atom.GetIdx()}) has {len(atom.GetNeighbors())} bonds!')
                 neighs = atom.GetNeighbors()
+                first = neighs[0]
                 for second in neighs[1:]:
-                    self._absorb(mol, atom.GetIdx(), second.GetIdx())
-                    mol.RemoveAtom(second.GetIdx())
-                    self._prevent_two_bonds_on_dummy(mol)
-                    break
+                    rejected = second.GetIdx() # that will be absorbed (deleted)
+                    keeper = first.GetIdx()   # that absorbs (kept)
+                    self._copy_bonding(mol, keeper, rejected)
+                    self._mark_for_deletion(mol, rejected)
+                self._delete_marked(mol)
+                return self._prevent_two_bonds_on_dummy(mol)
 
     # ================= Chimera ========================================================================================
 
@@ -462,7 +551,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         """
         # get the matches
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
-        self.journal.debug(f"scaffold-followup: {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+        follow = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+        self.journal.debug(f"scaffold-followup: {follow}")
         if self._debug_draw:
             self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         ## make the scaffold more like the followup to avoid weird matches.
@@ -517,7 +607,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         # variables: atom_map sextant -> uniques
         if atom_map is None:
             atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
-            self.journal.debug(f"followup-chimera' = {{**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}}")
+            msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
+            self.journal.debug(f"followup-chimera' = {msg}")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
         # debug print
         if self._debug_draw:
@@ -670,7 +761,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             bond_type = detail['type']
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
             new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
-            #BondProvenance.set_bond(new_bond, '???')
+            # BondProvenance.set_bond(new_bond, '???')
             # self.transfer_ring_data(fragmentanda.GetAtomWithIdx(attachment_index),
             #                         combo.GetAtomWithIdx(scaffold_anchor_index))
         for oi, oad in zip(other_attachments, other_attachment_details):
@@ -679,7 +770,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             scaffold_anchor_index = indices.index(oi) + scaffold.GetNumAtoms()
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
             new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
-            #BondProvenance.set_bond(new_bond, '???')
+            # BondProvenance.set_bond(new_bond, '???')
             if self._debug_draw:
                 print(
                     f"Added additional {bond_type.name} bond between {scaffold_attachment_index} and {scaffold_anchor_index} " + \
@@ -815,6 +906,13 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     # ========= Other ==================================================================================================
 
     def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
+        """
+        Adds the ``_Name`` Prop if needed
+        asserts everything is a Chem.Mol
+        calls ``store_positions``
+        :param hits:
+        :return:
+        """
         for hi, hit in enumerate(hits):
             if isinstance(hit, str):
                 warn(f'Hit {hi} is a string ({hit}). This route is not the intended way. Trying to read it.')
@@ -831,6 +929,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
+            # ====== IMPORTANT ==========
             self.store_positions(hit)
         return hits
 
@@ -910,7 +1009,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                 return [dict(n) for n in neolax], mode
         else:
             # Then the strict will have to do.
-            return [dict(n) for n in strict], strict_settings # tuple to dict
+            return [dict(n) for n in strict], strict_settings  # tuple to dict
             # raise ValueError('This is chemically impossible: nothing matches in the MCS step ' +\
             #                  f'({len(self.matching_modes)} modes tried')
 

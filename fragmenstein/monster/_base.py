@@ -6,8 +6,8 @@ from typing import Optional, Dict, List, Any, Tuple, Union
 from .bond_provenance import BondProvenance
 import logging
 
-class _MonsterBaseMixin:
 
+class _MonsterBaseMixin:
     journal = logging.getLogger('Fragmenstein')
 
     dummy_symbol = '*'
@@ -71,12 +71,12 @@ class _MonsterBaseMixin:
         return atom.HasProp('_Warhead') and atom.GetBoolProp('_Warhead') is True
 
     # func: https://stackoverflow.com/questions/41921255/staticmethod-object-is-not-callable
-    closeness_weights =[
-                        (_closest__is_warhead_marked.__func__, np.nan),
-                        (_closest__is_fullbonded.__func__, 1.0),
-                        (_closest__is_ring_atom.__func__, 0.5)
-                        # is_triangle, 2.0
-                       ]
+    closeness_weights = [
+        (_closest__is_warhead_marked.__func__, np.nan),
+        (_closest__is_fullbonded.__func__, 1.0),
+        (_closest__is_ring_atom.__func__, 0.5)
+        # is_triangle, 2.0
+    ]
 
     def _find_closest(self, mol_A: Chem.Mol, mol_B: Chem.Mol) -> Tuple[Chem.RWMol, int, int, float]:
         """
@@ -133,8 +133,8 @@ class _MonsterBaseMixin:
                     candidates.append((anchor_A, anchor_B, distance))
             return combo, candidates
 
-
-    def _get_distance_matrix(self, combo: Chem.Mol, A: Union[Chem.Mol, np.ndarray], B: Union[Chem.Mol, np.ndarray]) -> np.ndarray:
+    def _get_distance_matrix(self, combo: Chem.Mol, A: Union[Chem.Mol, np.ndarray],
+                             B: Union[Chem.Mol, np.ndarray]) -> np.ndarray:
         """
         Called by ``_find_closest`` and ``_determine_mergers_novel_ringcore_pair`` in collapse ring (for expansion).
 
@@ -205,45 +205,89 @@ class _MonsterBaseMixin:
 
     # ============= Other ==============================================================================================
 
-    def _copy_bonding(self, mol, i: int, j: int, force: Optional[bool] = None):
+    def _copy_bonding(self, mol, keeper_idx: int, reject_idx: int, force: Optional[bool] = None):
         """
         formerly called `absorb`. Preps for absorbing. remove J separately.
+        So copy bonding from i to j.
 
         :param mol:
         :param i:
         :param j:
         :return:
         """
-        self.journal.debug(f'Absorbing atom {i} with {j}')
-        absorbenda = mol.GetAtomWithIdx(i)
-        absorbiturum = mol.GetAtomWithIdx(j)
-        for neighbor in absorbiturum.GetNeighbors():
-            neigh_i = neighbor.GetIdx()
-            old_bond = mol.GetBondBetweenAtoms(j, neigh_i)
+        self.journal.debug(f'Absorbing atom {keeper_idx} with {reject_idx}, force={force}')
+        keeper = mol.GetAtomWithIdx(keeper_idx)
+        reject = mol.GetAtomWithIdx(reject_idx)
+        # prevent confusion when it comes to triangles
+        vertex = self._get_triangle(reject, keeper)
+        if vertex:
+            mol.RemoveBond(reject_idx, vertex)
+        # deal with neighbours of reject atom
+        for neighbor in reject.GetNeighbors():
+            # collect bonding details between neighbour of reject and reject itself
+            neigh_idx = neighbor.GetIdx()
+            old_bond = mol.GetBondBetweenAtoms(reject_idx, neigh_idx)
             bt = old_bond.GetBondType()
+            # forcing?
             if force is not None:
-                pass
-            if old_bond.HasProp('_IsRingBond'):
+                force_bond = bool(force)
+            elif old_bond.HasProp('_IsRingBond'):
                 # the ring needs to be force!
-                force = True
+                force_bond = True
             else:
-                force = False
+                force_bond = False
             # mol.RemoveBond(j, n)
-            if i == neigh_i:
+            if keeper_idx == neigh_idx:  # the neighbour is the keeper
                 continue
             else:
-                atom_i, atom_j = mol.GetAtomWithIdx(i), mol.GetAtomWithIdx(j)
-                if force and mol.GetBondBetweenAtoms(i, neigh_i) is None:
-                    self.journal.debug(f'Forcing bond between {i} and {neigh_i}')
-                    mol.AddBond(i, neigh_i, bt)
-                    new_bond = mol.GetBondBetweenAtoms(i, neigh_i)
-                    BondProvenance.copy_bond(old_bond, new_bond)
+                # copy bond. The provenance should be 'other_novel' not the original vai
+                # provenance = BondProvenance.get_bond(old_bond)
+                if force_bond and mol.GetBondBetweenAtoms(keeper_idx, neigh_idx) is None:
+                    self.journal.debug(f'Forcing bond between {keeper_idx} and {neigh_idx}')
+                    self._add_bond_regardlessly(mol=mol,
+                                                first=keeper,
+                                                second=neighbor,
+                                                bond_type=bt,
+                                                provenance='other_novel'
+                                                )
                 else:
-                    self._add_bond_if_possible(mol, atom_i, atom_j)
+                    self._add_bond_if_possible(mol=mol,
+                                               first=keeper,
+                                               second=neighbor,
+                                               provenance='other_novel')
 
-    def _add_bond_if_possible(self, mol, atom_i, atom_j, provenance='other_novel'):
-        i = atom_i.GetIdx()
-        j = atom_j.GetIdx()
+    def _add_bond_regardlessly(self, mol, first: Chem.Atom, second: Chem.Atom, bond_type, provenance='other_novel'):
+        """
+        This methods does no checking and operates dangerously!
+
+        :param mol:
+        :param first:
+        :param second:
+        :param bond_type:
+        :param provenance:
+        :return:
+        """
+        first_idx = first.GetIdx()
+        second_idx = second.GetIdx()
+        # add if absent... (error prevention)
+        present_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
+        if present_bond is None:
+            mol.AddBond(first_idx, second_idx, bond_type)
+        new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
+        BondProvenance.set_bond(new_bond, provenance)
+
+    def _add_bond_if_possible(self, mol, first: Chem.Atom, second: Chem.Atom, provenance='other_novel'):
+        """
+        This method is used by _copy_bonding, but triggered when force=False
+
+        :param mol:
+        :param first:
+        :param second:
+        :param provenance:
+        :return:
+        """
+        first_idx = first.GetIdx()
+        second_idx = second.GetIdx()
 
         def assess_atom(atom: Chem.Atom, bt: Chem.BondType) -> Tuple[bool, Chem.BondType]:
             """
@@ -265,23 +309,23 @@ class _MonsterBaseMixin:
             else:
                 return False, bt  # too bonded already!
 
-        if self._is_triangle(atom_i, atom_j):
-            self.journal.debug(f'Bond between {i} and {j} would make a triangle, skipping')
+        if self._is_would_be_triangle(first, second):
+            self.journal.debug(f'Bond between {first_idx} and {second_idx} would make a triangle, skipping')
             return False
-        elif self._is_square(atom_i, atom_j):
-            self.journal.debug(f'Bond between {i} and {j} would make a square, skipping')
+        elif self._is_would_be_square(first, second):
+            self.journal.debug(f'Bond between {first_idx} and {second_idx} would make a square, skipping')
             return False
-        elif self._is_connected_warhead(atom_j, atom_i):
-            self.journal.debug(f'Bond between {i} and {j} would break a warhead, skipping')
+        elif self._is_connected_warhead(second, first):
+            self.journal.debug(f'Bond between {first_idx} and {second_idx} would break a warhead, skipping')
             return False
         else:
-            present_bond = mol.GetBondBetweenAtoms(i, j)
-            if atom_j.HasProp('_ring_bond'):
-                bt = getattr(Chem.BondType, atom_j.GetProp('_ring_bond'))
+            present_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
+            if second.HasProp('_ring_bond'):
+                bt = getattr(Chem.BondType, second.GetProp('_ring_bond'))
             else:
                 bt = None
             if present_bond is not None and bt is None:
-                self.journal.debug(f'Bond between {i} and {j} already exists')
+                self.journal.debug(f'Bond between {first_idx} and {second_idx} already exists')
                 pass  # exists
             elif present_bond is not None and present_bond.GetBondType() is None:
                 present_bond.SetBondType(Chem.BondType.SINGLE)
@@ -291,16 +335,16 @@ class _MonsterBaseMixin:
                 present_bond.SetBondType(bt)
                 return True
             else:
-                v, bt = assess_atom(atom_i, bt)
-                w, bt = assess_atom(atom_j, bt)
+                v, bt = assess_atom(first, bt)
+                w, bt = assess_atom(second, bt)
                 if v and w and bt is not None:
-                    mol.AddBond(i, j, bt)
-                    new_bond = mol.GetBondBetweenAtoms(i, j)
+                    mol.AddBond(first_idx, j, bt)
+                    new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
                     BondProvenance.set_bond(new_bond, provenance)
                     return True
                 elif v and w:
-                    mol.AddBond(i, j, Chem.BondType.SINGLE)
-                    new_bond = mol.GetBondBetweenAtoms(i, j)
+                    mol.AddBond(first_idx, second_idx, Chem.BondType.SINGLE)
+                    new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
                     BondProvenance.set_bond(new_bond, provenance)
                     return True
                 else:
@@ -310,7 +354,7 @@ class _MonsterBaseMixin:
 
     # === conditional selectors ========================================================================================
 
-    def _is_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
+    def _is_would_be_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
         """
         Get bool of whether two atoms share a common neighbor. Ie. joining them would make a triangle.
         Direct bond does not count.
@@ -321,6 +365,22 @@ class _MonsterBaseMixin:
         """
         if self._get_triangle(first, second) is not None:
             return True
+        else:
+            return False
+
+
+    def _is_would_be_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
+        """
+        Get bool of whether two atoms share a common neighbor+over-neighbor. Ie. joining them would make a square.
+        Direct bond does not count.
+
+        :param first:
+        :param second:
+        :return:
+        """
+        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
+            if self._is_would_be_triangle(first, third) is True:
+                return True
         else:
             return False
 
@@ -372,20 +432,6 @@ class _MonsterBaseMixin:
         else:
             return True
 
-    def _is_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
-        """
-        Get bool of whether two atoms share a common over-neighbor. Ie. joining them would make a square.
-        Direct bond does not count.
-
-        :param first:
-        :param second:
-        :return:
-        """
-        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
-            if self._is_triangle(first, third) is True:
-                return True
-        else:
-            return False
 
     def _get_square(self, first: Chem.Atom, second: Chem.Atom) -> Union[Tuple[int, int], None]:
         for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
@@ -395,7 +441,6 @@ class _MonsterBaseMixin:
                 return third.GetIdx(), fourth
         else:
             return None
-
 
     def _is_connected_warhead(self, atom, anchor_atom):
         if not atom.HasProp('_Warhead'):

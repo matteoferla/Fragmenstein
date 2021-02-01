@@ -29,11 +29,6 @@ except ImportError:
     SVG = lambda *args, **kwargs: print('Install IPython...')
     display = lambda *args, **kwargs: print('Install IPython...')
 
-try:
-    import pymol2
-except ImportError:
-    warn('No Pymol module installed. `.make_pse` will not work.')
-    pymol2 = None
 
 ########################################################################################################################
 
@@ -182,7 +177,7 @@ class _MonsterUtil:
 
     def save_commonality(self, filename:Optional[str]=None):
         """
-        Saves an SVG of the followup fragmenstein with the common atoms with the chimeric scaffold highlighted.
+        Saves an SVG of the followup fragmenstein monster with the common atoms with the chimeric scaffold highlighted.
 
         :param filename: optinal filename to save it as. Otherwise returns a Draw.MolDraw2DSVG object.
         :return:
@@ -210,6 +205,7 @@ class _MonsterUtil:
         :return:
         """
         assert '.pse' in filename, 'Must be a pymol pse extension!'
+        import pymol2
         with pymol2.PyMOL() as pymol:
             tints = iter(['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
             #pymol.cmd.bg_color('white')

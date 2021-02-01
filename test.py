@@ -213,6 +213,24 @@ class RingTestsVictor(unittest.TestCase):
         gotten = Chem.MolToSmiles(Chem.RemoveHs(v.minimised_mol))
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
+# ----------------------------------------------------------------------------------------------------------------------
+
+
+class Internals(unittest.TestCase):
+    def test_triangle(self):
+        """
+        Test triangle prevention.
+        """
+        probanda = Chem.MolFromSmiles('CCC')
+        AllChem.EmbedMolecule(probanda)
+        monster = Monster([probanda])
+        zeroth = probanda.GetAtomWithIdx(0)
+        second = probanda.GetAtomWithIdx(2)
+        # 0 - 2 would make a triangle
+        self.assertTrue(monster._is_would_be_triangle(zeroth, second)) # connecting zeroth and second would make a triangle
+        self.assertEqual(monster._get_triangle(zeroth, second),1)  # connecting 0+2, would make 1 the vertex.
+
+# ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
     def test_recto_fail_A(self):
         """Not too sure why this fails. I think it is the alphatic - ring merger"""
