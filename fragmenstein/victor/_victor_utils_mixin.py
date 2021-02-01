@@ -33,11 +33,6 @@ from rdkit_to_params import Params
 from ..igor import Igor
 from ._loggerwriter import LoggerWriter
 
-try:
-    import pymol2
-except ImportError:
-    pymol2 = None
-
 
 class _VictorUtilsMixin(_VictorBaseMixin):
 
@@ -231,6 +226,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :return:
         """
         distances = []
+        import pymol2
         with pymol2.PyMOL() as pymol:
             for hit in pdb_filenames:
                 pymol.cmd.load(hit)
@@ -348,6 +344,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         :return:
         """
         assert '.pse' in filename, f'{filename} not .pse file'
+        import pymol2
         with pymol2.PyMOL() as pymol:
             for hit in self.hits:
                 hit_name = hit.GetProp('_Name')
@@ -383,6 +380,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     def make_steps_pse(self, filename: str='step.pse'):
+        import pymol2
         assert '.pse' in filename, f'{filename} not .pse file'
         with pymol2.PyMOL() as pymol:
             for hit in self.hits:

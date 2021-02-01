@@ -20,7 +20,6 @@ __citation__ = ""
 
 import json
 import os
-import pymol2
 import re
 import warnings
 import pyrosetta
@@ -474,6 +473,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         Hence why `find_attachment` will replace it.
         todo `_get_attachment_from_pdbblock` --> `find_attachment`
         """
+        import pymol2
+
         self.journal.debug(f'{self.long_name} - getting attachemnt atom')
         if not self.covalent_resn:
             return None
