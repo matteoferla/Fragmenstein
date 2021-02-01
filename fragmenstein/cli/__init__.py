@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Do not split file up
 
 __version__ = '0.1'
 __doc__ = """
