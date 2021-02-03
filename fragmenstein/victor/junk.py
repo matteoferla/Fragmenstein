@@ -96,8 +96,8 @@ class DeleteMe:
                                                    smiles=self.smiles, generic= False,
                                                    name=self.ligand_resn,
                                                    proximityBonding=False)
-        self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        self.params.CHI.data = []  # TODO fix chi
+        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        # self.params.CHI.data = []  # TODO fix chi
         self.mol = self.params.mol
         self._log_warnings()
         # get constraint

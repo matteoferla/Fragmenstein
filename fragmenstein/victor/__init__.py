@@ -100,7 +100,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # entry attributes
         self.long_name = self.slugify(long_name)
         self.smiles = smiles
-        self.apo_pdbblock = open(pdb_filename).read()
+        with open(pdb_filename) as fh:
+            self.apo_pdbblock = fh.read()
         self.hits = hits
         self.ligand_resn = ligand_resn.upper()
         self.ligand_resi = ligand_resi
@@ -203,8 +204,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # make params
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
-        self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        self.params.CHI.data = []  # TODO fix chi
+        #self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        #self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
         self.mol = self.params.mol
         self._log_warnings()
         # get constraint

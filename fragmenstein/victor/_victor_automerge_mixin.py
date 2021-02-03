@@ -174,8 +174,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         # those Hs lack correct names and charge!!
         self.params.add_Hs()
         self.params.convert_mol()
-        self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        self.params.CHI.data = []  # TODO check if chi fix is okay
+        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        # self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()
         self.monster_merging_mode = 'full'
