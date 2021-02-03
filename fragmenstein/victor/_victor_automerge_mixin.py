@@ -114,43 +114,11 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                                debug_draw=self.monster_debug_draw,
                                average_position=self.monster_average_position
                                )
+        self.monster.modifications = self.modifications
         self.monster.merge(keep_all=self.monster_throw_on_discard,
                            collapse_rings=True,
                            joining_cutoff=self.monster_joining_cutoff # Å
                             )
-        # collapse hits
-        # monster_throw_on_discard controls if disconnected.
-        self.monster.scaffold = self.monster.merge_hits(col_hits)
-        self.modifications.append(Chem.Mol(self.monster.scaffold)) # backup for debug
-        self._log_warnings()
-        ## Discard can happen for other reasons than disconnect
-        if self.monster_throw_on_discard and len(self.monster.unmatched):
-            raise ConnectionError(f'{self.long_name} - Could not combine with {self.monster.unmatched} '+\
-                                  f'(>{self.monster.joining_cutoff}')
-        # expand and fix
-        self._log_warnings()
-        self.journal.debug(f'{self.long_name} - Merged')
-        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
-        # bonded_as_original=False no longer needed.
-        self.modifications.append(Chem.Mol(self.monster.positioned_mol)) # backup for debug
-        self._log_warnings()
-        self.journal.debug(f'{self.long_name} - Expanded')
-        recto = Rectifier(self.monster.positioned_mol)
-        try:
-            recto.fix()
-        except ConnectionError:
-            self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
-            mol = self.monster._emergency_joining(recto.mol)
-            recto = Rectifier(self.monster.positioned_mol)
-            recto.fix()
-        self.monster.positioned_mol = recto.mol
-        self.modifications.extend(recto.modifications)  # backup for debug
-        self._log_warnings()
-        # the origins are obscured because of the collapsing and rectification...
-        self.monster.guess_origins(self.monster.positioned_mol, self.hits)
-        self.monster.positioned_mol.SetProp('_Name', self.long_name)
-        self.mol = self.monster.positioned_mol
-        self.journal.debug(f'{self.long_name} - Rectified')
         self.smiles = Chem.MolToSmiles(self.mol)
         if self.monster_debug_draw:
             picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.monster.positioned_mol)
