@@ -26,7 +26,7 @@ import io
 import requests
 
 
-def pose_fx(pose):
+def pose_fx(pose: pyrosetta.Pose):
     """
     Histidine in delta.
     """
@@ -36,7 +36,7 @@ def pose_fx(pose):
     MutateResidue(target=r, new_res='HIS').apply(pose)
 
 
-def poised_pose_fx(pose):
+def poised_pose_fx(pose: pyrosetta.Pose):
     """
     Histidine in delta and cysteine in thiolate.
     """
@@ -130,28 +130,50 @@ class MProVictor(Victor):
                          pose_fx=fx,
                          atomnames=atomnames)
 
-    @classmethod
-    def combine_codes(cls, hit_codes: List[str], warhead_harmonisation='first'):
-        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
-        return cls.combine(hits=hits, warhead_harmonisation=warhead_harmonisation)
-
-
-    @classmethod
-    def combine(cls, hits:List[Chem.Mol], warhead_harmonisation='first'):
-        mpro_folder = cls.get_mpro_path()
-        apo = os.path.join(mpro_folder, 'template.pdb')
-        atomnames = {}
-        fx = pose_fx
+    def __init__(self, category:Optional[str]=None, **options):
+        # this category flag is solely for Mpro. # TODO check.
+        if category == 'noncolavent':
+            fx = poised_pose_fx
+        else:
+            fx = pose_fx
         extra_constraint = 'AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n'
-        return super().combine(hits=hits,
-                         pdb_filename=apo,
-                         ligand_resn='LIG',
-                         ligand_resi='1B',
-                         covalent_resn='CYS', covalent_resi='145A',
-                         extra_constraint=extra_constraint,
-                         pose_fx=fx,
-                         atomnames=atomnames,
-                         warhead_harmonisation=warhead_harmonisation)
+        if category not in (None, 'noncovalent') and '_' in category:
+            cname, rxd = category.split('_')
+            if rxd == 'noncovalent':
+                wd = [wd for wd in self.warhead_definitions if wd['name'] == cname][0]
+                mol = Chem.MolFromSmiles(options['smiles'])
+                nc = Chem.MolFromSmiles(wd['noncovalent'])
+                atomnames = dict(zip(mol.GetSubstructMatch(nc), wd['noncovalent_atomnames']))
+                fx = poised_pose_fx
+                extra_constraint += 'AtomPair  SG  145A  CX   1B HARMONIC 3.2 0.5\n'
+                extra_constraint += wd['constraint']
+        # --------------------
+        defaults = dict(
+            pdb_filename=os.path.join(self.get_mpro_path(), 'template.pdb'),
+            ligand_resn='LIG',
+            ligand_resi='1B',
+            covalent_resn='CYS', covalent_resi='145A',
+            extra_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
+            pose_fx=fx  # from the above.
+        )
+        super().__init__(**{**defaults, **options})
+
+    @classmethod
+    def combine_codes(cls, hit_codes: List[str], **options):
+        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
+        return cls.combine(hits=hits, **options)
+
+    @classmethod
+    def combine(cls, **options):
+         defaults = dict(
+                        pdb_filename=os.path.join(cls.get_mpro_path(), 'template.pdb'),
+                        ligand_resn='LIG',
+                        ligand_resi='1B',
+                        covalent_resn='CYS', covalent_resi='145A',
+                        extra_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
+                        pose_fx=pose_fx  # from the module namespace.
+                        )
+         return super().combine(**{**defaults, **options})
 
     # ======= postera csv file ops =====================================================================================
 

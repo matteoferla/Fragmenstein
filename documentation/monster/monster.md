@@ -90,7 +90,7 @@ For a comparison see [three modes compared](three_modes_compared.md).
 ## Covalent
 
 If the `Chem.Mol` has a dummy atom (element symbol: `*` within RDKit and smiles, but `R` in a mol file and PDB file) and
-a molecule with a single atom is passed to `attachement` argument, then the covalent linker if absent in the hits is anchored
+a molecule with a single atom is passed to `attachment` argument, then the covalent linker if absent in the hits is anchored
 to that atom.
 The default dummy atom can be overridden with `Fragmenstein.dummy:Chem.Mol` and `Fragmenstein.dummy_symbol:str`.
 
@@ -110,7 +110,7 @@ Many atoms may be novel and added to the followup.
 
 ## Placing
 
-The method called by the class `place_followup`, placed the followup using those atoms.
+The method called by the class `place_from_map`, placed the followup using those atoms.
 
 To do a contrained embed in RDKit the reference atoms need to have a good geometry.
 Consequently, this is not possible.

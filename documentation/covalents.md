@@ -10,7 +10,7 @@ Fragalysis does not do this, so the hits from there will be treated as regular c
 
 ## Monster
 
-A molecule with a single atom is passed to `attachement` argument of `Monster`,
+A molecule with a single atom is passed to `attachment` argument of `Monster`,
 then the covalent linker if absent in the hits is anchored to that atom.
 If you know a ligand that is covalent `Victor.find_attachment` can be used to extract the attachment atom.
 

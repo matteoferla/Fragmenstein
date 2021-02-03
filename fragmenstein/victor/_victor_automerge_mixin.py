@@ -110,17 +110,16 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
 
     def _combine_main(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.monster = Monster(mol=Chem.MolFromSmiles('*') if self.is_covalent else Chem.Mol(),
-                hits=[],
-                attachment=attachment,
-                merging_mode='off')
+        self.monster = Monster(hits=self.hits,
+                               debug_draw=self.monster_debug_draw,
+                               average_position=self.monster_average_position
+                               )
+        self.monster.merge(keep_all=self.monster_throw_on_discard,
+                           collapse_rings=True,
+                           joining_cutoff=self.monster_joining_cutoff # Å
+                            )
         # collapse hits
         # monster_throw_on_discard controls if disconnected.
-        self.monster.throw_on_discard = self.monster_throw_on_discard
-        self.monster.joining_cutoff = self.monster_joining_cutoff # Å
-        # merge!
-        col_hits = self.monster.collapse_mols(self.hits)
-        self.modifications.extend(col_hits)
         self.monster.scaffold = self.monster.merge_hits(col_hits)
         self.modifications.append(Chem.Mol(self.monster.scaffold)) # backup for debug
         self._log_warnings()
@@ -179,7 +178,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self._log_warnings()
         self.post_params_step()
         self.monster_merging_mode = 'full'
-        self.unminimised_pdbblock = self._place_monster()
+        self.unminimised_pdbblock = self._place_monster_in_structure()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()

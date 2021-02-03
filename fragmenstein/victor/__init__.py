@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 ########################################################################################################################
 
 __doc__ = \
@@ -116,23 +117,22 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.mol = None
         self.constraint = None
         self.monster = None
-        self.modifications = [] # used by automerger only
+        self.modifications = []  # used by automerger only
         self.unminimised_pdbblock = None
         self.igor = None
         self.minimised_pdbblock = None
         self.minimised_mol = None
-        self.reference_mol = None # filled only for validate
+        self.reference_mol = None  # filled only for validate
         # buffers etc.
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
-                            'unbound_ref2015': {'total_score': float('nan')}}
+                             'unbound_ref2015': {'total_score': float('nan')}}
         self.mrmsd = mRSMD.mock()
         self.tick = time.time()
         self.tock = float('inf')
         self.error = ''
         # analyse
         self._safely_do(execute=self._analyse, resolve=self._resolve, reject=self._reject)
-
 
     # =================== Init monster methods ============================================================================
 
@@ -204,8 +204,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # make params
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
-        #self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        #self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
+        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
         self.mol = self.params.mol
         self._log_warnings()
         # get constraint
@@ -218,14 +218,14 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
         # monster_throw_on_discard controls if disconnected.
         Monster.throw_on_discard = self.monster_throw_on_discard
-        self.monster = Monster(mol=self.mol,
-                                         hits=self.hits,
-                                         attachment=attachment,
-                                         merging_mode=self.monster_merging_mode,
-                                         debug_draw=self.monster_debug_draw,
-                                         average_position=self.monster_average_position)
+        self.monster = Monster(hits=self.hits,
+                               debug_draw=self.monster_debug_draw,
+                               average_position=self.monster_average_position)
+        self.monster.place(mol=self.mol,
+                           attachment=attachment,
+                           merging_mode=self.monster_merging_mode)
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.scaffold_options)} combinations')
-        self.unminimised_pdbblock = self._place_monster()
+        self.unminimised_pdbblock = self._place_monster_in_structure()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
@@ -320,40 +320,65 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
 
-    def _place_monster(self):
-        l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
-        if self.covalent_resi:
-            p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
-        else:
-            p_resi, p_chain = None, None
-        if not p_chain:
-            p_chain = 'A'
-        if not l_chain:
-            l_chain = 'B'
+    def _get_LINK_record(self):
+        if self.is_covalent:
+            # get correct chain names.
+            l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()
+            if self.covalent_resi:
+                p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
+            else:
+                p_resi, p_chain = None, None
+            if not p_chain:
+                p_chain = 'A'
+            if not l_chain:
+                l_chain = 'B'
+            # get the cx atom name
+            cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
+            # TODO the SG connection is hardcoded.
+            return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                ' + \
+                    f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n'
+
+    def _correct_ligand_info(self, mol: Optional[Chem.Mol]=None) -> Chem.Mol:
+        """
+        Corrects in place the given mol based on self.ligand_resi.
+        If none provided it assumed self.monster.positioned_mol
+        """
+        if mol is None:
+            mol = self.monster.positioned_mol
+        l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups() #TODO improve ligand_resi
+        for atom in mol.GetAtoms():
+            info = atom.GetPDBResidueInfo()
+            info.SetResidueNumber(int(l_resi))
+            info.SetChainId(l_chain)
+            info.SetIsHeteroAtom(True)
+            info.SetOccupancy(1.)
+            info.SetResidueName(self.ligand_resn)
+        return mol
+
+
+    def _place_monster_in_structure(self): # TODO make a new method that does not use Pymol
+        """
+        Places the molecule in the structure using pymol.
+        :return:
+        """
+        import pymol2
+        self._correct_ligand_info()
         mol = AllChem.DeleteSubstructs(self.monster.positioned_mol, Chem.MolFromSmiles('*'))
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             self.monster.mmff_minimise(mol)
-        self.journal.debug(f'{self.long_name} - placing monster')
+        self.journal.debug(f'{self.long_name} - placing monster in structure')
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
-            # distort positions
             pos_mol = Chem.MolToPDBBlock(mol)
             pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
-            pymol.cmd.alter('scaffold', f'resi="{l_resi}"')
-            pymol.cmd.alter('scaffold', f'chain="{l_chain}"')
             pymol.cmd.remove('name R')  # no dummy atoms!
             for c in self._connected_names:
                 pymol.cmd.remove(f'name {c}')  # no conns
             pymol.cmd.remove('resn UNL')  # no unmatched stuff.
             pdbblock = pymol.cmd.get_pdbstr('*')
             pymol.cmd.delete('*')
-        if self.is_covalent:
-            cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
-            return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                '+\
-                   f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n' + pdbblock
-        else:
-            return pdbblock
+        return self._get_LINK_record() + pdbblock
 
     def _fix_minimised(self) -> Chem.Mol:
         """
@@ -380,7 +405,6 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         ddG = dG_bound - dG_unbound
         return ddG
 
-
     def reanimate(self) -> float:
         """
         Calls Igor recursively until the ddG is negative or zero.
@@ -390,7 +414,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         """
         ddG = 999
         self.igor.coordinate_constraint = 0.
-        #self.igor.fa_intra_rep = 0.02 # 4x
+        # self.igor.fa_intra_rep = 0.02 # 4x
         # quick unconstrained minimisation to wiggle it out of nasty local minima
         self.igor.minimise(cycles=15, default_coord_constraint=False)
         self.igor.coordinate_constraint = 2
@@ -445,7 +469,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                 return {'name': 'unknown',
                         'covalent': 'C~C*',
                         'covalent_atomnames': ['CY', 'CX', 'CONN1'],
-                        'noncovalent': 'C~[C+]', # clearly not
+                        'noncovalent': 'C~[C+]',  # clearly not
                         'noncovalent_atomnames': ['CY', 'CX']
                         }
             else:
@@ -565,7 +589,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             self.journal.debug(f'{self.long_name} - saving constraint')
             constraint_file = os.path.join(self.work_path, self.long_name, self.long_name + '.con')
             self.constraint.dump(constraint_file)
-        else: # basically impossible.
+        else:  # basically impossible.
             constraint_file = ''
         return params_file, holo_file, constraint_file
 
@@ -598,7 +622,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def _checkpoint_bravo(self):
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving mols from monster')
-        if self.monster.scaffold  is not None:
+        if self.monster.scaffold is not None:
             scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
             Chem.MolToMolFile(self.monster.scaffold, scaffold_file, kekulize=False)
             if self.monster.scaffold.HasProp('parts'):
@@ -622,12 +646,12 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
 
         frag_file = os.path.join(self.work_path, self.long_name, self.long_name + '.monster.json')
         data = {'smiles': self.smiles,
-               'origin': self.monster.origin_from_mol(self.monster.positioned_mol),
-               'stdev': self.monster.stdev_from_mol(self.monster.positioned_mol)}
+                'origin': self.monster.origin_from_mol(self.monster.positioned_mol),
+                'stdev': self.monster.stdev_from_mol(self.monster.positioned_mol)}
         if disregard:
             data['disregard'] = disregard
         with open(frag_file, 'w') as w:
-            json.dump(data,  w)
+            json.dump(data, w)
         self._log_warnings()
         # unminimised_pdbblock will be saved by igor (round trip via pose)
 
@@ -664,11 +688,13 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def unconstrained_heavy_atoms(self) -> int:
         try:
             origins = self.monster.origin_from_mol(self.monster.positioned_mol)
-            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in zip(origins, self.monster.positioned_mol.GetAtoms())])
+            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in
+                          zip(origins, self.monster.positioned_mol.GetAtoms())])
         except Exception as err:
             self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
             unconn = float('nan')
         return unconn
+
 
 ######### Make params use the same log.
 

@@ -1,5 +1,5 @@
 ########################################################################################################################
-
+# TODO this file is over 1,000 lines long!
 __doc__ = \
     """
 This is Monster proper. and contains the class ``Monster``.
@@ -38,6 +38,13 @@ import itertools
 
 class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmerge is called. Not inherited.
     """
+    This creates a stitched together monster.
+    For initilialisation for either placing or merging, it needs a list of hits (rdkit.Chem.Mol).
+
+    The calculation are done either by place or merge.
+
+    ## Place
+    monster.place(mol)
     Given a RDKit molecule and a series of hits it makes a spatially stitched together version of the initial molecule based on the hits.
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 
@@ -61,14 +68,14 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     defined in the ``dummy`` class variable. Namely element R in mol file or * in string is the default.
     """
 
+    # TODO move to base and move out all the methods.
     def __init__(self,
                  hits: List[Chem.Mol],
-                 attachment: Optional[Chem.Mol] = None,
                  debug_draw: bool = False,
                  average_position=False):
         """
         Initialisation starts Monster, but it does not do any mergers or placements.
-        This is changed in revision 0.6.
+        This is changed in revision 0.6 (previously `mol` was specified for the latter)
 
         :param hits: hits are a list of rdkit molecules
         :param attachment:
@@ -78,121 +85,130 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         # starting attributes
         # formerly this was present... but it does nothing.
         # super().__init__()
-        # bar for self._debug_draw = _debug_draw from _MonsterRing
+        # bar for self._debug_draw = _debug_draw from _MonsterRing it is empty.
         # ==== hits ===========================================
-        self.hits = self.fix_hits(hits)  # list of hits
         # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
+        self.hits = self.fix_hits(hits)  # list of hits
         # ==== other ==========================================
         self._debug_draw = debug_draw  # Jupyter notebook only.
         self.average_position = average_position
         # ==== To do be filled ================================
         # List[str]
-        self.unmatched = []  #: rejected hits
+        self.unmatched = []  #: rejected hit names
         # self.matched is dynamic.  #: accepted hits
         # Chem.Mol or List[Chem.Mol]
         self.modifications = []
-        self.initial_mol = None
+        self.initial_mol = None  #: to be filled
+        self.attachment = None
         # self.scaffold = None  #: template which may have wrong elements
         # self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
         self.scaffolds = []  #: templates which may have wrong elements
         self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
         self.positioned_mol = None  #: final molecule
 
-    def place(self, mol: Chem.Mol):
-        pass
+    # TODO move these to own file
+    # ==================================================================================================================
 
-    def place_smiles(self, smiles: str):
+    def place(self,
+              mol: Chem.Mol,
+              attachment: Optional[Chem.Mol] = None,
+              merging_mode: str = 'none_permissive'):
+        self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
+        # Reset
+        self.unmatched = []
+        self.scaffold_options = []
+        # do calculations
+        if merging_mode == 'off':
+            pass
+        elif merging_mode == 'full':
+            self.full_merging()
+        elif merging_mode == 'partial':
+            self.partial_merging()
+        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
+            self.no_merging(broad=True)
+        elif merging_mode == 'none':
+            self.no_merging()
+        else:
+            valid_modes = ('full','partial','none','none_permissive', 'off')
+            raise ValueError(
+                f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
+        return self
+
+    def place_smiles(self,
+                     smiles: str,
+                     attachment: Optional[Chem.Mol] = None):
         mol = Chem.MolFromSmiles(smiles)
-        self.place(mol)
+        self.place(mol=mol, attachment=attachment)
+        return self
 
-    def merge(self, keep_all=False, collapse_rings=True):
+    def _parse_mol_for_place(self,
+                             mol: Chem.Mol,
+                             attachment: Optional[Chem.Mol] = None):
+        # ------------- store mol ---------------------------------------
+        if mol.HasSubstructMatch(self.dummy) and attachment:
+            pass
+        elif mol.HasSubstructMatch(self.dummy):
+            warn('No attachment atom provided but dummy atom present --- ignoring.')
+            attachment = None
+        elif attachment:
+            warn('Attachment atom provided but dummy atom not present --- ignoring.')
+            attachment = None
+        else:
+            attachment = None
+        return mol, attachment
+
+    # TODO move these to own file
+    # ==================================================================================================================
+
+    def merge(self, keep_all=True, collapse_rings=True, joining_cutoff: int = 5):
         """
+        Merge the hits.
+
+        :param keep_all:
+        :param collapse_rings:
+        :param joining_cutoff:
         :return:
         """
+        # The following override class declared attributes. TODO declare them in __init__
+        self.joining_cutoff = joining_cutoff
+        self.throw_on_discard = keep_all
         # merge!
-        col_hits = self.collapse_mols(self.hits)
-        self.modifications.extend(col_hits)
-        self.monster.scaffold = self.merge_hits(col_hits)
-        self.modifications.append(Chem.Mol(self.monster.scaffold))  # backup for debug
-        self._log_warnings()
+        if collapse_rings:
+            col_hits = self.collapse_mols(self.hits)
+            self.modifications.extend(col_hits)
+        else:
+            col_hits = self.hits
+        self.scaffold = self.merge_hits(col_hits)
+        self.modifications.append(Chem.Mol(self.scaffold))  # backup for debug
         ## Discard can happen for other reasons than disconnect
-        if self.monster_throw_on_discard and len(self.monster.unmatched):
-            raise ConnectionError(f'{self.long_name} - Could not combine with {self.monster.unmatched} ' + \
-                                  f'(>{self.monster.joining_cutoff}')
+        if keep_all and len(self.unmatched):
+            raise ConnectionError(f'Could not combine with {self.unmatched} (>{self.joining_cutoff}')
         # expand and fix
-        self._log_warnings()
-        self.journal.debug(f'{self.long_name} - Merged')
-        self.monster.positioned_mol = self.monster.expand_ring(self.monster.scaffold)
+        self.journal.debug(f'Merged')
+        if collapse_rings:
+            self.positioned_mol = self.expand_ring(self.scaffold)
         # bonded_as_original=False no longer needed.
-        self.modifications.append(Chem.Mol(self.monster.positioned_mol))  # backup for debug
-        self._log_warnings()
-        self.journal.debug(f'{self.long_name} - Expanded')
-        recto = Rectifier(self.monster.positioned_mol)
+        self.modifications.append(Chem.Mol(self.positioned_mol))  # backup for debug
+        self.journal.debug(f'Expanded')
+        self.rectify()
+        self.journal.debug(f'Rectified')
+        return self
+
+    def rectify(self):
+        recto = Rectifier(self.positioned_mol)
         try:
             recto.fix()
         except ConnectionError:
             self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
-            mol = self.monster._emergency_joining(recto.mol)
+            mol = self._emergency_joining(recto.mol)
             recto = Rectifier(self.monster.positioned_mol)
             recto.fix()
-        self.monster.positioned_mol = recto.mol
+        self.positioned_mol = recto.mol
         self.modifications.extend(recto.modifications)  # backup for debug
 
-    #
-    # def __init__(self, mol: Chem.Mol, hits: List[Chem.Mol], attachment: Optional[Chem.Mol] = None,
-    #              debug_draw: bool = False, merging_mode='partial', average_position=False):
-    #     """
-    #     Merging mode controls what algorithm to use.
-    #
-    #     * 'full': a single scaffold is made
-    #     * 'partial': multiple possible scaffolds and best is chosen
-    #     * 'none': no merging is done. The hits are mapped individually. Not great for small fragments.
-    #     * 'off': do nothing.
-    #
-    #     :param mol:
-    #     :param hits:
-    #     :param attachment:
-    #     :param debug_draw:
-    #     :param merging_mode: full | partial | none | off
-    #     """
-    #     # starting attributes
-    #     # self._debug_draw = _debug_draw from _MonsterRing
-    #     super().__init__()
-    #     self.initial_mol = mol  # untouched.
-    #     if self.initial_mol.HasSubstructMatch(self.dummy) and attachment:
-    #         self.attachement = attachment
-    #     elif self.initial_mol.HasSubstructMatch(self.dummy):
-    #         warn('No attachment atom provided but dummy atom present --- ignoring.')
-    #         self.attachement = None
-    #     elif attachment:
-    #         warn('Attachment atom provided but dummy atom not present --- ignoring.')
-    #         self.attachement = None
-    #     else:
-    #         self.attachement = None
-    #     # Chem.RemoveHs(self.initial_mol)
-    #     self.hits = self.fix_hits(hits)  # list of hits
-    #     self._debug_draw = debug_draw  # Jupyter notebook only.
-    #     self.unmatched = []
-    #     self.average_position = average_position
-    #     # derived attributes
-    #     self.scaffold = None  #: template which may have wrong elements
-    #     self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
-    #     self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
-    #     self.positioned_mol = None  #: final molecule
-    #     # do calculations
-    #     if merging_mode == 'off':
-    #         pass
-    #     elif merging_mode == 'full':
-    #         self.full_merging()
-    #     elif merging_mode == 'partial':
-    #         self.partial_merging()
-    #     elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
-    #         self.no_merging(broad=True)
-    #     elif merging_mode == 'none':
-    #         self.no_merging()
-    #     else:
-    #         raise ValueError(
-    #             f"Merging mode can only be 'full' | 'partial' | 'none' | 'none_permissive' | 'off', not '{merging_mode}'")
+
+    # TODO move these to own file
+    # ==================================================================================================================
 
     @classmethod
     def full_merging(self) -> None:
@@ -202,7 +218,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.scaffold_options = [self.merge_hits()]
         self.scaffold = self.posthoc_refine(self.scaffold_options[0])
         self.chimera = self.make_chimera()
-        self.positioned_mol = self.place_followup()
+        self.positioned_mol = self.place_from_map()
 
     def partial_merging(self) -> None:
         """
@@ -214,7 +230,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
         self.scaffold = self.posthoc_refine(unrefined_scaffold)
         self.chimera = self.make_chimera(mode_index)
-        self.positioned_mol = self.place_followup()
+        self.positioned_mol = self.place_from_map()
 
     def no_merging(self, broad=False) -> None:
         """
@@ -251,7 +267,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             self.draw_nicely(self.initial_mol)
             print('scaffold')
             self.draw_nicely(self.scaffold)
-        placed = self.place_followup(atom_map=full_atom_map)
+        placed = self.place_from_map(atom_map=full_atom_map)
         self.positioned_mol = self.posthoc_refine(placed)
 
     # ========== Merging ===============================================================================================
@@ -585,7 +601,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             warn('Valance issue' + str(err))
         return chimera
 
-    def place_followup(self, mol: Chem.Mol = None, atom_map: Optional[Dict] = None) -> Chem.Mol:
+    def place_from_map(self, mol: Chem.Mol = None, atom_map: Optional[Dict] = None) -> Chem.Mol:
         """
         This method places the atoms with known mapping
         and places the 'uniques' (novel) via an aligned mol (the 'sextant')
@@ -658,9 +674,9 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                               i.GetIdx() not in uniques]
                     for n in neighs:
                         sights.add((n, n))
-            if self.attachement and list(categories['dummies']) and list(categories['dummies'])[0] in team:
+            if self.attachment and list(categories['dummies']) and list(categories['dummies'])[0] in team:
                 r = list(categories['dummies'])[0]
-                pconf.SetAtomPosition(r, self.attachement.GetConformer().GetAtomPosition(0))
+                pconf.SetAtomPosition(r, self.attachment.GetConformer().GetAtomPosition(0))
                 sights.add((r, r))
             rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
             sconf = sextant.GetConformer()

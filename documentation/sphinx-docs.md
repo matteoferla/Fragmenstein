@@ -139,7 +139,7 @@ Recursively stick the hits together and average the positions.
 
 
 
-#### place_followup(mol=None)
+#### place_from_map(mol=None)
 
 * **Return type**
 

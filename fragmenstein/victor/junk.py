@@ -115,7 +115,7 @@ class DeleteMe:
                                          merging_mode=self.monster_merging_mode,
                                          debug_draw=self.monster_debug_draw,
                                          average_position=self.monster_average_position)
-        self.unminimised_pdbblock = self._place_monster()
+        self.unminimised_pdbblock = self._place_monster_in_structure()
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             self.monster.mmff_minimise(self.monster.positioned_mol)

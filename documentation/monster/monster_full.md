@@ -28,7 +28,7 @@ The following steps are done:
 
 * `.merge_hits()`: merges the hits, the output `rdkit.Chem.Mol` object added as `.scaffold`.
 * `.make_chimera()`: makes the atomic elements in `.scaffold` match those in the followup, the output `rdkit.Chem.Mol` object added as `.chimera`.
-* `.place_followup()`  followup is places like the scaffold.
+* `.place_from_map()`  followup is places like the scaffold.
 
 ## Merger
 The merger of the hits does not use MCS.
@@ -79,7 +79,7 @@ This step is needed to avoid weird matches with the followup.
     
     # further alignments... not correct way of tho
     monster.initial_mol = new_mol
-    aligned = monster.place_followup(new_mol)
+    aligned = monster.place_from_map(new_mol)
 
     
 ## Issues to be aware of
