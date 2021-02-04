@@ -50,7 +50,7 @@ class MProTargetTester(unittest.TestCase):
         victor = MProVictor.from_hit_codes(smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
                                            hit_codes=['x0434', 'x0540'],
                                            long_name='AGN-NEW-5f0-1_ACR1')
-        self.assertEqual(victor.error, '', victor.error)
+        self.assertEqual(str(victor.error), '', str(victor.error))
         self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
         self.assertEqual(len(victor.monster.unmatched), 0,
                          f'Both were correct but {victor.monster.unmatched} was discarded')
@@ -177,11 +177,12 @@ class RingTestsVictor(unittest.TestCase):
         toluene.SetProp('_Name', 'toluene')
         rototoluene = Chem.MolFromMolFile('test_mols/rototoluene.mol')
         rototoluene.SetProp('_Name', 'rototoluene')
-        v = Victor.combine(hits=[toluene, rototoluene],
+        victor = Victor.combine(hits=[toluene, rototoluene],
                            pdb_filename=template,
                            covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
                            covalent_resn='VAL')
-        gotten = Chem.MolToSmiles(Chem.RemoveHs(v.minimised_mol))
+        self.assertEqual(victor.error, '', victor.error)
+        gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_peridimethylnaphthalene(self):
@@ -192,11 +193,12 @@ class RingTestsVictor(unittest.TestCase):
         toluene.SetProp('_Name', 'toluene')
         transtolueneF = Chem.MolFromMolFile('test_mols/transtoluene.mol')
         transtolueneF.SetProp('_Name', 'transtoluene-fuse')
-        v = Victor.combine(hits=[toluene, transtolueneF],
+        victor = Victor.combine(hits=[toluene, transtolueneF],
                            pdb_filename=template,
                            covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
                            covalent_resn='VAL')
-        gotten = Chem.MolToSmiles(Chem.RemoveHs(v.minimised_mol))
+        self.assertEqual(victor.error, '', victor.error)
+        gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
     def test_spirodituluene(self):
@@ -208,11 +210,12 @@ class RingTestsVictor(unittest.TestCase):
         transtolueneS = Chem.MolFromMolFile('test_mols/transtoluene2.mol')
         transtolueneS.SetProp('_Name', 'transtoluene-spiro')
         # cmd.rotate('z', -90, 'rototoluene', camera=0)
-        v = Victor.combine(hits=[toluene, transtolueneS],
+        victor = Victor.combine(hits=[toluene, transtolueneS],
                            pdb_filename=template,
                            covalent_resi='3A',  # a random residue is still required for the constaint ref atom.
                            covalent_resn='VAL')
-        gotten = Chem.MolToSmiles(Chem.RemoveHs(v.minimised_mol))
+        self.assertEqual(victor.error, '', victor.error)
+        gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
 
@@ -300,18 +303,9 @@ class UnresolvedProblems(unittest.TestCase):
         Chem.SanitizeMol(chlorobutane)
         chlorobutane.SetProp('_Name', '2-chlorobutane')
         # merge
-        monster = Monster(mol=Chem.Mol(),
-                          hits=[],
-                          attachment=None,
-                          merging_mode='off')
-        monster.throw_on_discard = False
-        # # merge!
-        col_hits = monster.collapse_mols([toluene, chlorobutane])
-        monster.scaffold = monster.merge_hits(col_hits)
-        monster.positioned_mol = monster.expand_ring(monster.scaffold)
-        recto = Rectifier(monster.positioned_mol)
+        monster = Monster(hits=[toluene, chlorobutane]).merge(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(recto.mol), Chem.MolToSmiles(chlorotoluene))  # CC(Cl)CCc1ccccc1
+        self.assertEqual(Chem.MolToSmiles(monster.positioned_mol), Chem.MolToSmiles(chlorotoluene))  # CC(Cl)CCc1ccccc1
 
     def test_supplementary2_to_recto_fail_A(self):
         """
@@ -338,17 +332,8 @@ class UnresolvedProblems(unittest.TestCase):
         Chem.SanitizeMol(chloropentane)
         chloropentane.SetProp('_Name', '2-chloropentane')
         #
-        monster = Monster(mol=Chem.Mol(),
-                          hits=[],
-                          attachment=None,
-                          merging_mode='off')
-        monster.throw_on_discard = False
-        # # merge!
-        col_hits = monster.collapse_mols([methyltoluene, chloropentane])
-        monster.scaffold = monster.merge_hits(col_hits)
-        monster.positioned_mol = monster.expand_ring(monster.scaffold)
-        recto = Rectifier(monster.positioned_mol)
+        monster = Monster(hits=[methyltoluene, chloropentane]).merge(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(recto.mol), Chem.MolToSmiles(methylchlorotoluene))
+        self.assertEqual(Chem.MolToSmiles(monster.positioned_mol), Chem.MolToSmiles(methylchlorotoluene))
 
 # Todo: add a class to test missing modules.

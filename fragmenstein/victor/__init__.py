@@ -337,6 +337,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             # TODO the SG connection is hardcoded.
             return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                ' + \
                     f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n'
+        else:
+            return ''
 
     def _correct_ligand_info(self, mol: Optional[Chem.Mol]=None) -> Chem.Mol:
         """
