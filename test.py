@@ -220,8 +220,8 @@ class RingTestsVictor(unittest.TestCase):
 
     def test_phenylene(self):
         # make carboxy and amide benzenes that overlap so that the end result is a phenylene where one ring is oxazine
-        before = 'c3c1cccc2\C(=O)O/C(-N)c(c12)cc3'
-        conjoined = Chem.MolFromSmiles(before)
+        conjoined = Chem.MolFromSmiles('c3c1cccc2\C(=O)O/C(-N)c(c12)cc3')
+        before = Chem.MolToSmiles(conjoined) # structure from wiki is not canonical
         AllChem.EmbedMolecule(conjoined)
         bonds = [conjoined.GetBondBetweenAtoms(0, 1).GetIdx(),
                  conjoined.GetBondBetweenAtoms(12, 11).GetIdx(),
