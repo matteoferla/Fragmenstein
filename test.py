@@ -218,6 +218,28 @@ class RingTestsVictor(unittest.TestCase):
         gotten = Chem.MolToSmiles(Chem.RemoveHs(victor.minimised_mol))
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
+    def test_phenylene(self):
+        # make carboxy and amide benzenes that overlap so that the end result is a phenylene where one ring is oxazine
+        before = 'c3c1cccc2\C(=O)O/C(-N)c(c12)cc3'
+        conjoined = Chem.MolFromSmiles(before)
+        AllChem.EmbedMolecule(conjoined)
+        bonds = [conjoined.GetBondBetweenAtoms(0, 1).GetIdx(),
+                 conjoined.GetBondBetweenAtoms(12, 11).GetIdx(),
+                 conjoined.GetBondBetweenAtoms(8, 9).GetIdx()]
+        fragged = Chem.FragmentOnBonds(conjoined, bonds, addDummies=False)
+        fore = Chem.GetMolFrags(fragged, asMols=True, sanitizeFrags=False)[1]
+        Chem.SanitizeMol(fore)
+        bonds = [conjoined.GetBondBetweenAtoms(2, 1).GetIdx(),
+                 conjoined.GetBondBetweenAtoms(12, 5).GetIdx(),
+                 conjoined.GetBondBetweenAtoms(8, 6).GetIdx()]
+        fragged = Chem.FragmentOnBonds(conjoined, bonds, addDummies=False)
+        aft = Chem.GetMolFrags(fragged, asMols=True, sanitizeFrags=False)[0]
+        Chem.SanitizeMol(aft)
+        # merge them
+        mol = Monster([fore, aft]).merge().positioned_mol
+        after = Chem.MolToSmiles(mol)
+        self.assertEqual(before, after)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 

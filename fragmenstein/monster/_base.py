@@ -101,7 +101,7 @@ class _MonsterBaseMixin:
         combo = Chem.RWMol(Chem.CombineMols(mol_A, mol_B))
         # ========= distance matrix pre-tweaks.
         distance_matrix = self._get_distance_matrix(combo, mol_A, mol_B)
-        penalties = self._get_penalties(combo, distance_matrix.shape)
+        penalties = self._get_joining_penalties(combo, distance_matrix.shape)
         # ========= get closest
         pendist_matrix = penalties + distance_matrix
         pendistance = np.nanmin(pendist_matrix)
@@ -157,13 +157,26 @@ class _MonsterBaseMixin:
         distance_matrix = Chem.Get3DDistanceMatrix(combo)
         length = combo.GetNumAtoms()
         # nan fill the self values
-        self._nan_submatrix(distance_matrix, A_idxs)
-        self._nan_submatrix(distance_matrix, B_idxs)
+        self._nan_fill_submatrix(distance_matrix, A_idxs)
+        self._nan_fill_submatrix(distance_matrix, B_idxs)
         return distance_matrix
 
-    def _get_penalties(self, combo: Chem.Mol, shape: Tuple[int, int]) -> np.ndarray:
+    def _nan_fill_others(self, mol: Chem.Mol, distance_matrix: np.array, good_indices: List[int]):
+        """
+        Nan fill the inidices that are not the good_indices.
+        :param mol:
+        :param distance_matrix:
+        :param good_indices:
+        :return:
+        """
+        others = np.array(list(set(range(mol.GetNumAtoms())).difference(good_indices)))
+        distance_matrix[others, :] = np.nan
+        distance_matrix[:, others] = np.nan
+
+    def _get_joining_penalties(self, combo: Chem.Mol, shape: Tuple[int, int]) -> np.ndarray:
         """
         Called by ``_find_closest``.
+        THis is different from _get_merging_penalties
 
         :param combo:
         :param shape:
@@ -177,10 +190,11 @@ class _MonsterBaseMixin:
             penalties[:, weigh_bool] += weight
         return penalties
 
-    def _nan_submatrix(self, matrix, indices):
+    def _nan_fill_submatrix(self, matrix, indices):
         """
         Given a square matrix, blank the self-submatrix of the group of indices
         There is probably a better way to do this.
+        changed from _nan_submatrix as to nan is not a verb.
 
         :param matrix:
         :param indices:

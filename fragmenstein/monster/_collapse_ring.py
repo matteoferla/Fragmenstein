@@ -57,7 +57,6 @@ class _MonsterRing(_MonsterBaseMixin):
             atom.SetDoubleProp('_z', pos.z)
         return mol
 
-
     # =========== Collapse & Expand ====================================================================================
 
     def collapse_ring(self, mol: Chem.Mol) -> Chem.Mol:
@@ -155,10 +154,10 @@ class _MonsterRing(_MonsterBaseMixin):
         self._place_ring_atoms(mol, rings)
         # bonded_as_original. Rectifier will fix.
         self._restore_original_bonding(mol, rings)
-        self._add_novel_bonding(mol, rings) # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
+        self._add_novel_bonding(mol, rings)  # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
         self._delete_collapsed(mol)
         self._detriangulate(mol)
-        mol = self._emergency_joining(mol) # does not modify in place!
+        mol = self._emergency_joining(mol)  # does not modify in place!
         if mol is None:
             raise ValueError('(Impossible) Failed at some point...')
         elif isinstance(mol, Chem.RWMol):
@@ -189,7 +188,7 @@ class _MonsterRing(_MonsterBaseMixin):
                 atom.SetIntProp('_ori_i', n)
                 old2new[o] = n
             else:
-                pass # ringcores have -1 ori_i
+                pass  # ringcores have -1 ori_i
         # sort the ringcore
         for atom in self._get_collapsed_atoms(mol):
             old = json.loads(atom.GetProp('_ori_is'))
@@ -198,7 +197,7 @@ class _MonsterRing(_MonsterBaseMixin):
             old2new = {**old2new, **dict(zip(old, new))}
         # this has to be done afterwards in case of a bonded mol
         for atom in self._get_collapsed_atoms(mol):
-            old_neighss = json.loads(atom.GetProp('_neighbors')) #if i in old2new else i
+            old_neighss = json.loads(atom.GetProp('_neighbors'))  # if i in old2new else i
             new_neighss = [[old2new[i] for i in old_neighs if i in old2new] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
 
@@ -285,14 +284,15 @@ class _MonsterRing(_MonsterBaseMixin):
         """
         conf = mol.GetConformer()
         for ring in rings:  # atoms in ring addition
-            indices = [] # will store current indices
+            ringcore = ring['atom']
+            indices = []  # will store current indices
             for i in range(len(ring['elements'])):  # atom addition
                 collapsed_atom_data = self._get_expansion_for_atom(ring, i)
                 # atom will be added if it is not already present!
                 if self._is_present(mol, collapsed_atom_data['ori_i']):
                     natom = self._get_new_index(mol, collapsed_atom_data['ori_i'], search_collapsed=False)
                     self.journal.debug(f"{natom} (formerly {collapsed_atom_data['ori_i']} existed already." +
-                                  "Fused ring or similar.")
+                                       "Fused ring or similar.")
                 else:
                     n = mol.AddAtom(Chem.Atom(collapsed_atom_data['element']))
                     natom = mol.GetAtomWithIdx(n)
@@ -304,9 +304,11 @@ class _MonsterRing(_MonsterBaseMixin):
                     natom.SetDoubleProp('_y', collapsed_atom_data['y'])
                     natom.SetDoubleProp('_z', collapsed_atom_data['z'])
                     natom.SetProp('_ori_name', collapsed_atom_data['ori_name'])
+                    natom.SetIntProp('_ring_i', ringcore.GetIdx())
                     indices.append(n)
-            ringcore = ring['atom']
+            ringcore.SetIntProp('_ring_i', ringcore.GetIdx())  # it really really should have not changed.
             ringcore.SetProp('_current_is', json.dumps(indices))
+            ring['current_is'] = indices
 
     def _restore_original_bonding(self, mol: Chem.RWMol, rings: List[Dict[str, List[Any]]]) -> None:
         self.journal.debug('Restoring original bonding if any.')
@@ -332,13 +334,13 @@ class _MonsterRing(_MonsterBaseMixin):
                         assert distance < 4, f'Bond length too long ({distance}. {info}'
                     elif present_bond.GetBondType().name != bond:
                         self.journal.warning(f'bond between {new_i} {new_neigh} exists already ' +
-                                    f'(has {present_bond.GetBondType().name} expected {bt})')
+                                             f'(has {present_bond.GetBondType().name} expected {bt})')
                         present_bond.SetBondType(bt)
                         present_bond.SetBoolProp('_IsRingBond', True)
                         BondProvenance.set_bond(present_bond, 'original')
                     else:
                         self.journal.debug(f'bond between {new_i} {new_neigh} exists already ' +
-                                  f'(has {present_bond.GetBondType().name} expected {bt})')
+                                           f'(has {present_bond.GetBondType().name} expected {bt})')
                         pass
         #             try:
         #
@@ -381,9 +383,10 @@ class _MonsterRing(_MonsterBaseMixin):
         :type rings: List[Dict[str, List[Any]]]
         :return:
         """
-        # ===== Deal with Ring on ring bonding
         self.journal.debug('Adding novel bonding (if any)...')
-        novel_ringcore_pairs = self._get_novel_ringcore_pairs(rings)
+        # ===== Deal with Ring on ring bonding
+        novel_ringcore_pairs = self._get_novel_ringcore_pairs(mol, rings, cutoff = 2.8 + 1.5)
+        # these is a list of Chem.Atom pairs.
         for ringcore_A, ringcore_B in novel_ringcore_pairs:
             self.journal.debug(f'determining novel bond between {ringcore_A} and {ringcore_B}')
             # _determine_mergers_novel_ringcore_pair finds mergers
@@ -447,26 +450,94 @@ class _MonsterRing(_MonsterBaseMixin):
 
     # ==== Novel Ring to Ring bonding ==================================================================================
 
-    def _get_novel_ringcore_pairs(self, rings) -> List[Tuple[Chem.Atom, Chem.Atom]]:
-        pairs = []
+    def _get_novel_ringcore_pairs(self,
+                                  mol: Chem.Mol,
+                                  rings: List[Dict[str, List[Any]]], cutoff)\
+                                        -> List[Tuple[Chem.Atom, Chem.Atom]]:
+        """
+        Get the ring atoms that are bonded or closer than a cutoff
+
+
+
+        :param mol:
+        :param rings: output of `_get_expansion_data`. See that for details.
+        :type rings: List[Dict[str, List[Any]]]
+        :param cutoff:
+        :return:
+        """
+        # ----------------------------------------------------------
+        # scenario where they are closer than the cutoff
+        close_pairs = self._get_close_nonorigin_ringcores(mol, rings, cutoff)  # 2.7889 ring diameter + 1.45 C-C bond
+        # ----------------------------------------------------------
+        # scenario where they are bonded...
+        bonded_pairs = []
         for ring in rings:
             # ring: Dict[str, List[Any]]
-            ringcore = ring['atom']  # Chem.Atom
+            ringcore = ring['atom']  # Chem.Atom the ring core marker, not a real atom.
             for neigh in ringcore.GetNeighbors():
                 # find those ringcore atoms that are connected. via these conditions:
-                has_ringcore_neighbor = neigh.HasProp('_ori_name') and neigh.GetIntProp('_ori_i') == -1
+                has_ringcore_neighbor = neigh.HasProp('_ori_name') and neigh.GetIntProp('_ori_i') == -1  # -1 is ring.
                 is_new_pair = ringcore.GetIdx() < neigh.GetIdx()  # to avoid doing it twice each direction
                 is_novel_connection = neigh.HasProp('_ori_name') and ring['ori_name'] != neigh.GetProp('_ori_name')
+                # checking:
                 if has_ringcore_neighbor and is_new_pair and is_novel_connection:
                     # This ringcore atom shares a novel border with another ringcore atom
-                    pairs.append((ringcore, neigh))
+                    bonded_pairs.append((ringcore, neigh))  # i.e. List[Tuple[Chem.Atom, Chem.Atom]}
+        # ------------ merge lists -----------
+        # todo this extra step should not exist
+        # complicate because mol.GetAtomWithIdx(2) == mol.GetAtomWithIdx(2) is False
+        seen = []
+        pairs = []
+        for atom_a, atom_b in close_pairs+bonded_pairs:
+            ai = atom_a.GetIdx()
+            bi = atom_b.GetIdx()
+            low_i, high_i = sorted([ai, bi])
+            pairing = f'{low_i}-{high_i}'
+            if pairing in seen:
+                pass
+            else:
+                seen.append(pairing)
+                pairs.append((atom_a, atom_b))
         return pairs
+
+    def _get_ring_atom_indices_per_origin(self, rings: List[Dict[str, List[Any]]]) -> Dict[str, List[int]]:
+        atomdex = defaultdict(set)
+        for ring in rings:
+            origin_name = ring['ori_name']  # ring['ori_name'] is same as ringcore.GetProp('_ori_name')
+            atomdex[origin_name].update(ring['current_is'])  # ring['current_is'] = json ringcore.GetProp('_current_is')
+        return atomdex
+
+    def _get_close_nonorigin_ringcores(self, mol: Chem.Mol, rings: List[Dict[str, List[Any]]], cutoff: int):
+        """
+        Unfortunately, internally this compares ring atoms, not ring cores. Yet the return are ring cores.
+        """
+        cnrai = self._get_close_nonorigin_ring_atoms_indices(mol, rings, cutoff)
+        # these are indices of ring atoms, not ring cores
+        get_atom = lambda i: mol.GetAtomWithIdx(int(i))
+        get_ringcore = lambda atom: get_atom(atom.GetIntProp('_ring_i'))
+        idx2ringcore = lambda i: get_ringcore(get_atom(i))
+        return [(idx2ringcore(ai), idx2ringcore(bi)) for ai, bi in cnrai]
+
+    def _get_close_nonorigin_ring_atoms_indices(self,
+                                                mol: Chem.Mol,
+                                                rings: List[Dict[str, List[Any]]],
+                                                cutoff: int):
+        atomdex = self._get_ring_atom_indices_per_origin(rings)
+        # not calling get_distance matrxi because tehre may be more than 2 origins.
+        distance_matrix = Chem.Get3DDistanceMatrix(mol)
+        for origin_name, indices in atomdex.items():
+            self._nan_fill_submatrix(distance_matrix, list(indices))
+        self._nan_fill_others(mol, distance_matrix, [idx for idcs in atomdex.values() for idx in idcs])
+        # get the pair of atom indices that are less thna cutoff.
+        # where returns a tuple of np.arrays of dtype=np.int64
+        return list(zip(*[w.astype(int) for w in np.where(distance_matrix < cutoff)]))
 
     def _determine_mergers_novel_ringcore_pair(self,
                                                mol: Chem.RWMol,
                                                ringcore_A: Chem.Atom,
                                                ringcore_B: Chem.Atom) -> List[Tuple[int, int]]:
         """
+        Preps to resolve ringcore pairs.
         Formerly part of ``_ring_overlap_scenario``.
         Preps without deleting. ``_delete_marked(mol)`` does that.
         bonded, spiro, fused
@@ -476,22 +547,22 @@ class _MonsterRing(_MonsterBaseMixin):
         :param ringcore_B:
         :return: list of atoms to be merged
         """
-        absorption_distance = 1. # Å
+        absorption_distance = 1.  # Å
+        print('A', ringcore_A, ringcore_A.GetIdx(), ringcore_A.GetIntProp('_ori_i'))
+        print('B', ringcore_B, ringcore_B.GetIdx(), ringcore_B.GetIntProp('_ori_i'))
         indices_A = json.loads(ringcore_A.GetProp('_current_is'))
         indices_B = json.loads(ringcore_B.GetProp('_current_is'))
-        distance_matrix = self._get_distance_matrix(mol, indices_A, indices_B) # currently in `_join_neighboring`.
+        distance_matrix = self._get_distance_matrix(mol, indices_A, indices_B)  # currently in `_join_neighboring`.
         # distance matrix is for the whole thing
         # TODO merge into _get_distance_matrix
-        # getting the other atom indices:
-        others = np.array(list(set(range(mol.GetNumAtoms())).difference(indices_A + indices_B)))
-        distance_matrix[others, :] = np.nan
-        distance_matrix[:, others] = np.nan
+        # blanking the other atom indices:
+        self._nan_fill_others(mol, distance_matrix, indices_A + indices_B)
         # get closest pair.
         distance = np.nanmin(distance_matrix)
         if np.isnan(distance):
             self.journal.critical('This is impossible. Two neighbouring rings cannot be connected.')
             return []
-        elif distance > absorption_distance: # bonded
+        elif distance > absorption_distance:  # bonded
             p = np.where(distance_matrix == distance)
             a = int(p[0][0])
             b = int(p[1][0])
@@ -505,8 +576,8 @@ class _MonsterRing(_MonsterBaseMixin):
             self.journal.info('A novel bond-connected ring pair was found')
             self._mark_for_deletion(mol, b)
             self._copy_bonding(mol, a, b, force=True)
-            return [] #bonded
-        else:
+            return []  # bonded
+        else:  # Spiro or fused.
             p = np.where(distance_matrix == distance)
             a = int(p[0][0])
             b = int(p[1][0])
@@ -522,10 +593,10 @@ class _MonsterRing(_MonsterBaseMixin):
                 self._mark_for_deletion(mol, d)
                 self._copy_bonding(mol, c, d, force=True)
                 self.journal.info('A novel fused ring pair was found')
-                return [(a, b), (c, d)] #fused
+                return [(a, b), (c, d)]  # fused
             else:
                 self.journal.info('A novel spiro ring pair was found')
-                return [(a,b)] # spiro
+                return [(a, b)]  # spiro
 
     # ==== Novel Ring to Ring bonding ==================================================================================
 
@@ -549,7 +620,6 @@ class _MonsterRing(_MonsterBaseMixin):
     #     self.join_rings(mol)
     #     self._triangle_warn(mol)
 
-
     def _get_novel_other_pairs(self, rings) -> List[Tuple[Chem.Atom, Chem.Atom]]:
         ## similar to novel ringcore..but opposite
         pairs = []
@@ -565,34 +635,28 @@ class _MonsterRing(_MonsterBaseMixin):
                     pairs.append((ringcore, neigh))
         return pairs
 
-    def _determine_mergers_novel_other_pair(self,
-                                               mol: Chem.RWMol,
-                                               ringcore: Chem.Atom,
-                                               other: Chem.Atom) -> List[Tuple[int, int]]:
-        absorption_distance = 1.  # Å
-        indices_ring = json.loads(ringcore.GetProp('_current_is'))
-        indices_other = [other.GetIdx()]
-        distance_matrix = self._get_distance_matrix(mol, indices_ring, indices_other)  # currently in `_join_neighboring`.
-        # distance matrix is for the whole thing
-        # TODO merge into _get_distance_matrix
-        # getting the other atom indices:
-        others = np.array(list(set(range(mol.GetNumAtoms())).difference(indices_ring + indices_other)))
-        distance_matrix[others, :] = np.nan
-        distance_matrix[:, others] = np.nan
-        # penalties
-        penalties = np.zeros(distance_matrix.shape)
+
+    def _get_merging_penalties(self, mol, shape: Tuple[int, int], indices_ring):
+        """
+        confusingly this is a different set of penalties to `_get_joining_penalties` which is for joining
+        :param mol:
+        :param shape:
+        :param indices_ring: The indices inside the ring atom, aka. prop _current_is
+        :return:
+        """
+        penalties = np.zeros(shape)
         for i in indices_ring:
             atom = mol.GetAtomWithIdx(i)
             neighs = [neigh for neigh in atom.GetNeighbors() if self._is_count_valid(neigh)]
             n_neighs = len(neighs)
             if atom.GetAtomicNum() > 8:  # next row.
                 # weird chemistry... likely wrong!
-                penalties[i,:] = 2.
-                penalties[:,i] = 2.
+                penalties[i, :] = 2.
+                penalties[:, i] = 2.
             elif n_neighs == 2:
-                pass # no penalty!
+                pass  # no penalty!
             elif atom.GetIsAromatic():
-                penalties[i, :] = 2 # this would result in a ring downgrade...
+                penalties[i, :] = 2  # this would result in a ring downgrade...
                 penalties[:, i] = 2
             elif n_neighs == 3:
                 penalties[i, :] = 1.  # 4 bonded carbon is not nice...
@@ -600,6 +664,29 @@ class _MonsterRing(_MonsterBaseMixin):
             else:
                 penalties[i, :] = np.nan  # this will likely crash things.
                 penalties[:, i] = np.nan
+        return penalties
+
+    def _determine_mergers_novel_other_pair(self,
+                                            mol: Chem.RWMol,
+                                            ringcore: Chem.Atom,
+                                            other: Chem.Atom) -> List[Tuple[int, int]]:
+        """
+        Like _determine_mergers_novel_ringcore_pair finds, bonds and marks for deletion.
+        It however finds atoms to absorb between a ring and non-ring atom.
+
+        :param mol:
+        :param ringcore:
+        :param other:
+        :return:
+        """
+        absorption_distance = 1.  # Å
+        indices_ring = json.loads(ringcore.GetProp('_current_is'))
+        indices_other = [other.GetIdx()]
+        distance_matrix = self._get_distance_matrix(mol, indices_ring,
+                                                    indices_other)  # currently in `_join_neighboring`.
+        self._nan_fill_others(mol, distance_matrix, indices_ring + indices_other)
+        # merging penalties
+        penalties = self._get_merging_penalties(mol, distance_matrix.shape, indices_ring)
         # get closest pair.
         pendist_matrix = penalties + distance_matrix
         pendistance = np.nanmin(pendist_matrix)
@@ -613,7 +700,7 @@ class _MonsterRing(_MonsterBaseMixin):
             distance = distance_matrix[a, b]
             penalty = penalties[a, b]
             if distance > 4:
-                raise ValueError(f'The bond between {a} and {b} too long {distance} '+\
+                raise ValueError(f'The bond between {a} and {b} too long {distance} ' + \
                                  f'from {indices_ring} and {indices_other}')
             elif distance > absorption_distance:
                 # get bond type
@@ -628,7 +715,7 @@ class _MonsterRing(_MonsterBaseMixin):
                 # This is no longer required:
                 # atom_a = mol.GetAtomWithIdx(a)
                 # atom_b = mol.GetAtomWithIdx(b)
-                #self._add_bond_if_possible(mol, atom_a, atom_b)
+                # self._add_bond_if_possible(mol, atom_a, atom_b)
                 self.journal.info(f'A novel bonding to ring was added {distance} {penalty}')
             else:
                 # absorb the non-ring atom!
@@ -659,7 +746,7 @@ class _MonsterRing(_MonsterBaseMixin):
                 for i, frag in enumerate(frags):
                     frag.SetProp('_Name', f'name.{i}')
                 # find which fragments are closest.
-                #TODO use the distance_matrix = self._get_distance_matrix(..) code
+                # TODO use the distance_matrix = self._get_distance_matrix(..) code
                 closeness = np.ones([n, n])
                 closeness.fill(float('nan'))
                 for a, b in itertools.combinations(list(range(n)), 2):
@@ -677,7 +764,6 @@ class _MonsterRing(_MonsterBaseMixin):
                 frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
                 n = len(frags)
             return Chem.RWMol(mol)
-
 
         #
         #
@@ -716,7 +802,7 @@ class _MonsterRing(_MonsterBaseMixin):
             atom_i = atom.GetIdx()
             for neigh in atom.GetNeighbors():
                 neigh_i = neigh.GetIdx()
-                if neigh_i < atom_i: # dont check twice...
+                if neigh_i < atom_i:  # dont check twice...
                     continue
                 # de triangulate
                 third_i = self._get_triangle(atom, neigh)
@@ -734,7 +820,7 @@ class _MonsterRing(_MonsterBaseMixin):
                 if sq is not None:
                     far_i, close_i = sq
                     far = mol.GetAtomWithIdx(far_i)
-                    close = mol.GetAtomWithIdx(close_i) # second neighbour of atom
+                    close = mol.GetAtomWithIdx(close_i)  # second neighbour of atom
                     # bonding is:
                     # atom - neigh - far - close - atom
                     self.journal.debug(f'Square present {(atom_i, neigh_i, far_i, close_i)}.')
@@ -781,16 +867,9 @@ class _MonsterRing(_MonsterBaseMixin):
             scores += np.sum(list(combinator(funscore)), axis=1)
         d = np.nanmax(scores)
         if np.isnan(d):
-            return None # impossible but okay.
+            return None  # impossible but okay.
         doomed_i = int(np.where(scores == d)[0])
         doomed_bond = bonds[doomed_i]
         a, b = doomed_bond.GetBeginAtomIdx(), doomed_bond.GetEndAtomIdx()
         self.journal.debug(f'Removing triangle/square forming bond between {a} and {b}')
         mol.RemoveBond(a, b)
-
-
-
-
-
-
-
