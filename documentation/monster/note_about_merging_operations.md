@@ -6,7 +6,7 @@ The automerging route was therefore built on top of it.
 
 The `_VictorAutomergeMixin` contains the automerging code,
 most notably the classmethod `combine`.
-This uses `merge_hits` from the main class, written first.
+This uses `simply_merge_hits` from the main class, written first.
 
 Then to address the problem of rings merging oddly, the ring collapse functionality was added
 and can be found in `_collapse_ring`.

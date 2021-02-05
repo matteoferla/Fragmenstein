@@ -123,7 +123,7 @@ while for the positioning this is not the case.
 
 
 
-#### merge_hits()
+#### simply_merge_hits()
 Recursively stick the hits together and average the positions.
 
 

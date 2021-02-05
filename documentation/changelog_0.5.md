@@ -18,27 +18,34 @@ While to do a merger
 Additionally, the attribute `modifications` was added/expanded, so that intermediate steps are stored
 for potential inspection.
 
-`merge` still calls `merge_hits`.
+`merge` still calls `simply_merge_hits`.
 If one wanted to merge two or more hits, independently of those in `.hits` attribute and without ring collapsing 
 and rectification etc.
-`merge_hits` is still the one:
+`simply_merge_hits` is still the one:
 
     monster = Monster([])
-    monster.merge_hits([molA, molB])
+    monster.simply_merge_hits([molA, molB])
 
 The `place` method accepts the argument `merging_mode`, by default it is "permissive_none",
-which calls `.no_merging(broad=True)`,
+which calls `.no_blending(broad=True)`,
 but "off" (nothing), 
-"full" (`.full_merging()`), 
-"partial" (`.partial_merging()`)
-and "none" (`.no_merging()`)
+"full" (`.full_blending()`), 
+"partial" (`.partial_blending()`)
+and "none" (`.no_blending()`)
 are accepted.
+
+## Names
+The names "merge" and "place" were ultra-confusingly ambiguous when it comes to the other methods, especially those of "place".
+
+* Now all the cases where hits are partially combined for placement purposes are called "blending"
+The placement of the (distored) 3D final monster compound Victor is called "plonk".
+
+* place and position are used synonymously
+* combine and merge are used synonymously
+
 
 ## Future
 Victor however still has the merger as a side route.
-
-The names "merge" and "place" are ambiguous when it comes to the other methods, especially those of "place".
-"position" is also used for the (distored) 3D final compound.
 
 ## Overlapping rings
 

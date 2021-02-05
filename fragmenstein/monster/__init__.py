@@ -113,6 +113,21 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
               mol: Chem.Mol,
               attachment: Optional[Chem.Mol] = None,
               merging_mode: str = 'none_permissive'):
+        """
+        Positioned a given mol based on the hits. (Main entrypoint)
+        accepts the argument `merging_mode`, by default it is "permissive_none",
+        which calls `.no_blending(broad=True)`,
+        but "off" (does nothing except fill the attribute ``initial_mol``),
+        "full" (`.full_blending()`),
+        "partial" (`.partial_blending()`)
+        and "none" (`.no_blending()`)
+        are accepted.
+
+        :param mol:
+        :param attachment:
+        :param merging_mode:
+        :return:
+        """
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
         # Reset
         self.unmatched = []
@@ -121,15 +136,15 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         if merging_mode == 'off':
             pass
         elif merging_mode == 'full':
-            self.full_merging()
+            self.full_blending()
         elif merging_mode == 'partial':
-            self.partial_merging()
+            self.partial_blending()
         elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none':
-            self.no_merging(broad=True)
+            self.no_blending(broad=True)
         elif merging_mode == 'none':
-            self.no_merging()
+            self.no_blending()
         else:
-            valid_modes = ('full','partial','none','none_permissive', 'off')
+            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')
             raise ValueError(
                 f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
         return self
@@ -162,7 +177,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
 
     def merge(self, keep_all=True, collapse_rings=True, joining_cutoff: int = 5):
         """
-        Merge the hits.
+        Merge/links the hits. (Main entrypoint)
 
         :param keep_all:
         :param collapse_rings:
@@ -178,7 +193,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             self.modifications.extend(col_hits)
         else:
             col_hits = self.hits
-        self.scaffold = self.merge_hits(col_hits)
+        self.scaffold = self.simply_merge_hits(col_hits)
         self.modifications.append(Chem.Mol(self.scaffold))  # backup for debug
         ## Discard can happen for other reasons than disconnect
         if keep_all and len(self.unmatched):
@@ -206,25 +221,30 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.positioned_mol = recto.mol
         self.modifications.extend(recto.modifications)  # backup for debug
 
-
     # TODO move these to own file
     # ==================================================================================================================
+    # common to move
 
-    @classmethod
-    def full_merging(self) -> None:
+    #simply_merge_hits, merge_pair, _pre_fragment_pairs, _recruit_team, _categorise, get_positional_mapping
+
+    # ==================================================================================================================
+    # placement dependent methdos
+
+    # @classmethod #why was this a classmethod
+    def full_blending(self) -> None:
         """
         a single scaffold is made (except for ``.unmatched``)
         """
-        self.scaffold_options = [self.merge_hits()]
+        self.scaffold_options = [self.simply_merge_hits()]
         self.scaffold = self.posthoc_refine(self.scaffold_options[0])
         self.chimera = self.make_chimera()
         self.positioned_mol = self.place_from_map()
 
-    def partial_merging(self) -> None:
+    def partial_blending(self) -> None:
         """
         multiple possible scaffolds and best is chosen
         """
-        self.scaffold_options = self.combine_hits()  # merger of hits
+        self.scaffold_options = self.partially_blend_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
         used = self.scaffold.GetProp('_Name').split('-')
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
@@ -232,7 +252,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.chimera = self.make_chimera(mode_index)
         self.positioned_mol = self.place_from_map()
 
-    def no_merging(self, broad=False) -> None:
+    def no_blending(self, broad=False) -> None:
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
@@ -316,9 +336,9 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             self.draw_nicely(scaffold)
         return scaffold
 
-    # ================= Combine hits ===================================================================================
+    # ================= Blend hits ===================================================================================
 
-    def combine_hits(self, hits: Optional[List[Chem.Mol]] = None) -> List[Chem.Mol]:
+    def partially_blend_hits(self, hits: Optional[List[Chem.Mol]] = None) -> List[Chem.Mol]:
         """
         This is the partial merge algorithm, wherein the hits are attempted to be combined.
         If the combination is bad. It will not be combined.
@@ -372,7 +392,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
             print(dodgy_names)
         dodgies = [hit for hit in hits if hit.GetProp('_Name') in dodgy_names]
         mergituri = [hit for hit in hits if hit.GetProp('_Name') not in dodgy_names]
-        merged = self.merge_hits(mergituri)
+        merged = self.simply_merge_hits(mergituri)
         dodgies += [hit for hit in hits if hit.GetProp('_Name') in self.unmatched]
         self.unmatched = []
         combined_dodgies = []
@@ -405,7 +425,12 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                     new += 1
         return new
 
-    def pick_best(self):
+    def pick_best(self) -> Tuple[Chem.Mol, int]:
+        """
+        Method for partial merging for placement
+
+        :return: unrefined_scaffold, mode_index
+        """
         if len(self.scaffold_options) == 1:
             return self.scaffold_options[0], 0
         elif len(self.scaffold_options) == 0:
@@ -488,11 +513,11 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     #             else:
     #                 return {n: path}
 
-    def merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
+    def simply_merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
         """
         Recursively stick the hits together and average the positions.
         This is the monster of automerging, full-merging mapping and partial merging mapping.
-        The latter however uses `combine_hits` first.
+        The latter however uses `partially_blend_hits` first.
         The hits are not ring-collapsed and -expanded herein.
 
         :param hits: optionally give a hit list, else uses the attribute ``.hits``.

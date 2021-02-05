@@ -26,7 +26,7 @@ Note that `.initial_mol` is not touched. `.positioned_mol` may have lost some cu
 
 The following steps are done:
 
-* `.merge_hits()`: merges the hits, the output `rdkit.Chem.Mol` object added as `.scaffold`.
+* `.simply_merge_hits()`: merges the hits, the output `rdkit.Chem.Mol` object added as `.scaffold`.
 * `.make_chimera()`: makes the atomic elements in `.scaffold` match those in the followup, the output `rdkit.Chem.Mol` object added as `.chimera`.
 * `.place_from_map()`  followup is places like the scaffold.
 

@@ -530,7 +530,8 @@ class _MonsterRing(_MonsterBaseMixin):
         self._nan_fill_others(mol, distance_matrix, [idx for idcs in atomdex.values() for idx in idcs])
         # get the pair of atom indices that are less thna cutoff.
         # where returns a tuple of np.arrays of dtype=np.int64
-        return list(zip(*[w.astype(int) for w in np.where(distance_matrix < cutoff)]))
+        with np.errstate(invalid='ignore'):
+            return list(zip(*[w.astype(int) for w in np.where(distance_matrix < cutoff)]))
 
     def _determine_mergers_novel_ringcore_pair(self,
                                                mol: Chem.RWMol,

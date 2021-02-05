@@ -287,7 +287,7 @@ class Internals(unittest.TestCase):
         acetyl, nitrile = self.make_pair_by_split(conjoined, 4)
         # merge
         monster = Monster([acetyl, nitrile])
-        merger = monster.merge_hits()
+        merger = monster.simply_merge_hits()
         dummies = merger.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0))
         for dummy in dummies:
             self.assertEqual(len(dummy.GetNeighbors()), 1)
