@@ -385,7 +385,7 @@ class _MonsterRing(_MonsterBaseMixin):
         """
         self.journal.debug('Adding novel bonding (if any)...')
         # ===== Deal with Ring on ring bonding
-        novel_ringcore_pairs = self._get_novel_ringcore_pairs(mol, rings, cutoff = 2.8 + 1.5)
+        novel_ringcore_pairs = self._get_novel_ringcore_pairs(mol, rings, cutoff = 1.5)
         # these is a list of Chem.Atom pairs.
         for ringcore_A, ringcore_B in novel_ringcore_pairs:
             self.journal.debug(f'determining novel bond between {ringcore_A} and {ringcore_B}')

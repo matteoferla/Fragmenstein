@@ -605,6 +605,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         """
         This method places the atoms with known mapping
         and places the 'uniques' (novel) via an aligned mol (the 'sextant')
+        This sextant business is a workaround for the fact that only minimised molecules can use the partial
+        embedding function of RDKit.
 
         :param mol:
         :param atom_map: something that get_mcs_mapping would return.
