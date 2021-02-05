@@ -146,7 +146,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self._log_warnings()
         self.post_params_step()
         self.monster_merging_mode = 'full'
-        self.unminimised_pdbblock = self._place_monster_in_structure()
+        self.unminimised_pdbblock = self._plonk_monster_in_structure()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()

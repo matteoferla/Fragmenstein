@@ -39,6 +39,8 @@ from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
 
+from .minimalPDB import MinimalPDBParser
+
 
 class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     """
@@ -225,7 +227,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                            attachment=attachment,
                            merging_mode=self.monster_merging_mode)
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.scaffold_options)} combinations')
-        self.unminimised_pdbblock = self._place_monster_in_structure()
+        self.unminimised_pdbblock = self._plonk_monster_in_structure()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
@@ -320,6 +322,10 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
 
+    # ------------- Plonk in structure  ------------------------------------------------------------------------------
+    # the following is here as opposed to Monster, because it requires the template, ligand connections etc.
+    # the stupid name "plonk" is to distinguish it from place and placement, which have a different meaning in Monster.
+
     def _get_LINK_record(self):
         if self.is_covalent:
             # get correct chain names.
@@ -344,6 +350,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         """
         Corrects in place the given mol based on self.ligand_resi.
         If none provided it assumed self.monster.positioned_mol
+        Correcting the serial unfortunately does not do anything.
         """
         if mol is None:
             mol = self.monster.positioned_mol
@@ -357,23 +364,71 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             info.SetResidueName(self.ligand_resn)
         return mol
 
-
-    def _place_monster_in_structure(self): # TODO make a new method that does not use Pymol
-        """
-        Places the molecule in the structure using pymol.
-        :return:
-        """
-        import pymol2
+    def _plonk_monster_in_structure(self, use_pymol=False):
         self._correct_ligand_info()
+        self.journal.debug(f'{self.long_name} - placing monster in structure')
+        if use_pymol:
+            return self._plonk_monster_in_structure_pymol()
+        else:
+            # _plonk_monster_in_structure_raw does no corrections.
+            return self._plonk_monster_in_structure_minimal()
+
+    def _get_preminimised_undummied_monster(self):
+        """
+        This method is called by the plonking into structure methods.
+        Not "positioning" as intended by ``monster`` is done.
+        Opening a PDB in RDKit is doable but gets exponentially slow with chain length
+        """
         mol = AllChem.DeleteSubstructs(self.monster.positioned_mol, Chem.MolFromSmiles('*'))
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             self.monster.mmff_minimise(mol)
-        self.journal.debug(f'{self.long_name} - placing monster in structure')
+        return mol
+
+
+    def _plonk_monster_in_structure_minimal(self):
+        """
+        Plonks the molecule in the structure without using pymol.
+        Uses a custom miniparser. see minimalPDB
+
+        :return:
+        """
+        mol = self._get_preminimised_undummied_monster()
+        pdbdata = MinimalPDBParser(self.apo_pdbblock)
+        moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
+        if self.is_covalent:
+            pdbdata.headers.append(self._get_LINK_record())
+        pdbdata.append(moldata) # fixes offsets in ATOM/HETATM and CONECT lines.
+        return str(pdbdata)
+
+    def _plonk_monster_in_structure_raw(self):
+        """
+        Plonks the molecule in the structure without using pymol.
+        Not "positioning" as intended by ``monster`` is done.
+        Opening a PDB in RDKit is doable but gets exponentially slow with chain length
+
+        :return:
+        """
+        mol = self._get_preminimised_undummied_monster()
+        mol_block = Chem.MolToPDBBlock(mol)
+        return '\n'.join([self._get_LINK_record().strip(),
+                          self.apo_pdbblock.strip(),
+                          mol_block
+                          ]).strip()
+
+    def _plonk_monster_in_structure_pymol(self):
+        """
+        Plonks the molecule in the structure using pymol.
+        Not "positioning" as intended by ``monster`` is done.
+
+        :return:
+        """
+        import pymol2
+        mol = self._get_preminimised_undummied_monster()
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             pos_mol = Chem.MolToPDBBlock(mol)
-            pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
+            #pymol.cmd.read_pdbstr(pos_mol, 'scaffold')
             pymol.cmd.remove('name R')  # no dummy atoms!
             for c in self._connected_names:
                 pymol.cmd.remove(f'name {c}')  # no conns
@@ -381,6 +436,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
             pdbblock = pymol.cmd.get_pdbstr('*')
             pymol.cmd.delete('*')
         return self._get_LINK_record() + pdbblock
+
+    # ------------- Igor  ------------------------------------------------------------------------------
 
     def _fix_minimised(self) -> Chem.Mol:
         """
