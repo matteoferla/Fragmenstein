@@ -203,7 +203,10 @@ class RingTestsVictor(unittest.TestCase):
 
     def test_spirodituluene(self):
         name = 'spirodituluene'
-        after = ('C[C@@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1', 'C[C@@H]1C=CC[C@]2(C=C[C@@H](C)C=C2)C1')
+        after = ('C[C@@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1',
+                 'C[C@@H]1C=CC[C@]2(C=C[C@@H](C)C=C2)C1',
+                 'C[C@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1',
+                 'C[C@H]1C=CC[C@]2(C=C[C@@H](C)C=C2)C1')
         template = os.path.join(MProVictor.get_mpro_path(), 'template.pdb')
         toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
         toluene.SetProp('_Name', 'toluene')
@@ -297,14 +300,14 @@ class Internals(unittest.TestCase):
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
     def test_recto_fail_A(self):
-        """Not too sure why this fails. I think it is the alphatic - ring merger"""
+        """This used to fail."""
         MProVictor.monster_throw_on_discard = True
         victor = MProVictor.combine_codes(hit_codes=['x11612', 'x11475'])
         self.assertEqual(victor.error, '', victor.error)
 
     def test_supplementary1_to_recto_fail_A(self):
         """
-        This was ment to test the above, but it works fine.
+        This was meant to test the above, but it works fine.
         :return:
         """
         # make hits
@@ -327,24 +330,25 @@ class UnresolvedProblems(unittest.TestCase):
         # merge
         monster = Monster(hits=[toluene, chlorobutane]).merge(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(monster.positioned_mol), Chem.MolToSmiles(chlorotoluene))  # CC(Cl)CCc1ccccc1
+        self.assertEqual(Chem.MolToSmiles(chlorotoluene), Chem.MolToSmiles(monster.positioned_mol))  # CC(Cl)CCc1ccccc1
 
     def test_supplementary2_to_recto_fail_A(self):
         """
-        This was meant to test as above. It also works fine.
+        This was meant to test as above.
+        It mergers xylene with chloropentane
         :return:
         """
         #
-        methylchlorotoluene = Chem.MolFromSmiles('Cc1c(Cl)c(C)ccc1')
-        AllChem.EmbedMolecule(methylchlorotoluene)
-        methylchlorotoluene.SetProp('_Name', 'methylchlorotoluene')
+        chloroxylene = Chem.MolFromSmiles('Cc1c(Cl)c(C)ccc1')
+        AllChem.EmbedMolecule(chloroxylene)
+        chloroxylene.SetProp('_Name', 'chloroxylene')
         #
-        methyltoluene = Chem.RWMol(methylchlorotoluene)
-        methyltoluene.RemoveAtom(3)
-        Chem.SanitizeMol(methyltoluene)
-        methyltoluene.SetProp('_Name', 'methyltoluene')
+        xylene = Chem.RWMol(chloroxylene)
+        xylene.RemoveAtom(3)
+        Chem.SanitizeMol(xylene)
+        xylene.SetProp('_Name', 'xylene')
         #
-        chloropentane = Chem.RWMol(methylchlorotoluene)
+        chloropentane = Chem.RWMol(chloroxylene)
         for n in range(chloropentane.GetNumAtoms() - 1, 5, -1):
             chloropentane.RemoveAtom(n)
         for atom in chloropentane.GetAtoms():
@@ -354,8 +358,8 @@ class UnresolvedProblems(unittest.TestCase):
         Chem.SanitizeMol(chloropentane)
         chloropentane.SetProp('_Name', '2-chloropentane')
         #
-        monster = Monster(hits=[methyltoluene, chloropentane]).merge(keep_all=False)
+        monster = Monster(hits=[xylene, chloropentane]).merge(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(monster.positioned_mol), Chem.MolToSmiles(methylchlorotoluene))
+        self.assertEqual(Chem.MolToSmiles(chloroxylene), Chem.MolToSmiles(monster.positioned_mol))
 
 # Todo: add a class to test missing modules.

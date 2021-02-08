@@ -58,7 +58,8 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self = cls.__new__(cls)
         self.monster_merging_mode = 'full' # needed solely for logkeeping
         self.long_name = '-'.join([h.GetProp('_Name') for h in hits])
-        self.apo_pdbblock = open(pdb_filename).read()
+        with open(pdb_filename) as fh:
+            self.apo_pdbblock = fh.read()
         self.journal.debug(f'{self.long_name} - harmonising warheads on hits in "{warhead_harmonisation}" mode')
         with warnings.catch_warnings(record=True) as self._warned:
             self.hits = self.harmonise_warheads(hits, warhead_harmonisation, covalent_form=True)
@@ -119,6 +120,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
                            collapse_rings=True,
                            joining_cutoff=self.monster_joining_cutoff # Å
                             )
+        self.mol = self.monster.positioned_mol
         self.smiles = Chem.MolToSmiles(self.mol)
         if self.monster_debug_draw:
             picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.monster.positioned_mol)

@@ -49,7 +49,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
     The reason is to do place the followup compound to the hits as faithfully as possible regardless of the screaming forcefields.
 
     * ``.scaffold`` is the combined version of the hits (rdkit.Chem.Mol object).
-    * ``.scaffold_options`` are the possible scaffolds to use.
+    * ``.mol_options`` are the possible mol_options to use.
     * ``.chimera`` is the combined version of the hits, but with differing atoms made to match the followup (rdkit.Chem.Mol object).
     * ``.positioned_mol`` is the desired output (rdkit.Chem.Mol object)
 
@@ -98,11 +98,11 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         # self.matched is dynamic.  #: accepted hits
         # Chem.Mol or List[Chem.Mol]
         self.modifications = []
-        self.initial_mol = None  #: to be filled
+        self.initial_mol = None  #: to be filled by place. The starting molecule (Chem.Mol).
         self.attachment = None
-        # self.scaffold = None  #: template which may have wrong elements
-        # self.scaffold_options = []  #: partial combined templates (merging_mode: partial)
-        self.scaffolds = []  #: templates which may have wrong elements
+        # self.scaffold = None  #: template which may have wrong elements in place, or
+        # self.mol_options = []  #: partial combined templates (merging_mode: partial)
+        self.mol_options = []  #: templates which may have wrong elements
         self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
         self.positioned_mol = None  #: final molecule
 
@@ -131,7 +131,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
         # Reset
         self.unmatched = []
-        self.scaffold_options = []
+        self.mol_options = []
         # do calculations
         if merging_mode == 'off':
             pass
@@ -235,16 +235,16 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
         """
         a single scaffold is made (except for ``.unmatched``)
         """
-        self.scaffold_options = [self.simply_merge_hits()]
-        self.scaffold = self.posthoc_refine(self.scaffold_options[0])
+        self.mol_options = [self.simply_merge_hits()]
+        self.scaffold = self.posthoc_refine(self.mol_options[0])
         self.chimera = self.make_chimera()
         self.positioned_mol = self.place_from_map()
 
     def partial_blending(self) -> None:
         """
-        multiple possible scaffolds and best is chosen
+        multiple possible scaffolds for placement and best is chosen
         """
-        self.scaffold_options = self.partially_blend_hits()  # merger of hits
+        self.mol_options = self.partially_blend_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
         used = self.scaffold.GetProp('_Name').split('-')
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
@@ -276,6 +276,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                      no_discard=self.throw_on_discard,
                      _debug_draw=self._debug_draw)
         self.scaffold = um.combined
+        self.mol_options = um.combined_alternatives
         full_atom_map = um.combined_map
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         if self.throw_on_discard and len(self.unmatched):
@@ -431,9 +432,9 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
 
         :return: unrefined_scaffold, mode_index
         """
-        if len(self.scaffold_options) == 1:
-            return self.scaffold_options[0], 0
-        elif len(self.scaffold_options) == 0:
+        if len(self.mol_options) == 1:
+            return self.mol_options[0], 0
+        elif len(self.mol_options) == 0:
             raise ValueError('No scaffolds made?!')
         else:
             mapx = {}  #: dictionary of key mol name and value tuple of maps and mode
@@ -447,7 +448,7 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
 
             ## get data
             # presort as this is expensive.
-            for template in self.scaffold_options:
+            for template in self.mol_options:
                 # _get_atom_maps returns a list of alternative mappings which are lists of template to initail mol
                 atom_maps = self._get_atom_maps(template, self.initial_mol,
                                                 atomCompare=rdFMCS.AtomCompare.CompareElements,
@@ -457,8 +458,8 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                                                 matchChiralTag=False)
                 mapx[template.GetProp('_Name')] = (atom_maps, self.matching_modes[-1])
             # search properly only top 3.
-            self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
-            for template in self.scaffold_options[:3]:
+            self.mol_options = sorted(self.mol_options, key=template_sorter)
+            for template in self.mol_options[:3]:
                 atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
                 # get_mcs_mapping returns a dict going from template index to initial.
                 mapx[template.GetProp('_Name')] = (atom_map, mode)
@@ -466,15 +467,15 @@ class Monster(_MonsterUtil, _MonsterRing, GPM, _MonsterJoinNeighMixin):  # Unmer
                     print(
                         f"With {template.GetProp('_Name')}, {len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
             ## pick best template
-            self.scaffold_options = sorted(self.scaffold_options, key=template_sorter)
+            self.mol_options = sorted(self.mol_options, key=template_sorter)
             ## Check if missing atoms can be explained by a different one with no overlap
-            best = self.scaffold_options[0]
+            best = self.mol_options[0]
             ## Fuse overlaps
             # best_map = maps[best.GetProp('_Name')][0]
             # full = set(range(self.initial_mol.GetNumAtoms()))
             # present = set(best_map.values())
             # missing = full - present
-            # for other in self.scaffold_options:
+            # for other in self.mol_options:
             #     other_map = maps[other.GetProp('_Name')][0]
             #     found = set(other_map.values())
             #     if len(found) > 6 and len(present & found) == 0: # more than just a ring and no overlap

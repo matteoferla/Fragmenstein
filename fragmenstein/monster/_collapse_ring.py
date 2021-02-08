@@ -269,8 +269,31 @@ class _MonsterRing(_MonsterBaseMixin):
                  bonds=json.loads(atom.GetProp('_bonds')))
             for atom in self._get_collapsed_atoms(mol)]
 
-    def _get_expansion_for_atom(self, data: Dict[str, List[Any]], i: int) -> Dict[str, Any]:
-        return {k.replace('s', ''): data[k][i] if isinstance(data[k], list) else data[k] for k in data}
+    def _get_expansion_for_atom(self, ring: Dict[str, List[Any]], i: int) -> Dict[str, Any]:
+        """
+        ``_get_expansion_data`` returns from a mol the "expansion data for the rings"
+        ``_get_expansion_for_atom`` given one of the list of the data from the latter (representing a ring core)
+        and an index of which of the internal atoms that were collapsed return a dictionary of details
+        of that atom.
+
+        :param ring: see ``_get_expansion_data``
+        :param i: the internal index. Say 'elements': ['C', 'C', 'C', 'O', 'C', 'C'].  i = 3 would will be Oxygen.
+        :return:
+        """
+        try:
+            return {k.replace('s', ''): ring[k][i] if isinstance(ring[k], list) else ring[k] for k in ring}
+        except IndexError:
+            troublesome = [k for k in ring if isinstance(ring[k], list) and len(ring[k]) <= i]
+            if len(troublesome) == 0:
+                raise IndexError(f'There is a major issue with ring data for index {i}: {ring}')
+            elif troublesome[0] == 'current_is':
+                self.journal.warning(f'One atom lacks a current index!'+ \
+                                     'This is a fallback that should not happen')
+                mol = ring['atom'].GetOwningMol()
+                ring['current_is'] = [self._get_new_index(mol, old_i, search_collapsed=False) for old_i in ring['ori_is']]
+                return self._get_expansion_for_atom(ring, i)
+            else:
+                raise IndexError(f'The indices of the collapsed atom do not extend to {i} for {troublesome}')
 
     # === Key steps ====================================================================================================
 
@@ -549,8 +572,8 @@ class _MonsterRing(_MonsterBaseMixin):
         :return: list of atoms to be merged
         """
         absorption_distance = 1.  # Å
-        print('A', ringcore_A, ringcore_A.GetIdx(), ringcore_A.GetIntProp('_ori_i'))
-        print('B', ringcore_B, ringcore_B.GetIdx(), ringcore_B.GetIntProp('_ori_i'))
+        # print('A', ringcore_A, ringcore_A.GetIdx(), ringcore_A.GetIntProp('_ori_i'))
+        # print('B', ringcore_B, ringcore_B.GetIdx(), ringcore_B.GetIntProp('_ori_i'))
         indices_A = json.loads(ringcore_A.GetProp('_current_is'))
         indices_B = json.loads(ringcore_B.GetProp('_current_is'))
         distance_matrix = self._get_distance_matrix(mol, indices_A, indices_B)  # currently in `_join_neighboring`.

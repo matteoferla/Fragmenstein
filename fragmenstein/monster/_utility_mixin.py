@@ -221,8 +221,8 @@ class _MonsterUtil:
             if self.positioned_mol:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
                 pymol.cmd.color('tv_green', f'followup and name C*')
-            if self.scaffold_options:
-                for i, mol in enumerate(self.scaffold_options):
+            if self.mol_options:
+                for i, mol in enumerate(self.mol_options):
                     pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), f'opt{i}')
                     pymol.cmd.color('grey50', f'opt{i} and name C*')
             pymol.cmd.hide('sticks')

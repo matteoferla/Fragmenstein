@@ -121,6 +121,7 @@ class Unmerge(GPM):
                 dv = self.measure_map(mol, m)
                 print(j, [dd.GetProp('_Name') for dd in d], len(m), np.mean(dv), np.max(dv), self.offness(mol, m))
         self.combined = self.c_options[i]
+        self.combined_alternatives = [self.c_options[j] for j in equals if j != i]
         self.combined_map = self.c_map_options[i]
         self.disregarded = self.c_disregarded_options[i]
         self.combined_bonded = self.bond()

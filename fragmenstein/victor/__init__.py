@@ -226,7 +226,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.monster.place(mol=self.mol,
                            attachment=attachment,
                            merging_mode=self.monster_merging_mode)
-        self.journal.debug(f'{self.long_name} - Tried {len(self.monster.scaffold_options)} combinations')
+        self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
         self.unminimised_pdbblock = self._plonk_monster_in_structure()
         self.constraint.custom_constraint += self._make_coordinate_constraints()
         self._checkpoint_bravo()
@@ -695,11 +695,11 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         if self.monster.positioned_mol is not None:
             pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
             Chem.MolToMolFile(self.monster.positioned_mol, pos_file, kekulize=False)
-        if self.monster.scaffold_options:
-            opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold_options.sdf')
+        if self.monster.mol_options:
+            opt_file = os.path.join(self.work_path, self.long_name, self.long_name + '.mol_options.sdf')
             writer = Chem.SDWriter(opt_file)
             writer.SetKekulize(False)
-            for t in self.monster.scaffold_options:
+            for t in self.monster.mol_options:
                 writer.write(t)
             writer.close()
 
