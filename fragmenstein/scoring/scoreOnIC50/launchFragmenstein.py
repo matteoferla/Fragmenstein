@@ -24,13 +24,13 @@ class ComputeFragmenstein():
     def __init__(self, raw_data_path= MPRO_RAW_DATA_DIR, results_dir=FEATURES_DIR, n_jobs=1):
         '''
         :param raw_data_path: The directory where XChem data is.
-        :param wdir:
+        :param working_dir:
         '''
 
         self.raw_data_path = raw_data_path
         self.all_compounds_aligned_path = os.listdir( os.path.join(raw_data_path, "aligned") )
         self.results_dir= results_dir
-        self.wdir= os.path.join(FEATURES_DIR, "wdir")
+        self.wdir= os.path.join(FEATURES_DIR, "working_dir")
         pyrosetta.init(extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 
         self.n_jobs = n_jobs
