@@ -4,17 +4,11 @@ __doc__ = \
     """
 These are extra functionality for Igor
     """
-__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
-__email__ = "matteo.ferla@gmail.com"
-__date__ = "2020 A.D."
-__license__ = "MIT"
-__version__ = "0.4"
-__citation__ = ""
 
 ########################################################################################################################
 
 import requests, shutil, pyrosetta
-from typing import Optional
+from typing import Optional, Dict
 
 import pyrosetta
 
@@ -36,6 +30,53 @@ class _IgorUtilsMixin:
         docking.set_scorefxn(scorefxn)
         docking.apply(docked)
         return docked
+
+    def per_atom_scores(self,
+                        pose: Optional[pyrosetta.Pose]=None,
+                        target_res: Optional[int]=None,
+                        scorefxn: Optional[pyrosetta.ScoreFunction]=None) -> Dict[str, Dict[str, float]]:
+        """
+        Per atom scores are generally a bad idea as a score relative to something else is better.
+        So do treat with the appropriate caution.
+        NB. these scores will not sum to the that of the residue.
+
+        Given a pose, a target_res and a scorefxn return a dict of per atom scores:
+
+        * Lenard-Jones attraction 6-term
+        * Lenard-Jones repulsion 12-term
+        * Solvatation (zero)
+        * Electrostatic interactions
+
+        :param pose:
+        :param target_res:
+        :param scorefxn:
+        :return: a dict of atom names to dict of 'lj_atr', 'lj_rep', 'fa_solv', 'fa_elec' to value
+        """
+        # Defaults
+        if target_res is None:
+            target_res = self.ligand_residue[0]
+        if pose is None:
+            pose = self.pose
+        if scorefxn is None:
+            scorefxn = pyrosetta.get_fa_scorefxn() # unconstrained!
+        # Prep
+        score_types = ['lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']
+        residue = pose.residue(target_res)
+        scores = {residue.atom_name(i): {st: 0 for st in score_types} for i in range(1, residue.natoms() + 1)}
+        # Iterate per target residue's atom per all other residues' atoms
+        for i in range(1, residue.natoms() + 1):
+            iname = residue.atom_name(i)
+            for r in range(1, pose.total_residue() + 1):
+                other = pose.residue(r)
+                for o in range(1, other.natoms() + 1):
+                    score = pyrosetta.toolbox.atom_pair_energy.etable_atom_pair_energies(residue,
+                                                                                         i,
+                                                                                         other,
+                                                                                         o,
+                                                                                         scorefxn)
+                    for st, s in zip(score_types, score):
+                        scores[iname][st] += s
+        return scores
 
     @classmethod
     def download_map(cls, pdbcode: str, filename: str):
