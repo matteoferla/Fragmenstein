@@ -1,3 +1,11 @@
+########################################################################################################################
+__doc__ = \
+    """
+This is inherited by all three parents of the place/combine/other group
+    """
+
+########################################################################################################################
+
 from typing import Optional, List, Tuple, Union
 
 import numpy as np
@@ -37,7 +45,7 @@ class _MonsterCommunal(_MonsterTracker):
 
     @staticmethod
     def _closest__is_warhead_marked(atom):
-        return atom.HasProp('_Warhead') and atom.GetBoolProp('_Warhead') is True
+        return atom.HasProp('_Warhead') == 1 and atom.GetBoolProp('_Warhead') is True
 
     # func: https://stackoverflow.com/questions/41921255/staticmethod-object-is-not-callable
     closeness_weights = [
@@ -90,7 +98,8 @@ class _MonsterCommunal(_MonsterTracker):
 
             anchor_A, anchor_B, distance = get_closest(pendistance)
             candidates.append((anchor_A, anchor_B, distance))
-            pendist_matrix[pendist_matrix > 1.] = np.nan
+            with np.errstate(invalid='ignore'):
+                pendist_matrix[pendist_matrix > 1.] = np.nan
             while pendistance < 1.:
                 pendist_matrix[[anchor_A, anchor_B], :] = np.nan
                 pendist_matrix[:, [anchor_A, anchor_B]] = np.nan

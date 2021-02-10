@@ -60,21 +60,19 @@ class _MonsterBase:
 
     def __init__(self,
                  hits: List[Chem.Mol],
-                 debug_draw: bool = False,
-                 average_position=False):
+                 average_position: bool=False):
         """
         Initialisation starts Monster, but it does not do any mergers or placements.
         This is changed in revision 0.6 (previously `mol` was specified for the latter)
 
         :param hits:
-        :param debug_draw:
         :param average_position:
         """
         # ==== hits ===========================================
         # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
         self.hits = self.fix_hits(hits)  # list of hits
         # ==== other ==========================================
-        self._debug_draw = debug_draw  # Jupyter notebook only.
+        #self._debug_draw has been taken over by ``modifications`` and ``journal``
         self.average_position = average_position
         # ==== To do be filled ================================
         # List[str]

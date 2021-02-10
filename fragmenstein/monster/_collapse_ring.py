@@ -22,14 +22,13 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Geometry.rdGeometry import Point3D
 
-from ._communal import _MonsterCommunal
 from ._join_neighboring import _MonsterJoinNeigh
 from .bond_provenance import BondProvenance
 
 
 ########################################################################################################################
 
-class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
+class _MonsterRing( _MonsterJoinNeigh):
 
     def collapse_mols(self, mols: List[Chem.Mol]):
         mols = [self.collapse_ring(mol) for mol in mols]
@@ -390,7 +389,7 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
         :return:
         """
         self.journal.debug('Adding novel bonding (if any)...')
-        # ===== Deal with Ring on ring bonding
+        # ===== Deal with Ring on ring bonding ------------------------------------------
         novel_ringcore_pairs = self._get_novel_ringcore_pairs(mol, rings, cutoff=1.5)
         # these is a list of Chem.Atom pairs.
         for ringcore_A, ringcore_B in novel_ringcore_pairs:
@@ -398,7 +397,7 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
                                f'{ringcore_A.GetIdx()} and {ringcore_B.GetIdx()}')
             # _determine_mergers_novel_ringcore_pair finds mergers
             self._determine_mergers_novel_ringcore_pair(mol, ringcore_A, ringcore_B)
-        # ===== Deal with Ring on other bonding
+        # ===== Deal with Ring on other bonding ------------------------------------------
         # formerly: _infer_bonding_by_proximity
         novel_other_pairs = self._get_novel_other_pairs(mol, rings, 1.0)
         for ringcore, other in novel_other_pairs:
@@ -406,7 +405,7 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
                                f'ring marker {ringcore.GetIdx()} and non-ring {other.GetIdx()}')
             # _determine_mergers_novel_ringcore_pair finds, bonds and marks for deletion.
             self._determine_mergers_novel_other_pair(mol, ringcore, other)
-        # ===== Clean up
+        # ===== Clean up ------------------------------------------------------------------
         self._delete_marked(mol)
 
     # =========== dependant methods =================================================================================
@@ -517,7 +516,7 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
             ai = atom_a.GetIdx()
             bi = atom_b.GetIdx()
             if ai == bi:
-                self.journal.debug(f'Bond to self incident with {ai} (ring? {atom_a.HasProp("_current_is")})')
+                self.journal.debug(f'Bond to self incident with {ai} (ring? {atom_a.HasProp("_current_is") == 1})')
                 continue
             if ringcore_first and atom_a.HasProp('_current_is') and not atom_b.HasProp('_current_is'):
                 ringcore = ai
@@ -786,6 +785,19 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
                 penalties[:, i] = np.nan
         return penalties
 
+    def _get_distance(self, atom_a: Chem.Atom, atom_b: Chem.Atom) -> np.float:
+        """
+        Not sure where doing it manually is quicker than getting the whole 3D distance table.
+
+        :param atom_a:
+        :param atom_b:
+        :return:
+        """
+        conf = atom_a.GetOwningMol().GetConformer()
+        get_pos = lambda atom: np.array(conf.GetAtomPosition(atom.GetIdx()))
+        return np.linalg.norm(get_pos(atom_a) - get_pos(atom_b))
+
+
     def _determine_mergers_novel_other_pair(self,
                                             mol: Chem.RWMol,
                                             ringcore: Chem.Atom,
@@ -799,24 +811,37 @@ class _MonsterRing(_MonsterCommunal, _MonsterJoinNeigh):
         :param other:
         :return:
         """
-        absorption_distance = 1.  # Å
+        # ---- Prep data.
         indices_ring = json.loads(ringcore.GetProp('_current_is'))
-        indices_other = [other.GetIdx()]
+        index_other = other.GetIdx()
+        indices_other = [index_other]
+        index_core = ringcore.GetIdx()
         distance_matrix = self._get_distance_matrix(mol, indices_ring,
                                                     indices_other)  # currently in `_join_neighboring`.
         self._nan_fill_others(mol, distance_matrix, indices_ring + indices_other)
         # merging penalties
         penalties = self._get_merging_penalties(mol, distance_matrix.shape, indices_ring)
+        core_absorption_distance = 1.5  # Å between ring core and other. 2.8 Å is diameter.
+        core_other_distance = self._get_distance(ringcore, other)
+        if core_other_distance < core_absorption_distance:
+            # ------ Within ring must go. No penalties.
+            self.journal.debug(f'(DetMergeNovOther *{index_core}, {index_other}). Other is within ring. Forcing absoption')
+            absorption_distance = 9999
+            pendist_matrix = distance_matrix
+        else:
+            # ------ Assess cases normally.
+            absorption_distance = 1.  # Å between ring atom and other.
+            pendist_matrix = penalties + distance_matrix
         # get closest pair.
-        pendist_matrix = penalties + distance_matrix
         pendistance = np.nanmin(pendist_matrix)
         if np.isnan(pendistance):
-            self.journal.warning('(DetMergeNovOther). This is impossible...')
+            self.journal.warning(f'(DetMergeNovOther*{index_core}, {index_other}). This is impossible...')
             return []
         else:  # bonded
             p = np.where(pendist_matrix == pendistance)
             a = int(p[0][0])
             b = int(p[1][0])
+            assert index_other in (a, b), 'CRITICIAL: Matrix error!'
             # absorb or bond
             distance = distance_matrix[a, b]
             penalty = penalties[a, b]  # penalties were already applied. this is for msgs only

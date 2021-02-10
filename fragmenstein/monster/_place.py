@@ -1,43 +1,18 @@
+########################################################################################################################
+
+__doc__ = \
+    """
+Place followup
+    """
+
+########################################################################################################################
+
+from typing import Optional
+from warnings import warn
+
+from rdkit import Chem
+
 from ._blend_place import _MonsterBlend  # inherits _MonsterCommunal <- _MonsterBase
-from typing import *
-from rdkit import Chem
-from typing import Dict, Union, List, Optional, Tuple
-from warnings import warn
-import json
-
-import numpy as np
-from collections import defaultdict, Counter
-
-from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Geometry.rdGeometry import Point3D
-import numpy as np
-from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Geometry.rdGeometry import Point3D
-from typing import Optional, Dict, List, Any, Tuple, Union
-from .bond_provenance import BondProvenance
-import logging
-from ..rectifier import Rectifier
-import itertools
-from .unmerge_mapper import Unmerge
-from .bond_provenance import BondProvenance
-
-import json, itertools
-from warnings import warn
-from rdkit.Geometry.rdGeometry import Point3D
-from collections import defaultdict
-from rdkit import Chem
-from rdkit.Chem import AllChem
-from typing import Optional, Dict, List, Any, Tuple, Union, Callable
-import numpy as np
-from collections import Counter
-from functools import partial
-from .bond_provenance import BondProvenance
-from ._base import _MonsterBase
-from ._communal import _MonsterCommunal
-from ._merge import _MonsterMerge
-from ._collapse_ring import _MonsterRing
 
 
 class _MonsterPlace(_MonsterBlend):

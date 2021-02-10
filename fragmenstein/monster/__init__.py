@@ -34,13 +34,19 @@ It is inherited by ``Monster`` only.
 
 ########################################################################################################################
 
+# --- independent of Monster -------------------------------------------------------------------------------------------
+from .positional_mapping import GPM
+from .bond_provenance import BondProvenance
+from .unmerge_mapper import Unmerge
+
+
+# ---  Monster ---------------------------------------------------------------------------------------------------------
+
 from ._communal import _MonsterCommunal
 from ._utility import _MonsterUtil  # Adds extras, not called by place/combine
 from ._combine import _MonsterCombine  # inherits _MonsterCommunal adds the combine method
 from ._place import _MonsterPlace  # inherits _MonsterCommunal adds the combine method
 
-
-##################################################################
 
 class Monster(_MonsterUtil, _MonsterPlace, _MonsterCombine):
     """

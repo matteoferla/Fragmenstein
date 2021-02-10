@@ -385,8 +385,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         with pymol2.PyMOL() as pymol:
             for hit in self.hits:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), hit.GetProp('_Name'))
-            for i, mod in enumerate(self.modifications):
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(mod, kekulize=False), f'step{i}')
+            for label, mod in self.modifications:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(mod, kekulize=False), re.sub('[^\w_]', '_', label))
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     # =================== extract_mols =================================================================================

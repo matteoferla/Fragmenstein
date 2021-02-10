@@ -87,7 +87,7 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
         self.constraint = None
         self.monster = None
         # ====== debug: absent in main mode.
-        self.modifications = []  # list of the various steps during fragment merging mode.
+        self.modifications = {}  # list of the various steps during fragment merging mode.
         # ======
         self.unminimised_pdbblock = None
         self.igor = None
@@ -112,20 +112,15 @@ class _VictorAutomergeMixin(_VictorBaseMixin):
     def _combine_main(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self.monster = Monster(hits=self.hits,
-                               debug_draw=self.monster_debug_draw,
                                average_position=self.monster_average_position
                                )
         self.monster.modifications = self.modifications
-        self.monster.merge(keep_all=self.monster_throw_on_discard,
-                           collapse_rings=True,
-                           joining_cutoff=self.monster_joining_cutoff # Å
-                            )
+        self.monster.combine(keep_all=self.monster_throw_on_discard,
+                             collapse_rings=True,
+                             joining_cutoff=self.monster_joining_cutoff  # Å
+                             )
         self.mol = self.monster.positioned_mol
         self.smiles = Chem.MolToSmiles(self.mol)
-        if self.monster_debug_draw:
-            picture = Chem.CombineMols(Chem.CombineMols(self.hits[0], self.hits[1]), self.monster.positioned_mol)
-            AllChem.Compute2DCoords(picture)
-            self.monster.draw_nicely(picture)
         # making folder.
         self._make_output_folder()
         # paramterise

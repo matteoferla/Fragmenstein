@@ -1,3 +1,11 @@
+########################################################################################################################
+__doc__ = \
+    """
+This is inherited by MonsterPlace
+    """
+
+########################################################################################################################
+
 from rdkit.Chem import rdmolops
 
 import itertools
@@ -65,24 +73,18 @@ class _MonsterBlend(_MonsterMerge):
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
                      maps=maps,
-                     no_discard=self.throw_on_discard,
-                     _debug_draw=self._debug_draw)
+                     no_discard=self.throw_on_discard)
         self.scaffold = um.combined
-        self.mol_options = um.combined_alternatives
+        # self.mol_options\
+        combined_alternative = um.combined_alternatives
         full_atom_map = um.combined_map
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
         self.chimera = um.combined_bonded
-        if self._debug_draw:
-            print('followup to scaffold', full_atom_map)
-            print('followup')
-            self.draw_nicely(self.initial_mol)
-            print('scaffold')
-            self.draw_nicely(self.scaffold)
+        self.journal.debug(f'followup to scaffold {full_atom_map}')
         placed = self.place_from_map(atom_map=full_atom_map)
         self.positioned_mol = self.posthoc_refine(placed)
-
 
     # ================= Blend hits ===================================================================================
 
@@ -135,9 +137,7 @@ class _MonsterBlend(_MonsterMerge):
         for h1, h2 in itertools.combinations(hits, 2):
             inter_mapping[(h1.GetProp('_Name'), h2.GetProp('_Name'))] = self.get_positional_mapping(h1, h2)
         dodgy_names = get_dodgies([])
-        if self._debug_draw:
-            print('******** These combine badly')
-            print(dodgy_names)
+        self.warning(f'These combiend badly: {dodgy_names}')
         dodgies = [hit for hit in hits if hit.GetProp('_Name') in dodgy_names]
         mergituri = [hit for hit in hits if hit.GetProp('_Name') not in dodgy_names]
         merged = self.simply_merge_hits(mergituri)
@@ -154,8 +154,6 @@ class _MonsterBlend(_MonsterMerge):
         # propagate alternatives
         while self.propagate_alternatives(combinations) != 0:
             pass
-        if self._debug_draw:
-            print('alternatives propagated')
         return combinations
 
     def propagate_alternatives(self, fewer):
@@ -210,9 +208,8 @@ class _MonsterBlend(_MonsterMerge):
                 atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
                 # get_mcs_mapping returns a dict going from template index to initial.
                 mapx[template.GetProp('_Name')] = (atom_map, mode)
-                if self._debug_draw:
-                    print(
-                        f"With {template.GetProp('_Name')}, {len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
+                self.journal.debug(f"With {template.GetProp('_Name')}, "+\
+                                   "{len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
             ## pick best template
             self.mol_options = sorted(self.mol_options, key=template_sorter)
             ## Check if missing atoms can be explained by a different one with no overlap
@@ -261,7 +258,6 @@ class _MonsterBlend(_MonsterMerge):
     #             else:
     #                 return {n: path}
 
-
     def _prevent_two_bonds_on_dummy(self, mol: Chem.RWMol):
         """
         The case '*(C)C' is seen legitimately in some warheads... but in most cases these are not.
@@ -299,8 +295,6 @@ class _MonsterBlend(_MonsterMerge):
         atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
         follow = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         self.journal.debug(f"scaffold-followup: {follow}")
-        if self._debug_draw:
-            self.draw_nicely(self.initial_mol, highlightAtoms=atom_map.values())
         # make the scaffold more like the followup to avoid weird matches.
         chimera = Chem.RWMol(self.scaffold)
         for scaff_ai, follow_ai in atom_map.items():
@@ -358,10 +352,6 @@ class _MonsterBlend(_MonsterMerge):
             msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
             self.journal.debug(f"followup-chimera' = {msg}")
         rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
-        # debug print
-        if self._debug_draw:
-            self.draw_nicely(mol, highlightAtoms=dict(atom_map).keys())
-            self.draw_nicely(self.chimera, highlightAtoms=dict(atom_map).values())
         # place atoms that have a known location
         putty = Chem.Mol(sextant)
         pconf = putty.GetConformer()
@@ -386,9 +376,6 @@ class _MonsterBlend(_MonsterMerge):
         # I be using a sextant for dead reckoning!
         # variables: sextant unique team
         categories = self._categorise(sextant, uniques)
-        # debug print
-        if self._debug_draw:
-            print('internal', categories['internals'])
         done_already = []  # multi-attachment issue.
         for unique_idx in categories['pairs']:  # attachment unique indices
             # check the index was not done already (by virtue of a second attachment)
@@ -412,10 +399,8 @@ class _MonsterBlend(_MonsterMerge):
                 sights.add((r, r))
             rdMolAlign.AlignMol(sextant, putty, atomMap=list(sights), maxIters=500)
             sconf = sextant.GetConformer()
-            # debug print
-            if self._debug_draw:
-                print(f'alignment atoms for {unique_idx} ({team}): {sights}')
-                self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
+            self.journal.debug(f'alignment atoms for {unique_idx} ({team}): {sights}')
+            # self.draw_nicely(sextant, highlightAtoms=[a for a, b in sights])
             # copy position over
             for atom_idx in team:
                 pconf.SetAtomPosition(atom_idx, sconf.GetAtomPosition(atom_idx))
@@ -458,17 +443,11 @@ class _MonsterBlend(_MonsterMerge):
             bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()]
         bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(oi, oad[0]['idx_F']).GetIdx() for oi, oad in
                           zip(other_attachments, other_attachment_details)]
-        if self._debug_draw and other_attachments:
-            print('ring!', other_attachments)
-            print('ring!', other_attachment_details)
         f = Chem.FragmentOnBonds(fragmentanda,
                                  bonds_to_frag,
                                  addDummies=False)
         frag_split = []
         fragmols = Chem.GetMolFrags(f, asMols=True, fragsMolAtomMapping=frag_split, sanitizeFrags=False)
-        if self._debug_draw:
-            print('Fragment splits')
-            print(frag_split)
         # Get the fragment of interest.
         ii = 0
         for mol_N, indices in enumerate(frag_split):
@@ -491,15 +470,8 @@ class _MonsterBlend(_MonsterMerge):
         #     for absent in self._get_mystery_ori_i(frag):
         #         old2future[absent] = scaffold_attachment_index
         # self._renumber_original_indices(frag, old2future)
-        if self._debug_draw:
-            print('Fragment to add')
-            self.draw_nicely(frag)
         combo = Chem.RWMol(rdmolops.CombineMols(scaffold, frag))
         scaffold_anchor_index = frag_anchor_index + scaffold.GetNumAtoms()
-        if self._debug_draw:
-            print('Pre-merger')
-            print(scaffold_anchor_index, attachment_details, anchor_index, scaffold.GetNumAtoms())
-            self.draw_nicely(combo)
         for detail in attachment_details:
             # scaffold_anchor_index : atom index in scaffold that needs to be added to scaffold_attachment_index
             # but was originally attached to attachment_index in fragmentanda.
@@ -519,17 +491,10 @@ class _MonsterBlend(_MonsterMerge):
             combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
             new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
             # BondProvenance.set_bond(new_bond, '???')
-            if self._debug_draw:
-                print(
-                    f"Added additional {bond_type.name} bond between {scaffold_attachment_index} and {scaffold_anchor_index} " + \
-                    f"(formerly {indices.index(oi)})")
         Chem.SanitizeMol(combo,
                          sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
                                      Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
                          catchErrors=True)
-        if self._debug_draw:
-            print('Merged')
-            self.draw_nicely(combo)
         self._prevent_two_bonds_on_dummy(combo)
         scaffold = combo.GetMol()
         return scaffold
@@ -546,9 +511,7 @@ class _MonsterBlend(_MonsterMerge):
         #     data = donor
         pass
 
-
     # ========= Other ==================================================================================================
-
 
     def posthoc_refine(self, scaffold, indices: Optional[List[int]] = None) -> Chem.Mol:
         """
@@ -615,8 +578,6 @@ class _MonsterBlend(_MonsterMerge):
         for i, mode in enumerate(self.matching_modes):
             if i < min_mode_index:
                 continue
-            if self._debug_draw:
-                print(f'Trying mode {mode}')
             lax = self._get_atom_maps(molA, molB, **mode)
             # remove the lax matches that disobey
             neolax = [l for l in lax if any([len(set(s) - set(l)) == 0 for s in strict])]
@@ -661,7 +622,6 @@ class _MonsterBlend(_MonsterMerge):
 
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
         return self._get_atom_maps(molA, molB, **mode)[0]
-
 
     def pretweak(self) -> None:
         """

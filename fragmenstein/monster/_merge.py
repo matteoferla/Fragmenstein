@@ -7,43 +7,17 @@ Combine = merge/join
 
 ########################################################################################################################
 
-from typing import Dict, Union, List, Optional, Tuple
+from typing import Optional, Dict, List, Union
 from warnings import warn
-import json
-
-import numpy as np
-from collections import defaultdict, Counter
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Geometry.rdGeometry import Point3D
-import numpy as np
-from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Geometry.rdGeometry import Point3D
-from typing import Optional, Dict, List, Any, Tuple, Union
-from .bond_provenance import BondProvenance
-import logging
-from ..rectifier import Rectifier
-import itertools
-from .unmerge_mapper import Unmerge
-from .bond_provenance import BondProvenance
 
-import json, itertools
-from warnings import warn
-from rdkit.Geometry.rdGeometry import Point3D
-from collections import defaultdict
-from rdkit import Chem
-from rdkit.Chem import AllChem
-from typing import Optional, Dict, List, Any, Tuple, Union, Callable
-import numpy as np
-from collections import Counter
-from functools import partial
+from ._join_neighboring import _MonsterJoinNeigh
 from .bond_provenance import BondProvenance
-from ._communal import _MonsterCommunal
 from .positional_mapping import GPM
 
-class _MonsterMerge(_MonsterCommunal, GPM):
+
+class _MonsterMerge(_MonsterJoinNeigh, GPM):
     def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional = None) -> Chem.Mol:
         """
         To specify attachments use ``.merge``.
@@ -55,11 +29,6 @@ class _MonsterMerge(_MonsterCommunal, GPM):
         :return:
         """
         done_already = []
-        if self._debug_draw:
-            print('Scaffold')
-            self.draw_nicely(scaffold)
-            print('To be added')
-            self.draw_nicely(fragmentanda)
         fp = self._pre_fragment_pairs(scaffold, fragmentanda, mapping)
         # confusingly these are hit indexed.
         for anchor_index, attachment_details in fp.items():
@@ -83,9 +52,7 @@ class _MonsterMerge(_MonsterCommunal, GPM):
         name_A = scaffold.GetProp('_Name')
         name_B = fragmentanda.GetProp('_Name')
         scaffold.SetProp('_Name', f'{name_A}-{name_B}')
-        if self._debug_draw:
-            print('Merged', scaffold.GetProp('_Name'))
-            self.draw_nicely(scaffold)
+        self.keep_copy(scaffold, 'pair_merged')
         return scaffold
 
     def simply_merge_hits(self, hits: Optional[List[Chem.Mol]] = None) -> Chem.Mol:
@@ -102,8 +69,7 @@ class _MonsterMerge(_MonsterCommunal, GPM):
             hits = sorted(self.hits, key=lambda h: h.GetNumAtoms(), reverse=True)
         for hit in hits:
             BondProvenance.set_all_bonds(hit, 'original')
-        if self._debug_draw:
-            print('Merging: ', [hit.GetProp('_Name') for hit in hits])
+        self.journal.debug(f"Merging: {[hit.GetProp('_Name') for hit in hits]}")
         scaffold = Chem.Mol(hits[0])
         # first try
         save_for_later = []
@@ -232,14 +198,14 @@ class _MonsterMerge(_MonsterCommunal, GPM):
                 atom.SetProp('_Category', 'internal-attachment')
             else:  # overlapping
                 atom.SetProp('_Category', 'overlapping')
-        if self._debug_draw:
-            high = list(internals) + list(attachments) + list(anchors)
-            color = {**{i: (0, 0.8, 0) for i in internals},
-                     **{i: (0, 0, 0.8) for i in attachments},
-                     **{i: (0.8, 0, 0.8) for i in anchors}}
-            print('Purple: anchor atoms, Blue: attachments, Green: internals')
-            self.draw_nicely(mol, highlightAtoms=high, highlightAtomColors=color)
-            print({atom.GetIdx(): atom.GetProp('_Category') for atom in mol.GetAtoms()})
+        # if self._debug_draw: # depracated... but this could be useful...
+        #     high = list(internals) + list(attachments) + list(anchors)
+        #     color = {**{i: (0, 0.8, 0) for i in internals},
+        #              **{i: (0, 0, 0.8) for i in attachments},
+        #              **{i: (0.8, 0, 0.8) for i in anchors}}
+        #     print('Purple: anchor atoms, Blue: attachments, Green: internals')
+        #     self.draw_nicely(mol, highlightAtoms=high, highlightAtomColors=color)
+        #     print({atom.GetIdx(): atom.GetProp('_Category') for atom in mol.GetAtoms()})
         return dict(uniques=uniques,
                     internals=internals,
                     attachments=attachments,

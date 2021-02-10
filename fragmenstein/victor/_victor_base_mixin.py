@@ -21,7 +21,6 @@ import logging
 class _VictorBaseMixin:
     quick_renanimation = False  # thorugh reanimation?
     monster_merging_mode = 'none_permissive'
-    monster_debug_draw = False
     monster_average_position = False
     monster_joining_cutoff = 5.  # Å
     monster_throw_on_discard = False
@@ -105,7 +104,7 @@ class _VictorBaseMixin:
         self.mol = 'Chem.Mol'
         self.constraint = 'Constraint'
         self.monster = 'Monster'
-        self.modifications = []
+        self.modifications = {}
         self.unminimised_pdbblock = str()
         self.igor = 'Igor'
         self.minimised_pdbblock = str()

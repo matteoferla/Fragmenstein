@@ -69,7 +69,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     The need for atomnames is actually not for the code but to allow lazy tweaks and analysis downstream
     (say typing in pymol: `show sphere, name CX`).
     Adding a 'constraint' to an entry will apply that constraint.
-    ``monster_debug_draw:bool`` and ``monster_merging_mode:str`` are class attributes that control Monster.
+    ``monster_merging_mode:str`` is class attributes that control Monster.
 
     """
 
@@ -119,7 +119,7 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         self.mol = None
         self.constraint = None
         self.monster = None
-        self.modifications = []  # used by automerger only
+        self.modifications = {}  # used by automerger only
         self.unminimised_pdbblock = None
         self.igor = None
         self.minimised_pdbblock = None
@@ -221,7 +221,6 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         # monster_throw_on_discard controls if disconnected.
         Monster.throw_on_discard = self.monster_throw_on_discard
         self.monster = Monster(hits=self.hits,
-                               debug_draw=self.monster_debug_draw,
                                average_position=self.monster_average_position)
         self.monster.place(mol=self.mol,
                            attachment=attachment,
@@ -681,17 +680,17 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
     def _checkpoint_bravo(self):
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving mols from monster')
-        if self.monster.scaffold is not None:
-            scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
-            Chem.MolToMolFile(self.monster.scaffold, scaffold_file, kekulize=False)
-            if self.monster.scaffold.HasProp('parts'):
-                disregard = json.loads(self.monster.scaffold.GetProp('parts'))
-                self.journal.info(f'{self.long_name} - disregarded {disregard}')
-            else:
-                disregard = []
-        if self.monster.chimera is not None:
-            chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
-            Chem.MolToMolFile(self.monster.chimera, chimera_file, kekulize=False)
+        # if self.monster.scaffold is not None:
+        #     scaffold_file = os.path.join(self.work_path, self.long_name, self.long_name + '.scaffold.mol')
+        #     Chem.MolToMolFile(self.monster.scaffold, scaffold_file, kekulize=False)
+        #     if self.monster.scaffold.HasProp('parts'):
+        #         disregard = json.loads(self.monster.scaffold.GetProp('parts'))
+        #         self.journal.info(f'{self.long_name} - disregarded {disregard}')
+        #     else:
+        #         disregard = []
+        # if self.monster.chimera is not None:
+        #     chimera_file = os.path.join(self.work_path, self.long_name, self.long_name + '.chimera.mol')
+        #     Chem.MolToMolFile(self.monster.chimera, chimera_file, kekulize=False)
         if self.monster.positioned_mol is not None:
             pos_file = os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol')
             Chem.MolToMolFile(self.monster.positioned_mol, pos_file, kekulize=False)
@@ -707,8 +706,8 @@ class Victor(_VictorUtilsMixin, _VictorValidateMixin, _VictorAutomergeMixin):
         data = {'smiles': self.smiles,
                 'origin': self.monster.origin_from_mol(self.monster.positioned_mol),
                 'stdev': self.monster.stdev_from_mol(self.monster.positioned_mol)}
-        if disregard:
-            data['disregard'] = disregard
+        # if disregard:
+        #     data['disregard'] = disregard
         with open(frag_file, 'w') as w:
             json.dump(data, w)
         self._log_warnings()

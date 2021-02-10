@@ -47,9 +47,11 @@ class Unmerge(GPM):
     pick = 0 # override to pick not the first(0) best match.
     distance_cutoff = 3 #: how distance is too distant in Å
 
-    def __init__(self, followup: Chem.Mol, mols: List[Chem.Mol], maps: Dict[str, List[Dict[int, int]]],
-                 no_discard:bool=False,
-                 _debug_draw: bool = False):
+    def __init__(self,
+                 followup: Chem.Mol,
+                 mols: List[Chem.Mol],
+                 maps: Dict[str, List[Dict[int, int]]],
+                 no_discard:bool=False):
         """
 
 
@@ -60,7 +62,6 @@ class Unmerge(GPM):
         :param maps: can be generated outseide of Monster by ``.make_maps``.
         :type maps: Dict[List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
-        :param _debug_draw:
         """
         self.followup = followup
         self.mols = mols
@@ -68,7 +69,6 @@ class Unmerge(GPM):
         self.no_discard = no_discard
         if self.no_discard:
             self.max_strikes = 100
-        self._debug_draw = _debug_draw
         accounted_for = set()
         self.c_map_options = []
         self.c_options = []
@@ -81,8 +81,6 @@ class Unmerge(GPM):
             others = deque(self.mols)
             for s in range(len(self.mols)):
                 others.rotate(1)
-                if self._debug_draw:
-                    print(f"Rotated, new first : {others[0].GetProp('_Name')}")
                 self.unmerge_inner(Chem.Mol(), {}, list(others), [])
         else:  # pre sort
             others = sorted(self.mols, key=accounted_sorter, reverse=True)
@@ -112,14 +110,14 @@ class Unmerge(GPM):
         equals = [j for j in indices if goodness_sorter(j) == ref]
         if len(equals) > 1:
             log.warning(f'There are {len(equals)} equally good mappings.')
-        if self._debug_draw:
-            print(f'## Option #{i}  for combinations:')
-            for j in range(len(self.c_options)):
-                mol = self.c_options[j]
-                m = self.c_map_options[j]
-                d = self.c_disregarded_options[j]
-                dv = self.measure_map(mol, m)
-                print(j, [dd.GetProp('_Name') for dd in d], len(m), np.mean(dv), np.max(dv), self.offness(mol, m))
+        # if self._debug_draw:
+        #     print(f'## Option #{i}  for combinations:')
+        #     for j in range(len(self.c_options)):
+        #         mol = self.c_options[j]
+        #         m = self.c_map_options[j]
+        #         d = self.c_disregarded_options[j]
+        #         dv = self.measure_map(mol, m)
+        #         print(j, [dd.GetProp('_Name') for dd in d], len(m), np.mean(dv), np.max(dv), self.offness(mol, m))
         self.combined = self.c_options[i]
         self.combined_alternatives = [self.c_options[j] for j in equals if j != i]
         self.combined_map = self.c_map_options[i]
@@ -208,8 +206,6 @@ class Unmerge(GPM):
         """
         # stop
         if len(others) == 0:
-            if self._debug_draw:
-                print('************************ (stored)')
             self.store(combined=combined, combined_map=combined_map, disregarded=disregarded)
             return None
         # prevent issues.
@@ -227,21 +223,12 @@ class Unmerge(GPM):
             o_present = set(o_map.keys())
             label = f'{oname} ({oi + 1}/{ot})'
             if len(o_map) == 0:
-                if self._debug_draw:
-                    print(f'{label} unmapped')
                 possible_map = {}
             elif len(o_present - accounted_for) == 0:
-                if self._debug_draw:
-                    print(o_present, accounted_for)
-                    print(f'{label} unnovel')
                 possible_map = {}
             elif combined.GetNumAtoms() == 0:
-                if self._debug_draw:
-                    print(f'{label} first one')
                 possible_map = o_map
             else:
-                if self._debug_draw:
-                    print(f'{label} assessment')
                 possible_map = self.get_possible_map(other=other,
                                                      label=label,
                                                      o_map=o_map,
@@ -266,14 +253,10 @@ class Unmerge(GPM):
         """
         if len(possible_map) == 0:
             # reject
-            if self._debug_draw:
-                print('>> reject')
             combined = Chem.Mol(combined)
             disregarded = [*disregarded, other]  # new obj
         else:
             # accept
-            if self._debug_draw:
-                print(f'>> accept: {possible_map}')
             combined_map = {**combined_map, **possible_map}  # new obj
             combined = Chem.CombineMols(combined, other)  # new obj
             name = '-'.join([m.GetProp('_Name') for m in (combined, other) if m.HasProp('_Name')])
@@ -315,18 +298,12 @@ class Unmerge(GPM):
                     c = inter_map[o]  # equivalent index of combined
                     if c not in combined_map.values():
                         # the other atom does not contribute
-                        if self._debug_draw:
-                            print(f'{label} - {i} accounted, but no contrib')
                         strikes += 1
                     elif self.get_key(combined_map, c) == i:
                         pass  # that is fine.
                     else:  # no it's a different atom
-                        if self._debug_draw:
-                            print(f'{label} - {i} accounted, diff atom')
                         strikes += 1
                 else:  # this position does not overlaps. Yet atom is accounted for.
-                    if self._debug_draw:
-                        print(f'{label} - {i} accounted, no overlap')
                     strikes += 1
             elif o not in inter_map:
                 # new atom that does not overlap
@@ -335,16 +312,11 @@ class Unmerge(GPM):
                 # overlaps but the overlap was not counted
                 possible_map[i] = combined.GetNumAtoms() + o
             else:  # mismatch!
-                if self._debug_draw:
-                    print(f'{label} - {i} mismatch')
+                log.debug(f'{label} - {i} mismatch')
                 strikes += 1
         if strikes >= self.max_strikes:
-            if self._debug_draw:
-                print(f'{label} got {strikes} strikes')
             return {}
         elif not self.check_possible_distances(other, possible_map, combined, combined_map, cutoff=self.distance_cutoff):
-            if self._debug_draw:
-                print(f'{label} gives too long bonds')
             return {}
         else:
             return possible_map
@@ -377,12 +349,8 @@ class Unmerge(GPM):
                 nci = self.combined_map[ni]
                 bond_type = self.followup.GetBondBetweenAtoms(fi, ni).GetBondType()
                 if not putty.GetBondBetweenAtoms(ci, nci):
-                    if self._debug_draw:
-                        print(fi, ni, 'bond new')
                     putty.AddBond(ci, nci, bond_type)
                 else:
-                    if self._debug_draw:
-                        print(fi, ni, 'bond added')
                     putty.GetBondBetweenAtoms(ci, nci).SetBondType(bond_type)
         return putty.GetMol()
 

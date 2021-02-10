@@ -11,6 +11,7 @@ from rdkit.Chem import AllChem
 from fragmenstein import Monster, Victor, Igor, Rectifier
 from fragmenstein.mpro import MProVictor
 from typing import *
+import numpy as np
 
 
 # ======================================================================================================================
@@ -239,7 +240,7 @@ class RingTestsVictor(unittest.TestCase):
         aft = Chem.GetMolFrags(fragged, asMols=True, sanitizeFrags=False)[0]
         Chem.SanitizeMol(aft)
         # merge them
-        mol = Monster([fore, aft]).merge().positioned_mol
+        mol = Monster([fore, aft]).combine().positioned_mol
         after = Chem.MolToSmiles(mol)
         self.assertEqual(before, after)
 
@@ -272,7 +273,7 @@ class Internals(unittest.TestCase):
             dummy.SetAtomicNum(0)
         return mol
 
-    def make_pair_by_split(self, conjoined: Chem.Mol, atom_idx: int) -> Tuple[Chem.Mol]:
+    def make_pair_by_split(self, conjoined: Chem.Mol, atom_idx: int) -> Tuple[Chem.Mol,Chem.Mol]:
         # make overlapping mols by getting a single molecule, and split it
         # this gives more control over Chem.rdMolAlign.AlignMol as this may overlap other atoms.
         # negative weights does not work...
@@ -296,6 +297,30 @@ class Internals(unittest.TestCase):
             self.assertEqual(len(dummy.GetNeighbors()), 1)
         self.assertEqual(len(Chem.GetMolFrags(merger)), 1)
 
+    def translate(self, mol, x=0, y=0, z=0):
+        """
+        Translates the molecule in place
+
+        :param mol:
+        :param x:
+        :param y:
+        :param z:
+        :return:
+        """
+        translation = np.array([[1, 0, 0, x],
+                                [0, 1, 0, y],
+                                [0, 0, 1, z],
+                                [0, 0, 0, 1]], dtype=np.double)
+        AllChem.TransformConformer(mol.GetConformer(0), translation)
+
+    def test_join(self):
+        wanted = 'c1ccc(Oc2ccccc2)cc1'
+        benzene = Chem.MolFromSmiles('c1ccccc1')
+        AllChem.EmbedMolecule(benzene)
+        moved = Chem.Mol(benzene)
+        self.translate(moved, x=5)
+        found = Chem.MolToSmiles(Monster([benzene, moved]).combine().positioned_mol)
+        self.assertEqual(wanted, found, 'The joining differs')
 
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
@@ -328,7 +353,7 @@ class UnresolvedProblems(unittest.TestCase):
         Chem.SanitizeMol(chlorobutane)
         chlorobutane.SetProp('_Name', '2-chlorobutane')
         # merge
-        monster = Monster(hits=[toluene, chlorobutane]).merge(keep_all=False)
+        monster = Monster(hits=[toluene, chlorobutane]).combine(keep_all=False)
         # ======
         self.assertEqual(Chem.MolToSmiles(chlorotoluene), Chem.MolToSmiles(monster.positioned_mol))  # CC(Cl)CCc1ccccc1
 
@@ -358,7 +383,7 @@ class UnresolvedProblems(unittest.TestCase):
         Chem.SanitizeMol(chloropentane)
         chloropentane.SetProp('_Name', '2-chloropentane')
         #
-        monster = Monster(hits=[xylene, chloropentane]).merge(keep_all=False)
+        monster = Monster(hits=[xylene, chloropentane]).combine(keep_all=False)
         # ======
         self.assertEqual(Chem.MolToSmiles(chloroxylene), Chem.MolToSmiles(monster.positioned_mol))
 
