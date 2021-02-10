@@ -38,7 +38,7 @@ are accepted.
 The names "merge" and "place" were ultra-confusingly ambiguous when it comes to the other methods, especially those of "place".
 
 * Now all the cases where hits are partially combined for placement purposes are called "blending"
-The placement of the (distored) 3D final monster compound Victor is called "plonk".
+The placement of the (distorted) 3D final monster compound Victor is called "plonk".
 
 * place and position are used synonymously
 * combine and merge are used synonymously

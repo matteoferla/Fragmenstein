@@ -1,20 +1,34 @@
-import numpy as np
-from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, rdMolAlign, rdmolops
-from rdkit.Geometry.rdGeometry import Point3D
-from typing import Optional, Dict, List, Any, Tuple, Union
-from .bond_provenance import BondProvenance
+########################################################################################################################
+__doc__ = \
+    """
+This is contains the class _MonsterBase to be inherited by _MonsterCommunal, then Monster
+    """
+
+########################################################################################################################
+
 import logging
+from typing import List
+from rdkit import Chem
+from rdkit.Chem import rdFMCS
 
 
-class _MonsterBaseMixin:
+class _MonsterBase:
+    """
+    _MonsterBase -> _MonsterTracker -> _MonsterCommunal
+    """
+
     journal = logging.getLogger('Fragmenstein')
 
+    # overriding these seems insane.
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
+
+    # settings...
     cutoff = 2.
     joining_cutoff = 5.  # how distant (in Å) is too much?
-    atoms_in_bridge_cutoff = 2  # how many bridge atoms can be deleted? (0 = preserves norbornane, 1 = preserves monsterantane)
+    atoms_in_bridge_cutoff = 2
+    # atoms_in_bridge_cutoff: how many bridge atoms can be deleted?
+    # (0 = preserves norbornane, 1 = preserves adamantane)
     throw_on_discard = False
     matching_modes = [
         dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
@@ -42,437 +56,84 @@ class _MonsterBaseMixin:
              ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
              ringMatchesRingOnly=True)]
 
-    # === Find closest =================================================================================================
-    # dep methods:
+    # ------------------------------------------------------------------------------------------------------------------
 
-    @staticmethod
-    def _closest__is_fullbonded(atom):
-        if atom.GetIsAromatic() and len(atom.GetNeighbors()) > 2:
-            return True
-        elif len(atom.GetNeighbors()) > 3:
-            return True
-        else:
-            return False
-
-    @staticmethod
-    def _closest__is_ring_atom(atom):
-        if atom.GetIsAromatic():
-            return True
-        elif atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
-            if atom.HasProp('_bonds') and 'AROMATIC' in atom.GetProp('_bonds'):
-                return True  # technically it could be non-aromatic (ring fusion).
-            else:
-                return False
-        else:
-            return False
-
-    @staticmethod
-    def _closest__is_warhead_marked(atom):
-        return atom.HasProp('_Warhead') and atom.GetBoolProp('_Warhead') is True
-
-    # func: https://stackoverflow.com/questions/41921255/staticmethod-object-is-not-callable
-    closeness_weights = [
-        (_closest__is_warhead_marked.__func__, np.nan),
-        (_closest__is_fullbonded.__func__, 1.0),
-        (_closest__is_ring_atom.__func__, 0.5)
-        # is_triangle, 2.0
-    ]
-
-    def _find_closest(self, mol_A: Chem.Mol, mol_B: Chem.Mol) -> Tuple[Chem.RWMol, int, int, float]:
+    def __init__(self,
+                 hits: List[Chem.Mol],
+                 debug_draw: bool = False,
+                 average_position=False):
         """
-        first step in join_neighboring_mols
-        This is not to be confused with cls.find_closest_to_ligand
+        Initialisation starts Monster, but it does not do any mergers or placements.
+        This is changed in revision 0.6 (previously `mol` was specified for the latter)
 
-        :param mol_A:
-        :param mol_B:
+        :param hits:
+        :param debug_draw:
+        :param average_position:
+        """
+        # ==== hits ===========================================
+        # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
+        self.hits = self.fix_hits(hits)  # list of hits
+        # ==== other ==========================================
+        self._debug_draw = debug_draw  # Jupyter notebook only.
+        self.average_position = average_position
+        # ==== To do be filled ================================
+        # List[str]
+        self.unmatched = []  #: rejected hit names
+        # self.matched is dynamic.  #: accepted hits
+        # Chem.Mol or List[Chem.Mol]
+        self.modifications = {}
+        self.initial_mol = None  #: to be filled by place. The starting molecule (Chem.Mol).
+        self.attachment = None
+        # self.scaffold = None  #: template which may have wrong elements in place, or
+        # self.mol_options = []  #: partial combined templates (merging_mode: partial)
+        self.mol_options = []  #: templates which may have wrong elements
+        self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
+        self.positioned_mol = None  #: final molecule
+
+    def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
+        """
+        Adds the ``_Name`` Prop if needed
+        asserts everything is a Chem.Mol
+        calls ``store_positions``
+        :param hits:
         :return:
         """
-        combo, candidates = self._find_all_closest(mol_A, mol_B)
-        return (combo, *candidates[0])
-
-    def _find_all_closest(self, mol_A: Chem.Mol, mol_B: Chem.Mol) -> Tuple[Chem.RWMol, List[Tuple[int, int, float]]]:
-        """
-        See _find_closest
-
-        :param mol_A:
-        :param mol_B:
-        :return:
-        """
-        combo = Chem.RWMol(Chem.CombineMols(mol_A, mol_B))
-        # ========= distance matrix pre-tweaks.
-        distance_matrix = self._get_distance_matrix(combo, mol_A, mol_B)
-        penalties = self._get_joining_penalties(combo, distance_matrix.shape)
-        # ========= get closest
-        pendist_matrix = penalties + distance_matrix
-        pendistance = np.nanmin(pendist_matrix)
-        if np.isnan(pendistance):
-            raise ConnectionError('This is impossible. Previous is absent??')
-        else:
-            candidates = []
-
-            def get_closest(pendistance):
-                p = np.where(pendist_matrix == pendistance)
-                anchor_A = int(p[0][0])
-                anchor_B = int(p[1][0])
-                distance = distance_matrix[anchor_A, anchor_B]
-                penalty = penalties[anchor_A, anchor_B]
-                self.journal.debug(f'Connecting {anchor_A} with {anchor_B}, {penalty} penalised distance of {distance}')
-                return anchor_A, anchor_B, distance
-
-            anchor_A, anchor_B, distance = get_closest(pendistance)
-            candidates.append((anchor_A, anchor_B, distance))
-            pendist_matrix[pendist_matrix > 1.] = np.nan
-            while pendistance < 1.:
-                pendist_matrix[[anchor_A, anchor_B], :] = np.nan
-                pendist_matrix[:, [anchor_A, anchor_B]] = np.nan
-                pendistance = np.nanmin(pendist_matrix)
-                if np.isnan(pendistance):
-                    break
+        for hi, hit in enumerate(hits):
+            if isinstance(hit, str):
+                self.journal.warning(f'Hit {hi} is a string ({hit}).' +
+                                     'This route is not the intended way. Trying to read it.')
+                if '.mol' in hit or '.mdf' in hit:
+                    hits[hi] = Chem.MolFromMolFile(hit)
+                elif '.pdb' in hit:
+                    hits[hi] = Chem.MolFromPDBFile(hit)
                 else:
-                    anchor_A, anchor_B, distance = get_closest(pendistance)
-                    candidates.append((anchor_A, anchor_B, distance))
-            return combo, candidates
+                    raise ValueError(f'Hit {hit} is not a Mol file.')
+            elif isinstance(hit, Chem.Mol):
+                pass
+            else:
+                raise ValueError(f'Hit has to be a Chem.Mol! not {type(hit)}')
+            # fallback naming.
+            if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
+                hit.SetProp('_Name', f'hit{hi}')
+            # ====== IMPORTANT ==========
+            self.store_positions(hit)
+        return hits
 
-    def _get_distance_matrix(self, combo: Chem.Mol, A: Union[Chem.Mol, np.ndarray],
-                             B: Union[Chem.Mol, np.ndarray]) -> np.ndarray:
+    def store_positions(self, mol: Chem.Mol) -> Chem.Mol:
         """
-        Called by ``_find_closest`` and ``_determine_mergers_novel_ringcore_pair`` in collapse ring (for expansion).
-
-        """
-        # TODO move to base once made.
-        # input type
-        if isinstance(A, Chem.Mol):
-            mol_A = A
-            A_idxs = np.arange(mol_A.GetNumAtoms())
-        else:
-            mol_A = None
-            A_idxs = np.array(A)
-        if isinstance(B, Chem.Mol):
-            mol_B = B
-            B_idxs = np.arange(mol_B.GetNumAtoms()) + mol_A.GetNumAtoms()
-        else:
-            mol_B = None
-            B_idxs = np.array(B)
-        # make matrix
-        distance_matrix = Chem.Get3DDistanceMatrix(combo)
-        length = combo.GetNumAtoms()
-        # nan fill the self values
-        self._nan_fill_submatrix(distance_matrix, A_idxs)
-        self._nan_fill_submatrix(distance_matrix, B_idxs)
-        return distance_matrix
-
-    def _nan_fill_others(self, mol: Chem.Mol, distance_matrix: np.array, good_indices: List[int]):
-        """
-        Nan fill the inidices that are not the good_indices.
-        :param mol:
-        :param distance_matrix:
-        :param good_indices:
-        :return:
-        """
-        others = np.array(list(set(range(mol.GetNumAtoms())).difference(good_indices)))
-        distance_matrix[others, :] = np.nan
-        distance_matrix[:, others] = np.nan
-
-    def _get_joining_penalties(self, combo: Chem.Mol, shape: Tuple[int, int]) -> np.ndarray:
-        """
-        Called by ``_find_closest``.
-        THis is different from _get_merging_penalties
-
-        :param combo:
-        :param shape:
-        :return:
-        """
-        # penalise
-        penalties = np.zeros(shape)
-        for fun, weight in self.closeness_weights:
-            weigh_bool = np.array([fun(atom) for atom in combo.GetAtoms()])
-            penalties[weigh_bool, :] += weight
-            penalties[:, weigh_bool] += weight
-        return penalties
-
-    def _nan_fill_submatrix(self, matrix, indices):
-        """
-        Given a square matrix, blank the self-submatrix of the group of indices
-        There is probably a better way to do this.
-        changed from _nan_submatrix as to nan is not a verb.
-
-        :param matrix:
-        :param indices:
-        :return:
-        """
-        dimension = matrix.shape[0]
-        bool_vector = np.zeros((dimension, 1)).astype(bool)
-        bool_vector[indices] = True
-        bool_matrix = np.tile(bool_vector, (1, dimension))
-        logic = np.logical_and(bool_matrix, bool_matrix.transpose())
-        matrix[logic] = np.nan
-
-    # ============= Deletion ===========================================================================================
-
-    def _mark_for_deletion(self, mol: Chem.Mol, i: int):
-        mol.GetAtomWithIdx(i).SetBoolProp('DELETE', True)
-
-    def _delete_marked(self, mol: Chem.RWMol):
-        morituri = list(reversed(mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('DELETE'))))
-        for atom in morituri:
-            mol.RemoveAtom(atom.GetIdx())
-
-    # ============= Other ==============================================================================================
-
-    def _copy_bonding(self, mol, keeper_idx: int, reject_idx: int, force: Optional[bool] = None):
-        """
-        formerly called `absorb`. Preps for absorbing. remove J separately.
-        So copy bonding from i to j.
+        Saves positional data as _x, _y, _z and majorly ``_ori_i``, the original index.
+        The latter gets used by ``_get_new_index``.
 
         :param mol:
-        :param i:
-        :param j:
         :return:
         """
-        self.journal.debug(f'Absorbing atom {keeper_idx} with {reject_idx}, force={force}')
-        keeper = mol.GetAtomWithIdx(keeper_idx)
-        reject = mol.GetAtomWithIdx(reject_idx)
-        # prevent confusion when it comes to triangles
-        vertex = self._get_triangle(reject, keeper)
-        if vertex:
-            mol.RemoveBond(reject_idx, vertex)
-        # deal with neighbours of reject atom
-        for neighbor in reject.GetNeighbors():
-            # collect bonding details between neighbour of reject and reject itself
-            neigh_idx = neighbor.GetIdx()
-            old_bond = mol.GetBondBetweenAtoms(reject_idx, neigh_idx)
-            bt = old_bond.GetBondType()
-            # forcing?
-            if force is not None:
-                force_bond = bool(force)
-            elif old_bond.HasProp('_IsRingBond'):
-                # the ring needs to be force!
-                force_bond = True
-            else:
-                force_bond = False
-            # mol.RemoveBond(j, n)
-            if keeper_idx == neigh_idx:  # the neighbour is the keeper
-                continue
-            else:
-                # copy bond. The provenance should be 'other_novel' not the original vai
-                # provenance = BondProvenance.get_bond(old_bond)
-                if force_bond and mol.GetBondBetweenAtoms(keeper_idx, neigh_idx) is None:
-                    self.journal.debug(f'Forcing bond between {keeper_idx} and {neigh_idx}')
-                    self._add_bond_regardlessly(mol=mol,
-                                                first=keeper,
-                                                second=neighbor,
-                                                bond_type=bt,
-                                                provenance='other_novel'
-                                                )
-                else:
-                    self._add_bond_if_possible(mol=mol,
-                                               first=keeper,
-                                               second=neighbor,
-                                               provenance='other_novel')
-
-    def _add_bond_regardlessly(self, mol, first: Chem.Atom, second: Chem.Atom, bond_type, provenance='other_novel'):
-        """
-        This methods does no checking and operates dangerously!
-
-        :param mol:
-        :param first:
-        :param second:
-        :param bond_type:
-        :param provenance:
-        :return:
-        """
-        first_idx = first.GetIdx()
-        second_idx = second.GetIdx()
-        # add if absent... (error prevention)
-        present_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
-        if present_bond is None:
-            mol.AddBond(first_idx, second_idx, bond_type)
-        new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
-        BondProvenance.set_bond(new_bond, provenance)
-
-    def _add_bond_if_possible(self, mol, first: Chem.Atom, second: Chem.Atom, provenance='other_novel'):
-        """
-        This method is used by _copy_bonding, but triggered when force=False
-
-        :param mol:
-        :param first:
-        :param second:
-        :param provenance:
-        :return:
-        """
-        first_idx = first.GetIdx()
-        second_idx = second.GetIdx()
-
-        def assess_atom(atom: Chem.Atom, bt: Chem.BondType) -> Tuple[bool, Chem.BondType]:
-            """
-            True means add, False means delete
-
-            :param atom:
-            :param bt:
-            :return:
-            """
-            n_neigh = sum([self._is_count_valid(neigh) for neigh in atom.GetNeighbors()])
-            if atom.GetAtomicNum() > 8:
-                return True, bt
-            elif atom.HasProp('DELETE'):  # if it is to be deleted it should be fine.
-                return True, bt
-            elif n_neigh <= 2 and atom.GetIsAromatic():
-                return True, Chem.BondType.SINGLE
-            elif n_neigh <= 3 and not atom.GetIsAromatic():
-                return True, bt
-            else:
-                return False, bt  # too bonded already!
-
-        if self._is_would_be_triangle(first, second):
-            self.journal.debug(f'Bond between {first_idx} and {second_idx} would make a triangle, skipping')
-            return False
-        elif self._is_would_be_square(first, second):
-            self.journal.debug(f'Bond between {first_idx} and {second_idx} would make a square, skipping')
-            return False
-        elif self._is_connected_warhead(second, first):
-            self.journal.debug(f'Bond between {first_idx} and {second_idx} would break a warhead, skipping')
-            return False
-        else:
-            present_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
-            if second.HasProp('_ring_bond'):
-                bt = getattr(Chem.BondType, second.GetProp('_ring_bond'))
-            else:
-                bt = None
-            if present_bond is not None and bt is None:
-                self.journal.debug(f'Bond between {first_idx} and {second_idx} already exists')
-                pass  # exists
-            elif present_bond is not None and present_bond.GetBondType() is None:
-                present_bond.SetBondType(Chem.BondType.SINGLE)
-            elif present_bond is not None and present_bond.GetBondType() is not None and bt.name == present_bond.GetBondType().name:
-                pass  # exists and has correct bond
-            elif present_bond is not None:
-                present_bond.SetBondType(bt)
-                return True
-            else:
-                v, bt = assess_atom(first, bt)
-                w, bt = assess_atom(second, bt)
-                if v and w and bt is not None:
-                    mol.AddBond(first_idx, j, bt)
-                    new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
-                    BondProvenance.set_bond(new_bond, provenance)
-                    return True
-                elif v and w:
-                    mol.AddBond(first_idx, second_idx, Chem.BondType.SINGLE)
-                    new_bond = mol.GetBondBetweenAtoms(first_idx, second_idx)
-                    BondProvenance.set_bond(new_bond, provenance)
-                    return True
-                else:
-                    # len(Chem.GetMolFrags(mol, sanitizeFrags=False)) ought to be checked.
-                    # however, join_neighboring gets called by emergency bonding so should be fine.
-                    return False  # too bonded etc.
-
-    # === conditional selectors ========================================================================================
-
-    def _is_would_be_triangle(self, first: Chem.Atom, second: Chem.Atom) -> bool:
-        """
-        Get bool of whether two atoms share a common neighbor. Ie. joining them would make a triangle.
-        Direct bond does not count.
-
-        :param first:
-        :param second:
-        :return:
-        """
-        if self._get_triangle(first, second) is not None:
-            return True
-        else:
-            return False
-
-
-    def _is_would_be_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
-        """
-        Get bool of whether two atoms share a common neighbor+over-neighbor. Ie. joining them would make a square.
-        Direct bond does not count.
-
-        :param first:
-        :param second:
-        :return:
-        """
-        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
-            if self._is_would_be_triangle(first, third) is True:
-                return True
-        else:
-            return False
-
-    def _get_triangle(self, first: Chem.Atom, second: Chem.Atom) -> Union[int, None]:
-        """
-        Get the third atom...
-
-        :param first: atom
-        :param second: atom
-        :return: atom index of third
-        """
-        triang = self._get_triangles(first, second)
-        if triang:
-            return triang[0]
-        else:
-            return None
-
-    def _get_triangles(self, first: Chem.Atom, second: Chem.Atom) -> Union[List[int], None]:
-        """
-        Get the third atoms... (Square situation)
-
-        :param first: atom
-        :param second: atom
-        :return: atom index of third
-        """
-        get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors() if
-                                       self._is_count_valid(neigh)]
-        f_neighs = get_neigh_idxs(first)
-        s_neighs = get_neigh_idxs(second)
-        a = set(f_neighs) - {first.GetIdx(), second.GetIdx()}
-        b = set(s_neighs) - {first.GetIdx(), second.GetIdx()}
-        others = list(a.intersection(b))
-        if len(others) == 0:  # is disjoined
-            return None
-        else:
-            return list(others)
-
-    def _is_count_valid(self, atom: Chem.Atom) -> bool:
-        """
-        Some atoms are not to be counted as they will be deleted.
-
-        :param atom:
-        :return:
-        """
-        if atom.HasProp('DELETE'):
-            return False
-        elif atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
-            return False
-        else:
-            return True
-
-
-    def _get_square(self, first: Chem.Atom, second: Chem.Atom) -> Union[Tuple[int, int], None]:
-        for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
-            fourths = self._get_triangles(first, third)
-            if fourths and len(fourths) > 1:
-                fourth = [f for f in fourths if f != second.GetIdx()][0]
-                return third.GetIdx(), fourth
-        else:
-            return None
-
-    def _is_connected_warhead(self, atom, anchor_atom):
-        if not atom.HasProp('_Warhead'):
-            return False
-        elif atom.GetBoolProp('_Warhead') == False:
-            return False
-        else:
-            # is it a single compound?
-            frags = Chem.GetMolFrags(atom.GetOwningMol(), sanitizeFrags=False)
-            if len(frags) == 1:
-                return True
-            else:
-                for frag in frags:
-                    if atom.GetIdx() in frag and anchor_atom.GetIdx() in frag:
-                        return True
-                    elif atom.GetIdx() in frag:
-                        return False  # if the warhead is not connected pretend it is not a warhead.
-                    else:
-                        pass
-                else:
-                    raise ValueError('I do not think this is possible.')
+        conf = mol.GetConformer()
+        name = mol.GetProp('_Name')
+        for i, atom in enumerate(mol.GetAtoms()):
+            pos = conf.GetAtomPosition(i)
+            atom.SetIntProp('_ori_i', i)
+            atom.SetProp('_ori_name', name)
+            atom.SetDoubleProp('_x', pos.x)
+            atom.SetDoubleProp('_y', pos.y)
+            atom.SetDoubleProp('_z', pos.z)
+        return mol

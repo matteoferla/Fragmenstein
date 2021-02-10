@@ -1,20 +1,12 @@
 ########################################################################################################################
-
 __doc__ = \
     """
 These are extras for the Monster step
     """
 
-__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
-__email__ = "matteo.ferla@gmail.com"
-__date__ = "2020 A.D."
-__license__ = "MIT"
-__version__ = "0.4"
-__citation__ = ""
-
 ########################################################################################################################
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from warnings import warn
 
 from rdkit import Chem
@@ -29,11 +21,14 @@ except ImportError:
     SVG = lambda *args, **kwargs: print('Install IPython...')
     display = lambda *args, **kwargs: print('Install IPython...')
 
+from ._communal import _MonsterCommunal
+from .positional_mapping import GPM
+
 
 ########################################################################################################################
 
 
-class _MonsterUtil:
+class _MonsterUtil(_MonsterCommunal, GPM):
 
     @classmethod
     def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol] = None,
@@ -100,7 +95,7 @@ class _MonsterUtil:
     def percent_common(self) -> int:
         return round(self.num_common / self.initial_mol.GetNumAtoms() * 100)
 
-    def stdev_from_mol(self, mol: Chem.Mol=None):
+    def stdev_from_mol(self, mol: Chem.Mol = None):
         """
         these values are stored from Monster for scaffold, chimera and positioned_mol
 
@@ -109,13 +104,12 @@ class _MonsterUtil:
         """
         if mol is None:
             mol = self.positioned_mol
-        return [atom.GetDoubleProp('_Stdev') if atom.HasProp('_Stdev') else 0  for atom in mol.GetAtoms()]
+        return [atom.GetDoubleProp('_Stdev') if atom.HasProp('_Stdev') else 0 for atom in mol.GetAtoms()]
 
-    def max_from_mol(self, mol: Chem.Mol=None):
+    def max_from_mol(self, mol: Chem.Mol = None):
         if mol is None:
             mol = self.positioned_mol
         return [atom.GetDoubleProp('_Max') if atom.HasProp('_Max') else 0 for atom in mol.GetAtoms()]
-
 
     def origin_from_mol(self, mol: Chem.Mol = None):
         """
@@ -140,7 +134,7 @@ class _MonsterUtil:
                 origin.append([])
         return origin
 
-    def guess_origins(self, mol: Chem.Mol = None, hits: Optional[List[Chem.Mol]]=None):
+    def guess_origins(self, mol: Chem.Mol = None, hits: Optional[List[Chem.Mol]] = None):
         """
         Given a positioned mol guess its origins...
 
@@ -156,14 +150,13 @@ class _MonsterUtil:
             for hi, mi in self.get_positional_mapping(hit, mol).items():
                 atom = mol.GetAtomWithIdx(mi)
                 if atom.HasProp('_Novel') and atom.GetBoolProp('_Novel') == True:
-                    continue # flagged to avoid.
+                    continue  # flagged to avoid.
                 elif atom.HasProp('_Origin') and atom.GetProp('_Origin') != 'none':
                     origin = json.loads(atom.GetProp('_Origin'))
                 else:
                     origin = []
                 origin.append(f'{hname}.{hi}')
                 atom.SetProp('_Origin', json.dumps(origin))
-
 
     # class attribute for next method
     _i = 0
@@ -175,7 +168,7 @@ class _MonsterUtil:
         Chem.MolToMolFile(mol, f'debug_temp{self.i}.mol', kekulize=False)
         self._i += 1
 
-    def save_commonality(self, filename:Optional[str]=None):
+    def save_commonality(self, filename: Optional[str] = None):
         """
         Saves an SVG of the followup fragmenstein monster with the common atoms with the chimeric scaffold highlighted.
 
@@ -196,7 +189,7 @@ class _MonsterUtil:
             with open(filename, 'w') as w:
                 w.write(d.GetDrawingText())
 
-    def make_pse(self, filename='test.pse', extra_mols:Optional[Chem.Mol]=None):
+    def make_pse(self, filename='test.pse', extra_mols: Optional[Chem.Mol] = None):
         """
         This is specifically for debugging the full fragment merging mode.
         For general use. Please use the Victor method ``make_pse``.
@@ -207,8 +200,9 @@ class _MonsterUtil:
         assert '.pse' in filename, 'Must be a pymol pse extension!'
         import pymol2
         with pymol2.PyMOL() as pymol:
-            tints = iter(['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
-            #pymol.cmd.bg_color('white')
+            tints = iter(
+                ['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
+            # pymol.cmd.bg_color('white')
             for h, hit in enumerate(self.hits):
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), f'hit{h}')
                 pymol.cmd.color(next(tints), f'hit{h} and name C*')
@@ -226,7 +220,7 @@ class _MonsterUtil:
                     pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), f'opt{i}')
                     pymol.cmd.color('grey50', f'opt{i} and name C*')
             pymol.cmd.hide('sticks')
-            pymol.cmd.hide('cartoon') # there should not be....
+            pymol.cmd.hide('cartoon')  # there should not be....
             pymol.cmd.show('lines', 'not polymer')
             if self.chimera:
                 pymol.cmd.show('sticks', 'chimera')
@@ -259,7 +253,7 @@ class _MonsterUtil:
         AllChem.Compute2DCoords(x)
         Chem.SanitizeMol(x, catchErrors=True)
         try:
-            #x = Chem.MolFromSmiles(Chem.MolToSmiles(x, kekuleSmiles=False), sanitize=False)
+            # x = Chem.MolFromSmiles(Chem.MolToSmiles(x, kekuleSmiles=False), sanitize=False)
             Draw.PrepareAndDrawMolecule(d, x, **kwargs)
             d.FinishDrawing()
             if show:
@@ -269,8 +263,7 @@ class _MonsterUtil:
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
-
-    def mmff_minimise(self, mol: Optional[Chem.Mol]=None) -> None:
+    def mmff_minimise(self, mol: Optional[Chem.Mol] = None) -> None:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
@@ -283,7 +276,7 @@ class _MonsterUtil:
         elif mol is None:
             mol = self.positioned_mol
         else:
-            pass # mol is fine
+            pass  # mol is fine
         # protect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0)):
             atom.SetBoolProp('_IsDummy', True)
@@ -321,5 +314,3 @@ class _MonsterUtil:
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
-
-

@@ -5,31 +5,29 @@ __doc__ = \
 Positional mapping
     """
 
-__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
-__email__ = "matteo.ferla@gmail.com"
-__date__ = "2020 A.D."
-__license__ = "MIT"
-__version__ = "0.4"
-__citation__ = ""
-
 ########################################################################################################################
-
 
 
 from rdkit import Chem
 from typing import Dict, List, Tuple
 import numpy as np
 
+
 # ========= Get positional mapping =================================================================================
 
 class GPM:
+    """
+    This class simply contains ``get_positional_mapping`` and is inherited both by Monster and Unmerge.
+    ``get_positional_mapping`` teturns a map to convert overlapping atom of A onto B
+    """
+
     cutoff = 2
 
     @classmethod
     def get_positional_mapping(cls, mol_A: Chem.Mol, mol_B: Chem.Mol, dummy_w_dummy=True) -> Dict[int, int]:
         """
         Returns a map to convert overlapping atom of A onto B
-        Cutoff 2 &Aring;.
+        Cutoff 2 &Aring; (see class attr.)
 
         :param mol_A: first molecule (Chem.Mol) will form keys
         :param mol_B: second molecule (Chem.Mol) will form values
@@ -114,7 +112,7 @@ class GPM:
         :param cutoff:
         :return:
         """
-        ## find the closest
+        # find the closest
         mapping = {}
         while 1 == 1:
             d = np.nanmin(array)
