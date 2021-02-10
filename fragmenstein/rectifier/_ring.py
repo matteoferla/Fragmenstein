@@ -64,7 +64,7 @@ class _RectifierRingMixin(_RectifierBaseMixin):
             elif len(shared) < self.atoms_in_bridge_cutoff and \
                     self.atoms_in_bridge_cutoff >= 2 \
                     and len(ring_A) == len(ring_B):
-                # monsterantene/norbornane/tropinone kind of thing
+                # adamantene/norbornane/tropinone kind of thing
                 self.journal.warning(f'This molecule ({self.rwmol.GetProp("_Name")}) has a bridge: leaving')
                 pass  # ideally check if planar...
             elif len(shared) == 1:
@@ -96,7 +96,7 @@ class _RectifierRingMixin(_RectifierBaseMixin):
                     self.journal.warning(f'mysterious ring system {len(ring_A)} + {len(ring_B)}')
                     pass  # ????
             elif len(shared) < self.atoms_in_bridge_cutoff:
-                # monsterantene/norbornane/tropinone kind of thing
+                # adamantene/norbornane/tropinone kind of thing
                 self.journal.warning(f'This molecule ({self.rwmol.GetProp("_Name")}) has a bridge: leaving')
                 pass  # ideally check if planar...
             else:
