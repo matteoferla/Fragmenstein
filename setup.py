@@ -19,7 +19,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.5',
+    version='0.6',
     packages=['fragmenstein'],
     install_requires=['numpy'],
     extras_require={'minimization': ['rdkit_to_params'],
