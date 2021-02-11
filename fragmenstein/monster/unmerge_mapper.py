@@ -63,20 +63,29 @@ class Unmerge(GPM):
         :type maps: Dict[List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
         """
+        # ---- inputs ------------
         self.followup = followup
         self.mols = mols
         self.maps = maps
         self.no_discard = no_discard
         if self.no_discard:
             self.max_strikes = 100
+        # ---- to be filled ------------
         accounted_for = set()
         self.c_map_options = []
         self.c_options = []
         self.c_disregarded_options = []
-        # sorters
+        self.combined = None
+        self.combined_alternatives = []
+        self.combined_map = {}
+        self.disregarded = []
+        self.combined_bonded = None
+        self.combined_bonded_alternatives = []
+        self.combined_map_alternatives = []
+        #  ---- sorters  --------------------
         goodness_sorter = lambda i: len(self.c_map_options[i]) - self.offness(self.c_options[i], self.c_map_options[i])
         accounted_sorter = self.template_sorter_factory(accounted_for)
-        # rotate
+        # ---- rotate ----------------------------
         if self.rotational_approach:
             others = deque(self.mols)
             for s in range(len(self.mols)):
@@ -92,7 +101,7 @@ class Unmerge(GPM):
                 aname = alt.GetProp('_Name')
                 not_alt = set([o for o in others if o.GetProp('_Name') != aname])
                 self.unmerge_inner(Chem.Mol(), {}, [alt] + list(not_alt), [])
-        # find best
+        # ---- find best ------------------------------------
         if self.no_discard:
             valids = [i for i, v in enumerate(self.c_disregarded_options) if len(v) == 0]
             if len(valids) == 0:
@@ -118,13 +127,24 @@ class Unmerge(GPM):
         #         d = self.c_disregarded_options[j]
         #         dv = self.measure_map(mol, m)
         #         print(j, [dd.GetProp('_Name') for dd in d], len(m), np.mean(dv), np.max(dv), self.offness(mol, m))
+        # ----- fill ----------------------------------------------------------------
         self.combined = self.c_options[i]
-        self.combined_alternatives = [self.c_options[j] for j in equals if j != i]
         self.combined_map = self.c_map_options[i]
         self.disregarded = self.c_disregarded_options[i]
         self.combined_bonded = self.bond()
+        alternative_indices = [j for j in equals if j != i]
+        self.combined_alternatives = [self.c_options[j] for j in alternative_indices]
+        self.combined_map_alternatives = [self.c_map_options[j] for j in alternative_indices]
+        self.combined_bonded_alternatives = [self.bond(n) for n in range(len(self.combined_alternatives))]
 
-    get_key = lambda self, d, v: list(d.keys())[list(d.values()).index(v)]
+    def get_key(self, d: dict, v: Any):
+        """
+        Given a value and a dict and a value get the key.
+        :param d:
+        :param v:
+        :return:
+        """
+        return list(d.keys())[list(d.values()).index(v)]
 
     @classmethod
     def make_maps(cls, target: Chem.Mol, mols: List[Chem.Mol], mode: Optional[Dict[str, Any]] = None) \
@@ -338,15 +358,23 @@ class Unmerge(GPM):
         return True
 
 
-    def bond(self):
-        putty = Chem.RWMol(self.combined)
-        for fi, ci in self.combined_map.items():
+    def bond(self, idx: Optional[int]=None):
+        if idx is None:
+            # calculating  self.combined_bonded
+            mol = self.combined
+            mapping = self.combined_map
+        else:
+            # calculating one of self.combined_bonded_alternatives
+            mol = self.combined_alternatives[idx]
+            mapping = self.combined_map_alternatives[idx]
+        putty = Chem.RWMol(mol)
+        for fi, ci in mapping.items():
             fatom = self.followup.GetAtomWithIdx(fi)
             for neigh in fatom.GetNeighbors():
                 ni = neigh.GetIdx()
-                if ni not in self.combined_map:
+                if ni not in mapping:
                     continue
-                nci = self.combined_map[ni]
+                nci = mapping[ni]
                 bond_type = self.followup.GetBondBetweenAtoms(fi, ni).GetBondType()
                 if not putty.GetBondBetweenAtoms(ci, nci):
                     putty.AddBond(ci, nci, bond_type)

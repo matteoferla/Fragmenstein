@@ -24,10 +24,9 @@ class _MonsterBase:
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
 
     # settings...
-    cutoff = 2.
     joining_cutoff = 5.  # how distant (in Å) is too much?
     atoms_in_bridge_cutoff = 2
-    # atoms_in_bridge_cutoff: how many bridge atoms can be deleted?
+    # atoms_in_bridge_cutoff is how many bridge atoms can be deleted?
     # (0 = preserves norbornane, 1 = preserves adamantane)
     throw_on_discard = False
     matching_modes = [
@@ -75,18 +74,22 @@ class _MonsterBase:
         #self._debug_draw has been taken over by ``modifications`` and ``journal``
         self.average_position = average_position
         # ==== To do be filled ================================
-        # List[str]
-        self.unmatched = []  #: rejected hit names
-        # self.matched is dynamic.  #: accepted hits
-        # Chem.Mol or List[Chem.Mol]
+        # -------- placement ----------------------------------
+        self.initial_mol = None  # to be filled by place. The starting molecule (Chem.Mol).
+        # Manually assignmnt of self.initial_mol is futile
+        self.attachment = None  # place only.
+        # -------- common ------------------------------------
+        # # ivars of type List[str]
+        self.unmatched = []  # rejected hit names List[str]
+        # self.matched is dynamic.  # accepted hits names List[str]
+        # # ivars of type Chem.Mol or List[Chem.Mol] or Dict[Chem.Mol]
         self.modifications = {}
-        self.initial_mol = None  #: to be filled by place. The starting molecule (Chem.Mol).
-        self.attachment = None
-        # self.scaffold = None  #: template which may have wrong elements in place, or
-        # self.mol_options = []  #: partial combined templates (merging_mode: partial)
-        self.mol_options = []  #: templates which may have wrong elements
-        self.chimera = None  #: merger of hits but with atoms made to match the to-be-aligned mol
-        self.positioned_mol = None  #: final molecule
+        self.positioned_mol = None  # final molecule
+        self.mol_options = []  # equally valid alternatives to self.positioned_mol
+        self._collapsed_ring_offset = 0  # variable to keep track of how much to offset in ring collapse.
+        # formerly:
+        # self.scaffold = None  # template which may have wrong elements in place, or
+        # self.chimera = None  # merger of hits but with atoms made to match the to-be-aligned mol
 
     def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
         """

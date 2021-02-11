@@ -84,37 +84,40 @@ class _MonsterCommunal(_MonsterTracker):
         pendistance = np.nanmin(pendist_matrix)
         if np.isnan(pendistance):
             raise ConnectionError('This is impossible. Previous is absent??')
-        else:
-            candidates = []
+        candidates = []
 
-            def get_closest(pendistance):
-                p = np.where(pendist_matrix == pendistance)
-                anchor_A = int(p[0][0])
-                anchor_B = int(p[1][0])
-                distance = distance_matrix[anchor_A, anchor_B]
-                penalty = penalties[anchor_A, anchor_B]
-                self.journal.debug(f'Connecting {anchor_A} with {anchor_B}, {penalty} penalised distance of {distance}')
-                return anchor_A, anchor_B, distance
+        def get_closest(pendistance):
+            p = np.where(pendist_matrix == pendistance)
+            anchor_A = int(p[0][0])
+            anchor_B = int(p[1][0])
+            distance = distance_matrix[anchor_A, anchor_B]
+            penalty = penalties[anchor_A, anchor_B]
+            self.journal.debug(f'Connecting {anchor_A} with {anchor_B} would have a ' +
+                               f'{penalty} penalised distance of {distance}')
+            return anchor_A, anchor_B, distance
 
-            anchor_A, anchor_B, distance = get_closest(pendistance)
-            candidates.append((anchor_A, anchor_B, distance))
-            with np.errstate(invalid='ignore'):
-                pendist_matrix[pendist_matrix > 1.] = np.nan
-            while pendistance < 1.:
-                pendist_matrix[[anchor_A, anchor_B], :] = np.nan
-                pendist_matrix[:, [anchor_A, anchor_B]] = np.nan
-                pendistance = np.nanmin(pendist_matrix)
-                if np.isnan(pendistance):
-                    break
-                else:
-                    anchor_A, anchor_B, distance = get_closest(pendistance)
-                    candidates.append((anchor_A, anchor_B, distance))
-            return combo, candidates
+        anchor_A, anchor_B, distance = get_closest(pendistance)
+        candidates.append((anchor_A, anchor_B, distance))
+        with np.errstate(invalid='ignore'):
+            pendist_matrix[pendist_matrix > 1.] = np.nan
+        while pendistance < 1.:
+            pendist_matrix[[anchor_A, anchor_B], :] = np.nan
+            pendist_matrix[:, [anchor_A, anchor_B]] = np.nan
+            pendistance = np.nanmin(pendist_matrix)
+            if np.isnan(pendistance):
+                break
+            else:
+                anchor_A, anchor_B, distance = get_closest(pendistance)
+                candidates.append((anchor_A, anchor_B, distance))
+        return combo, candidates
 
-    def _get_distance_matrix(self, combo: Chem.Mol, A: Union[Chem.Mol, np.ndarray],
+    def _get_distance_matrix(self,
+                             combo: Chem.Mol,
+                             A: Union[Chem.Mol, np.ndarray],
                              B: Union[Chem.Mol, np.ndarray]) -> np.ndarray:
         """
         Called by ``_find_closest`` and ``_determine_mergers_novel_ringcore_pair`` in collapse ring (for expansion).
+        This is a distance matrix blanked so it is only distances to other fragment
 
         """
         # TODO move to base once made.

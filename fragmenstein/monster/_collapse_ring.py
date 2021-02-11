@@ -146,7 +146,7 @@ class _MonsterRing( _MonsterJoinNeigh):
 
     # =========== Offset ===============================================================================================
 
-    _collapsed_ring_offset = 0
+
 
     def offset(self, mol: Chem.Mol):
         """
@@ -893,21 +893,31 @@ class _MonsterRing( _MonsterJoinNeigh):
 
     # ======== Emergency ===============================================================================================
 
-    def _emergency_joining(self, mol):
+    def _emergency_joining(self, mol: Chem.Mol) -> Chem.Mol:
+        return self._join_internally(mol, severe=True)
+
+    def _join_internally(self, mol: Chem.Mol, severe: bool=False) -> Chem.Mol:
         """
-        The last check to see if the mol is connected, before being rectified (valence fixes).
+        The last check to see if the mol is connected.
+        This differs (and calls) ``join_neighboring_mols``
+
         """
+        is_rw = isinstance(mol, Chem.RWMol)
         frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
         n = len(frags)
         if n == 1:
             return mol
         else:
             while n > 1:
-                self.journal.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
+                if severe:
+                    self.journal.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
+                else:
+                    self.journal.debug('Linking two disconnected fragments')
+                # ----- get names ---------------
                 name = mol.GetProp('_Name')
                 for i, frag in enumerate(frags):
                     frag.SetProp('_Name', f'name.{i}')
-                # find which fragments are closest.
+                # find which fragments are closest ------------------------------
                 # TODO use the distance_matrix = self._get_distance_matrix(..) code
                 closeness = np.ones([n, n])
                 closeness.fill(float('nan'))
@@ -920,12 +930,16 @@ class _MonsterRing( _MonsterJoinNeigh):
                 mol = self.join_neighboring_mols(first, second)
                 frags.remove(first)
                 frags.remove(second)
+                # ---- reset variables ---------
                 for part in frags:
                     mol = Chem.CombineMols(mol, part)
                     mol.SetProp('_Name', name)
                 frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
                 n = len(frags)
-            return Chem.RWMol(mol)
+            if is_rw:
+                return Chem.RWMol(mol)
+            else:
+                return mol
 
         #
         #

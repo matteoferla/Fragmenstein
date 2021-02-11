@@ -12,16 +12,25 @@ or `place_smiles` for a SMILES.
 While to do a merger
 
     monster = Monster(hits)
-    monster.merge()
+    monster.combine()
     monster.positioned_mol
     
 Additionally, the attribute `modifications` was added/expanded, so that intermediate steps are stored
 for potential inspection.
+It is a dictionary, but since 3.6 dict is ordered and `.keep_copy(mol, label)` prevents over-writes.
+This includes `scaffold` (the template) and `chimera` (the template with the atom symbols adapted), 
+which are no longer attributes.
 
-`merge` still calls `simply_merge_hits`.
+Equally viable alternatives are stored in a list
+
+    monster.mol_options
+
+`combine` still calls `simply_merge_hits`, which is used by placement too and merges by fragmentation
+—unlike atom-ring absorption events. The fact that two different approaches are present is just historical.
+
 If one wanted to merge two or more hits, independently of those in `.hits` attribute and without ring collapsing 
 and rectification etc.
-`simply_merge_hits` is still the one:
+`simply_merge_hits` is still the method to use:
 
     monster = Monster([])
     monster.simply_merge_hits([molA, molB])

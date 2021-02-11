@@ -20,7 +20,7 @@ from ..rectifier import Rectifier
 
 class _MonsterCombine(_MonsterRing, _MonsterMerge):
 
-    def combine(self, keep_all=True, collapse_rings=True, joining_cutoff: int = 5):
+    def combine(self, keep_all: bool=True, collapse_rings: bool=True, joining_cutoff: int = 5):
         """
         Merge/links the hits. (Main entrypoint)
 
@@ -38,7 +38,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
             self.keep_copies(col_hits, 'Collapsed hits')
         else:
             col_hits = self.hits
-        self.positioned_mol = self.simply_merge_hits(col_hits)
+        self.positioned_mol = self.simply_merge_hits(col_hits, linked=False)
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
         if keep_all and len(self.unmatched):
@@ -49,6 +49,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
             self.positioned_mol = self.expand_ring(self.positioned_mol)
         # bonded_as_original=False no longer needed.
         self.keep_copy(self.positioned_mol, 'expanded')
+        self._join_internally(self.positioned_mol)
         self.journal.debug(f'Expanded')
         self.rectify()
         self.journal.debug(f'Rectified')

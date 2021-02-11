@@ -26,7 +26,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         :return:
         """
         # get closets atoms
-        combo, candidates = self._find_all_closest(mol_A, mol_B)
+        combo, candidates = self._find_all_closest(mol_A, mol_B)  # _find_all_closest is in communal
         anchor_A, anchor_B, distance = candidates[0]
         mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=True)
         for anchor_A, anchor_B, distance in candidates[1:]:
@@ -52,7 +52,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         ys = np.linspace(pos_A.y, pos_B.y, n_new + 2)[1:-1]
         zs = np.linspace(pos_A.z, pos_B.z, n_new + 2)[1:-1]
 
-        # correct for ring marker atoms
+        # correcting for ring marker atoms
         def is_ring_atom(anchor: int) -> bool:
             atom = combo.GetAtomWithIdx(anchor)
             if atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
@@ -76,7 +76,8 @@ class _MonsterJoinNeigh(_MonsterCommunal):
 
         # notify that things could be leary.
         if distance < 0:
-            self.journal.debug(f'Two ring atoms detected to be close. Joining for now. They will be bonded/fused/spiro afterwards')
+            self.journal.debug(f'Two ring atoms detected to be close. Joining for now.'+
+                               ' They will be bonded/fused/spiro afterwards')
         # check if valid.
         if distance > self.joining_cutoff:
             msg = f'Atoms {anchor_A}+{anchor_B} are {distance} Å away. Cutoff is {self.joining_cutoff}.'

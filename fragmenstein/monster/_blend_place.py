@@ -36,9 +36,13 @@ class _MonsterBlend(_MonsterMerge):
         a single scaffold is made (except for ``.unmatched``)
         """
         self.mol_options = [self.simply_merge_hits()]
-        self.scaffold = self.posthoc_refine(self.mol_options[0])
-        self.chimera = self.make_chimera()
-        self.positioned_mol = self.place_from_map()
+        scaffold = self.posthoc_refine(self.mol_options[0])
+        chimera = self.make_chimera(scaffold)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
+        self.positioned_mol = self.place_from_map(target_mol=self.initial_mol,
+                                                  template_mol=chimera,
+                                                  atom_map=None)
 
     def partial_blending(self) -> None:
         """
@@ -46,11 +50,15 @@ class _MonsterBlend(_MonsterMerge):
         """
         self.mol_options = self.partially_blend_hits()  # merger of hits
         unrefined_scaffold, mode_index = self.pick_best()
-        used = self.scaffold.GetProp('_Name').split('-')
+        used = unrefined_scaffold.GetProp('_Name').split('-')
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
-        self.scaffold = self.posthoc_refine(unrefined_scaffold)
-        self.chimera = self.make_chimera(mode_index)
-        self.positioned_mol = self.place_from_map()
+        scaffold = self.posthoc_refine(unrefined_scaffold)
+        chimera = self.make_chimera(scaffold, mode_index)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
+        self.positioned_mol = self.place_from_map(target_mol=self.positioned_mol,
+                                                  template_mol=chimera,
+                                                  atom_map=None)
 
     def no_blending(self, broad=False) -> None:
         """
@@ -74,17 +82,23 @@ class _MonsterBlend(_MonsterMerge):
                      mols=self.hits,
                      maps=maps,
                      no_discard=self.throw_on_discard)
-        self.scaffold = um.combined
-        # self.mol_options\
-        combined_alternative = um.combined_alternatives
-        full_atom_map = um.combined_map
+        self.keep_copy(um.combined, 'scaffold')
+        self.keep_copy(um.combined_bonded, 'chimera')
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
-        self.chimera = um.combined_bonded
-        self.journal.debug(f'followup to scaffold {full_atom_map}')
-        placed = self.place_from_map(atom_map=full_atom_map)
+        self.journal.debug(f'followup to scaffold {um.combined_map}')
+        # ------------------ places the atoms with known mapping ------------------
+        placed = self.place_from_map(target_mol=self.initial_mol,
+                                     template_mol=um.combined_bonded,
+                                     atom_map=um.combined_map)
+        alts = zip(um.combined_bonded_alternatives, um.combined_map_alternatives)
+        placed_options = [self.place_from_map(target_mol=self.initial_mol,
+                                             template_mol=mol,
+                                             atom_map=mappa) for mol, mappa in alts]
+        # ------------------ Averages the overlapping atoms ------------------
         self.positioned_mol = self.posthoc_refine(placed)
+        self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
 
     # ================= Blend hits ===================================================================================
 
@@ -258,32 +272,9 @@ class _MonsterBlend(_MonsterMerge):
     #             else:
     #                 return {n: path}
 
-    def _prevent_two_bonds_on_dummy(self, mol: Chem.RWMol):
-        """
-        The case '*(C)C' is seen legitimately in some warheads... but in most cases these are not.
-        :param mol:
-        :return:
-        """
-        for atom in mol.GetAtoms():
-            if atom.GetSymbol() != '*':
-                pass
-            elif len(atom.GetNeighbors()) <= 1:
-                pass
-            elif len(atom.GetNeighbors()) >= 2:
-                self.journal.info(f'Dummy atom (idx={atom.GetIdx()}) has {len(atom.GetNeighbors())} bonds!')
-                neighs = atom.GetNeighbors()
-                first = neighs[0]
-                for second in neighs[1:]:
-                    rejected = second.GetIdx()  # that will be absorbed (deleted)
-                    keeper = first.GetIdx()  # that absorbs (kept)
-                    self._copy_bonding(mol, keeper, rejected)
-                    self._mark_for_deletion(mol, rejected)
-                self._delete_marked(mol)
-                return self._prevent_two_bonds_on_dummy(mol)
-
     # ================= Chimera ========================================================================================
 
-    def make_chimera(self, min_mode_index=0) -> Chem.Mol:
+    def make_chimera(self, template: Chem.Mol, min_mode_index=0) -> Chem.Mol:
         """
         This is to avoid extreme corner corner cases.
         E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
@@ -292,19 +283,19 @@ class _MonsterBlend(_MonsterMerge):
         :return:
         """
         # get the matches
-        atom_map, mode = self.get_mcs_mapping(self.scaffold, self.initial_mol, min_mode_index=min_mode_index)
+        atom_map, mode = self.get_mcs_mapping(template, self.initial_mol, min_mode_index=min_mode_index)
         follow = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
         self.journal.debug(f"scaffold-followup: {follow}")
         # make the scaffold more like the followup to avoid weird matches.
-        chimera = Chem.RWMol(self.scaffold)
+        chimera = Chem.RWMol(template)
         for scaff_ai, follow_ai in atom_map.items():
-            if self.scaffold.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(
+            if template.GetAtomWithIdx(scaff_ai).GetSymbol() != self.initial_mol.GetAtomWithIdx(
                     follow_ai).GetSymbol():
                 v = {'F': 1, 'Br': 1, 'Cl': 1, 'H': 1, 'B': 3, 'C': 4, 'N': 3, 'O': 2, 'S': 2, 'Se': 2, 'P': 6}
                 wanted = self.initial_mol.GetAtomWithIdx(follow_ai)
                 if wanted.GetSymbol() == '*':  # all good then!
                     continue
-                owned = self.scaffold.GetAtomWithIdx(scaff_ai)
+                owned = template.GetAtomWithIdx(scaff_ai)
                 diff_valance = owned.GetExplicitValence() - v[wanted.GetSymbol()]
                 if wanted.GetSymbol() in ('F', 'Br', 'Cl', 'C', 'H') and diff_valance > 0:
                     continue  # cannot change this.
@@ -325,22 +316,23 @@ class _MonsterBlend(_MonsterMerge):
             warn('Valance issue' + str(err))
         return chimera
 
-    def place_from_map(self, mol: Chem.Mol = None, atom_map: Optional[Dict] = None) -> Chem.Mol:
+    def place_from_map(self, target_mol: Chem.Mol, template_mol: Chem.Mol, atom_map: Optional[Dict] = None) -> Chem.Mol:
         """
         This method places the atoms with known mapping
         and places the 'uniques' (novel) via an aligned mol (the 'sextant')
         This sextant business is a workaround for the fact that only minimised molecules can use the partial
         embedding function of RDKit.
 
-        :param mol:
+        :param target_mol: target mol
+        :param template_mol: the template/scaffold to place the mol
         :param atom_map: something that get_mcs_mapping would return.
         :return:
         """
         # Note none of this malarkey: AllChem.MMFFOptimizeMolecule(ref)
         # prealignment
-        if mol is None:
-            mol = self.initial_mol
-        sextant = Chem.Mol(mol)
+        if target_mol is None:
+            target_mol = self.initial_mol
+        sextant = Chem.Mol(target_mol)
         Chem.SanitizeMol(sextant)
         AllChem.EmbedMolecule(sextant)
         AllChem.MMFFOptimizeMolecule(sextant)
@@ -348,14 +340,14 @@ class _MonsterBlend(_MonsterMerge):
         # mapping retrieval and sextant alignment
         # variables: atom_map sextant -> uniques
         if atom_map is None:
-            atom_map, mode = self.get_mcs_mapping(mol, self.chimera)
+            atom_map, mode = self.get_mcs_mapping(target_mol, template_mol)
             msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
             self.journal.debug(f"followup-chimera' = {msg}")
-        rdMolAlign.AlignMol(sextant, self.chimera, atomMap=list(atom_map.items()), maxIters=500)
+        rdMolAlign.AlignMol(sextant, template_mol, atomMap=list(atom_map.items()), maxIters=500)
         # place atoms that have a known location
         putty = Chem.Mol(sextant)
         pconf = putty.GetConformer()
-        chimera_conf = self.chimera.GetConformer()
+        chimera_conf = template_mol.GetConformer()
         uniques = set()  # unique atoms in followup
         for i in range(putty.GetNumAtoms()):
             p_atom = putty.GetAtomWithIdx(i)
@@ -363,7 +355,7 @@ class _MonsterBlend(_MonsterMerge):
             p_atom.SetProp('_Origin', 'none')
             if i in atom_map:
                 ci = atom_map[i]
-                c_atom = self.chimera.GetAtomWithIdx(ci)
+                c_atom = template_mol.GetAtomWithIdx(ci)
                 if c_atom.HasProp('_Stdev'):
                     stdev = c_atom.GetDoubleProp('_Stdev')
                     origin = c_atom.GetAtomWithIdx(ci).GetProp('_Origin')
@@ -382,7 +374,7 @@ class _MonsterBlend(_MonsterMerge):
             if unique_idx in done_already:
                 continue
             # get other attachments if any.
-            team = self._recruit_team(mol, unique_idx, categories['uniques'])
+            team = self._recruit_team(target_mol, unique_idx, categories['uniques'])
             other_attachments = (team & set(categories['pairs'].keys())) - {unique_idx}
             sights = set()  # atoms to align against
             for att_idx in [unique_idx] + list(other_attachments):
@@ -412,92 +404,7 @@ class _MonsterBlend(_MonsterMerge):
         AllChem.SanitizeMol(putty)
         return putty  # positioned_mol
 
-    def _merge_part(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, anchor_index: int,
-                    attachment_details: List[Dict],
-                    other_attachments: List[int],
-                    other_attachment_details: List[List[Dict]]) -> Chem.Mol:
-        """
-        This does the messy work for merge_pair.
 
-        :param scaffold: the Chem.Mol molecule onto whose copy the fragmentanda Chem.Mol gets added
-        :param fragmentanda: The other Chem.Mol molecule
-        :param anchor_index: the fragment-to-added's internal atom that attaches (hit indexed)
-        :param attachment_details: see `_pre_fragment_pairs` or example below fo an entry
-        :type attachment_details: List[Dict]
-        :param other_attachments:
-        :param other_attachment_details:
-        :return: a new Chem.Mol molecule
-
-        Details object example:
-
-            [{'idx': 5,
-              'type': rdkit.Chem.rdchem.BondType.SINGLE,
-              'idx_F': 5, # fragmentanda index
-              'idx_S': 1  # scaffold index
-              }], ...}
-        """
-        # get bit to add.
-        bonds_to_frag = []
-        for detail in attachment_details:
-            attachment_index = detail['idx_F']  # fragmentanda attachment_index
-            bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(anchor_index, attachment_index).GetIdx()]
-        bonds_to_frag += [fragmentanda.GetBondBetweenAtoms(oi, oad[0]['idx_F']).GetIdx() for oi, oad in
-                          zip(other_attachments, other_attachment_details)]
-        f = Chem.FragmentOnBonds(fragmentanda,
-                                 bonds_to_frag,
-                                 addDummies=False)
-        frag_split = []
-        fragmols = Chem.GetMolFrags(f, asMols=True, fragsMolAtomMapping=frag_split, sanitizeFrags=False)
-        # Get the fragment of interest.
-        ii = 0
-        for mol_N, indices in enumerate(frag_split):
-            if anchor_index in indices:
-                break
-            ii += len(indices)
-        else:
-            raise Exception
-        frag = fragmols[mol_N]
-        frag_anchor_index = indices.index(anchor_index)
-        # pre-emptively fix atom ori_i
-        # offset collapsed to avoid clashes.
-        self.offset(frag)
-        # Experimental code.
-        # TODO: finish!
-        # frag_atom = frag.GetAtomWithIdx(frag_anchor_index)
-        # old2future = {atom.GetIntProp('_ori_i'): atom.GetIdx() + scaffold.GetNumAtoms() for atom in frag.GetAtoms()}
-        # del old2future[-1] # does nothing but nice to double tap
-        # if frag_atom.GetIntProp('_ori_i') == -1: #damn.
-        #     for absent in self._get_mystery_ori_i(frag):
-        #         old2future[absent] = scaffold_attachment_index
-        # self._renumber_original_indices(frag, old2future)
-        combo = Chem.RWMol(rdmolops.CombineMols(scaffold, frag))
-        scaffold_anchor_index = frag_anchor_index + scaffold.GetNumAtoms()
-        for detail in attachment_details:
-            # scaffold_anchor_index : atom index in scaffold that needs to be added to scaffold_attachment_index
-            # but was originally attached to attachment_index in fragmentanda.
-            # the latter is not kept.
-            attachment_index = detail['idx_F']  # fragmentanda attachment_index
-            scaffold_attachment_index = detail['idx_S']  # scaffold attachment index
-            bond_type = detail['type']
-            combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
-            new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
-            # BondProvenance.set_bond(new_bond, '???')
-            # self.transfer_ring_data(fragmentanda.GetAtomWithIdx(attachment_index),
-            #                         combo.GetAtomWithIdx(scaffold_anchor_index))
-        for oi, oad in zip(other_attachments, other_attachment_details):
-            bond_type = oad[0]['type']
-            scaffold_attachment_index = oad[0]['idx_S']
-            scaffold_anchor_index = indices.index(oi) + scaffold.GetNumAtoms()
-            combo.AddBond(scaffold_anchor_index, scaffold_attachment_index, bond_type)
-            new_bond = combo.GetBondBetweenAtoms(scaffold_anchor_index, scaffold_attachment_index)
-            # BondProvenance.set_bond(new_bond, '???')
-        Chem.SanitizeMol(combo,
-                         sanitizeOps=Chem.rdmolops.SanitizeFlags.SANITIZE_ADJUSTHS +
-                                     Chem.rdmolops.SanitizeFlags.SANITIZE_SETAROMATICITY,
-                         catchErrors=True)
-        self._prevent_two_bonds_on_dummy(combo)
-        scaffold = combo.GetMol()
-        return scaffold
 
     def transfer_ring_data(self, donor: Chem.Atom, acceptor: Chem.Atom):
         """
@@ -639,7 +546,7 @@ class _MonsterBlend(_MonsterMerge):
                 warn(f'No overlap? {A2B}')
 
     @property
-    def matched(self):
+    def matched(self) -> List[str]:
         """
         This is the counter to unmatched.
         It's dynamic as you never know...

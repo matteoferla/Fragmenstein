@@ -86,10 +86,19 @@ class _MonsterUtil(_MonsterCommunal, GPM):
 
     @property
     def num_common(self) -> int:
-        mcs = rdFMCS.FindMCS([self.scaffold, self.initial_mol],
+        template = self._get_last_template()
+        mcs = rdFMCS.FindMCS([template, self.initial_mol],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareOrder)
         return Chem.MolFromSmarts(mcs.smartsString).GetNumAtoms()
+
+    def _get_last_template(self):
+        if 'chimera' in self.modifications:
+            template = self.modifications['chimera']
+        elif 'scaffold' in self.modifications:
+            template = self.modifications['scaffold']
+        else:
+            raise KeyError('There is no chimeric or reg scaffold/template to compare to.')
 
     @property
     def percent_common(self) -> int:
@@ -175,7 +184,8 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         :param filename: optinal filename to save it as. Otherwise returns a Draw.MolDraw2DSVG object.
         :return:
         """
-        mcs = rdFMCS.FindMCS([self.chimera, self.positioned_mol],
+        template = self._get_last_template()
+        mcs = rdFMCS.FindMCS([template, self.positioned_mol],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareOrder,
                              ringMatchesRingOnly=True)
@@ -206,11 +216,11 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             for h, hit in enumerate(self.hits):
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), f'hit{h}')
                 pymol.cmd.color(next(tints), f'hit{h} and name C*')
-            if self.scaffold:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.scaffold, kekulize=False), f'scaffold')
+            if 'scaffold' in self.modifications:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.modifications['scaffold'], kekulize=False), f'scaffold')
                 pymol.cmd.color('tv_blue', f'scaffold and name C*')
-            if self.chimera:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.chimera, kekulize=False), f'chimera')
+            if 'chimera' in self.modifications:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.modifications['chimera'], kekulize=False), f'chimera')
                 pymol.cmd.color('cyan', f'chimera and name C*')
             if self.positioned_mol:
                 pymol.cmd.read_molstr(Chem.MolToMolBlock(self.positioned_mol, kekulize=False), f'followup')
@@ -222,7 +232,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             pymol.cmd.hide('sticks')
             pymol.cmd.hide('cartoon')  # there should not be....
             pymol.cmd.show('lines', 'not polymer')
-            if self.chimera:
+            if 'chimera' in self.modifications:
                 pymol.cmd.show('sticks', 'chimera')
             if self.positioned_mol:
                 pymol.cmd.show('sticks', 'followup')
