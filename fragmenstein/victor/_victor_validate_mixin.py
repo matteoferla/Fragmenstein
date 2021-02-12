@@ -2,7 +2,7 @@ from ._victor_base_mixin import _VictorBaseMixin
 from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
-from ..rectifier import Rectifier
+from molecular_rectifier import Rectifier
 from typing import List, Optional, Dict, Union, Callable
 from rdkit import Chem
 from rdkit.Chem import AllChem

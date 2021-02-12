@@ -90,7 +90,7 @@ and for rings of size 3/4 will become 5.
 
 ## Allenes
 
-Additionally, are forbidden.
+Additionally, allene are forbidden.
 
 ## Code caveat
 

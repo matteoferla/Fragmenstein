@@ -13,7 +13,7 @@ from ._collapse_ring import _MonsterRing
 from ._base import _MonsterBase
 from ._communal import _MonsterCommunal
 from ._merge import _MonsterMerge
-from ..rectifier import Rectifier
+from molecular_rectifier import Rectifier
 
 
 ########################################################################################################################

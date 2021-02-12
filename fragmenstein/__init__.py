@@ -27,5 +27,5 @@ except ZeroDivisionError as err:
     warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
 
 from .monster import Monster
-from .rectifier import Rectifier
+from molecular_rectifier import Rectifier
 from .m_rmsd import mRSMD
