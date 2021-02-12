@@ -48,7 +48,6 @@ def poised_pose_fx(pose: pyrosetta.Pose):
     MutateResidue(target=r, new_res='CYZ').apply(pose)
 
 class MProVictor(Victor):
-    monster_merging_mode = 'none_permissive'
     constraint_function_type = 'FLAT_HARMONIC'
 
     @classmethod

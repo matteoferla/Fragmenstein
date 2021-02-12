@@ -1,4 +1,4 @@
-from ._victor_base_mixin import _VictorBaseMixin
+from ._victor_base import _VictorBase
 from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
@@ -9,7 +9,7 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 import time, warnings, os
 
-class _VictorValidateMixin(_VictorBaseMixin):
+class _VictorValidate(_VictorBase):
 
     def validate(self, reference_mol: Chem.Mol):
         """

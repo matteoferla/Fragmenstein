@@ -26,15 +26,14 @@ from typing import List, Union, Optional, Dict, Tuple
 from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem
 
-from ._victor_base_mixin import _VictorBaseMixin
+from ._victor_common import _VictorCommon
 from ..m_rmsd import mRSMD
 from ..monster import Monster
 from rdkit_to_params import Params
 from ..igor import Igor
-from ._loggerwriter import LoggerWriter
 
 
-class _VictorUtilsMixin(_VictorBaseMixin):
+class _VictorUtils(_VictorCommon):
 
     def dock(self) -> Chem.Mol:
         """
@@ -54,7 +53,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
 
     def summarise(self):
-        if self.error:
+        if self.error_msg:
             if self.monster is None:
                 N_constrained_atoms = float('nan')
                 N_unconstrained_atoms = float('nan')
@@ -66,7 +65,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 N_unconstrained_atoms = self.unconstrained_heavy_atoms
             return {'name': self.long_name,
                     'smiles': self.smiles,
-                    'error': self.error,
+                    'error': self.error_msg,
                     'mode': self.monster_merging_mode,
                     '∆∆G': float('nan'),
                     '∆G_bound': float('nan'),
@@ -81,8 +80,8 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         else:
             return {'name': self.long_name,
                     'smiles': self.smiles,
-                    'error': self.error,
-                    'mode': self.monster_merging_mode,
+                    'error': self.error_msg,
+                    'mode': self.monster.merging_mode,
                     '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
                            self.energy_score['unbound_ref2015']['total_score'],
                     '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
@@ -95,75 +94,7 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                     'disregarded': self.monster.unmatched
                     }
 
-    # =================== Logging ======================================================================================
 
-    @classmethod
-    def enable_stdout(cls, level=logging.INFO) -> None:
-        """
-        The ``cls.journal`` is output to the terminal.
-        Running it twice can be used to change level.
-
-        :param level: logging level
-        :return: None
-        """
-        cls.journal.handlers = [h for h in cls.journal.handlers if h.name != 'stdout']
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(level)
-        handler.set_name('stdout')
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
-        # logging.getLogger('py.warnings').addHandler(handler)
-
-    @classmethod
-    def enable_logfile(cls, filename='reanimation.log', level=logging.INFO) -> None:
-        """
-        The journal is output to a file.
-        Running it twice can be used to change level.
-
-        :param filename: file to write.
-        :param level: logging level
-        :return: None
-        """
-        cls.journal.handlers = [h for h in cls.journal.handlers if h.name != 'logfile']
-        handler = logging.FileHandler(filename)
-        handler.setLevel(level)
-        handler.set_name('logfile')
-        handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
-        cls.journal.addHandler(handler)
-        # logging.getLogger('py.warnings').addHandler(handler)
-
-    @classmethod
-    def log_errors(cls):
-        """
-        RDKit spits a few warning and errors.
-        Pyrosetta sends messages to stdout. I might implement a tracer capturing.
-        This makes them inline with the logger.
-
-        :return:
-        """
-        Chem.WrapLogs()
-        sys.stderr = LoggerWriter(cls.journal.warning)
-
-    @classmethod
-    def slack_me(cls, msg: str) -> bool:
-        """
-        Send message to a slack webhook
-
-        :param msg: Can be dirty and unicode-y.
-        :return: did it work?
-        :rtype: bool
-        """
-        webhook = os.environ['SLACK_WEBHOOK']
-        # sanitise.
-        msg = unicodedata.normalize('NFKD', msg).encode('ascii', 'ignore').decode('ascii')
-        msg = re.sub('[^\w\s\-.,;?!@#()\[\]]', '', msg)
-        r = requests.post(url=webhook,
-                          headers={'Content-type': 'application/json'},
-                          data=f"{{'text': '{msg}'}}")
-        if r.status_code == 200 and r.content == b'ok':
-            return True
-        else:
-            return False
 
     # =================== Other ========================================================================================
 
@@ -286,64 +217,17 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         else:
             return None
 
-    @classmethod
-    def get_warhead_definition(cls, warhead_name: str):
-        return cls._get_warhead_definitions(warhead_name)[0]
-
-    @classmethod
-    def _get_warhead_definitions(cls, warhead_name: str):
-        """
-        It is unlikely that alternative definitions are present. hence why hidden method.
-
-        :param warhead_name:
-        :return:
-        """
-        options = [wd for wd in cls.warhead_definitions if wd['name'] == warhead_name.lower()]
-        if len(options) == 0:
-            raise ValueError(f'{warhead_name} is not valid.')
-        else:
-            return options
-
-    @classmethod
-    def make_all_warhead_combinations(cls, smiles: str, warhead_name: str, canonical=True) -> Union[dict, None]:
-        """
-        Convert a unreacted warhead to a reacted one in the SMILES
-
-        :param smiles: unreacted SMILES
-        :param warhead_name: name in the definitions
-        :param canonical: the SMILES canonical? (makes sense...)
-        :return: dictionary of SMILES
-        """
-        mol = Chem.MolFromSmiles(smiles)
-        war_def = cls.get_warhead_definition(warhead_name)
-        ncv = Chem.MolFromSmiles(war_def['noncovalent'])
-        if mol.HasSubstructMatch(ncv):
-            combinations = {}
-            for wd in cls.warhead_definitions:
-                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['covalent']),
-                                           replacementConnectionPoint=0)
-                combinations[wd['name'] + '_covalent'] = Chem.MolToSmiles(x[0], canonical=canonical)
-                x = Chem.ReplaceSubstructs(mol, ncv, Chem.MolFromSmiles(wd['noncovalent']),
-                                           replacementConnectionPoint=0)
-                combinations[wd['name'] + '_noncovalent'] = Chem.MolToSmiles(x[0], canonical=canonical)
-            return combinations
-        else:
-            return None
-
-    # =================== pre-encounter ================================================================================
-
-    # @classmethod
-
     # =================== save  ========================================================================================
 
-    def make_pse(self, filename: str = 'combo.pse', extra_mols:Optional[Chem.Mol]=None):
+    def make_pse(self, filename: str = 'combo.pse',
+                 extra_mols:Optional[Chem.Mol]=None):
         """
         Save a pse in the relevant folder. This is the Victor one.
-
-        :param filename:
-        :return:
         """
         assert '.pse' in filename, f'{filename} not .pse file'
+        if extra_mols is None:
+            extra_mols = []
+        # ------------------------
         import pymol2
         with pymol2.PyMOL() as pymol:
             for hit in self.hits:
@@ -372,11 +256,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
                 pymol.cmd.color('gray20', f'element C and unmin_protein')
                 pymol.cmd.hide('sticks', 'unmin_protein')
                 pymol.cmd.disable('unmin_protein')
-            if extra_mols:
-                for mol in extra_mols:
-                    name = mol.GetProp('_Name')
-                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
-                    pymol.cmd.color('magenta', f'{name} and name C*')
+            for mol in extra_mols:
+                name = mol.GetProp('_Name')
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
+                pymol.cmd.color('magenta', f'{name} and name C*')
             pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     def make_steps_pse(self, filename: str='step.pse'):
@@ -416,8 +299,9 @@ class _VictorUtilsMixin(_VictorBaseMixin):
     def find_closest_to_ligand(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Chem.Atom, Chem.Atom]:
         """
         Find the closest atom to the ligand
+        Warning requires the protein to be loaded as an rdkit.Chem.Mol
 
-        :param pdb: a rdkit Chem object
+        :param pdb: a rdkit Chem.Mol object
         :param ligand_resn: 3 letter code
         :return: tuple of non-ligand atom and ligand atom
         """
@@ -555,16 +439,10 @@ class _VictorUtilsMixin(_VictorBaseMixin):
         return mol
 
 
-
-
-
-
-
-
     # =================== From Files ===================================================================================
 
     @classmethod
-    def from_files(cls, folder: str) -> _VictorBaseMixin:
+    def from_files(cls, folder: str) -> 'self':
         """
         This creates an instance form the output files. Likely to be unstable.
         Assumes the checkpoints were not altered.
@@ -609,12 +487,11 @@ class _VictorUtilsMixin(_VictorBaseMixin):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
             self.is_covalent = True if '*' in self.smiles else False
-            self.monster = Monster(mol=self.mol,
-                                             hits=self.hits,
-                                             attachment=None,
-                                             merging_mode='off',
-                                             average_position=self.monster_average_position
-                                             )
+            self.monster = Monster(hits=self.hits,
+                                   average_position=self.monster_average_position)
+            self.monster.place(mol=self.mol,
+                               attachment=None,
+                               merging_mode='off')
             self.monster.positioned_mol = self.mol
             self.monster.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
 

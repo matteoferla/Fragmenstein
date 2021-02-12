@@ -13,7 +13,7 @@ from typing import Optional, Dict
 import pyrosetta
 
 
-class _IgorUtilsMixin:
+class _IgorUtils:
 
     def dock(self) -> pyrosetta.Pose:
         """

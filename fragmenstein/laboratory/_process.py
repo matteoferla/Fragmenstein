@@ -28,12 +28,12 @@ def process(data: Dict[str, Union[str, dict]]):
     # settings for Fragmenstein ------------------------------------
     MProVictor.work_path = f'{project}'  # db_name
     MProVictor.monster_throw_on_discard = True
-    MProVictor.monster_joining_cutoff = 5  # 10
+    MProVictor.joining_cutoff = 5  # 10
     MProVictor.quick_renanimation = False
     MProVictor.error_to_catch = Exception
     MProVictor.enable_stdout(logging.ERROR)
     MProVictor.enable_logfile(f'{project}.log', logging.INFO)
-    MProVictor.log_errors()
+    MProVictor.capture_rdkit_log()
     # analyse ------------------------------------------------------
     try:
         v = MProVictor.combine(hits=hits)

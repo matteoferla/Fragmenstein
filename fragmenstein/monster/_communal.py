@@ -464,3 +464,4 @@ class _MonsterCommunal(_MonsterTracker):
                         pass
                 else:
                     raise ValueError('I do not think this is possible.')
+
