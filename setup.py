@@ -1,11 +1,16 @@
 from setuptools import setup
 from warnings import warn
 from importlib import util
+import sys
+
+if sys.version_info.major != 3 or sys.version_info.minor < 6:
+    print(sys.version_info)
+    raise SystemError('Module written for Python 3.6+.')
 
 # ---------- Non pip modules  ------------------------------------------------------------------------------------------
 
 if not util.find_spec('rdkit'):
-    raise ModuleNotFoundError('This 3.6+ script **requires** rdkit which cannot be pip installed.' +
+    warn('This 3.6+ script **requires** rdkit which cannot be pip installed.' +
                               ' To install try either ' +
                               'conda install -c conda-forge rdkit or ' +
                               'sudo apt-get/brew install python3-rdkit or visit rdkit documentation.')
@@ -21,9 +26,8 @@ setup(
     name='Fragmenstein',
     version='0.6',
     packages=['fragmenstein'],
-    install_requires=['numpy'],
-    extras_require={'minimization': ['rdkit_to_params'],
-                    'jupyter': ['jupyter']},
+    install_requires=['numpy', 'rdkit-to-params', 'molecular-rectifier'],
+    extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
     license='MIT',
     author='Matteo Ferla',
