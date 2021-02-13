@@ -15,14 +15,14 @@ __citation__ = ""
 
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
-from ._igor_init_mixin import _IgorInitMixin, pyrosetta
-from ._igor_min_mixin import _IgorMinMixin
-from ._igor_utils_mixin import _IgorUtilsMixin
+from ._igor_init import _IgorInit, pyrosetta
+from ._igor_min import _IgorMin
+from ._igor_utils import _IgorUtils
 
 # this contains the init and the two classmethods.
 
 
-class Igor(_IgorInitMixin, _IgorMinMixin, _IgorUtilsMixin):
+class Igor(_IgorInit, _IgorMin, _IgorUtils):
     """
     Regular Igor(..) accepts pyrosetta pose.
     ``Igor.from_pdbblock(..)`` accepts pdb block as str,

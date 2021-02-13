@@ -8,7 +8,7 @@ However, there are some problems:
 * the form does not have a `no inspiration hit` option, so many users submitted `x0072` the first as inspiration when submitting docked libraries.
 * the inspiration hits are common to a group of submissions by a user, even if one went into one and another to another.
 * some pockets have many hits, so a large amount of not fully overlapping hits are submitted
-* some users submitted a mispelt hit
+* some users submitted a mispelt hit code
 
 ## Custom class
 
@@ -28,7 +28,7 @@ For an example of the script used, see [covid.py](../covid.py).
 Note that this script runs on multiple cores. For a fews smiles, which takes about 30 seconds each there is no need.
 Also note that some molecules get stuck due to incorrectly entered inspirations.
 
-For a comparision of how the three method fair with the daset see [three modes compared](three_modes_compared.md).
+For a comparision of how the three method fair with the daset see [three modes compared](monster/three_modes_compared.md).
 
 ## Over-inspired problem
 

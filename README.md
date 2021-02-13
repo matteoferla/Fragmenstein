@@ -3,13 +3,71 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 <img src="images/fragmenstein.jpg" width="300px">
 
 
-## Aim
-Given a followup molecule (SMILES) and a series of hits it makes a spatially stitched together version of the followup based on the hits.
+## Stitched molecules
+
+Fragmenstein can perform two different tasks.
+
+* **Combine** hits
+* **Place** a given followup molecule (SMILES) based on series of hits
+
 Like Frankenstein's creation it may violate the laws of chemistry.
 Planar trigonal topologies may be tetrahedral, bonds unnaturally long _etc._
-This monstrosity is therefore then energy minimised with strong constraints.
+This monstrosity is therefore then energy minimised with strong constraints within the protein.
 
-Here is [an interactive example of mapped molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
+## Classes
+
+There are three main classes, named after characters from the Fragmenstein book and movies:
+
+* ``Monster`` makes the stitched together molecules indepent of the protein — [documentation](documentation/monster/monster.md)
+* ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup — [documentation](documentation/igor.md)
+* ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
+
+NB. In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work.
+
+Additionally, there are a few minor classes.
+
+One of these is ``mRMSD``, a multiple RMSD variant which does not align and bases which atoms 
+to use on coordinates —[documentation](documentation/mrmsd.md)
+
+There are two module hosted elsewhere:
+
+* ``Rectifier`` from [molecular_rectifier](https://github.com/matteoferla/molecular_rectifier) is a class that corrects mistakes in the molecule automatically merged by ``Monster``.
+* ``Params`` from [rdkit to params module](https://github.com/matteoferla/rdkit_to_params) parameterises the ligands
+
+### Combine
+It can also merge and link fragment hits by itself and find the best scoring mergers.
+For details about linking see [linking notes](documentation/linking.md)
+It uses the same overlapping position clustering, but also has a decent amount of impossible/uncommon chemistry prevention.
+
+Monster:
+ 
+    from fragmenstein import Monster
+    monster = Monster(hits=[hits_a, hit_b])
+    monster.combine()
+    monster.positioned_mol # RDKit.Chem.Mol
+    
+Victor:
+
+    from fragmenstein import Monster
+    victor = Victor(hits=[hits_a, hit_b], 
+                    pdb_filename='foo.pdb',
+                    covalent_resi=1) # if not covalent, just put the first residue or something.
+    victor.combine()
+    victor.minimised_mol
+    
+The two seem similar, but Victor places with Monster and minimises with Igor.
+As a result it has energy scores
+
+    victor.ddG
+    
+Fragmenstein is not really a docking algorithm as it does not find the pose with the **lowest energy** 
+within a given volume.
+Consequently, it is a method to find how **faithful** is a given followup to the hits provided.
+Hence the minimised pose should be assessed by the RMSD metric or similar
+and the ∆∆G score used solely as a cutoff —lower than zero.    
+
+## Place
+Here is [an interactive example of placed molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
 It is rather tolerant to erroneous/excessive submissions (by automatically excluding them)
 and can energy minimise strained conformations.
@@ -21,37 +79,45 @@ For example, note here that the benzene and the pyridine rings overlap, not the 
 
 <img src="images/position_over_mcs.jpg" width="300px">
 
-### Side role: follow prediction
-It can also merge fragment hits by itself and find the best scoring mergers.
-It uses the same overlapping position clustering, but also has a decent amount of impossible/uncommon chemistry prevention.
+### Examples
 
-## Not-docking
-As a consequence, it is not really a docking algorithm as it does not find the pose with the lowest energy 
-within a given volume. Consequently, it is a method to find how faithful is a given followup to the hits provided.
-Hence the minimised pose should be assessed by the RMSD metric and the ∆∆G score used solely as a cutoff —lower than zero.
+Monster:
+ 
+    from fragmenstein import Monster
+    monster = Monster(hits=[hits_a, hit_b])
+    monster.place_smiles('CCO')
+    monster.positioned_mol
+    
+Victor:
 
-## Dramatis personae
+    from fragmenstein import Monster
+    victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
+    victor.place('CCO')
+    victor.minimised_mol
 
-> Victor, the pipeline, requires my [rdkit to params module](https://github.com/matteoferla/rdkit_to_params).
+## Other features
 
-There are three main classes, named after characters from the Fragmenstein book and movies:
+* [Covalent hits](documentation/covalents.md)
+* [Logging](documentation/logging_and_debugging.md)
 
-* ``Fragmenstein`` makes the stitched together molecules — [documentation](documentation/fragmenstein.md)
-* ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup — [documentation](documentation/igor.md)
-* ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
+## Installation
 
-An honourable mention goes to:
+Requires RDKit
 
-* ``mRMSD`` is a multiple RMSD variant which does not align and bases which atoms to use on coordinates —[documentation](documentation/mrmsd.md)
-* ``rectifier`` is a class that corrects mistakes in the molecule automatically merged by ``Fragmenstein``.
+    sudo apt-get install python3-rdkit librdkit1 rdkit-data
 
-In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work.
+Requires Pyrosetta
+    
+    curl -u 👾👾👾:👾👾👾https://graylab.jhu.edu/download/PyRosetta4/archive/release/PyRosetta4.Release.python38.linux/PyRosetta4.Release.python38.linux.release-273.tar.bz2 -o a.tar.bz2
+    tar -xf a.tar.bz2
+    cd PyRosetta4.Release.python38.linux
+    sudo pip3 install .
 
-## Work in progress
+Install from pipy
 
-Some changes to the algorithm may happen, see [wip.md](documentation/wip.md) for more or drop me (matteo) an email.
+    sudo pip3 install fragmenstein
 
-## Laboratory
+## Origin
 
 > See [Fragmenstein and COVID moonshot](documentation/covid.md).
 
@@ -64,4 +130,10 @@ are not encountered in other projects.
 ## Autogenerated documentations
 
 For more see the source code or the [Sphinx converted documentation](documentation/sphinx-docs.md).
+
+## Changes
+
+Some changes to the algorithm may happen, 
+see [changelog](documentation/changelog_0.6.md) and [wip.md](documentation/wip.md) for more.
+
 

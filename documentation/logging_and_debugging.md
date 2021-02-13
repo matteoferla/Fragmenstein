@@ -38,3 +38,8 @@ at each step:
         for i, mod in enumerate(victor.modifications):
             pymol.cmd.read_molstr(Chem.MolToMolBlock(mod, kekulize=False), f'step{i}')
         pymol.cmd.save('test.pse')
+
+The `Monster` class can trip up, and this can happen at various steps.
+`victor.modifications` contains a stack of the various step, such as the collapsed rings to the rectification.
+
+

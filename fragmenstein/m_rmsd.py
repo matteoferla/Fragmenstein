@@ -109,7 +109,7 @@ class mRSMD:
     @classmethod
     def from_annotated_mols(cls,
                   annotated_followup: Chem.Mol,
-                  hits: Sequence[Chem.Mol]
+                  hits: Optional[Sequence[Chem.Mol]]=None
                   ) -> mRSMD:
         """
         Monster leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
@@ -119,6 +119,32 @@ class mRSMD:
         :param hits:
         :return:
         """
+        if cls.is_xyz_annotated(annotated_followup):
+            return cls.from_internal_xyz(annotated_followup)
+        mappings = cls._mapping_from_annotated_and_hits(annotated_followup, hits)
+        return cls(annotated_followup, hits, mappings)
+
+    @classmethod
+    def is_origin_annotated(cls, mol: Chem.Mol) -> bool:
+        for atom in mol.GetAtoms():
+            if len(cls._get_origin(atom)) > 0:
+                return True
+        else:
+            return False
+
+    @classmethod
+    def is_xyz_annotated(cls, mol: Chem.Mol) -> bool:
+        for atom in mol.GetAtoms():
+            if len(cls._get_xyz(atom)) > 0:
+                return True
+        else:
+            return False
+
+    @classmethod
+    def _mapping_from_annotated_and_hits(cls,
+                                         annotated_followup: Chem.Mol,
+                                         hits: Sequence[Chem.Mol]):
+        assert cls.is_origin_annotated(annotated_followup), 'This molecules is not annotated.'
         mappings = []
         for h, hit in enumerate(hits):
             hname = hit.GetProp('_Name')
@@ -129,12 +155,12 @@ class mRSMD:
                 for i in range(annotated_followup.GetNumAtoms()):
                     atom = annotated_followup.GetAtomWithIdx(i)
                     for oel in cls._get_origin(atom):
-                        rex = re.match(hname+'\.(\d+)', oel)
+                        rex = re.match(hname + '\.(\d+)', oel)
                         if rex is not None:
                             h = int(rex.group(1))
                             mapping.append((i, h))
             mappings.append(mapping)
-        return cls(annotated_followup, hits, mappings)
+        return mappings
 
     @classmethod
     def from_other_annotated_mols(cls,
@@ -234,6 +260,9 @@ class mRSMD:
                         tatom = option.GetAtomWithIdx(i)
                         o = cls._get_origin(atom)
                         tatom.SetProp('_Origin', json.dumps(o))
+                        xyz = cls._get_xyz(atom)
+                        if xyz:
+                            cls._set_xyz(tatom, xyz)
                 options.append(option)
                 originss.append(origins)
         return options, originss
@@ -265,5 +294,48 @@ class mRSMD:
                 return []
         else:
             return []
+
+    @classmethod
+    def _get_xyz(cls, atom: Chem.Atom) -> Tuple[float]:
+        if atom.HasProp('_x'):
+            return (atom.GetDoubleProp('_x'),
+                    atom.GetDoubleProp('_y'),
+                    atom.GetDoubleProp('_z'))
+        else:
+            return ()
+
+    @classmethod
+    def _set_xyz(cls, atom: Chem.Atom, xyz):
+        if len(xyz):
+            atom.SetDoubleProp('_x', xyz[0]),
+            atom.SetDoubleProp('_y', xyz[1]),
+            atom.SetDoubleProp('_z', xyz[2])
+
+    @classmethod
+    def from_internal_xyz(cls, annotated_followup):
+        """
+        This is an alternative for when the atoms have _x, _y, _z
+        
+        :param annotated_followup:
+        :return:
+        """
+        self = cls.__new__(cls)
+        self.followup = annotated_followup
+        self.hits = []
+        self.mappings = []
+        self.rmsds = []
+        self.mrmsd = float('nan')
+        conf = annotated_followup.GetConformer()
+        n = 0
+        tatoms = 0
+        for a, atom in enumerate(annotated_followup.GetAtoms()):
+            if atom.HasProp('_x'):
+                x, y, z = cls._get_xyz(atom)
+                tatoms += 1
+                n += sum([(conf.GetAtomPosition(a).x - x) ** 2 +
+                            (conf.GetAtomPosition(a).y - y) ** 2 +
+                            (conf.GetAtomPosition(a).z - z) ** 2])
+        self.mrmsd = (n / tatoms) ** 0.5
+        return self
 
 

@@ -1,12 +1,20 @@
+########################################################################################################################
+__doc__ = \
+    """
+This is inherited by both place and combine via _MonsterMerge
+    """
+
+########################################################################################################################
+
 from rdkit import Chem
 from rdkit.Geometry.rdGeometry import Point3D
 from typing import Tuple, List, Dict, Optional, Union
 import numpy as np
 from warnings import warn
 from .bond_provenance import BondProvenance
-from ._base import _MonsterBaseMixin
+from ._communal import _MonsterCommunal
 
-class _MonsterJoinNeighMixin(_MonsterBaseMixin):
+class _MonsterJoinNeigh(_MonsterCommunal):
     def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
         """
         Joins two molecules by first calling _find_closest to find closest.
@@ -18,13 +26,11 @@ class _MonsterJoinNeighMixin(_MonsterBaseMixin):
         :return:
         """
         # get closets atoms
-        combo, candidates = self._find_all_closest(mol_A, mol_B)
+        combo, candidates = self._find_all_closest(mol_A, mol_B)  # _find_all_closest is in communal
         anchor_A, anchor_B, distance = candidates[0]
         mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=True)
         for anchor_A, anchor_B, distance in candidates[1:]:
             mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=False)
-
-
         mol.SetProp('_Name', mol_A.GetProp('_Name') + '~' + mol_B.GetProp('_Name'))
         return mol
 
@@ -46,7 +52,7 @@ class _MonsterJoinNeighMixin(_MonsterBaseMixin):
         ys = np.linspace(pos_A.y, pos_B.y, n_new + 2)[1:-1]
         zs = np.linspace(pos_A.z, pos_B.z, n_new + 2)[1:-1]
 
-        # correct for ring marker atoms
+        # correcting for ring marker atoms
         def is_ring_atom(anchor: int) -> bool:
             atom = combo.GetAtomWithIdx(anchor)
             if atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
@@ -70,7 +76,8 @@ class _MonsterJoinNeighMixin(_MonsterBaseMixin):
 
         # notify that things could be leary.
         if distance < 0:
-            self.journal.debug(f'Two ring atoms detected to be close. Joining for now. They will be bonded/fused/spiro afterwards')
+            self.journal.debug(f'Two ring atoms detected to be close. Joining for now.'+
+                               ' They will be bonded/fused/spiro afterwards')
         # check if valid.
         if distance > self.joining_cutoff:
             msg = f'Atoms {anchor_A}+{anchor_B} are {distance} Å away. Cutoff is {self.joining_cutoff}.'

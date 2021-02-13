@@ -2,7 +2,7 @@
 
 class LoggerWriter:
     """
-    Write stderr to logger. See log_errors method of Victor
+    Write stderr to logger. See capture_rdkit_log method of Victor
     """
     def __init__(self, writer):
         self._writer = writer

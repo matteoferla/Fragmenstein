@@ -5,13 +5,6 @@ __doc__ = \
 This is a variant of Victor for MPro that uses data from PostEra
     """
 
-__author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
-__email__ = "matteo.ferla@gmail.com"
-__date__ = "2020 A.D."
-__license__ = "MIT"
-__version__ = "0.4"
-__citation__ = ""
-
 ########################################################################################################################
 
 
@@ -26,7 +19,7 @@ import io
 import requests
 
 
-def pose_fx(pose):
+def pose_fx(pose: pyrosetta.Pose):
     """
     Histidine in delta.
     """
@@ -36,7 +29,7 @@ def pose_fx(pose):
     MutateResidue(target=r, new_res='HIS').apply(pose)
 
 
-def poised_pose_fx(pose):
+def poised_pose_fx(pose: pyrosetta.Pose):
     """
     Histidine in delta and cysteine in thiolate.
     """
@@ -48,7 +41,6 @@ def poised_pose_fx(pose):
     MutateResidue(target=r, new_res='CYZ').apply(pose)
 
 class MProVictor(Victor):
-    monster_merging_mode = 'none_permissive'
     constraint_function_type = 'FLAT_HARMONIC'
 
     @classmethod
@@ -68,9 +60,9 @@ class MProVictor(Victor):
         return mol
 
     @classmethod
-    def from_hit_codes(cls, smiles: str, hit_codes:List[str], long_name:str, category:Optional[str]=None):
+    def from_hit_codes(cls, hit_codes: List[str], **options):
         hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
-        return cls(smiles=smiles, hits=hits, long_name=long_name, category=category)
+        return cls(hits=hits, **options)
 
     @classmethod
     def from_postera_row(cls, row: pd.Series, results:Optional=None):
@@ -83,75 +75,61 @@ class MProVictor(Victor):
             return None
         elif row.covalent_warhead in (False, 'False', 'false'):
             # parse
-            return cls.from_hit_codes(long_name=row.CID,
-                                      hit_codes=row.fragments.split(','),
-                                      smiles=row.SMILES,
-                                      category='noncolavent')
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
         elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
             cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
-            return cls.from_hit_codes(long_name=row.CID,
-                                      hit_codes=row.fragments.split(','),
-                                      smiles=row.SMILES,
-                                      category='noncolavent')
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
         else:
-            return cls.from_hit_codes(long_name=row.CID,
-                                      hit_codes=row.fragments.split(','),
-                                      smiles=cls.make_covalent(row.SMILES),
-                                      category=row.category)
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category=row.category)\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
 
-    def __init__(self, smiles: str, hits:List[Chem.Mol], long_name:str, category:Optional[str]=None):
-        mpro_folder = self.get_mpro_path()
-        apo = os.path.join(mpro_folder, 'template.pdb')
-        atomnames = {}
+    def __init__(self, category:Optional[str]=None, **options):
+        # this category flag is solely for Mpro?
+        # it stems from the Moonshot file.
+        self.category = category
         if category == 'noncolavent':
             fx = poised_pose_fx
         else:
             fx = pose_fx
-        extra_constraint = 'AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n'
-        if category not in (None, 'noncovalent') and '_' in category:
-            cname, rxd = category.split('_')
+        # --------------------
+        defaults = dict(
+            pdb_filename=os.path.join(self.get_mpro_path(), 'template.pdb'),
+            ligand_resn='LIG',
+            ligand_resi='1B',
+            covalent_resn='CYS', covalent_resi='145A',
+            extra_protein_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
+            pose_fx=fx  # from the above.
+        )
+        super().__init__(**{**defaults, **options})
+
+    def _determine_extras(self, smiles):
+        defaults = dict()
+        if self.category not in (None, 'noncovalent') and '_' in self.category:
+            cname, rxd = self.category.split('_')
             if rxd == 'noncovalent':
                 wd = [wd for wd in self.warhead_definitions if wd['name'] == cname][0]
                 mol = Chem.MolFromSmiles(smiles)
                 nc = Chem.MolFromSmiles(wd['noncovalent'])
                 atomnames = dict(zip(mol.GetSubstructMatch(nc), wd['noncovalent_atomnames']))
-                fx = poised_pose_fx
-                extra_constraint += 'AtomPair  SG  145A  CX   1B HARMONIC 3.2 0.5\n'
+                extra_constraint = 'AtomPair  SG  145A  CX   1B HARMONIC 3.2 0.5\n'
                 extra_constraint += wd['constraint']
+                defaults = dict(atomnames=atomnames,
+                                extra_ligand_constraint=extra_constraint)
+        return defaults
 
-        super().__init__(smiles=smiles,
-                         hits=hits,
-                         pdb_filename=apo,
-                         long_name=long_name,
-                         ligand_resn='LIG',
-                         ligand_resi='1B',
-                         covalent_resn='CYS', covalent_resi='145A',
-                         extra_constraint=extra_constraint,
-                         pose_fx=fx,
-                         atomnames=atomnames)
+    #self.combine(**options) unchanged.
 
-    @classmethod
-    def combine_codes(cls, hit_codes: List[str], warhead_harmonisation='first'):
-        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
-        return cls.combine(hits=hits, warhead_harmonisation=warhead_harmonisation)
-
-
-    @classmethod
-    def combine(cls, hits:List[Chem.Mol], warhead_harmonisation='first'):
-        mpro_folder = cls.get_mpro_path()
-        apo = os.path.join(mpro_folder, 'template.pdb')
-        atomnames = {}
-        fx = pose_fx
-        extra_constraint = 'AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n'
-        return super().combine(hits=hits,
-                         pdb_filename=apo,
-                         ligand_resn='LIG',
-                         ligand_resi='1B',
-                         covalent_resn='CYS', covalent_resi='145A',
-                         extra_constraint=extra_constraint,
-                         pose_fx=fx,
-                         atomnames=atomnames,
-                         warhead_harmonisation=warhead_harmonisation)
+    def place(self, **options):
+        defaults = self._determine_extras(options['smiles'])
+        return super().place(**{**defaults, **options})
 
     # ======= postera csv file ops =====================================================================================
 
@@ -162,14 +140,23 @@ class MProVictor(Victor):
         For a local version, just ``postera = pd.read_csv(file)`` and ``MProVictor.add_category(postera)``.
         :return:
         """
-        url = "https://raw.githubusercontent.com/postera-ai/COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
+        url = "https://raw.githubusercontent.com/postera-ai/" + \
+              "COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
         s = requests.get(url).content
         postera = pd.read_csv(io.StringIO(s.decode('utf-8')))
         cls.add_category(postera)
         return postera
 
     @classmethod
-    def add_category(cls, postera):
+    def add_category(cls, postera: pd.DataFrame) -> None:
+        """
+        Postera table has categories as True/False. But it is unlikely that there are multiple.
+        Turns out these categories are **not** user submitted.
+        However, for consistency with other analysis by other people these are used.
+
+        :param postera: pandas table modified in place
+        :return:
+        """
         def get_category(row):
             for category in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
                 if row[category] in ('True', 'true', True):
