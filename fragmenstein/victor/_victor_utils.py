@@ -487,8 +487,6 @@ class _VictorUtils(_VictorCommon):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
             self.is_covalent = True if '*' in self.smiles else False
-            self.monster = Monster(hits=self.hits,
-                                   average_position=self.monster_average_position)
             self.monster.place(mol=self.mol,
                                attachment=None,
                                merging_mode='off')

@@ -39,7 +39,7 @@ def process(data: Dict[str, Union[str, dict]]):
         v = MProVictor.combine(hits=hits)
         results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)
         results[v.long_name] = v.summarise()
-        if not v.error:
+        if not v.error_msg:
             v.make_pse()
         print('DONE', [hit.GetProp('_Name') for hit in hits])
         return v.minimised_mol

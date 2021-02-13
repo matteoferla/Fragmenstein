@@ -1,6 +1,7 @@
 Here is an example of a pipeline to iterate across all the compounds in a list, merge them, score then and upload them.
 For MPro, see the MPro.
 
+
 ## Prerequisite
 
 ### Template
@@ -117,10 +118,10 @@ definite the process task
                 return mol
             
             frags = [loadmol(file) for file in x]
-            v = Victor.combine(hits=frags,
-                               pdb_filename='input/template.pdb',
-                               covalent_resi='81A', # a random residue is still required for the constaint ref atom.
-                               covalent_resn='CYS')
+            v = Victor(pdb_filename='input/template.pdb',
+                        covalent_resi='81A', # a random residue is still required for the constaint ref atom.
+                        covalent_resn='CYS')
+            v.combine(hits=frags)
             results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)
             results[v.long_name] = v.summarise()
             if not v.error:

@@ -9,12 +9,18 @@ class _VictorPlace(_VictorCommon):
               smiles: str,
               long_name: str = 'ligand',
               merging_mode='none_permissive',
-              atomnames: Optional[Dict[int, str]] = None):
+              atomnames: Optional[Dict[int, str]] = None,
+              extra_ligand_constraint: Union[str] = None):
         """
-        :param smiles:
-        :param long_name: gets used for filenames so will get slugified
+        Places a followup (smiles) into the protein based upon the hits.
+        Do note that while Monster's place accepts a mol, while place_smiles a smiles
+        Victor's place accepts only smiles.
+
+        :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
+        :param long_name: gets used for filenames so will get corrected
         :param merging_mode:
-        :param atomnames:
+        :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
+        :param extra_ligand_constraint:
         :return:
         """
         # ## Store
@@ -22,6 +28,7 @@ class _VictorPlace(_VictorCommon):
         self.smiles = smiles
         self.atomnames = atomnames
         self.merging_mode = merging_mode
+        self.add_extra_constraint(extra_ligand_constraint)
         # ## Analyse
         self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
         return self
@@ -55,8 +62,6 @@ class _VictorPlace(_VictorCommon):
         # make monster
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
         # monster_throw_on_discard controls if disconnected.
-        self.monster = Monster(hits=self.hits,
-                               average_position=self.monster_average_position)
         self.monster.place(mol=self.mol,
                            attachment=attachment,
                            merging_mode=self.merging_mode)
@@ -89,7 +94,8 @@ class _VictorPlace(_VictorCommon):
             ddG = self.quick_reanimate()
         else:
             ddG = self.reanimate()
-        self._store_after_reanimation(ddG)
+        self.ddG = ddG
+        self._store_after_reanimation()
 
     def _assert_placement_inputs(self):
         if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):

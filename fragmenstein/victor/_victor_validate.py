@@ -1,13 +1,8 @@
-from ._victor_base import _VictorBase
-from ..monster import Monster
-from ..igor import Igor
-from ..m_rmsd import mRSMD
-from molecular_rectifier import Rectifier
-from typing import List, Optional, Dict, Union, Callable
 from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit_to_params import Params, Constraints
-import time, warnings, os
+
+from ._victor_base import _VictorBase
+from ..m_rmsd import mRSMD
+
 
 class _VictorValidate(_VictorBase):
 

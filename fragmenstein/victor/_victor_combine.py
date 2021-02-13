@@ -16,42 +16,38 @@ import time, warnings
 
 
 class _VictorCombine(_VictorCommon):
-    """
-            Combines the hits without a template.
-            If the class attribute ``monster_throw_on_discard`` is True, it will raise an exception if it cannot.
-
-            The cutoff distance is controlled by class attribute ``monster_joining_cutoff``.
-            At present this just adds a hydrocarbon chain, no fancy checking for planarity.
-
-            The hits are collapsed, merged, expanded and bonded by proximity.
-            In ``(self.monster.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
-
-            ``warhead_harmonisation`` fixes the warhead in the hits to be homogeneous.
-
-            * ``keep``. Don't do anything
-            * ``none``. strip warheads
-            * ``first``. Use first warhead
-            * warhead name. Use this warhead.
-
-            :param hits:
-            :param pdb_filename:
-            :param ligand_resn:
-            :param ligand_resi:
-            :param covalent_resn:
-            :param covalent_resi:
-            :param extra_constraint:
-            :param pose_fx:
-            :param atomnames:
-            :param warhead_harmonisation: keep | strip | first | chloracetimide | nitrile ...
-            :return:
-            """
 
     def combine(self,
                 long_name: Optional[str] = None,
                 atomnames: Optional[Dict[int, str]] = None,
                 warhead_harmonisation: str = 'first',
                 joining_cutoff=5.,  # Å
+                extra_ligand_constraint: Union[str] = None
                 ):
+        """
+         Combines the hits without a template.
+        If the class attribute ``monster_throw_on_discard`` is True, it will raise an exception if it cannot.
+
+        The cutoff distance is controlled by class attribute ``monster_joining_cutoff``.
+        At present this just adds a hydrocarbon chain, no fancy checking for planarity.
+
+        The hits are collapsed, merged, expanded and bonded by proximity.
+        In ``(self.monster.expand_ring(..., bonded_as_original=False)`` changing to True, might work, but most likely won't.
+
+        ``warhead_harmonisation`` fixes the warhead in the hits to be homogeneous.
+
+            * ``keep``. Don't do anything
+            * ``none``. strip warheads
+            * ``first``. Use first warhead
+            * warhead name. Use this warhead.
+
+        :param long_name:
+        :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
+        :param warhead_harmonisation: keep | strip | first | chloracetimide | nitrile ...
+        :param joining_cutoff:
+        :param extra_ligand_constraint:
+        :return:
+        """
         self.joining_cutoff = joining_cutoff
         self.atomnames = atomnames
         self.warhead_harmonisation = warhead_harmonisation
@@ -59,6 +55,7 @@ class _VictorCombine(_VictorCommon):
             self.long_name = '-'.join([h.GetProp('_Name') for h in self.hits])
         else:
             self.long_name = self.slugify(long_name)
+        self.add_extra_constraint(extra_ligand_constraint)
         # ## Analyse
         self._safely_do(execute=self._calculate_combination, resolve=self._resolve, reject=self._reject)
         return self
@@ -87,9 +84,7 @@ class _VictorCombine(_VictorCommon):
 
     def _calculate_combination(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self.monster = Monster(hits=self.hits,
-                               average_position=self.monster_average_position
-                               )
+        # TODO Does combine not need attachment??
         self.monster.modifications = self.modifications
         self.monster.combine(keep_all=self.monster_throw_on_discard,
                              collapse_rings=True,

@@ -76,6 +76,14 @@ class _VictorCommon(_VictorIgor):
             cons.custom_constraint = war_def['constraint']
         return cons
 
+    def add_extra_constraint(self, new_constraint:Union[str]=None):
+        if new_constraint is None:
+            return # do nothing
+        new_constraint = new_constraint.strip()
+        if self.extra_constraint is None:
+            self.extra_constraint = new_constraint
+        self.extra_constraint = self.extra_constraint.strip() + '\n' + new_constraint.strip()
+
     def make_coordinate_constraints(self,
                                     mol: Optional[Chem.Mol] = None,
                                     origins: Optional[List[List[str]]] = None,

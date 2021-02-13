@@ -99,23 +99,21 @@ class _VictorBase:
                  ligand_resi: Union[int, str] = '1B',
                  covalent_resn: str = 'CYS',  # no other option is accepted.
                  covalent_resi: Optional[Union[int, str]] = None,
-                 extra_constraint: Union[str] = None,
+                 extra_protein_constraint: Union[str] = None,
                  pose_fx: Optional[Callable] = None,
                  ):
         """
         Initialise Victor in order to allow either combinations (merging/linking without a given aimed for molecule)
         or placements (using a given aimed for molecule).
 
-        :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
         :param hits: list of rdkit molecules
         :param pdb_filename: file of apo structure
         :param ligand_resn: 3 letter code or your choice
         :param ligand_resi: Rosetta-style pose(int) or pdb(str)
         :param covalent_resn: only CYS accepted. if smiles has no * it is ignored
         :param covalent_resi: Rosetta-style pose(int) or pdb(str)
-        :param extra_constraint: multiline string of constraints..
+        :param extra_protein_constraint: multiline string of constraints relevant to the protein
         :param pose_fx: a function to call with pose to tweak or change something before minimising.
-        :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
         """
         # ## Store
         # entry attributes
@@ -126,13 +124,13 @@ class _VictorBase:
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
-        self.extra_constraint = extra_constraint
+        self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
-        # ## Fill by place or combine
+        # ## Fill by place and combine differently
         self.long_name = 'ligand'
+        self.smiles = None
         # ## Filled by place
         self.merging_mode = "none_permissive"
-        self.smiles = None
         # ## Filled by combine
         self.joining_cutoff = None
         # ## Calculated
@@ -142,7 +140,8 @@ class _VictorBase:
         self.constraint = None
         self.modifications = {}
         self.unminimised_pdbblock = None
-        self.monster = Monster(hits, average_position=self.monster_average_position)
+        self.monster = Monster(hits,
+                               average_position=self.monster_average_position)
         self.igor = None
         self.unbound_pose = None
         self.minimised_pdbblock = None
@@ -153,6 +152,7 @@ class _VictorBase:
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                              'unbound_ref2015': {'total_score': float('nan')}}
         self.mrmsd = mRSMD.mock()
+        self.ddG = float('nan')
         # for debug purposes
         self.tick = time.time()
         self.tock = float('inf')

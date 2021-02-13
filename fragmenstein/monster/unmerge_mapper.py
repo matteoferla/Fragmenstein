@@ -416,6 +416,7 @@ class Unmerge(GPM):
     def offness(self, mol: Chem.Mol, mapping: Dict[int, int]) -> float:
         """
         How many bonds are too long?
+
         :param mol:
         :param mapping:
         :return:

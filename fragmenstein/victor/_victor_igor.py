@@ -61,18 +61,19 @@ class _VictorIgor(_VictorStore):
                 break
             elif self.igor.coordinate_constraint < 0.005:
                 self.igor.coordinate_constraint = 0.
+        self.ddG = ddG
         return ddG
 
     def reanimate_n_store(self):
-        ddG = self.reanimate()
-        self._store_after_reanimation(ddG)
+        self.reanimate()
+        self._store_after_reanimation()
 
-    def _store_after_reanimation(self, ddG: float):
+    def _store_after_reanimation(self):
         self.minimised_pdbblock = self.igor.pose2str()
         self.post_igor_step()  # empty overridable
         self.minimised_mol = self._fix_minimised()
         self.mrmsd = self._calculate_rmsd()
-        self.journal.info(f'{self.long_name} - final score: {ddG} kcal/mol {self.mrmsd.mrmsd}.')
+        self.journal.info(f'{self.long_name} - final score: {self.ddG} kcal/mol, RMSD: {self.mrmsd.mrmsd}.')
         self._checkpoint_charlie()
         self.journal.debug(f'{self.long_name} - Completed')
 
