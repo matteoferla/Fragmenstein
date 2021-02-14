@@ -84,6 +84,7 @@ class _VictorCombine(_VictorCommon):
 
     def _calculate_combination(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
+        self._harmonise_warhead_combine()
         # TODO Does combine not need attachment??
         self.monster.modifications = self.modifications
         self.monster.combine(keep_all=self.monster_throw_on_discard,
