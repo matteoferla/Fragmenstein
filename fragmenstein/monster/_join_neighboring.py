@@ -30,8 +30,8 @@ class _MonsterJoinNeighMixin(_MonsterBaseMixin):
             print(atom.GetPropsAsDict())
 
         conf = mol.GetConformer()
-        print( conf.GetPositions())
-        input( "join_neighboring_mols reached: "+Chem.MolToSmiles(mol))
+        # print( conf.GetPositions())
+        # input( "join_neighboring_mols reached: "+Chem.MolToSmiles(mol))
         mol.SetProp('_Name', mol_A.GetProp('_Name') + '~' + mol_B.GetProp('_Name'))
         return mol
 

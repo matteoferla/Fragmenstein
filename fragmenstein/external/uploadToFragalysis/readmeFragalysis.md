@@ -1,9 +1,4 @@
-https://fragalysis.apps.xchem.diamond.ac.uk/viewer/upload_cset/ 
+Upload page <br>
 
-Input example <br>
-https://github.com/xchem/fragalysis-backend/tree/master/tests/test_data 
-
-https://github.com/xchem/fragalysis-api/blob/master/fragalysis_api/xcextracter/computed_set_update.py 
-
-
-https://fragalysis.apps.xchem.diamond.ac.uk/viewer/react/landing
+https://fragalysis.xchem.diamond.ac.uk/viewer/upload_cset/ 
+alysis-backend/blob/master/tests/test_data/compund-set_AlessandroContini-NwatMM-GBSAcovalentrun1.sdf

@@ -12,8 +12,8 @@ from rdkit.Chem import Crippen
 
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.mpro import MProVictor
-from fragmenstein.scoring.inhibitionPred.retrieveExamples import retrieve_Mpro_structure_compounds, LABEL_FEATURE
-from fragmenstein.scoring.scoring_config import MPRO_RAW_DATA_DIR, FEATURES_DIR, FRAGMENSTEIN_OUT_DIR
+from fragmenstein.scoring.scoreOnIC50.retrieveExamples import retrieve_Mpro_structure_compounds, LABEL_FEATURE
+from fragmenstein.scoring.scoreOnIC50.config import MPRO_RAW_DATA_DIR, FEATURES_DIR, FRAGMENSTEIN_OUT_DIR
 
 FRAGMENSTEIN_FEATURES= ['∆∆G', '∆G_bound', '∆G_unbound', 'comRMSD']
 MOLECULE_FEATURES= ['Synthetic_accessibility', 'WC_LogP' ]

@@ -227,7 +227,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--molecules_file', type=str, required= True, help='The sdf file where your annotated '
                                                                                  'molcules to upload are')
     parser.add_argument('-a', '--pdbs_zip', type=str, required=False, default=None,
-                        help='The name of a zip file containing pdbs that are refered in the sdf file as ref_pdb')
+                        help='The name of a zip file containing pdbs that are refered in the sdf file as ref_pdb_xchemId')
 
     parser.add_argument('-p', '--upload_to_production', type=str, required=False,
                         help='Upload to production server')

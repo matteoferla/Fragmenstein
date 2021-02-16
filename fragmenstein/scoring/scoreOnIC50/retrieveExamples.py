@@ -2,7 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 
-from fragmenstein.scoring.scoring_config import MPRO_RAW_DATA_DIR, RAW_SUBMISSIONS_TABLE_PATH, RAW_SUBMISSIONS_TABLE_URL
+from fragmenstein.scoring.scoreOnIC50.config import MPRO_RAW_DATA_DIR, RAW_SUBMISSIONS_TABLE_URL, \
+    RAW_SUBMISSIONS_TABLE_PATH
 
 INTERESTING_FEATURES=["MW", "cLogP", "HBD", "HBA", "TPSA", "relative_solubility_at_20_uM", "relative_solubility_at_100_uM", "trypsin_IC50", "NMR_std_ratio"]
 INHIBITION_FEATURES=["r_inhibition_at_20_uM", "r_inhibition_at_50_uM", "r_avg_IC50",

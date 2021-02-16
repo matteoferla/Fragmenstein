@@ -44,7 +44,7 @@ def RoughConstrainedEmbed(mol, core_with_exit, tdist=0.25, randomseed=2342,
     is constrained to have particular coordinates
     Arguments
     :param mol: the molecule to embed
-    :param core: the molecule to use as a source of constraints
+    :param core_with_exit: the molecule to use as a source of constraints. It must contain the exit vectors
     :param tdsit. Max distance constrain between mol and core_with_exit atoms
     :param randomSeed: (optional) seed for the random number generator
     """

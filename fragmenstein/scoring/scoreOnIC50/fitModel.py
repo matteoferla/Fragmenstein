@@ -16,7 +16,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.utils import parallel_backend
 from sklearn.metrics import roc_auc_score
 
-from fragmenstein.scoring.scoring_config import FEATURES_DIR
+from fragmenstein.scoring.scoreOnIC50.config import FEATURES_DIR
 from matplotlib import pyplot as plt
 
 # https://gist.github.com/fabianp/2020955

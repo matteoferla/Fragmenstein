@@ -2,29 +2,37 @@ import os
 from collections import defaultdict
 
 import sys
+from typing import Dict, List
 
 from fragmenstein.external import ExternalToolImporter
 
-[plip_preparation] =  ExternalToolImporter.import_tool("plip",
-                                       ["plip.structure.preparation"])
+
 
 class PlipWrapper():
-
+    '''
+    A wrapper class to use plip in a transparent manner. PLIP is a python package that analyzes molecular interactions in pdb files
+    '''
     AVALIABLE_INTERACTIONS = ['saltbridge_lneg', 'saltbridge_pneg','hbonds_ldon', 'hbonds_pdon', 'pistacking','pication_paro', 'pication_laro',
                               'hydrophobic_contacts', 'halogen_bonds', 'water_bridges', 'metal_complexes']
     AVAILABLE_UNPAIRED = ['unpaired_hba', 'unpaired_hbd', 'unpaired_hal']
 
+    #importing plip as a class attribute to avoid loading it when importing
+    [plip_preparation] = ExternalToolImporter.import_tool("plip",
+                                                          ["plip.structure.preparation"])
     def __init__(self, ligand_resname: str="LIG"):
         '''
-        :param ligand_resname: str. The residue name of the ligand.
+        :param ligand_resname: str. The residue name of the ligand in bound pdbs
         '''
         self.ligand_resname = ligand_resname
 
-    def compute_interactions_boundPDB(self, fname):
+    def compute_interactions_boundPDB(self, fname:str) -> Dict[str, List[str]]:
         '''
-        :param fname: str. a filename
+        computes the interactions between the protein and the ligand
+        :param fname: str. a pdb filename
+        :return a dictionary that containes, for each type interaction, the protein residue ids that interact with the ligand
+                e.g. [('hbonds_pdon', ['166_A_GLU', '142_A_ASN', '143_A_GLY']), ('hydrophobic_contacts', ['166_A_GLU', '187_A_ASP', '189_A_GLN'])]
         '''
-        my_mol = plip_preparation.PDBComplex()
+        my_mol = PlipWrapper.plip_preparation.PDBComplex()
         my_mol.load_pdb( fname)
         my_mol.analyze()
 
@@ -34,7 +42,7 @@ class PlipWrapper():
             for inter_type in PlipWrapper.AVALIABLE_INTERACTIONS:
                 interaction_instances = getattr(inters_list, inter_type)
                 for inter in interaction_instances:
-                    binding_id = "%s_%s_%s"%(inter.resnr, inter.restype,  inter.reschain)
+                    binding_id = "%s_%s_%s"%(inter.resnr, inter.reschain, inter.restype)
                     interactions_dict[ inter_type ].append( binding_id )
         return interactions_dict
 
