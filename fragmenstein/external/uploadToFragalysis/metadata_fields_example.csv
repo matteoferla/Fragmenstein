@@ -1,0 +1,12 @@
+############## Metadata fields file Example ###########
+field,value
+"submitter_name","Ruben Sanchez Garcia"
+"submitter_email","ruben.sanchez-garcia@stats.ox.ac.uk"
+"submitter_institution","University of Oxford"
+"generation_date","2021-02-11"
+"method","Fragmenstein"
+"ref_url","https://github.com/matteoferla/Fragmenstein"
+"original SMILES","The SMILES of the compound"
+"ref_pdb","A pdb inlcuded in fragalysis or uploaded. E.g. x0830_0"
+"ref_mols","The inspirational fragments usded to propose the compound"
+#######################################################
