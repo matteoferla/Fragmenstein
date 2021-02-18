@@ -1,3 +1,7 @@
+#TODO:
+
+#IDEA: use MMFFOptimizeMoleculeConfs with maxIters to get an idea of the protein energy
+
 >>> m = Chem.MolFromSmiles('C1CCC1OC')
 >>> m2=Chem.AddHs(m)
 >>> cids = AllChem.EmbedMultipleConfs(m2, numConfs=10)

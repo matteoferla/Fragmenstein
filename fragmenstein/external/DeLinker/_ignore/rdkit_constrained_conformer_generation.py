@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+'''
+from .rdkit_constrained_conformer_generation import gen_confs_constrained
+
+This is an example of how to use it within DeLinkerWrapper._link_molecule_pairs_given_atom_idxs
+
+        # args = dict(smiles_full_mols=[new_gen_mols_smi], sdffile=None, reference_confs=[mol_to_link], maxconfs=5,
+        #             rms_threshold=0.35, energy=10,
+        #             tdist=0.75, smi_frags=[frag_mols], numcores=self.n_cores, jpsettings=False, verbose=True)
+        # mols_with_conf = gen_confs_constrained(**args)
+        #
+        # print( mols_with_conf[0], type(mols_with_conf[0]) )
+
+
+'''
 import sys
 import traceback
 from typing import List, Union, Dict

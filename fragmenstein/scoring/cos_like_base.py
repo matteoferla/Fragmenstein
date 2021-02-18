@@ -5,17 +5,15 @@ This is a base clase for the COS-like scores such as xcos, suCOS, etc. Those sco
 """
 
 import os
-import threading
 import dask
 import mrcfile
-import distributed
-from distributed import progress
+from dask.distributed import progress
+import dask.bag as db
 from rdkit import Chem
 from rdkit import DataStructs
 from rdkit.Chem.FeatMaps import FeatMaps
 from rdkit.Chem import AllChem, rdShapeHelpers
 from rdkit import RDConfig
-import dask.bag as db
 
 import numpy as np
 from rdkit.Chem.rdShapeHelpers import ComputeUnionBox
@@ -23,18 +21,7 @@ from rdkit.Geometry import rdGeometry
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
 from fragmenstein.scoring._scorer_base import _ScorerBase, journal
-from fragmenstein.utils.io_utils import apply_func_to_files, load_mol, load_files_as_mols
-
-feature_factory_objs = [] #this global object used as a cache is required because BuildFeatureFactory produces non pickleable objects
-def get_feature_factory():
-    if len(feature_factory_objs)==0:
-        feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
-        fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
-        keep_featnames = list(fmParams.keys())
-        feature_factory_objs.extend([feature_factory, fmParams, keep_featnames ] )
-    return feature_factory_objs[:3]
-
-
+from fragmenstein.utils.io_utils import load_mol, load_files_as_mols
 
 
 def uniformGrid3D_to_numpy( grid):
@@ -68,10 +55,18 @@ class _COSLikeBase(_ScorerBase):
 
         super().__init__( *args, **kwargs)
 
-        try:
-            self.lock = distributed.Lock("feature_factory_objs")
-        except ValueError:
-            self.lock = threading.Lock()
+        self._features_factory = None
+
+
+    @property
+    def feature_factory(self):
+        if self._features_factory  is None:
+            feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
+            fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
+            keep_featnames = list(fmParams.keys())
+            self._features_factory = [feature_factory, fmParams, keep_featnames]
+
+        return self._features_factory
 
     @property
     def fragments_id(self):
@@ -86,11 +81,8 @@ class _COSLikeBase(_ScorerBase):
 
 
         try:
-            with self.lock:
-                feature_factory, fmParams, keep_featnames = get_feature_factory()
-
+            feature_factory, fmParams, keep_featnames = self.feature_factory
         except ValueError as e: #TODO: check that lock prevents race conditions and remove try/except
-            print(get_feature_factory())
             raise e
         try:
             featLists = []
@@ -160,21 +152,16 @@ class _COSLikeBase(_ScorerBase):
             f.set_data( grid.astype(np.float32))
 
     @classmethod
-    def compute_occupancy_weights(cls, mols_list, grids_list=None, vdwScale=0.2, spacing=0.3):
+    def compute_occupancy_weights(cls, mols_list, vdwScale=0.2, spacing=0.3):
 
-        assert not (
-        grids_list == None and mols_list == None), "Error,  one of the following: mols_list or grids_list should not be none"
-        assert any([grids_list, mols_list]), "Error,  only one of the following: mols_list or grids_list should be none"
+        # print(len(mols_list)); mols_list = mols_list[:30]; print("WARNING, debug MODE")
 
-        journal.info( "Loading molecules as grids")
-        print( "Loading molecules as grids")
+        journal.info( "Loading molecules as grids to compute weights")
+        print( "Loading molecules as grids to compute weights")
 
         grid_config = cls.estimate_grid_params(mols_list, spacing, vdwScale)
 
-
-
         client = get_parallel_client()
-
 
         #This option seems to eat much more memory
         # sumGrid = 0
@@ -186,35 +173,32 @@ class _COSLikeBase(_ScorerBase):
         # sumGrid= sumGrid.result()
 
 
-        import dask.bag as db
-        mols_loaded = db.from_sequence( dask.delayed(compute_one_grid)( mol, grid_config, True) for mol in mols_list)
-        sumGrid = mols_loaded.fold( lambda prev, cur: prev+cur, initial=0)
+        b = db.from_sequence( mols_list )
+        mapped_b = b.map( lambda mol: compute_one_grid(mol, grid_config, True)).fold(lambda prev, cur : prev+cur, initial=0)
+        sumGrid_future = client.compute(mapped_b)
 
-        sumGrid = client.compute(sumGrid)
-        sumGrid= sumGrid.result()
-        sumGrid = client.compute(sumGrid)
-        progress( sumGrid )
-        sumGrid= sumGrid.result()
+        sumGrid_future = client.compute(sumGrid_future)
+        sumGrid_nonZero_future = client.submit( lambda x: ~ np.isclose(x, 0), sumGrid_future)
 
+        del b
 
-        def process_one_grid(mol):
-            np.seterr(divide='ignore', invalid='ignore')
+        def process_one_grid(mol, sumGrid, sumGrid_nonZero):
             grid = compute_one_grid( mol, grid_config, as_numpy=True)
-            div = grid / sumGrid
-            div = np.nan_to_num(div)
-            return np.nansum(div) / np.count_nonzero(grid)
+            n_vox_mol =  np.count_nonzero(grid)
+            grid[sumGrid_nonZero] /= sumGrid[sumGrid_nonZero]
+            result =  np.sum(grid) / n_vox_mol
+            return result
 
+        final_weights = map( lambda mol: client.submit(process_one_grid, *(mol, sumGrid_future, sumGrid_nonZero_future)), mols_list)
 
-        final_weights = []
-        for i, mol in enumerate(mols_list):
-            score = dask.delayed( process_one_grid )(mol)
-            final_weights.append( score)
+        final_weights = client.compute(final_weights)
+        progress( final_weights )
+        final_weights= client.gather(final_weights)
 
-        final_weights =  client.compute(final_weights)
-        progress(final_weights)
-        final_weights = client.gather(final_weights)
-
+        journal.info( "\nWeights computed")
+        print( "\nWeights computed")
         return final_weights
+
 
     @classmethod
     def compute_clashes(cls, ref_mol, mols_list, vdwScale=0.4, spacing=0.5):
@@ -241,16 +225,17 @@ class _COSLikeBase(_ScorerBase):
 
             def computeClash(mol):
                 grid = compute_one_grid( mol, grid_config, as_numpy=True)
+                grid_intersect = (grid * ref_grid)
                 return np.sum(grid_intersect) / np.sum(grid)  # np.count_nonzero
 
         else:
             mols_grids = mols_list
             def computeClash(grid):
+                grid_intersect = (grid * ref_grid)
                 return np.sum(grid_intersect) / np.sum(grid)  # np.count_nonzero
 
         clashes_list = []
         for i, grid in enumerate(mols_grids):
-            grid_intersect = (grid * ref_grid)
             score = dask.delayed(computeClash)(grid)
             clashes_list.append(score)
 
@@ -318,8 +303,8 @@ if __name__ == "__main__":
 
     results_weight = _COSLikeBase.compute_occupancy_weights( mols_list )
     print( results_weight )
-    # results_clash = _COSLikeBase.compute_clash( apo_pdb_mol, mols_list)
-    # print( results_clash )
+    results_clash = _COSLikeBase.compute_clash( apo_pdb_mol, mols_list)
+    print( results_clash )
 
     '''
 

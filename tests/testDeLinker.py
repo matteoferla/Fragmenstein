@@ -34,7 +34,7 @@ class DeLinkerTester(unittest.TestCase):
       return  [ MProVictor.get_mol(xcode) for xcode in hit_codes ]
 
     def test_easy(self):
-        template = os.path.join(MProVictor.get_mpro_path(), 'template.pdb')
+        template = os.path.join(MProVictor.get_mpro_path(), 'templagite.pdb')
         hit_codes= ['x0104', 'x1458']
         hits = self.load_hits(hit_codes= hit_codes )
         print( [ Chem.MolToSmiles(hit) for hit in hits])

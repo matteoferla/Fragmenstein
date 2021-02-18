@@ -5,17 +5,12 @@ import os
 import sys
 from typing import List, Dict
 
+from fragmenstein.utils.config_manager import ConfigManager
+
 
 class ExternalToolImporter():
 
-  #Default config file will be used if --external_tools_config_file flag is not provided
-  if "--external_tools_config_file" in sys.argv: #TODO; change it for an environmental variable
-    configFname = sys.argv[sys.argv.index("--external_tools_config_file") + 1]
-    configFname = os.path.abspath(os.path.expanduser(configFname))
-  else:
-    configFname = os.path.join(os.path.split(__file__)[0], "external_config.json") #Modify this attribute if using another file
-
-  config_json_fname = configFname
+  config_json_fname = ConfigManager.EXTERNAL_TOOLS_CONFIG_FILE
 
   with open(config_json_fname) as f:
     config_data = json.load( f )

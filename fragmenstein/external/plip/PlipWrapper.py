@@ -36,7 +36,7 @@ class PlipWrapper():
         my_mol.load_pdb( fname)
         my_mol.analyze()
 
-        interactions = [ my_mol.interaction_sets[keyId] for keyId in my_mol.interaction_sets if keyId.startswith(self.ligand_resname) ]
+        interactions = [ my_mol.interaction_sets[keyId] for keyId in my_mol.interaction_sets if keyId.startswith(self.ligand_resname) ] #TODO. Include distance and angle
         interactions_dict = defaultdict(list)
         for inters_list in interactions:
             for inter_type in PlipWrapper.AVALIABLE_INTERACTIONS:

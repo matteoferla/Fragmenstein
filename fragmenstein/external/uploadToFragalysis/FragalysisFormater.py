@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from typing import Dict, Union
 from typing import List
 
@@ -10,6 +11,7 @@ from collections import OrderedDict
 
 from itertools import chain
 
+from functools import reduce
 from rdkit import Chem
 
 from fragmenstein.scoring.scorer_labels import SCORE_NAME_TEMPLATE
@@ -23,7 +25,7 @@ class FragalysisFormater():
     METADATA_FIELDS_DEFAULT_FNAME= os.path.abspath( os.path.join(__file__, os.path.pardir, "metadata_fields_example.csv"))
     REF_PDB_FIELD = "ref_pdb"
     REQUIRED_FIELDS = ["_Name", "original SMILES", REF_PDB_FIELD, "ref_mols"]
-
+    FRAGALYSIS_UPLOAD_VERSION = "ver_1.2"
     @classmethod
     def _check_property(cls, mol, prop):
         if mol.HasProp(prop) and not mol.GetProp(prop) in [None, ""]:
@@ -35,6 +37,7 @@ class FragalysisFormater():
     def _check_molecule_metadata(cls, mol, scores_names):
         for required in list(FragalysisFormater.REQUIRED_FIELDS)+list(scores_names):
             if not cls._check_property(mol, required):
+                journal.error("Mol does not contain property %s\n\n"%required)
                 return False
         return True
 
@@ -68,6 +71,32 @@ class FragalysisFormater():
             cls._add_prop_if_not_available(mol, prop, str(val))
         return mol
 
+    @classmethod
+    def merge_sdfs(cls, outname, *fnames):
+        '''
+        It does not check if the sdf files are compatible.
+        :param outname:
+        :param *fnames:
+        :return:
+        '''
+        header_done = False
+        n_lines_detect_header = 0
+        with open(outname, "w") as f_out:
+            for fname in fnames:
+                with open(fname) as f:
+                    header_found = False
+                    for line in f:
+                        if not header_found:
+                            if line.startswith("$$$$"):
+                                header_done=True
+                                header_found=True
+                            if  not header_done:
+                                f_out.write( line )
+                        else:
+                            n_lines_detect_header += 1
+                            f_out.write(line)
+        assert  n_lines_detect_header>0, "Error, header was not found."
+
     def __init__(self, ref_pdb_xchemId, metadata_header=None, drop_unknown_fields=True): #TOOD: Ref pdb could be many different. One per compound even
 
 
@@ -94,7 +123,7 @@ class FragalysisFormater():
 
     def _get_header_mol(self, missing_properties=[]):
         mol = Chem.MolFromSmiles("C")
-        mol.SetProp("_Name", "ver_1.2")
+        mol.SetProp("_Name", FragalysisFormater.FRAGALYSIS_UPLOAD_VERSION)
         for key, value in chain.from_iterable( [self.metadata_header.items(), missing_properties] ):
             mol.SetProp(key, value)
         return mol
@@ -152,8 +181,8 @@ class FragalysisFormater():
                     mol.SetProp("original SMILES",  Chem.MolToSmiles(mol))
 
                 assert self._check_molecule_metadata(mol, missing_properties_names), \
-                       "Error, molecule (%s) does not contain required information (%s)" % (mol_name, str(
-                       FragalysisFormater.REQUIRED_FIELDS))
+                       "Error, molecule (%s) does not contain (%s) required information (%s)." % (mol_name, str(mol.GetPropsAsDict()),
+                                     str( FragalysisFormater.REQUIRED_FIELDS))
 
                 fragments =  mol.GetProp("ref_mols")
 
@@ -215,31 +244,45 @@ class FragalysisFormater():
             print('"%s","%s"'%(key,val))
         print("###############################################\n")
 
-    @classmethod
-    def merge_sdfs(cls, outname, *fnames):
+
+
+    def filter_sdf_file(self, outname, fname_in, list_of_filters):
         '''
-        It does not check if the sdf files are compatible.
+
         :param outname:
-        :param *fnames:
+        :param fname_in:
+        :param list_of_expresions: List of tuples ("feature_name", operator_name, value)
         :return:
         '''
-        header_done = False
-        n_lines_detect_header = 0
-        with open(outname, "w") as f_out:
-            for fname in fnames:
-                with open(fname) as f:
-                    header_found = False
-                    for line in f:
-                        if not header_found:
-                            if line.startswith("$$$$"):
-                                header_done=True
-                                header_found=True
-                            if  not header_done:
-                                f_out.write( line )
-                        else:
-                            n_lines_detect_header += 1
-                            f_out.write(line)
-        assert  n_lines_detect_header>0, "Error, header was not found."
+
+        assert len(list_of_filters) >0, "Error, at least one filter required"
+        import operator
+        ops_map = {">": operator.gt, "<": operator.lt,">=": operator.ge, "<=": operator.le}
+        lambdas_list =[]
+        for filt in list_of_filters:
+            match_obj = re.match("(\w+)\s*(>=|<=|>|<)\s*(\d*\.?\d*)", filt)
+            if match_obj:
+                name, op, val = match_obj.groups()
+                op = ops_map[op]
+                val = float(val)
+                fun = lambda mol: op(float(mol.GetProp(name)),  val)
+                lambdas_list.append ( fun )
+            else:
+                raise  ValueError("Error, %s could not be parsed"%filt)
+
+        do_keep = lambda mol: reduce(lambda prev, fun: prev and fun(mol), lambdas_list, True)
+        mols_to_write = []
+
+        for mol in Chem.SDMolSupplier(fname_in):
+            if mol.GetProp("_Name") == FragalysisFormater.FRAGALYSIS_UPLOAD_VERSION or do_keep(mol):
+                mols_to_write.append( mol)
+
+        if  len(mols_to_write) <2:
+            raise ValueError("Error, no molecules matching filters were found" )
+
+        if outname:
+            self.write_molsList_to_sdf(outname, mols_to_write)
+        return mols_to_write
 
 if __name__ == "__main__":
 
@@ -273,6 +316,13 @@ if __name__ == "__main__":
     mol_arg = parser_merge.add_argument('-p', '--mols_pattern', nargs=None , type=str, help='regex pattern for .mol or .sdf files. It must contain () to match the compound id E.g. '
                                                                                   '"([\w-]+)\.minimised.mol$" ', required=False, default=None)
                               # ,default="([\w-]+)\.minimised\.mol$")
+
+
+    parser_merge = subparsers.add_parser('filter', help='Filters an sdf file for Fragalysis to select a subset of molecules matching certain properties')
+    parser_merge.add_argument('input_file', nargs=None , type=str, help='The sdf file to filter. It must follow Fralaysis v1.2 version')
+    parser_merge.add_argument('-o', '--output_file', nargs=None , type=str, help='output sdf filename where the preserved compounds will be save', required=True)
+
+    parser_merge.add_argument('-f', '--filters', nargs="+", type=str, help="The filers to apply in the form: 'field_name operatator' value", required=True)
 
 
     args = parser.parse_args()
@@ -315,6 +365,13 @@ python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater gather_sco
         FragalysisFormater(None).metadata_example()
         '''
 python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater metadata_example
+        '''
+
+    elif args.option == "filter":
+        FragalysisFormater(None).filter_sdf_file( outname=args.output_file, fname_in= args.input_file, list_of_filters=args.filters)
+        '''
+python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater filter results_prueba.sdf -o results_prueba_filtered.sdf -f "xcos_score>0.1"
+
         '''
     else:
         raise ValueError("Option not valid: %s"%(args.option))

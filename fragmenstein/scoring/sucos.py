@@ -59,8 +59,8 @@ class SuCOSComputer(_COSLikeBase):
         min_score = np.min(per_fragment_score)
 
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id, _ScorerBase.SCORE_NAME_TEMPLATE%("mean"+sucosName): mean_score,
-                           _ScorerBase.SCORE_NAME_TEMPLATE%("maxSuCOS"+sucosName): max_score,
-                           _ScorerBase.SCORE_NAME_TEMPLATE%("minSuCOS"+sucosName): min_score,
+                           _ScorerBase.SCORE_NAME_TEMPLATE%("max"+sucosName): max_score,
+                           _ScorerBase.SCORE_NAME_TEMPLATE%("min"+sucosName): min_score,
                            _ScorerBase.FRAGMENTS_ID: sorted(selected_frags)}
         return partial_results
 
@@ -94,6 +94,9 @@ if __name__ == "__main__":
     print(results)
 
 '''
-python -m fragmenstein.scoring.sucos -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/hit_mols  -o compound-set_xcosRSG.csv -s  compound-set_xcosRSG.sdf -p "Mpro-(\w+)\.mol" -w ~/tmp/test_dask
+python -m fragmenstein.scoring.sucos -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/hit_mols_full_name  -o compound-set_xcosRSG.csv -s  compound-set_xcosRSG.sdf -p "Mpro-(\w+)\.mol" -w ~/tmp/test_dask
+
+N_CPUS=2 python -m fragmenstein.scoring.sucos -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/hit_mols_full_name  -o compound-set_xcosRSG.csv -s  compound-set_xcosRSG.sdf -p "Mpro-(\w+)\.mol" -w ~/tmp/test_dask --use_weights
+
 
 '''

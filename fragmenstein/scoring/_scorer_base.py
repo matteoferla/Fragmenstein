@@ -3,6 +3,8 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod, abstractproperty
+from dask.distributed import progress
+
 from itertools import chain
 from typing import Dict, List, Tuple, Union
 
@@ -166,7 +168,11 @@ class _ScorerBase(ABC):
         for mol_id, (mol, frag_ids) in not_computed_mols:
             result = dask.delayed(computer.processOneMolecule)(mol_id, mol, frag_ids, *args, **kwargs)
             results_computed.append( result )
-        results_computed = dask.compute(results_computed)[0]
+
+        dask_client = get_parallel_client()
+        results_computed = dask_client.compute( results_computed )
+        progress(results_computed)
+        results_computed = dask_client.gather(results_computed)
 
         results_computed = list( chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] ) )
 
