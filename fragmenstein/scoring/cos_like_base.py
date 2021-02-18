@@ -5,11 +5,10 @@ This is a base clase for the COS-like scores such as xcos, suCOS, etc. Those sco
 """
 
 import os
-import threading
 import dask
 import mrcfile
 from dask.distributed import progress
-from functools import reduce
+import dask.bag as db
 from rdkit import Chem
 from rdkit import DataStructs
 from rdkit.Chem.FeatMaps import FeatMaps
@@ -22,18 +21,7 @@ from rdkit.Geometry import rdGeometry
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
 from fragmenstein.scoring._scorer_base import _ScorerBase, journal
-from fragmenstein.utils.io_utils import apply_func_to_files, load_mol, load_files_as_mols
-
-feature_factory_objs = [] #this global object used as a cache is required because BuildFeatureFactory produces non pickleable objects
-def get_feature_factory():
-    if len(feature_factory_objs)==0:
-        feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
-        fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
-        keep_featnames = list(fmParams.keys())
-        feature_factory_objs.extend([feature_factory, fmParams, keep_featnames ] )
-    return feature_factory_objs[:3]
-
-
+from fragmenstein.utils.io_utils import load_mol, load_files_as_mols
 
 
 def uniformGrid3D_to_numpy( grid):
@@ -67,10 +55,18 @@ class _COSLikeBase(_ScorerBase):
 
         super().__init__( *args, **kwargs)
 
-        try:
-            self.lock = dask.distributed.Lock("feature_factory_objs")
-        except ValueError:
-            self.lock = threading.Lock()
+        self._features_factory = None
+
+
+    @property
+    def feature_factory(self):
+        if self._features_factory  is None:
+            feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
+            fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
+            keep_featnames = list(fmParams.keys())
+            self._features_factory = [feature_factory, fmParams, keep_featnames]
+
+        return self._features_factory
 
     @property
     def fragments_id(self):
@@ -85,11 +81,8 @@ class _COSLikeBase(_ScorerBase):
 
 
         try:
-            with self.lock:
-                feature_factory, fmParams, keep_featnames = get_feature_factory()
-
+            feature_factory, fmParams, keep_featnames = self.feature_factory
         except ValueError as e: #TODO: check that lock prevents race conditions and remove try/except
-            print(get_feature_factory())
             raise e
         try:
             featLists = []
@@ -179,14 +172,15 @@ class _COSLikeBase(_ScorerBase):
         # progress( sumGrid )
         # sumGrid= sumGrid.result()
 
-        grids_delayed_gen = ( dask.delayed(compute_one_grid)( mol, grid_config, True) for mol in mols_list)
-        sumGrid_future = reduce(lambda prev, cur : prev+cur, grids_delayed_gen)
-        # as_completed()
+
+        b = db.from_sequence( mols_list )
+        mapped_b = b.map( lambda mol: compute_one_grid(mol, grid_config, True)).fold(lambda prev, cur : prev+cur, initial=0)
+        sumGrid_future = client.compute(mapped_b)
 
         sumGrid_future = client.compute(sumGrid_future)
         sumGrid_nonZero_future = client.submit( lambda x: ~ np.isclose(x, 0), sumGrid_future)
 
-        del grids_delayed_gen
+        del b
 
         def process_one_grid(mol, sumGrid, sumGrid_nonZero):
             grid = compute_one_grid( mol, grid_config, as_numpy=True)
