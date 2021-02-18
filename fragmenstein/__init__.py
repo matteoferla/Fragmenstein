@@ -1,4 +1,5 @@
 ########################################################################################################################
+import os
 
 __doc__ = \
     """
@@ -27,5 +28,7 @@ except ZeroDivisionError as err:
     warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
 
 from .monster import Monster
-from molecular_rectifier import Rectifier
 from .m_rmsd import mRSMD
+
+FRAGMENSTEIN_DIR =  os.path.abspath(os.path.join(__file__, "../.."))
+MOLS_EXAMPLES_DIR = os.path.join(FRAGMENSTEIN_DIR, "test_mols")

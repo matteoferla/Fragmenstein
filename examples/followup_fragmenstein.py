@@ -1,35 +1,45 @@
-import sys, os
-import pyrosetta
+import os
 from rdkit import Chem
+from fragmenstein import MOLS_EXAMPLES_DIR, Victor
 
-pyrosetta.init(
-    extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
+from fragmenstein.external import ExternalToolImporter
+import logging
 
-sys.path.append("/home/ruben/oxford/tools/Fragmenstein")
+[pyrosetta]= ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
 
-from fragmenstein import Monster, Victor, Igor, Rectifier
-
-
-smiles_fname="./followup_x20706.smiles"
-pdb_filename ="./F709-PHIPA-x20706_unbound.pdb" #Cleaned protein with no water, no ligand.
+smiles_fname= os.path.join(MOLS_EXAMPLES_DIR, "followup_x20706.smiles")
+pdb_filename = os.path.join(MOLS_EXAMPLES_DIR, "F709-PHIPA-x20706_unbound.pdb")  #Cleaned protein with no water, no ligand.
+fragments_fnames = [ os.path.join(MOLS_EXAMPLES_DIR, "F709-PHIPA-x2070.mol") ]
+out_dir = "ouptut" # os.path.expanduser("~/tmp/output_followup")
 
 with open( smiles_fname) as f:
-  smiles = f.read().strip()
-  print( smiles )
+  smi = f.read().strip()
+  print(smi)
 
-hits = [ Chem.MolFromMolFile("./F709-PHIPA-x2070.mol") ] #A list of fragments
+hits = [ Chem.MolFromMolFile(frag) for frag in fragments_fnames ] #A list of fragments
 
-import logging
 Victor.enable_stdout(level=logging.DEBUG)
 #Victor.error_to_catch = NotImplementedError #Uncomment if you want fragmenstein to break on error.
 
-Victor.output_dir= "./" #where results would be saved
-v= Victor(smiles=smiles, hits=hits,
+
+Victor.output_dir=  out_dir #where results would be saved
+
+v= Victor(       hits=hits,
                  pdb_filename= pdb_filename, #file name of apo protein
-                 long_name= 'x20706_out', #just to name output files
+                 ligand_resn="LIG",
                  #Next line is nonsense for non covalent residues but required (at the moment). Just pick a random CYS
-                 covalent_resn= 'CYS', covalent_resi= '1382A', 
-                 )
+                 covalent_resn= 'CYS', covalent_resi= '1382A'
+)
+
+v.place(smiles=smi,
+        long_name= 'x20706_out', #just to name output files
+)
+
 v.make_pse()
 print( v.summarise() )
 
+
+'''
+cd FRAGMENSTEIN_DIR
+python -m examples.followup_fragmenstein
+'''
