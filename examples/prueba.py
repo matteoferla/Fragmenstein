@@ -113,9 +113,10 @@ def tryOneMerge(trial_hitId_hit_list):
 
     with tempfile.TemporaryDirectory() as tmp:
         Victor.work_path= tmp
-        v = Victor.combine(hits=hits, pdb_filename=template,
+        v = Victor(hits=hits, pdb_filename=template,
                            # a random residue is still required for the constraint ref atom.
                            covalent_resi='8B', covalent_resn='CYS')
+        v.combine()
         generated_molecule = v.minimised_mol
 
         if generated_molecule is not None:
