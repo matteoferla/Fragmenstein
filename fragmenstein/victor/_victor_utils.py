@@ -66,7 +66,7 @@ class _VictorUtils(_VictorCommon):
             return {'name': self.long_name,
                     'smiles': self.smiles,
                     'error': self.error_msg,
-                    'mode': self.monster_merging_mode,
+                    'mode': self.merging_mode,
                     '∆∆G': float('nan'),
                     '∆G_bound': float('nan'),
                     '∆G_unbound': float('nan'),
@@ -81,7 +81,7 @@ class _VictorUtils(_VictorCommon):
             return {'name': self.long_name,
                     'smiles': self.smiles,
                     'error': self.error_msg,
-                    'mode': self.monster.merging_mode,
+                    'mode': self.merging_mode,
                     '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
                            self.energy_score['unbound_ref2015']['total_score'],
                     '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
