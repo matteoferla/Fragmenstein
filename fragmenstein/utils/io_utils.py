@@ -81,3 +81,6 @@ def load_files_as_mols( mols_folder, file_pattern=".*-(\w+_\w{2}).mol$", use_par
 
     return apply_func_to_files(mols_folder, file_pattern=file_pattern, function=process,
                                use_parallel_dask=use_parallel_dask, extensions_to_check=extensions_to_check)
+
+
+# TODO: use Victor.extract_mols to extract molecules from pdb files
