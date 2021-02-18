@@ -15,7 +15,15 @@ import numpy as np
 
 
 # ======================================================================================================================
+'''
+To execute a single test:
+python -m unittest tests.test.MProPlaceTester.test_easy
 
+To execute all test in a directory
+
+python -m unittest discover tests/
+
+'''
 
 class MProPlaceTester(unittest.TestCase):
 
