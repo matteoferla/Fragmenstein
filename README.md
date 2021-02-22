@@ -102,16 +102,30 @@ Victor:
 
 ## Installation
 
-Requires RDKit
+### Requires RDKit
+To install for system Python3 on Linux:
 
     sudo apt-get install python3-rdkit librdkit1 rdkit-data
+    
+To install for system Python3 on MacOS via Brew:
 
-Requires Pyrosetta
+    brew install rdkit --with-python3
+    
+To install for Conda Python3
+
+    conda install -c conda-forge rdkit
+    
+### Requires Pyrosetta
+
+Pyrosetta requires a password to be downloaded (acamedic licence) obtained by https://els2.comotion.uw.edu/product/pyrosetta. This is a different licence from the Rosetta one. The username of the latter is formatted variant of "academic user", while the former is the name of a researcher whose names bares an important concept in protein folding. Pyrosetta can be downloaded via a browser from http://www.pyrosetta.org/dow. Or with a variant of the following:
+
     
     curl -u 👾👾👾:👾👾👾https://graylab.jhu.edu/download/PyRosetta4/archive/release/PyRosetta4.Release.python38.linux/PyRosetta4.Release.python38.linux.release-273.tar.bz2 -o a.tar.bz2
     tar -xf a.tar.bz2
     cd PyRosetta4.Release.python38.linux
     sudo pip3 install .
+
+### Fragmenstein and dependencies
 
 Install from pipy
 
