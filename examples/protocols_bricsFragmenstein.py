@@ -12,13 +12,13 @@ from fragmenstein.protocols.loadInput_XchemDefault import LoadInput_XchemDefault
 from fragmenstein.protocols.score_combinedDefault import Score_CombinedDefault
 from fragmenstein.utils.config_manager import ConfigManager
 
-# output_dir = "/home/ruben/oxford/tools/Fragmenstein/output"
+# output_dir = "~/oxford/tools/Fragmenstein/output"
 # MAX_ATTEMPS = 2000
 #
-# template = "/home/ruben/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0020_0B/nsp13-x0020_0B_apo-desolv.pdb"
+# template = "~/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0020_0B/nsp13-x0020_0B_apo-desolv.pdb"
 # template_xchemId = "x0020"
 #
-# data_root_dir = "/home/ruben/oxford/myProjects/diamondCovid/data/nsp13/aligned"
+# data_root_dir = "~/oxford/myProjects/diamondCovid/data/nsp13/aligned"
 #
 # #hit_ids = "x0041_0A,x0176_0A,x0176_1B,x0276_0A,x0309_0B,x0494_0A,x0494_0B".split(",") #"Site 7 Site 2 inner" WORKS
 # #hit_ids = "x0058_0B,x0116_0B,x0306_0B,x0499_0B".split(",") #"Site 7 Site 2 outer" NOT WORKING
@@ -30,6 +30,9 @@ from fragmenstein.utils.config_manager import ConfigManager
 
 RANDOM_SEED = 121
 def main(data_root_dir, hit_ids, output_dir, template=None, template_xchemId=None, max_attemps=None, *args, **kwargs):
+
+    data_root_dir = os.path.expanduser(data_root_dir)
+    output_dir = os.path.expanduser(output_dir)
 
     if not os.path.exists(data_root_dir):
         os.mkdir(data_root_dir)
@@ -48,6 +51,7 @@ def main(data_root_dir, hit_ids, output_dir, template=None, template_xchemId=Non
         if not template_xchemId:
             template_xchemId = template_id
     else:
+        template = os.path.expanduser(template)
         assert template_xchemId is not None, "Error, template_xchemId should not be None if template is not None "
 
     results = CombineMerge_FragmensteinDefault(output_path=output_dir, template=template, use_dask =ConfigManager.N_CPUS > 1).applyCombine(fragsCombin_iter)
@@ -128,5 +132,5 @@ if __name__ == "__main__":
     print("\nmain DONE!\n")
     '''
 
-N_CPUS=1 python -m examples.protocols_bricsFragmenstein -d /home/ruben/oxford/myProjects/diamondCovid/data/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o /home/ruben/oxford/tools/Fragmenstein/output -m 10
+N_CPUS=1 python -m examples.protocols_bricsFragmenstein -d ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10
     '''
