@@ -17,11 +17,15 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
         if n_workers is None:
             n_workers = ConfigManager.N_CPUS
             threads_per_worker = 1
-        if memory_limit is None:
+        if memory_limit is None or memory_limit<=0:
+            print(ConfigManager.DASK_WORKER_MEMORY)
             memory_limit= ConfigManager.DASK_WORKER_MEMORY
             if memory_limit is None:
                 from psutil import virtual_memory
                 mem = virtual_memory()
+                if mem.total is None:
+                    print(mem)
+                    raise ValueError("Error, memory was not determined")
                 memory_limit="%dGB"%( (0.9 *mem.total/n_workers) // 2 ** 30)
         dask.config.set({'temporary_directory': os.path.join(ConfigManager.TMP_DIR, "dask")})
         if n_workers>1 or threads_per_worker>1:
