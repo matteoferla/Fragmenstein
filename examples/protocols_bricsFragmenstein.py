@@ -20,16 +20,13 @@ template_xchemId = "x0020"
 
 hits_root_dir = "/home/ruben/oxford/myProjects/diamondCovid/data/nsp13/aligned"
 
-hit_ids = [ "x0475_0A","x0509_0A" ] #"Site 20 & 22" WORKS but ugly
-#hit_ids = "x0169_0B,x0290_0B,x0707_0B".split(",") #"Site 4-C1 RNA-5'" NOT WORKING
 #hit_ids = "x0041_0A,x0176_0A,x0176_1B,x0276_0A,x0309_0B,x0494_0A,x0494_0B".split(",") #"Site 7 Site 2 inner" WORKS
 #hit_ids = "x0058_0B,x0116_0B,x0306_0B,x0499_0B".split(",") #"Site 7 Site 2 outer" NOT WORKING
 #hit_ids = "x0020_0B,x0029_0B,x0257_0B".split(",") #"Site 2 B1 RNA-3'" NOT WORKING
 #hit_ids = "x0494_0A,x0494_0B,x0020_0B,x0029_0B,x0257_0B,x0041_0A,x0176_0A,x0176_1B,x0276_0A,x0309_0B,x0494_0A,x0494_0B".split(",") #"Site 7 all -> WORKS
-# hit_ids = "x0176_0B,x0246_0B,x0438_0B".split(",") #""Site 1 - A Nucleoside" WORKS
-# hit_ids = "x0020_0B,x0029_0B,x0257_0B".split(",") #""Site 1 - RNA-3' Site 1
+hit_ids = "x0176_0B,x0246_0B,x0438_0B".split(",") #""Site 1 - A Nucleoside" WORKS
 
-sdf_outname = os.path.join(OUTPUT_PATH+"_site20&22_results.sdf")
+sdf_outname = os.path.join(OUTPUT_PATH+"_site1_results.sdf")
 
 
 def main(hit_ids = hit_ids):
