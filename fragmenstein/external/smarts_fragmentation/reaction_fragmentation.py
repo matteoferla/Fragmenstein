@@ -1,13 +1,21 @@
-from .reactions_smarts import  reaction_smarts
+from rdkit.Chem.Descriptors import HeavyAtomMolWt
+
+from .reactions_smarts import  REACTION_SMARTS
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
 class ReactionFragmentation():
 
-    def __init__(self, reactions_dict = reaction_smarts ):
+    def __init__(self, reactions_dict = REACTION_SMARTS, min_MW_bit = 40):
         self.reactions_dict = reactions_dict
+        self.min_MW_bit = min_MW_bit
 
     def yield_reactant_decomposition(self, *mol_reactants):
+        '''
+
+        :param mol_reactants: Chem.Mol objects
+        :return:
+        '''
         # print ( mol_reactants )
 
         all_decompositions = set([])
@@ -19,11 +27,15 @@ class ReactionFragmentation():
                 for i, reaction in enumerate(ps):
                     products = []
                     # print("reaction %d"%i)
+                    ignore = False
                     for product in reaction:
                         # print(Chem.MolToSmiles(product))
+                        if HeavyAtomMolWt(product) < self.min_MW_bit:
+                            ignore=True
+                            break
                         products.append(product)
                     product_smiles= ",".join( sorted( map(Chem.MolToSmiles, products)))
-                    if not product_smiles in all_decompositions:
+                    if not product_smiles in all_decompositions and not ignore:
                         all_decompositions.add(product_smiles)
                         yield products
 
@@ -42,3 +54,9 @@ def example():
 
 if __name__ == "__main__":
     example()
+
+    '''
+
+python -m fragmenstein.external.smarts_fragmentation.reaction_fragmentation
+
+    '''

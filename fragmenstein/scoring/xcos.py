@@ -5,20 +5,15 @@ This is a reimplementation/modification of the XCos code that was originally wri
 <warren.thompson@diamond.ac.uk> taken from (https://github.com/InformaticsMatters/pipelines/blob/master/src/python/pipelines/xchem/xcos.py)
 """
 import os
-
 import re
-import threading
-
-from distributed import Lock
-from rdkit import Chem
-from rdkit.Chem import rdShapeHelpers
-from rdkit.Chem import rdFMCS
 
 import numpy as np
+from rdkit import Chem
+from rdkit.Chem import rdFMCS
 
+from fragmenstein.protocols.fragmentation_brics import split_mol_to_brics_bits
 from fragmenstein.scoring._scorer_base import _ScorerBase
 from fragmenstein.scoring.cos_like_base import _COSLikeBase
-from fragmenstein.utils.fragmentation_utils import split_mol_to_brics_bits
 
 
 class XcosComputer(_COSLikeBase): #TODO: Refactor xcos tu use cos_like_base

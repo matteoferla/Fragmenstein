@@ -39,6 +39,16 @@ def compute_one_grid( mol, grid_config, as_numpy):
     return grid
 
 
+_FEATURES_FACTORY=[]
+def get_features_factory():
+    if len(_FEATURES_FACTORY) ==0:
+        # print("\n feature factory \n")
+        feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
+        fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
+        keep_featnames = list(fmParams.keys())
+        _FEATURES_FACTORY.extend([feature_factory, fmParams, keep_featnames])
+    return _FEATURES_FACTORY
+
 class _COSLikeBase(_ScorerBase):
     """
     This is a base clase for the COS-like scores such as xcos, suCOS, etc. Those scores are based on shape and chemical complementarity.
@@ -55,19 +65,6 @@ class _COSLikeBase(_ScorerBase):
 
         super().__init__( *args, **kwargs)
 
-        self._features_factory = None
-
-
-    @property
-    def feature_factory(self):
-        if self._features_factory  is None:
-            feature_factory = AllChem.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef'))
-            fmParams = {k: FeatMaps.FeatMapParams() for k in feature_factory.GetFeatureFamilies()}
-            keep_featnames = list(fmParams.keys())
-            self._features_factory = [feature_factory, fmParams, keep_featnames]
-
-        return self._features_factory
-
     @property
     def fragments_id(self):
         '''
@@ -81,7 +78,8 @@ class _COSLikeBase(_ScorerBase):
 
 
         try:
-            feature_factory, fmParams, keep_featnames = self.feature_factory
+            # feature_factory, fmParams, keep_featnames = self.feature_factory
+            feature_factory, fmParams, keep_featnames = get_features_factory()
         except ValueError as e: #TODO: check that lock prevents race conditions and remove try/except
             raise e
         try:

@@ -7,6 +7,6 @@ field,value
 "method","Fragmenstein"
 "ref_url","https://github.com/matteoferla/Fragmenstein"
 "original SMILES","The SMILES of the compound"
-"ref_pdb","A pdb inlcuded in fragalysis or uploaded. E.g. x0830_0"
+"ref_pdb","A pdb included in fragalysis or uploaded. E.g. x0830_0"
 "ref_mols","The inspirational fragments usded to propose the compound"
 #######################################################

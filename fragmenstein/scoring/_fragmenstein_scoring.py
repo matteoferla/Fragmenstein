@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.stats import gennorm
 
 from fragmenstein.scoring._scorer_base import _ScorerBase
@@ -34,7 +35,9 @@ class _FragmensteinScorer(): #TODO: Should this be inherited by Victor?
         new_record[_ScorerBase.SCORE_NAME_TEMPLATE%'comRMSD'] = new_record['comRMSD']
         zz = (new_record['N_constrained_atoms'] ** 2 - 25 ** 2) / 500
         atom_bonus = gennorm.pdf(zz, 5) / 0.5445622105291682
-        novelty_penalty = new_record['N_unconstrained_atoms'] / new_record['N_constrained_atoms']
+
+        novelty_penalty = (1+new_record['N_unconstrained_atoms'])/ (1+new_record['N_constrained_atoms'])
+
         fragmenstein_new = cls.new_rank_weights['LE'] * float(new_record['LE_score']) + cls.new_rank_weights['comRMSD'] * float(new_record['comRMSD']) + \
                            - cls.new_rank_weights['atom_bonus'] * atom_bonus + cls.new_rank_weights['novelty_penalty'] * novelty_penalty
 

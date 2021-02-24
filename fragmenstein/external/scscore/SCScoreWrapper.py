@@ -3,10 +3,12 @@ import numpy as np
 
 from fragmenstein.external import ExternalToolImporter
 
+[standalone_model_numpy] = ExternalToolImporter.import_tool("scscore", ["scscore.standalone_model_numpy"])
+
 
 class SCScoreWrapper():
     '''
-    A wrapper class to use SCScore in a transparent manner. PLIP is a python package that analyzes molecular interactions in pdb files
+    A wrapper class to use SCScore in a transparent manner.
     '''
 
 
@@ -14,8 +16,6 @@ class SCScoreWrapper():
     def __init__(self, ):
         '''
         '''
-
-        [standalone_model_numpy] = ExternalToolImporter.import_tool("scscore", ["scscore.standalone_model_numpy"])
 
         def _load_vars(other, weight_path):
             if weight_path.endswith('pickle'):

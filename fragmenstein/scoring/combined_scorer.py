@@ -21,6 +21,18 @@ class CombineScorer(_ScorerBase):
 
         return list( set(f_ids ) )
 
+    @classmethod
+    def update_dict(cls, prevDict, newDict, rep_label):
+        # print(prevDict, newDict)
+        assert prevDict[_ScorerBase.MOL_NAME_ID] == newDict[
+            _ScorerBase.MOL_NAME_ID], "Error, mismatch between differnt scorers"
+        common_names = set(prevDict.keys()).intersection( newDict.keys() ).difference([_ScorerBase.MOL_NAME_ID])
+        newDict = newDict.copy()
+        for key in common_names:
+            newDict[key +"_"+ rep_label] = newDict[key]
+            del newDict[key]
+        return newDict
+
     def computeScoreOneMolecule(self, *args, **kwargs) -> Dict[str, Tuple[float, List[str]]]:
         '''
 
@@ -35,7 +47,10 @@ class CombineScorer(_ScorerBase):
         for scorer in self.scorers_objects_list:
             result = scorer.computeScoreOneMolecule(*args, **kwargs)
             if _ScorerBase.MOL_NAME_ID in results:
-              assert results[_ScorerBase.MOL_NAME_ID] == result[_ScorerBase.MOL_NAME_ID], "Error, mismatch betweeing differnt scorers"
+              self.update_dict(results, result, str(type(scorer).__name__))
+              # if _ScorerBase.FRAGMENTS_ID in result and _ScorerBase.FRAGMENTS_ID in results:
+              #     result[_ScorerBase.FRAGMENTS_ID+"_"+str(type(scorer).__name__)] = result[_ScorerBase.FRAGMENTS_ID]
+              #     del result[_ScorerBase.FRAGMENTS_ID]
             results.update( result)
 
         return results

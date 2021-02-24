@@ -159,6 +159,6 @@ class _VictorBase:
         self.error_msg = ''
 
     # ----------------- init called methods ----------------------------------------------------------------------------
-
-    def slugify(self, name: str):
+    @classmethod
+    def slugify(cls, name: str):
         return re.sub(r'[\W_.-]+', '-', name)

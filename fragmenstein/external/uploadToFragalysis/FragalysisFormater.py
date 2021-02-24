@@ -26,6 +26,7 @@ class FragalysisFormater():
     REF_PDB_FIELD = "ref_pdb"
     REQUIRED_FIELDS = ["_Name", "original SMILES", REF_PDB_FIELD, "ref_mols"]
     FRAGALYSIS_UPLOAD_VERSION = "ver_1.2"
+
     @classmethod
     def _check_property(cls, mol, prop):
         if mol.HasProp(prop) and not mol.GetProp(prop) in [None, ""]:

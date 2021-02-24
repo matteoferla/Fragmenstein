@@ -22,7 +22,7 @@ Victor.enable_stdout(level=logging.DEBUG)
 #Victor.error_to_catch = NotImplementedError #Uncomment if you want fragmenstein to break on error.
 
 
-Victor.output_dir=  out_dir #where results would be saved
+Victor.work_path=  out_dir #where results would be saved
 
 v= Victor(       hits=hits,
                  pdb_filename= pdb_filename, #file name of apo protein
@@ -40,6 +40,5 @@ print( v.summarise() )
 
 
 '''
-cd FRAGMENSTEIN_DIR
 python -m examples.followup_fragmenstein
 '''

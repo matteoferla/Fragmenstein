@@ -42,7 +42,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
         if keep_all and len(self.unmatched):
-            raise ConnectionError(f'Could not combine with {self.unmatched} (>{self.joining_cutoff}')
+            raise ConnectionError(f'Can not combine with {self.unmatched} (>{self.joining_cutoff}')
         # expand and fix
         self.journal.debug(f'Merged')
         if collapse_rings:
@@ -51,7 +51,11 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.keep_copy(self.positioned_mol, 'expanded')
         self._join_internally(self.positioned_mol)
         self.journal.debug(f'Expanded')
-        self.rectify()
+        try:
+            self.rectify()
+        except RecursionError:
+            self.journal.critical(f'Recursion limit in rectifier')
+            raise ConnectionError(f'Can not rectify {self.positioned_mol}')
         self.journal.debug(f'Rectified')
         return self
 

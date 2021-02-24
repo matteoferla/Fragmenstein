@@ -27,5 +27,14 @@
       "%(ROOT_DIR)s"
     ],
     "POST_IMPORT":[]
+  },
+
+    "sascorer": {
+    "ROOT_DIR": "~/oxford/tools/sascore/",
+    "PYTHONPATH": [
+      "%(ROOT_DIR)s"
+    ],
+    "POST_IMPORT":[]
   }
+
 }

@@ -29,6 +29,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         combo, candidates = self._find_all_closest(mol_A, mol_B)  # _find_all_closest is in communal
         anchor_A, anchor_B, distance = candidates[0]
         mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=True)
+        #TODO: Use DLinker here
         for anchor_A, anchor_B, distance in candidates[1:]:
             mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=False)
         mol.SetProp('_Name', mol_A.GetProp('_Name') + '~' + mol_B.GetProp('_Name'))

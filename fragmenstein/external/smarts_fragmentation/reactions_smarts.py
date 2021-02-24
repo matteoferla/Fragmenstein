@@ -8,7 +8,7 @@ https://teams.microsoft.com/_#/school/files/General?threadId=19:eb7beb85d3c2403a
 
 '''
 
-reaction_smarts = {
+REACTION_SMARTS = {
 
     'Amides': ['[#7:1][C;x0:2]=[O:3]>>[#7:1].Cl[C:2]=[O:3]'],
     'Benzimidazole': [

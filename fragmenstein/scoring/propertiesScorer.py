@@ -6,12 +6,12 @@ Scoring based on properties such as synthetic accessibility
 
 from rdkit import Chem
 
-from rdkit.Chem.Descriptors import ExactMolWt
 
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.external.scscore.SCScoreWrapper import SCScoreWrapper
 from fragmenstein.scoring._scorer_base import _ScorerBase
 
+[sascorer] = ExternalToolImporter.import_tool("sascorer", ["sascorer"])
 
 class PropertiesScorer(_ScorerBase):
 
@@ -22,12 +22,7 @@ class PropertiesScorer(_ScorerBase):
         args/kwargs must contain working_directory
 
         '''
-
-        [sascorer] = ExternalToolImporter.import_tool("DeLinker", ["sascorer"])
-        self.sascorer = sascorer
-
         self.scsw = SCScoreWrapper()
-
         super().__init__( *args, **kwargs)
 
     @property
@@ -45,7 +40,7 @@ class PropertiesScorer(_ScorerBase):
         :param frag_ids: ignored. Included for compatibility reasons
         :return:
         '''
-        sascore = self.sascorer.calculateScore(mol)
+        sascore = sascorer.calculateScore(mol)
         scscore =  self.scsw.compute_score(Chem.MolToSmiles(mol))[0]
         descriptors =  Chem.QED.properties(mol)
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id, _ScorerBase.SCORE_NAME_TEMPLATE%"SA": sascore,
