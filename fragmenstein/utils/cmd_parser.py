@@ -33,5 +33,5 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = super().parse_args(*args, **kwargs)
         for arg,val in vars(parsed_args).items():
             if self.from_argname_to_nameInConfig(arg) in ConfigManager.default_params:
-                os.environ[arg] = str(val)
+                os.environ[self.from_argname_to_nameInConfig(arg)] = str(val)
         return parsed_args
