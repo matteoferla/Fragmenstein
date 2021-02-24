@@ -1,29 +1,33 @@
 import os
 from collections import OrderedDict
 
+import re
+
 from fragmenstein.protocols.loadInput_base import LoadInput_base
+from fragmenstein.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.compound import Compound
-from fragmenstein.utils.io_utils import load_files_as_mols
+from fragmenstein.utils.io_utils import load_files_as_mols, apply_func_to_files
 
 
-class LoadInput_XchemDefault(LoadInput_base):
+class LoadInput_XchemDefault(LoadInput_base, Xchem_info):
 
     @staticmethod
     def get_examples_init_params():
         return dict( data_dir= os.path.abspath( os.path.join(__file__, "../../mpro/data/xchem_examples/aligned") ) ,
-                     fragIds_pattern=r".*?(x[\w-]+)\.mol$")
+                     ).update( Xchem_info.default_params_xchem())
 
-    def __init__(self, data_dir, fragIds_pattern, target_id = None):
+    def __init__(self, data_dir, fragment_id_pattern, unboundPdb_id_pattern, target_id = None, *args, **kwargs):
 
         super().__init__()
         self.data_dir = data_dir
-        self.fragIds_pattern = fragIds_pattern
+        self.fragment_id_pattern = fragment_id_pattern
+        self.unboundPdb_id_pattern = unboundPdb_id_pattern
         self.target_id = target_id
 
 
 
     def prepare_fragments(self):
-        fragments = load_files_as_mols( self.data_dir, self.fragIds_pattern )
+        fragments = load_files_as_mols( self.data_dir, self.fragment_id_pattern )
 
         def prepareMol(id_mol):
             compound = Compound(id_mol[1])
@@ -33,8 +37,13 @@ class LoadInput_XchemDefault(LoadInput_base):
 
         return OrderedDict(fragments)
 
-    def find_templates(self):
-       raise NotImplementedError()
+    def find_templates(self, filter_ids=None):
+        templates = apply_func_to_files(self.data_dir, self.unboundPdb_id_pattern,
+                                        lambda x: (re.match(self.unboundPdb_id_pattern,x).group(1), x) )
+        if filter_ids:
+            templates = list(filter(lambda id_fname: id_fname[0] in filter_ids, templates))
+
+        return templates
 
 
 def test_load():

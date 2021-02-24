@@ -22,7 +22,11 @@ class ArgumentParser(argparse.ArgumentParser):
 
         super().__init__(*args, **kwargs)
         for (name, defaultVal), help in zip(ConfigManager.default_params.items(), ConfigManager.helps):
-            self.add_argument(self.from_nameInConfig_to_argname(name), type= type(defaultVal) , default= defaultVal, help=help)
+            if defaultVal is None:
+                varType = str
+            else:
+                varType = type(defaultVal)
+            self.add_argument(self.from_nameInConfig_to_argname(name), type= varType , default= defaultVal, help=help)
 
     def parse_args(self, *args, **kwargs):
 

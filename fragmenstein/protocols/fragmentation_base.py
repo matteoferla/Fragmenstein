@@ -82,6 +82,7 @@ class Fragmentator(InputAddapter):
         molId_to_bitLists_dict = defaultdict(list)
         bitId_to_molId = {}
         for mol_id, _mol in input_mols:
+            bitId_to_molId[mol_id] = mol_id
             mol = change_atom_type(_mol, initial_symbol= '*', final_symbol=Fragmentator.TEMPORAL_DUMMY_ATOM)
             for i, split_option in  enumerate(self.yield_possible_molFrags(mol)):
                 bits = sorted(split_option, key=lambda x: HeavyAtomMolWt(x))

@@ -17,7 +17,7 @@ class ConfigManager():
     PARAMETERS = [
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),
-        ("DASK_WORKER_MEMORY", str, None, "Memory for each dask worker. E.g '16GB. Default 90% of host memory / N_CPUS"),
+        ("DASK_WORKER_MEMORY", str, None, "Memory for each dask worker. E.g 16GB'. Default 90%% of host memory / N_CPUS"),
         ("TMP_DIR", str, "/tmp", "Temporal directory for computations %(default)s"),
         ("EXTERNAL_TOOLS_CONFIG_FILE", str, os.path.abspath(os.path.join(__file__, "../../external/external_config.json")), "A json file for external tools configuration")
     ]
