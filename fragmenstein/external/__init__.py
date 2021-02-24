@@ -11,6 +11,10 @@ from fragmenstein.utils.config_manager import ConfigManager
 class ExternalToolImporter():
 
   config_json_fname = ConfigManager.EXTERNAL_TOOLS_CONFIG_FILE
+  #first attemp, local directory
+  if os.path.exists(  os.path.basename(config_json_fname) ):
+    config_json_fname = os.path.basename(config_json_fname)
+
 
   with open(config_json_fname) as f:
     config_data = json.load( f )

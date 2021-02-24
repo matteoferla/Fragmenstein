@@ -21,7 +21,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        for (name, defaultVal), help in zip(ConfigManager.default_params.items(), ConfigManager.helps):
+        for (name, defaultVal), help in ConfigManager.yieldParseableParams():
             if defaultVal is None:
                 varType = str
             else:
@@ -32,6 +32,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         parsed_args = super().parse_args(*args, **kwargs)
         for arg,val in vars(parsed_args).items():
-            if self.from_argname_to_nameInConfig(arg) in ConfigManager.default_params:
+            if self.from_argname_to_nameInConfig(arg) in ConfigManager.parseable_params:
                 os.environ[self.from_argname_to_nameInConfig(arg)] = str(val)
         return parsed_args

@@ -2,7 +2,6 @@ import json, gzip
 import numpy as np
 
 from fragmenstein.external import ExternalToolImporter
-
 [standalone_model_numpy] = ExternalToolImporter.import_tool("scscore", ["scscore.standalone_model_numpy"])
 
 
