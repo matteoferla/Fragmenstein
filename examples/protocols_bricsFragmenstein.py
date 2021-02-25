@@ -110,7 +110,7 @@ def main(data_root_dir, hit_ids, output_dir, template=None, template_xchemId=Non
     for mol_name, (mol, score) in scores_dict.items():
 
         mol.SetProp("_Name", get_simplified_mol_name(mol_name))
-        score["fragments"] = [ fragmentator.getOrinalFragmentId(frag) for frag in score["fragments"] ]
+        score["fragments"] = sorted(set([ fragmentator.getOrinalFragmentId(frag) for frag in score["fragments"] ]))
 
     frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId)
     frag_writer.write_molsList_to_sdf(sdf_outname, mols_list, metadata_list)

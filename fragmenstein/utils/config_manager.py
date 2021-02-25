@@ -13,7 +13,6 @@ def instancer(cls):
 @instancer #ConfigManager will be an instance of the ConfigManager() class
 class ConfigManager():
 
-    #ADD any parameter you want to PARSEABLE_PARAMETERS. #TODO: Load default values from some config file
     PARSEABLE_PARAMETERS = [
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),

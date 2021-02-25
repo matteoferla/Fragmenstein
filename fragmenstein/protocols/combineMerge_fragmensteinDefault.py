@@ -21,9 +21,10 @@ from fragmenstein.utils.pdb_utils import PdbDistanceManager
 class CombineMerge_FragmensteinDefault(InputAddapter):
 
     RESULT_METADATA_PATTERN= "%s.scores.json"
-    def __init__(self, output_path, template=None, use_dask=False, verbose=False):
+    def __init__(self, output_path, template=None, use_dask=False, verbose=False, save_pymol=True):
 
 
+        self.save_pymol = save_pymol
         self.verbose = verbose
         self.output_path = output_path
         self.template = template #TODO: if template is null, find template within
@@ -140,7 +141,8 @@ class CombineMerge_FragmensteinDefault(InputAddapter):
                 pass
     
             if generated_molecule is not None:
-                v.make_pse()
+                if self.save_pymol:
+                    v.make_pse()
                 metadata_dict = v.summarise()
                 metadata_dict = _FragmensteinScorer.old_scoring_fun(metadata_dict)[-1]
                 metadata_dict = _FragmensteinScorer.new_scoring_fun(metadata_dict)[-1]
@@ -168,7 +170,8 @@ class CombineMerge_FragmensteinDefault(InputAddapter):
             results_future = DB.from_sequence(list_of_arguments).map(mapFunction
                                                               ).filter(lambda x: x is not None)
             results = dask_client.compute(results_future)  # , scheduler='single-threaded')
-            progress(results)
+            if self.verbose:
+                progress(results)
             results = results.result()
         else:
             results = list(filter(None.__ne__,
