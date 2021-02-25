@@ -19,7 +19,7 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
             threads_per_worker = 1
         if memory_limit is None:
             memory_limit= ConfigManager.DASK_WORKER_MEMORY
-            if memory_limit <0:
+            if memory_limit == "-1":
                 from psutil import virtual_memory
                 mem = virtual_memory()
                 if mem.total is None:
