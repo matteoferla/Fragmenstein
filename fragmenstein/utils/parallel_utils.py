@@ -1,8 +1,9 @@
 import os
 import logging
+import socket
 
 import dask
-from distributed import Client
+from distributed import Client, LocalCluster
 
 from fragmenstein.utils.config_manager import ConfigManager
 
@@ -23,14 +24,14 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
                 from psutil import virtual_memory
                 mem = virtual_memory()
                 if mem.total is None:
-                    print(mem)
                     raise ValueError("Error, memory was not determined")
                 memory_limit="%dGB"%( (0.9 *mem.total/n_workers) // 2 ** 30)
         dask.config.set({'temporary_directory': os.path.join(ConfigManager.TMP_DIR, "dask")})
+        print(socket.gethostname())
         if n_workers>1 or threads_per_worker>1:
-            DASK_CLIENT = Client(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit)
+            DASK_CLIENT = Client( LocalCluster(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit))
         else:
-            DASK_CLIENT = Client(threads_per_worker=1, n_workers=1)
+            DASK_CLIENT = Client( LocalCluster(threads_per_worker=1, n_workers=1) )
 
     return DASK_CLIENT
 

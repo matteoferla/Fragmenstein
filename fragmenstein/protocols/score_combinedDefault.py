@@ -25,7 +25,7 @@ class Score_CombinedDefault(Xchem_info):
         :return:
         '''
         with tempfile.TemporaryDirectory() as tmp:
-            scorer1 = SuCOSComputer(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern, use_weights=False, working_dir=tmp )
+            scorer1 = SuCOSComputer(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern, use_weights=True, working_dir=tmp )
             scorer2 = PropertiesScorer(working_dir=tmp)
             scorer3 = XcosComputer(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern, working_dir=tmp )
             scorer4 = InteractionBasedScorer(fragments_dir=self.fragments_dir, fragment_id_pattern=self.unboundPdb_id_pattern,
