@@ -6,13 +6,13 @@ from rdkit import Chem
 from rdkit.Chem.Descriptors import HeavyAtomMolWt
 
 from fragmenstein.external.smarts_fragmentation.reaction_fragmentation import ReactionFragmentation
-from fragmenstein.protocols.adapt_input import InputAddapter
+from fragmenstein.protocols.adapt_input import InputAdapter
 from fragmenstein.utils.compound import Compound
 from fragmenstein.utils.modify_molecules import change_atom_type
 from fragmenstein.utils.sample_iterator import iter_sample_fast
 
 
-class Fragmentator(InputAddapter):
+class Fragmentator(InputAdapter):
 
 
     TEMPORAL_DUMMY_ATOM ="[Xe]"

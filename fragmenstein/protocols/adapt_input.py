@@ -1,7 +1,7 @@
 from fragmenstein.utils.compound import Compound
 
 
-class InputAddapter():
+class InputAdapter():
     def adapt_dict_or_compoundsList(self, input_data ):
         if isinstance(input_data, (tuple, list)) and isinstance(input_data[0], Compound):
             return {x.molId: x for x in input_data}

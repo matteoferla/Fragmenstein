@@ -11,14 +11,14 @@ from dask.distributed import progress
 
 from fragmenstein import Victor
 from fragmenstein.external import ExternalToolImporter
-from fragmenstein.protocols.adapt_input import InputAddapter
+from fragmenstein.protocols.adapt_input import InputAdapter
 from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.compound import Compound
 from fragmenstein.utils.parallel_utils import get_parallel_client
 from fragmenstein.utils.pdb_utils import PdbDistanceManager
 
 
-class CombineMerge_FragmensteinDefault(InputAddapter):
+class CombineMerge_FragmensteinDefault(InputAdapter):
 
     RESULT_METADATA_PATTERN= "%s.scores.json"
     def __init__(self, output_path, template=None, use_dask=False, verbose=False, save_pymol=True):
