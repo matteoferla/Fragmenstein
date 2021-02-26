@@ -78,8 +78,8 @@ if args:
         print("***********************************")
 
     with tempfile.TemporaryDirectory(dir=SUBMITS_DIR) as tmp:
-        bash_tmpFile = tempfile.NamedTemporaryFile(dir = SUBMITS_DIR, suffix="_launch.sh", delete=False)
-        with open( bash_tmpFile, "w") as tmpfile:
+        with tempfile.NamedTemporaryFile(dir = SUBMITS_DIR, suffix="_launch.sh", delete=False) as tmpfile:
+            bash_tmpFile = tmpfile.name
             tmpfile.write( bash_str)
         args["bash_tmpFile"] = bash_tmpFile
         condor_str = CONDOR_TEMPLATE%(args)
