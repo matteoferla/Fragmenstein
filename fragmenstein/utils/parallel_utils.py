@@ -27,7 +27,6 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
                     raise ValueError("Error, memory was not determined")
                 memory_limit="%dGB"%( (0.9 *mem.total/n_workers) // 2 ** 30)
         dask.config.set({'temporary_directory': os.path.join(ConfigManager.TMP_DIR, "dask")})
-        print(socket.gethostname())
         if n_workers>1 or threads_per_worker>1:
             DASK_CLIENT = Client( LocalCluster(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit))
         else:

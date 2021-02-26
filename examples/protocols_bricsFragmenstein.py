@@ -130,7 +130,9 @@ if __name__ == "__main__":
     args =vars( parser.parse_args())
     main( ** args)
     print("\nmain DONE!\n")
+
     '''
 
 N_CPUS=1 python -m examples.protocols_bricsFragmenstein -d ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10
+
     '''
