@@ -4,7 +4,8 @@ import tempfile
 
 from subprocess import check_call
 
-DEFAULT_OGS_DIR="/data/xchem-fragalysis/sanchezg/logs/"
+DEFAULT_OGS_DIR = "/data/xchem-fragalysis/sanchezg/logs/"
+SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
 
 BASH_TEMPLATE='''###################
 %(env_vars)s
@@ -76,8 +77,8 @@ if args:
         print(bash_str )
         print("***********************************")
 
-    with tempfile.TemporaryDirectory() as tmp:
-        bash_tmpFile = os.path.join(tmp, "launch.sh")
+    with tempfile.TemporaryDirectory(dir=SUBMITS_DIR) as tmp:
+        bash_tmpFile = tempfile.NamedTemporaryFile(dir = SUBMITS_DIR, suffix="_launch.sh", delete=False)
         with open( bash_tmpFile, "w") as tmpfile:
             tmpfile.write( bash_str)
         args["bash_tmpFile"] = bash_tmpFile
