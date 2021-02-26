@@ -5,8 +5,8 @@ import tempfile
 from subprocess import check_call
 
 DEFAULT_OGS_DIR = "/data/xchem-fragalysis/sanchezg/logs/"
-# SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
-SUBMITS_DIR = os.path.expanduser("~/tmp")
+SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
+# SUBMITS_DIR = os.path.expanduser("~/tmp")
 
 BASH_TEMPLATE='''###################
 %(env_vars)s
