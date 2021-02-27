@@ -4,7 +4,7 @@ from rdkit import Chem
 from rdkit.Chem import BRICS
 from rdkit.Chem.Lipinski import RotatableBondSmarts
 
-from fragmenstein.protocols.fragmentation_base import Fragmentator
+from fragmenstein.protocols.hitsPreprocess_fragmentation_base import HitsPreprocess_base
 
 
 def split_mol_to_brics_bits(mol: Chem.Mol, delete_dummy=False) -> List[Chem.Mol]:
@@ -28,18 +28,18 @@ def split_mol_to_brics_bits(mol: Chem.Mol, delete_dummy=False) -> List[Chem.Mol]
     return mols
 
 
-class Fragmentator_BRICS(Fragmentator):
+class HitsPreprocess_fragmentationBRICS(HitsPreprocess_base):
 
 
-    def __init__(self, fragments_dict, *args, **kwargs):
-        super().__init__(fragments_dict,  lambda mol: (split_mol_to_brics_bits(mol),), *args, **kwargs)
+    def __init__(self, original_fragments, *args, **kwargs):
+        super().__init__(original_fragments,  lambda mol: (split_mol_to_brics_bits(mol),), *args, **kwargs)
 
 
 
 def test_fragmentBrics():
 
-    fragmentator = Fragmentator_BRICS( ** Fragmentator_BRICS.get_examples_init_params()  )
-    combs = fragmentator.yield_bits_combinations()
+    fragmentator = HitsPreprocess_fragmentationBRICS(** HitsPreprocess_fragmentationBRICS.get_examples_init_params())
+    combs = fragmentator.yield_combinations()
     next( combs )
     for molId, fragmentation_options in fragmentator._all_fragmentations.items():
         print("--------- mol id:", molId, "---------" )
@@ -54,6 +54,6 @@ if __name__ =="__main__":
 
     '''
 
-python -m fragmenstein.protocols.fragmentation_brics
+python -m fragmenstein.protocols.hitsPreprocess_fragmentationBrics
 
     '''

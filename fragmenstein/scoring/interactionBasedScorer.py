@@ -22,7 +22,7 @@ class InteractionBasedScorer(_ScorerBase):
     MIN_NUM_CONTACTS_FOR_POSITIVE_MATCH = 2
 
     def __init__(self, fragments_dir, fragment_id_pattern, boundPdbs_to_score_dir, boundPdbs_to_score_pattern,
-                 fragment_match_threshold=0.5,
+                 fragment_match_threshold=0.5, selected_fragment_ids=None,
                  ligand_resname="LIG", *args, **kwargs):
         '''
         This params are generally provided through the class method computeScoreForMolecules
@@ -30,6 +30,7 @@ class InteractionBasedScorer(_ScorerBase):
 
         '''
 
+        self.selected_fragment_ids = selected_fragment_ids
         self.fragment_match_threshold= fragment_match_threshold
         self.fragment_id_pattern = fragment_id_pattern
         self.boundPdbs_to_score_dir = boundPdbs_to_score_dir
@@ -41,8 +42,14 @@ class InteractionBasedScorer(_ScorerBase):
         super().__init__( *args, **kwargs)
 
         journal.warning("Computing interactions for fragments")
-        self.fragInteractions_dict = dict(  apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
-                                                                           self._computeInteractionsOneComplex))
+
+        def load_fragments_interactions( bound_pdb_fname):
+            return self._computeInteractionsOneComplex( bound_pdb_fname, selected_fragment_ids=selected_fragment_ids)
+
+        self.fragInteractions_dict = dict(  filter(None.__ne__,
+                                                   apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
+                                                                       load_fragments_interactions)))
+
         journal.warning("Fragments interactions computed")
 
         def prepare_bound_pdbNames(fname):
@@ -51,8 +58,6 @@ class InteractionBasedScorer(_ScorerBase):
 
         self.atomic_models_fnames = dict(apply_func_to_files(self.boundPdbs_to_score_dir, self.boundPdbs_to_score_pattern,
                                                                   prepare_bound_pdbNames))
-        # input(  self.atomic_models_fnames )
-
     @property
     def fragments_id(self):
         '''
@@ -61,7 +66,7 @@ class InteractionBasedScorer(_ScorerBase):
         '''
         return list( self.fragInteractions_dict.keys() )
 
-    def _computeInteractionsOneComplex(self, bound_pdb_fname, pattern= None):
+    def _computeInteractionsOneComplex(self, bound_pdb_fname, pattern= None, selected_fragment_ids=None):
         '''
         :param bound_pdb_fname:
         :return:
@@ -71,6 +76,9 @@ class InteractionBasedScorer(_ScorerBase):
         if not pattern:
             pattern= self.fragment_id_pattern
         frag_id = re.match(pattern, os.path.basename(bound_pdb_fname)).group(1)
+        if selected_fragment_ids and frag_id not in selected_fragment_ids:
+            return None
+
         inters = self.plipWorker.compute_interactions_boundPDB(bound_pdb_fname)
         inters = set (chain.from_iterable( ( (inter_type.replace("_","-")+"_"+res_id for res_id in res_list)  for inter_type, res_list in inters.items() ) ) )
         return (frag_id, inters)

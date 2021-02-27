@@ -4,9 +4,8 @@ import tempfile
 
 from subprocess import check_call
 
-DEFAULT_OGS_DIR = "/data/xchem-fragalysis/sanchezg/logs/"
-SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
-# SUBMITS_DIR = os.path.expanduser("~/tmp")
+DEFAULT_LOGS_DIR = "/data/xchem-fragalysis/sanchezg/logs/"
+DEFAULT_SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
 
 BASH_TEMPLATE='''###################
 %(env_vars)s
@@ -51,7 +50,9 @@ parser.add_argument("--ncpus", type=int, required=True, help="number of cpus")
 parser.add_argument("--memory", type=int, required=False, default=None, help="Total memory in MB. Default %(default)s")
 parser.add_argument("--gpus", type=int, required=False, default=None, help="Number of GPUs")
 # parser.add_argument("--bindir", type=str, required=False, default=None, help="directory where the binary lives") #TODO
-parser.add_argument("--logdirs", type=str, required=False, default=DEFAULT_OGS_DIR, help="Logs directory")
+parser.add_argument("--logdirs", type=str, required=False, default=DEFAULT_LOGS_DIR, help="Logs directory. Default %(default)s")
+parser.add_argument("--tmpdir", type=str, required=False, default=DEFAULT_SUBMITS_DIR, help="Logs directory. Default %(default)s")
+
 parser.add_argument("--env_vars", type=str, nargs="+", required=False, default=[], help="enviramental variables")
 parser.add_argument("--print", action="store_true", help="print files instead submitting")
 
@@ -78,8 +79,8 @@ if args:
         print(bash_str )
         print("***********************************")
 
-    with tempfile.TemporaryDirectory(dir=SUBMITS_DIR) as tmp:
-        with tempfile.NamedTemporaryFile(mode = "w", dir = SUBMITS_DIR, suffix="_launch.sh", delete=False) as f:
+    with tempfile.TemporaryDirectory(dir=args["tmpdir"]) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", dir=args["tmpdir"], suffix="_launch.sh", delete=False) as f:
             bash_tmpFile = f.name
 
             f.write( bash_str)

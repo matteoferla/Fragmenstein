@@ -37,11 +37,17 @@ class Compound(Chem.PropertyMol.PropertyMol):
         comp.molId = compound.parents
         return comp
 
-    def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol], molId=None, parents=None, *args, **kwargs):
+    def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None, *args, **kwargs):
+
 
         super().__init__(mol, *args, **kwargs)
 
-        self.covalent_info = None  #E.g. {'covalent_resi':'145A', 'covalent_resn':'CYS'}
+        covalent_info = None
+        if isinstance(mol, type(self)):
+            parents = mol.parents
+            molId = molId
+
+        self.covalent_info = covalent_info  #E.g. {'covalent_resi':'145A', 'covalent_resn':'CYS'}
 
         if parents:
             self._parents = parents
@@ -51,6 +57,7 @@ class Compound(Chem.PropertyMol.PropertyMol):
             self._molId = molId
         else:
             self._molId = None
+
 
     @property
     def parents(self):
@@ -123,7 +130,7 @@ def test_primitiveId():
     m3.parents = [m2]
     m2.parents = [m1]
     print(m4.primitiveId)
-
+    Compound(m2)
 def test_pickleProps():
     import  pickle
     m1,m2,m3,m4 = test_getMols()

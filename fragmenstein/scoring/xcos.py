@@ -11,7 +11,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 
-from fragmenstein.protocols.fragmentation_brics import split_mol_to_brics_bits
+from fragmenstein.protocols.hitsPreprocess_fragmentationBrics import split_mol_to_brics_bits
 from fragmenstein.scoring._scorer_base import _ScorerBase
 from fragmenstein.scoring.cos_like_base import _COSLikeBase
 

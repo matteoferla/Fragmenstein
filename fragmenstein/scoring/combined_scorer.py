@@ -23,14 +23,24 @@ class CombineScorer(_ScorerBase):
 
     @classmethod
     def update_dict(cls, prevDict, newDict, rep_label):
-        # print(prevDict, newDict)
         assert prevDict[_ScorerBase.MOL_NAME_ID] == newDict[
             _ScorerBase.MOL_NAME_ID], "Error, mismatch between differnt scorers"
+
         common_names = set(prevDict.keys()).intersection( newDict.keys() ).difference([_ScorerBase.MOL_NAME_ID])
-        newDict = newDict.copy()
+        old_names = set(prevDict.keys()).difference( newDict.keys() ).difference([_ScorerBase.MOL_NAME_ID])
+
         for key in common_names:
-            newDict[key +"_"+ rep_label] = newDict[key]
-            del newDict[key]
+            if isinstance(prevDict[key], list):
+                if len(newDict[key])==0:
+                    newDict[key] = prevDict[key]
+
+            else:
+                newDict[key + "_" + rep_label] =  newDict[key]
+                del newDict[key]
+
+        for key in old_names:
+            newDict[key] = prevDict[key]
+
         return newDict
 
     def computeScoreOneMolecule(self, *args, **kwargs) -> Dict[str, Tuple[float, List[str]]]:
