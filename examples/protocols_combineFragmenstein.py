@@ -45,6 +45,7 @@ def main(data_root_dir, hit_ids, output_dir, preprocess_mode=None, template=None
 
     proprocesser = None
     if preprocess_mode:
+        print("preprocessing fragments")
         if preprocess_mode=="BRICS_decomposition":
             proprocesser = HitsPreprocess_fragmentationBRICS(fragments, random_seed= RANDOM_SEED)
             fragsCombin_iter =  proprocesser.yield_combinations(take_n_random=max_attemps)
@@ -133,8 +134,7 @@ def main(data_root_dir, hit_ids, output_dir, preprocess_mode=None, template=None
 
     frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId)
     frag_writer.write_molsList_to_sdf(sdf_outname, mols_list, metadata_list)
-
-
+    print("Results written to %s"%sdf_outname)
 
 if __name__ == "__main__":
     from fragmenstein.utils.cmd_parser import ArgumentParser
