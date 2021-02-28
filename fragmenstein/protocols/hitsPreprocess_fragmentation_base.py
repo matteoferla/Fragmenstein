@@ -93,11 +93,6 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         assert len(self.original_fragments_dict) <= HitsPreprocess_fragmentation_base.MAX_NUMBER_TO_COMBINE, "Error, yield combinations scales with O(2**N_bits)**N_FRAGS, " \
                                                                    "so the number of fragments to consider has been limited to %d" % HitsPreprocess_fragmentation_base.MAX_NUMBER_TO_COMBINE
 
-        bitDecompositions_perCompound = self.broken_fragments.values() # [compound1_all_options, compound2_all_options, ...]
-
-        oneDecomposition_perCompound_list =  list( product( *bitDecompositions_perCompound ))
-
-        final_fragments = []
         full_compounds = list( self.original_fragments_dict.values() )
 
         try:
