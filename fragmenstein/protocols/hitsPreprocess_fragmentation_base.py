@@ -96,15 +96,15 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         full_compounds = list( self.original_fragments_dict.values() )
 
         try:
-            final_fragments = self._yield_combinations(min_num_fragments, take_n_random)
+            final_fragments = self._yield_combinations(min_num_fragments)
             final_fragments = self.take_random_from_iterator(final_fragments, take_n_random)
         except ValueError:
-            final_fragments = self._yield_combinations(min_num_fragments, take_n_random)
+            final_fragments = self._yield_combinations(min_num_fragments)
 
         final_fragments = chain.from_iterable([[full_compounds], final_fragments])
         return final_fragments
 
-    def _yield_combinations(self, min_num_fragments=2, take_n_random=None):
+    def _yield_combinations(self, min_num_fragments=2):
 
         bitDecompositions_perCompound = self.broken_fragments.values() # [compound1_all_options, compound2_all_options, ...]
 

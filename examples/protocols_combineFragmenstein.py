@@ -53,7 +53,7 @@ def main(data_root_dir, hit_ids, output_dir, preprocess_mode=None, template=None
             raise NotImplementedError()
         elif preprocess_mode == "permutations":
             proprocesser = HitsPreprocess_permutations(fragments, random_seed= RANDOM_SEED)
-            fragsCombin_iter =  proprocesser.yield_combinations(take_n_random=max_attemps)
+            fragsCombin_iter =  proprocesser.yield_combinations(max_num_elems=3, take_n_random=max_attemps)
         else:
             raise ValueError("Error, not implemented option preprocess_mode=%s"%preprocess_mode)
     else:
@@ -100,13 +100,14 @@ def main(data_root_dir, hit_ids, output_dir, preprocess_mode=None, template=None
 
     mols_list, metadata_list = zip(* scores_dict.values() )
 
-
+    i = 0
     def get_simplified_mol_name(mol_id): #TODO: Move it within fragalysis??
         '''
         Reduce the mol_name for merges over fragments of fragments
         :param mol_id:
         :return:
         '''
+        nonlocal i
         pieces = mol_id.split("-")
         ids_dict = defaultdict( set)
         for frag_id in pieces:
@@ -119,7 +120,8 @@ def main(data_root_dir, hit_ids, output_dir, preprocess_mode=None, template=None
 
             ids_dict[fragId_chainId].add(bit_id)
 
-        mol_id = ""
+        mol_id = "%d_"%i
+        i+=1
         for fragId_chainId in sorted(ids_dict):
             mol_id += fragId_chainId
             for bit_id in sorted(ids_dict[fragId_chainId]):

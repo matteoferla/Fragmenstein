@@ -17,11 +17,12 @@ class ConfigManager():
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),
         ("DASK_WORKER_MEMORY", str, "-1", "Memory for each dask worker. E.g 16GB'. Default 90%% of host memory / N_CPUS"),
-        ("TMP_DIR", str, "/tmp", "Temporal directory for computations %(default)s")
+        ("TMP_DIR", str, "/tmp", "Temporal directory for computations. Default: %(default)s")
     ]
 
     NONPARSEABLE_PARAMETERS = [
-        ("EXTERNAL_TOOLS_CONFIG_FILE", str, os.path.abspath(os.path.join(__file__, "../../external/external_config.json")),  "A json file for external tools configuration")
+        ("EXTERNAL_TOOLS_CONFIG_FILE", str, os.path.abspath(os.path.join(__file__, "../../external/external_config.json")),  "A json file for external tools configuration"),
+        ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2, "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s")
 
     ]
     def __init__(self):

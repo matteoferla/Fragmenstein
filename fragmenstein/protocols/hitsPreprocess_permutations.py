@@ -6,6 +6,7 @@ from rdkit import Chem
 
 #TODO: change this class
 from fragmenstein.protocols.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.utils.config_manager import ConfigManager
 
 
 class HitsPreprocess_permutations(HitsPreprocess_base):
@@ -16,7 +17,7 @@ class HitsPreprocess_permutations(HitsPreprocess_base):
         super().__init__(original_fragments=original_fragments, random_seed=random_seed)
 
 
-    def yield_combinations(self,  max_num_elems=2, take_n_random=None):
+    def yield_combinations(self,  max_num_elems=ConfigManager.COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS, take_n_random=None):
 
         get_results = lambda : self._powerset( self.original_fragments_dict.values() , min_num_elements=2,  max_num_emements=max_num_elems)
         results = get_results()
