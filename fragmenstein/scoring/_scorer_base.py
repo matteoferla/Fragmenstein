@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from fragmenstein.external.uploadToFragalysis.FragalysisFormater import FragalysisFormater
-from fragmenstein.scoring.scorer_labels import SCORE_NAME_TEMPLATE, FRAGMENTS_ID, MOL_NAME_ID
+from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
+from fragmenstein.scoring.scorer_labels import SCORE_NAME_TEMPLATE, FRAGMENTS_ID, MOL_NAME_ID, checkIfNameIsScore
 from fragmenstein.utils.io_utils import load_mol_if_str
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
@@ -179,7 +179,7 @@ class _ScorerBase(ABC):
         scores_ids = None
         for record in results_computed:
             if record is None: continue
-            scores_ids = [ elem for elem in record.keys() if elem.endswith(_ScorerBase.SCORE_NAME_TEMPLATE%"") ]
+            scores_ids = [ elem for elem in record.keys() if checkIfNameIsScore(elem) ]
             break
 
         assert  scores_ids is not None, "Error, not even a single molecule was scored"

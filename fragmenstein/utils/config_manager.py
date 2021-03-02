@@ -46,9 +46,9 @@ class ConfigManager():
         return self.get(name)
 
     def yieldParseableParams(self):
-        for (name, defaultVal), help in zip(ConfigManager.default_params.items(), ConfigManager.helps):
+        for name, help in zip(ConfigManager.default_params.keys(), ConfigManager.helps):
             if name in self.parseable_params:
-                yield (name, defaultVal), help
+                yield name, help
 
 
 if __name__ == "__main__":

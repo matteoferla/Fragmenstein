@@ -46,7 +46,7 @@ def load_mol_if_str( mol_or_str: Union[str, Chem.Mol]) -> Union[Chem.Mol, None]:
         raise ValueError("Expected Chem.Mol or str. Found: %s "%type(mol_or_str))
 
 
-def apply_func_to_files( folder, file_pattern, function, use_parallel_dask=None, extensions_to_check=None):
+def apply_func_to_files( folder, file_pattern, function, use_parallel_dask=None, extensions_to_check=None, ids_to_check=None):
         results = []
 
         if use_parallel_dask is None:
@@ -62,6 +62,10 @@ def apply_func_to_files( folder, file_pattern, function, use_parallel_dask=None,
                         raise ValueError(
                             "Error, one of the files found (%s) did not match the required extension (%s)" % (
                             fname, extensions_to_check))
+                    if ids_to_check:
+                        match_id = match_obj.group(1)
+                        if match_id not in ids_to_check:
+                            continue
                     fname = os.path.join( root, fname)
                     result = function(fname)
                     results.append(result)

@@ -2,10 +2,11 @@ import json
 import logging
 import os
 import re
+import pandas as pd
+
 from typing import Dict, Union
 from typing import List
-
-import pandas as pd
+from datetime import datetime
 
 from collections import OrderedDict
 
@@ -14,7 +15,7 @@ from itertools import chain
 from functools import reduce
 from rdkit import Chem
 
-from fragmenstein.scoring.scorer_labels import SCORE_NAME_TEMPLATE
+from fragmenstein.scoring.scorer_labels import  checkIfNameIsScore
 from fragmenstein.utils.io_utils import load_mol_if_str, apply_func_to_files, load_files_as_mols
 
 journal = logging.getLogger('Fragalysis Formatter')
@@ -57,7 +58,7 @@ class FragalysisFormater():
     @classmethod
     def add_metadata_to_mol(cls, mol, metadata_dict, round_digits=6):
         for prop, val in metadata_dict.items():
-            if prop.endswith(SCORE_NAME_TEMPLATE%""):
+            if checkIfNameIsScore(prop):
                 val = str(round(val, ndigits=round_digits))
             elif prop == "fragments":
                 prop = "ref_mols"
@@ -105,6 +106,7 @@ class FragalysisFormater():
 
         if metadata_header is None:
             self.metadata_header =  self.parse_metadata_config(FragalysisFormater.METADATA_FIELDS_DEFAULT_FNAME)
+
         else:
             self.metadata_header = self.parse_metadata_config(metadata_header)
 
@@ -120,6 +122,7 @@ class FragalysisFormater():
             md_fields = OrderedDict(fname_or_iterable)
         else:
             raise ValueError("fname_or_iterable must be the name of a csv file or an ordered dict ")
+        md_fields["generation_date"] = datetime.today().strftime('%Y-%m-%d')
         return md_fields
 
     def _get_header_mol(self, missing_properties=[]):

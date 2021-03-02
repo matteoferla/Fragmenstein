@@ -21,7 +21,8 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        for (name, defaultVal), help in ConfigManager.yieldParseableParams():
+        for name, help in ConfigManager.yieldParseableParams():
+            defaultVal = ConfigManager.get(name)
             if defaultVal is None:
                 varType = str
             else:

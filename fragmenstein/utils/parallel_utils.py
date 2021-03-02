@@ -31,7 +31,7 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
             DASK_CLIENT = Client( LocalCluster(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit))
         else:
             DASK_CLIENT = Client( LocalCluster(threads_per_worker=1, n_workers=1) )
-
+        print(DASK_CLIENT)
     return DASK_CLIENT
 
 
