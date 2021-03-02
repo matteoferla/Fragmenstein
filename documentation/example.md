@@ -209,6 +209,62 @@ victor = Victor(hits=[hits_a, hit_b], pdb_filename='template.pdb')
 victor.place(similarity_results.smiles) # to place.
 ```
 
+## Michelanglo
+To make an interactive page in [Michelanglo](https://michelanglo.sgc.ox.ac.uk/), like [this example](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
+one can use the [michelanglo_api](https://github.com/matteoferla/MichelaNGLo-api) (pip name is `michelanglo-api`).
+The data is stored in a github repo. For a detailed example see [pipeline](pipeline.md).
+
+First, make an SDF of the results with properties to show in the table say via `rdkit.Chem.PandasTools`.
+This requires a first compound with metadata values. This will change one day.
+
+then make or get a Michelanglo page
+```jupyterpython
+from michelanglo_api import MikeAPI
+mike = MikeAPI('username', 'password')
+page = mike.convert_pdb('6WOJ') # make new
+# or...
+#p = mike.get_page('xxxxxxxx')  # retrieve old
+page.retrieve()
+page.show_link()
+```
+Fix up... etc.
+```jupyterpython
+page.description = 'Hello world. '
+page.loadfun = ''
+page.columns_viewport = 6
+page.columns_text = 6
+```
+Add the data
+```jupyterpython
+
+gitfolder='/Users/you/path_to_your_github_repo_on_your_machine'
+sdfile='/Users/you/path_to_sdfile.sdf'
+folder = 'folder_name_within_repo'
+targetfolder=f'{gitfolder}/{folder}'
+
+# move the sdf_file to individual mol files in your repo
+page.sdf_to_mols(sdfile=sdfile,
+             targetfolder=targetfolder,
+             skip_first=True) # first row is metadata in a SDF for XChem
+# make a json for the table
+page.sdf_to_json(sdfile=sdfile,
+             keys=('∆∆G', 'comRMSD', 'N_constrained_atoms', 'runtime', 'disregarded', 'smiles'),
+             key_defaults=(999., 999., 0, 999., 'NA', 'NA'), #what to set stuff that is null
+             filename=f'{targetfolder}/data.json')
+# make a table
+page.make_fragment_table(sdfile=sdfile,
+               username='matteoferla',
+               repo_name='Data_for_own_Michelanglo_pages',
+               foldername=folder,
+               protein_sele='145:A', # show this on protein. NGL selection
+               sort_col=2, #sort by column index 2.
+               sort_dir='asc', #asc or desc
+               template_row=-1, # is the template a file called `template.pdb` (-1) or a filename in the row n?
+               fragment_row=1, # the inspiration fragments (-1 for none). The names must match with or without a .mol.
+               jsonfile='data.json')
+# commit changes
+page.commit()
+```
 
 
 
