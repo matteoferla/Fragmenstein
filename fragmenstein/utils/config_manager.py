@@ -22,8 +22,8 @@ class ConfigManager():
 
     NONPARSEABLE_PARAMETERS = [
         ("EXTERNAL_TOOLS_CONFIG_FILE", str, os.path.abspath(os.path.join(__file__, "../../external/external_config.json")),  "A json file for external tools configuration"),
-        ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2, "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s")
-
+        ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2, "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s"),
+        ("VICTOR_VERBOSE", bool, False, "Enable verbosity in Victor. Default: %(default)s")
     ]
     def __init__(self):
         self_class = type(self)

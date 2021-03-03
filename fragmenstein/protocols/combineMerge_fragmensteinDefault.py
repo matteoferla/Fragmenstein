@@ -16,6 +16,7 @@ from fragmenstein.external import ExternalToolImporter
 from fragmenstein.protocols.adapt_input import InputAdapter
 from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.compound import Compound
+from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.io_utils import apply_func_to_files
 from fragmenstein.utils.parallel_utils import get_parallel_client
 from fragmenstein.utils.pdb_utils import PdbDistanceManager
@@ -30,7 +31,8 @@ class NotComputedYet():
 class CombineMerge_FragmensteinDefault(InputAdapter):
 
     RESULT_METADATA_PATTERN= "%s.scores.json"
-    def __init__(self, output_path, template=None, templates_dir=None, template_pattern=None, merging_mode="none_permissive", use_dask=False, verbose=True, save_pymol=False):
+    def __init__(self, output_path, template=None, templates_dir=None, template_pattern=None, merging_mode="none_permissive", use_dask=False,
+                 verbose= ConfigManager.VICTOR_VERBOSE, save_pymol=False):
 
         self.save_pymol = save_pymol
         self.verbose = verbose
