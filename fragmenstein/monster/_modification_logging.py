@@ -34,5 +34,5 @@ class _MonsterTracker(_MonsterBase):
             if label is None:
                 this_label = f'Mol#{len(self.modifications)}'
             else:
-                this_label = f'{label}#{i}'
+                this_label = f'{label}#{cur_mol_num}'
             self.keep_copy(mol, this_label)

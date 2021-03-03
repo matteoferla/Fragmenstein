@@ -11,7 +11,7 @@ pyrosetta.init(
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from fragmenstein import Monster, Victor, Igor, Rectifier
+from fragmenstein import Monster, Victor, Igor
 from fragmenstein.mpro import MProVictor
 
 # ======================================================================================================================

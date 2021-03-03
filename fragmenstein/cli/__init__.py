@@ -6,7 +6,7 @@ Command line interface to Fragmenstein.
 The the first argument to the command is one of the three option:
 
 ## extract
-Given a target folder (`-i <folder_name>`) 
+Given a target folder (`-i <folder_name>`)
 extract the mol files (with covalent atom if present) in an output folder (`-o <folder_name>`) 
 
 ## merge

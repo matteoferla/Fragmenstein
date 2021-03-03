@@ -37,7 +37,7 @@ class HitsPreprocess_fragmentationBRICS(HitsPreprocess_fragmentation_base):
 
 
 def test_fragmentBrics():
-
+    print( [ Chem.MolToSmiles(mol) for mol in HitsPreprocess_fragmentationBRICS.get_examples_init_params()['original_fragments'] ])
     fragmentator = HitsPreprocess_fragmentationBRICS(** HitsPreprocess_fragmentationBRICS.get_examples_init_params())
     combs = fragmentator.yield_combinations()
     next( combs )

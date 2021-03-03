@@ -115,6 +115,7 @@ class InteractiveInterface():
         sorted_tuples = sorted([(removeScoreTag(key), round(val, 6)) for key, val in mol.GetPropsAsDict().items() if
                                 checkIfNameIsScore(key)], key=lambda x: len(x[0]))
         score_str = mol.GetProp("_Name")+" -> ["+mol.GetProp("ref_mols")+"]\n"
+        score_str += Chem.MolToSmiles(mol)+"\n"
         template = "%10s: %9s\t"
         for name, val in sorted_tuples:
             score_str += template % (name, val)
@@ -150,7 +151,7 @@ class PymolManager():
     templatePymolId = "template"
     compound_color = 'wheat'
     fragment_colours = cycle(
-        ['palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
+        ['palegreen', 'lightblue', 'lightpink', 'palecyan', 'bluewhite'])
 
     def __init__(self):
 

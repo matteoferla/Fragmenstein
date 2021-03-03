@@ -4,7 +4,8 @@ class Xchem_info():
     fragment_id_pattern = r".*?(x[\w-]+)\.mol$"
     boundPdb_id_pattern = r".*?(x[\w-]+)_bound\.pdb$"
     unboundPdb_id_pattern = r".*?(x[\w-]+)_apo-desolv\.pdb$"
-    predicted_boundPdb_id_pattern = r".*?(x[\w-]+)\.holo_minimised\.pdb$"
+    predicted_boundPdb_id_pattern = r".*?(x[\w\-_]+)\.holo_minimised\.pdb$"
+    fragment_no_chain_pattern = r"^.*(x\d+).*$"
     @staticmethod
     def default_params_xchem():
         return  dict(

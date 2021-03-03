@@ -134,7 +134,7 @@ class _MonsterBlend(_MonsterMerge):
                     if a in inter_mapping[(hn0, hn2)] and b in inter_mapping[(hn1, hn2)]:
                         if inter_mapping[(hn0, hn2)][a] != inter_mapping[(hn1, hn2)][b]:
                             # TODO: THIS IS A BAD OPTION:
-                            # if all([m.GetAtomWithIdx(i).IsInRing() for m, i in ((hit0, a),
+                            # if all([m.GetAtomWithIdx(cur_mol_num).IsInRing() for m, cur_mol_num in ((hit0, a),
                             #                                                     (hit1, b),
                             #                                                     (hit2, inter_mapping[(hn0, hn2)][a]),
                             #                                                     (hit2, inter_mapping[(hn1, hn2)][b]))]):
@@ -266,7 +266,7 @@ class _MonsterBlend(_MonsterMerge):
     #             return n
     #         else:
     #             path_raw = {m: find_route(m) for m in self.initial_mol.GetAtomWithIdx(n).GetNeighbors()}
-    #             path = {i: path_raw[i] for i in path_raw if path_raw[i] is not None}
+    #             path = {cur_mol_num: path_raw[cur_mol_num] for cur_mol_num in path_raw if path_raw[cur_mol_num] is not None}
     #             if len(path) == 0:
     #                 return None
     #             else:
@@ -358,7 +358,7 @@ class _MonsterBlend(_MonsterMerge):
                 c_atom = template_mol.GetAtomWithIdx(ci)
                 if c_atom.HasProp('_Stdev'):
                     stdev = c_atom.GetDoubleProp('_Stdev')
-                    origin = c_atom.GetAtomWithIdx(ci).GetProp('_Origin')
+                    origin = c_atom.GetProp('_Origin')
                     p_atom.SetDoubleProp('_Stdev', stdev)
                     p_atom.SetProp('_Origin', origin)
                 pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
@@ -447,11 +447,11 @@ class _MonsterBlend(_MonsterMerge):
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Stdev', 0.)
                 refined.GetAtomWithIdx(i).SetDoubleProp('_Max', 0.)
                 refined.GetAtomWithIdx(i).SetProp('_Origin', 'none')
-                # warn(f'Atom {i}  {scaffold.GetAtomWithIdx(i).GetSymbol}/{refined.GetAtomWithIdx(i).GetSymbol} '+ \
+                # warn(f'Atom {cur_mol_num}  {scaffold.GetAtomWithIdx(cur_mol_num).GetSymbol}/{refined.GetAtomWithIdx(cur_mol_num).GetSymbol} '+ \
                 #     'in scaffold that has no positions.')
             else:
                 p = np.mean(np.array(positions[i]), axis=0).astype(float)
-                # sd = np.mean(np.std(np.array(positions[i]), axis=0)).astype(float)
+                # sd = np.mean(np.std(np.array(positions[cur_mol_num]), axis=0)).astype(float)
                 ds = [np.linalg.norm(p - pi) for pi in positions[i]]
                 sd = np.std(ds)
                 md = np.max(ds)

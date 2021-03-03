@@ -61,6 +61,13 @@ class DeLinkerWrapper():
         return mol
 
 
+    def _get_non_available_atoms(self, mol):
+
+        for i in range( mol.GetNumAtoms() ):
+            atom = mol.GetAtomWithIdx(i)
+            if atom.GetImplicitValence() <1:
+                yield i
+
     def pick_closest_atoms(self, mol1, mol2, atom_idx1=None, atom_idx2=None, n_to_retrieve=None, cumm_idxs=True):
         '''
 
@@ -73,6 +80,7 @@ class DeLinkerWrapper():
         :return:
         '''
 
+        #TODO: avoid calculations for valence incompatible results
         if atom_idx1 and atom_idx2:
             return atom_idx1, atom_idx2
 
@@ -100,6 +108,12 @@ class DeLinkerWrapper():
             distance_matrix_tmp = np.ones_like(distance_matrix) * sys.maxsize
             distance_matrix_tmp[:, atom_idx1] = distance_matrix
             distance_matrix = distance_matrix_tmp
+
+        bad_atoms1 = list(self._get_non_available_atoms(mol1))
+        bad_atoms2 = list(self._get_non_available_atoms(mol2))
+qq
+        distance_matrix[bad_atoms1, :] =  sys.maxsize
+        distance_matrix[:, bad_atoms2] =  sys.maxsize
 
         unravel_idxs= np.unravel_index(np.argsort(distance_matrix, axis=None), distance_matrix.shape)
 
@@ -364,3 +378,9 @@ def example():
 
 if __name__ == "__main__":
     example()
+
+    '''
+
+python -m fragmenstein.external.DeLinker.DeLinkerWrapper
+
+    '''

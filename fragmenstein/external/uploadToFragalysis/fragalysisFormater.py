@@ -26,6 +26,7 @@ class FragalysisFormater():
     METADATA_FIELDS_DEFAULT_FNAME= os.path.abspath( os.path.join(__file__, os.path.pardir, "metadata_fields_example.csv"))
     REF_PDB_FIELD = "ref_pdb"
     REQUIRED_FIELDS = ["_Name", "original SMILES", REF_PDB_FIELD, "ref_mols"]
+    OPTIONAL_FIELDS = ["original_name"]
     FRAGALYSIS_UPLOAD_VERSION = "ver_1.2"
 
     @classmethod
@@ -173,6 +174,10 @@ class FragalysisFormater():
             w = Chem.SDWriter(f)
             # create dummy mol as file header
             w.write( self._get_header_mol(missing_properties) )
+
+            valid_props = set(list(FragalysisFormater.REQUIRED_FIELDS) + list(FragalysisFormater.OPTIONAL_FIELDS) + list(missing_properties_names))
+
+
             for mol in mol_list:
                 mol = load_mol_if_str(mol)
                 if mol is None: continue
@@ -192,7 +197,6 @@ class FragalysisFormater():
 
                 if self.drop_unknown_fields:
                     allProps = mol.GetPropsAsDict()
-                    valid_props = set(list(FragalysisFormater.REQUIRED_FIELDS) + list(missing_properties_names))
                     for prop,val in allProps.items():
                         if not prop in valid_props:
                             mol.ClearProp(prop)

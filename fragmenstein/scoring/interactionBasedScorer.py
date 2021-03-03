@@ -21,6 +21,8 @@ class InteractionBasedScorer(_ScorerBase):
     MIN_NUM_CONTACTS_FOR_POSITIVE_FRAGMENT = 2
     MIN_NUM_CONTACTS_FOR_POSITIVE_MATCH = 2
 
+    #TODO: add weight by interaction type Typical Energies Salt Bridge ~2 kcal/mol H-Bond ~1 kcal/mol Hydrophobic ~0.7 kcal/mol Aromatic ~1-3 kcal/mol
+
     def __init__(self, fragments_dir, fragment_id_pattern, boundPdbs_to_score_dir, boundPdbs_to_score_pattern,
                  fragment_match_threshold=0.5, selected_fragment_ids=None,
                  ligand_resname="LIG", *args, **kwargs):
@@ -43,12 +45,9 @@ class InteractionBasedScorer(_ScorerBase):
 
         journal.warning("Computing interactions for fragments")
 
-        def load_fragments_interactions( bound_pdb_fname):
-            return self._computeInteractionsOneComplex( bound_pdb_fname, selected_fragment_ids=selected_fragment_ids)
 
-        self.fragInteractions_dict = dict(  filter(None.__ne__,
-                                                   apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
-                                                                       load_fragments_interactions)))
+
+        self._fragInteractions_dict = None
 
         journal.warning("Fragments interactions computed")
 
@@ -58,6 +57,18 @@ class InteractionBasedScorer(_ScorerBase):
 
         self.atomic_models_fnames = dict(apply_func_to_files(self.boundPdbs_to_score_dir, self.boundPdbs_to_score_pattern,
                                                                   prepare_bound_pdbNames))
+
+
+    @property
+    def fragInteractions_dict(self):
+        if not self._fragInteractions_dict:
+            def load_fragments_interactions(bound_pdb_fname):
+                return self._computeInteractionsOneComplex(bound_pdb_fname, selected_fragment_ids=self.selected_fragment_ids)
+            self._fragInteractions_dict = dict(filter(None.__ne__,
+                                                     apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
+                                                                         load_fragments_interactions)))
+        return self._fragInteractions_dict
+
     @property
     def fragments_id(self):
         '''
@@ -142,9 +153,9 @@ class InteractionBasedScorer(_ScorerBase):
             gobal_score = np.nan
             fragments = []
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plip_perFrag": score_interPreservPerFrag,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plip_global": gobal_score,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plip_globalOverMw": 100. * gobal_score / ExactMolWt(mol),
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipPerFrag": score_interPreservPerFrag,
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobal": gobal_score,
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalOverMw": 100. * gobal_score / ExactMolWt(mol),
                            _ScorerBase.FRAGMENTS_ID: list(fragments)}
         return partial_results
 

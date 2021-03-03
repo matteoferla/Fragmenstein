@@ -129,7 +129,7 @@ class _IgorMin:
         # constrain
         if self.constraint_file:
             with tempfile.TemporaryDirectory() as tmp:
-                self.pose.dump_pdb( os.path.join('test.pdb'))
+                self.pose.dump_pdb( os.path.join(tmp, 'test.pdb'))
             setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
             setup.constraint_file(self.constraint_file)
             setup.apply(self.pose)

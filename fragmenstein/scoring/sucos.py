@@ -54,9 +54,15 @@ class SuCOSComputer(_COSLikeBase):
             sucosName="SuCos"
 
         selected_frags = [ frag_id for score, frag_id in zip(per_fragment_score, frag_ids) if score > self.frags_thr]
-        mean_score = np.mean(per_fragment_score)
-        max_score = np.max(per_fragment_score)
-        min_score = np.min(per_fragment_score)
+
+        try:
+            mean_score = np.mean(per_fragment_score)
+            max_score = np.max(per_fragment_score)
+            min_score = np.min(per_fragment_score)
+        except ValueError: #in case no fragments, just assign nan
+            mean_score = np.nan
+            max_score = np.nan
+            min_score = np.nan
 
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id, _ScorerBase.SCORE_NAME_TEMPLATE%("mean"+sucosName): mean_score,
                            _ScorerBase.SCORE_NAME_TEMPLATE%("max"+sucosName): max_score,

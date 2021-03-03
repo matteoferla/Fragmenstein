@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 from fragmenstein.protocols.xchem_info import Xchem_info
@@ -11,22 +12,39 @@ from fragmenstein.scoring.xcos import XcosComputer
 class Score_CombinedDefault(Xchem_info):
 
 
-    def __init__(self, fragments_dir, to_score_dir, fragment_id_pattern, boundPdb_id_pattern, predicted_boundPdb_id_pattern, selected_fragment_ids=None, *args, **kwargs):
+    def __init__(self, fragments_dir, to_score_dir, fragment_id_pattern, boundPdb_id_pattern, predicted_boundPdb_id_pattern,
+                 selected_fragment_ids=None, working_dir=None, *args, **kwargs):
         self.selected_fragment_ids = selected_fragment_ids
         self.to_score_dir = to_score_dir
         self.fragment_id_pattern = fragment_id_pattern
         self.fragments_dir = fragments_dir
         self.boundPdb_id_pattern = boundPdb_id_pattern
         self.predicted_boundPdb_id_pattern = predicted_boundPdb_id_pattern
+        self.working_dir = working_dir
 
-    def compute_scores(self, proposed_mols, already_computed_scores=None ): #TODO: add more metadata to scores
+    def _getWDirScopeManager(self):
+        if self.working_dir:
+            class WorkingDir():
+                def __enter__(self2):
+                    if not os.path.isdir(self.working_dir):
+                        os.mkdir(self.working_dir)
+                    return self.working_dir
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
+            return WorkingDir
+        else:
+            return tempfile.TemporaryDirectory
+
+    def compute_scores(self, proposed_mols, already_computed_scores=None ):
         '''
 
         :param proposed_mols:     proposed_mols[merge_id] = [ Chem.Mol, [fragId_1, fragId_2...] ]
         :param already_computed_scores:
         :return:
         '''
-        with tempfile.TemporaryDirectory() as tmp:
+
+        with self._getWDirScopeManager()() as tmp:
+
             scorer1 = SuCOSComputer(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern, use_weights=True,
                                     selected_fragment_ids= self.selected_fragment_ids, working_dir=tmp )
             scorer2 = PropertiesScorer(working_dir=tmp)
@@ -36,7 +54,12 @@ class Score_CombinedDefault(Xchem_info):
                                              selected_fragment_ids=self.selected_fragment_ids, boundPdbs_to_score_dir= self.to_score_dir,
                                              boundPdbs_to_score_pattern= self.predicted_boundPdb_id_pattern, working_dir=tmp)
             scorers_list = [scorer1, scorer2, scorer3, scorer4]
-            scores_list = CombineScorer.computeScoreForMolecules(proposed_mols , scorers_objects_list=scorers_list, working_dir=tmp)
+
+            proposed_mols_dict = { mol.molId: (mol, mol.getFragIds()) for mol in proposed_mols}
+
+            scores_list = CombineScorer.computeScoreForMolecules(proposed_mols_dict , scorers_objects_list=scorers_list, working_dir=tmp)
+
+
             if already_computed_scores:
                 for i in range(len(scores_list)):
                     record = scores_list[i]
@@ -44,6 +67,9 @@ class Score_CombinedDefault(Xchem_info):
                     CombineScorer.update_dict(already_record, record, "_secondary" )
                     scores_list[i] = record
 
-        scores_dict = { record[CombineScorer.MOL_NAME_ID]: (proposed_mols[record[CombineScorer.MOL_NAME_ID]][0], record )  for record in scores_list }
+        # scores_dict = { record[CombineScorer.MOL_NAME_ID]: (proposed_mols[record[CombineScorer.MOL_NAME_ID]][0], record )  for record in scores_list }
 
-        return scores_dict
+            for mol, record in zip(proposed_mols, scores_list):
+                mol.add_scores(record)
+
+        return proposed_mols

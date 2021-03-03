@@ -65,12 +65,13 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         bitId_to_molId = {}
         for mol_id, _mol in input_mols:
             bitId_to_molId[mol_id] = mol_id
+            molId_to_bitLists_dict[mol_id].append([_mol])
             mol = change_atom_type(_mol, initial_symbol= '*', final_symbol=HitsPreprocess_fragmentation_base.TEMPORAL_DUMMY_ATOM)
             for i, split_option in  enumerate(self.yield_possible_molFrags(mol)):
                 bits = sorted(split_option, key=lambda x: HeavyAtomMolWt(x))
                 molId_to_bitLists_dict[mol_id].append([])
                 for j, bit in enumerate(bits):
-                    bitId = mol_id + "_%d-%d" % (i,j)
+                    bitId = mol_id + "_%db%d" % (i,j)
                     bit = Chem.DeleteSubstructs(bit, Chem.MolFromSmiles('*'))
 
                     bit = change_atom_type(bit, initial_symbol=HitsPreprocess_fragmentation_base.TEMPORAL_DUMMY_ATOM, final_symbol='*')

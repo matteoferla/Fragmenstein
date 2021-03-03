@@ -81,7 +81,7 @@ def update_cset(REQ_URL, target_name, sdf_path, update_set='None', submit_choice
                    'update_set': update_set}
 
     files = [
-        ('sdf_file', open(sdf_path, 'rb')),
+        ('sdf_fname', open(sdf_path, 'rb')),
 
     ]
 

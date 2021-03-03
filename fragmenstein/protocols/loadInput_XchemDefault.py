@@ -13,8 +13,9 @@ class LoadInput_XchemDefault(LoadInput_base, Xchem_info):
 
     @staticmethod
     def get_examples_init_params():
-        return dict( data_dir= os.path.abspath( os.path.join(__file__, "../../mpro/data/xchem_examples/aligned") ) ,
-                     ).update( Xchem_info.default_params_xchem())
+        params = dict( data_dir= os.path.abspath( os.path.join(__file__, "../../mpro/data/xchem_examples/aligned") ) )
+        params.update( Xchem_info.default_params_xchem())
+        return params
 
     def __init__(self, data_dir, fragment_id_pattern, unboundPdb_id_pattern, target_id = None, *args, **kwargs):
 

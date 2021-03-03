@@ -1,8 +1,11 @@
-from typing import Union
+import json
+import pickle
+from typing import Union, OrderedDict
 
 from rdkit import Chem
 from rdkit.Chem import PropertyMol
 
+from fragmenstein.scoring.scorer_labels import checkIfNameIsScore
 from fragmenstein.utils.io_utils import load_mol
 
 #TODO; create module dataModel
@@ -37,7 +40,8 @@ class Compound(Chem.PropertyMol.PropertyMol):
         comp.molId = compound.parents
         return comp
 
-    def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None, *args, **kwargs):
+    def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None,
+                 ref_pdbId=None, *args, **kwargs):
 
 
         super().__init__(mol, *args, **kwargs)
@@ -50,14 +54,25 @@ class Compound(Chem.PropertyMol.PropertyMol):
         self.covalent_info = covalent_info  #E.g. {'covalent_resi':'145A', 'covalent_resn':'CYS'}
 
         if parents:
-            self._parents = parents
+            self.parents = parents
         else:
             self._parents = []
         if molId:
-            self._molId = molId
+            self.molId = molId
         else:
             self._molId = None
 
+        if ref_pdbId:
+            self.ref_pdb = ref_pdbId
+        else:
+            self._ref_pdb = None
+
+        self._ref_molsIds = None
+        self._metadata = None
+
+        self._scores_dict = {}
+
+        self.disregarded_frags= None
 
     @property
     def parents(self):
@@ -65,6 +80,7 @@ class Compound(Chem.PropertyMol.PropertyMol):
 
     @parents.setter
     def parents(self, parents):
+        self.SetProp("parents", "-".join([elem.molId for elem in parents]))
         self._parents = parents
 
     @property
@@ -89,6 +105,70 @@ class Compound(Chem.PropertyMol.PropertyMol):
             return (Compound.ID_SEP).join(sorted(set(primary_ids)))
         else:
             return self.molId
+
+    @property
+    def ref_pdb(self):
+        if not self._ref_pdb:
+            self._ref_pdb = self.GetProp("ref_pdb")
+        return self._ref_pdb
+
+    @ref_pdb.setter
+    def ref_pdb(self, ref_pdb):
+        self.SetProp("ref_pdb", ref_pdb)
+        self._ref_pdb = ref_pdb
+
+
+    @property
+    def metadata(self):
+        if not self._metadata:
+            if self.HasProp("metadata"):
+                self._metadata = json.loads(self.GetProp("metadata"))
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, metadata_dict):
+        self._metadata = metadata_dict
+        self.add_scores(metadata_dict)
+        self.SetProp("metadata", json.dumps( metadata_dict ) )
+
+
+    @property
+    def ref_molIds(self):
+        if not self._ref_molsIds:
+            if self.HasProp("ref_mols"):
+                self._ref_molsIds = self.GetProp("ref_mols").split(",")
+        return self._ref_molsIds
+
+    @ref_molIds.setter
+    def ref_molIds(self, frag_ids):
+        self.SetProp("ref_mols", ",".join(frag_ids))
+        self._ref_molsIds = frag_ids
+
+    @property
+    def scores_dict(self):
+        if not self._scores_dict:
+            if self.HasProp("scores_dict"):
+                self._scores_dict = json.loads(self.GetProp("scores_dict"))
+        return  self._scores_dict
+
+    @scores_dict.setter
+    def scores_dict(self, scores_dict):
+        self._scores_dict = scores_dict
+        self.SetProp("scores_dict", json.dumps(self._scores_dict ) )
+
+    def add_scores(self, scores_dict):
+        for key, val in scores_dict.items():
+            if key in self.scores_dict:
+                raise ValueError("Error, key (%s) already included  in scores"%(key))
+            else:
+                if checkIfNameIsScore(key):
+                    self.SetProp(key, val)
+                    self.scores_dict[key] = val
+        self.SetProp("scores_dict", json.dumps(self.scores_dict ) )
+
+
+    def getFragIds(self):
+        return self.ref_molIds
 
     def __str__(self):
         return "<"+str(type(self).__name__)+": "+self.molId+">"
@@ -141,7 +221,21 @@ def test_pickleProps():
     print( type(m1))
     print( m1.molId )
 
+def test_pickleScores():
+    m1,m2,m3,m4 = test_getMols()
+    m1.add_scores({"s1_score":1})
+    print( m1.scores_dict  )
+    m_str = pickle.dumps( m1)
+    m1 = pickle.loads( m_str )
+    print( m1.scores_dict )
 
 if __name__=="__main__":
-    test_primitiveId()
-    test_pickleProps()
+    # test_primitiveId()
+    # test_pickleProps()
+    test_pickleScores()
+
+    '''
+
+python -m fragmenstein.utils.compound
+
+    '''

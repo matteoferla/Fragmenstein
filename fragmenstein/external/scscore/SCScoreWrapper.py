@@ -24,8 +24,8 @@ class SCScoreWrapper():
                     other.vars = [x.tolist() for x in other.vars]
             elif weight_path.endswith('json.gz'):
                 with gzip.GzipFile(weight_path, 'r') as fin:  # 4. gzip
-                    json_bytes = fin.read()  # 3. bytes (i.e. UTF-8)
-                    json_str = json_bytes.decode('utf-8')  # 2. string (i.e. JSON)
+                    json_bytes = fin.read()  # 3. bytes (cur_mol_num.e. UTF-8)
+                    json_str = json_bytes.decode('utf-8')  # 2. string (cur_mol_num.e. JSON)
                     other.vars = json.loads(json_str)
                     other.vars = [np.array(x) for x in other.vars]
 

@@ -33,7 +33,7 @@ v= Victor(       hits=hits,
 smiles = []
 with open( smiles_fname) as f:
     for i, line in enumerate(f):
-        # if i < 72: continue
+        # if cur_mol_num < 72: continue
         smi = line.strip()
         smiles.append( smi )
 
