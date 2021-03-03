@@ -153,9 +153,9 @@ class InteractionBasedScorer(_ScorerBase):
             gobal_score = np.nan
             fragments = []
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipPerFrag": score_interPreservPerFrag,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobal": gobal_score,
-                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalOverMw": 100. * gobal_score / ExactMolWt(mol),
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipMedianPreser": score_interPreservPerFrag,
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalPreser": gobal_score,
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalPreserOverMw": 100. * gobal_score / ExactMolWt(mol),
                            _ScorerBase.FRAGMENTS_ID: list(fragments)}
         return partial_results
 
