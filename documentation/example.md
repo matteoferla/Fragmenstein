@@ -274,8 +274,22 @@ To make an interactive page in [Michelanglo](https://michelanglo.sgc.ox.ac.uk/),
 one can use the [michelanglo_api](https://github.com/matteoferla/MichelaNGLo-api) (pip name is `michelanglo-api`).
 The data is stored in a github repo. For a detailed example see [pipeline](pipeline.md).
 
-First, make an SDF of the results with properties to show in the table say via `rdkit.Chem.PandasTools`.
-This requires a first compound with metadata values. This will change one day.
+First, make sure to keep the results of the operations
+
+```jupyterpython
+
+data = []
+
+data.append({**victor.summarise(), 'mol': victor.minimised_mol})
+```
+
+Then make a table of the results
+```jupyterpython
+from rdkit.Chem import PandasTools
+import pandas as pd
+
+scores = pd.DataFrame(data)
+```
 
 then make or get a Michelanglo page
 ```jupyterpython
@@ -294,35 +308,29 @@ page.loadfun = ''
 page.columns_viewport = 6
 page.columns_text = 6
 ```
-Add the data
+Add the data to the page and GitHub:
 ```jupyterpython
-
 gitfolder='/Users/you/path_to_your_github_repo_on_your_machine'
 sdfile='/Users/you/path_to_sdfile.sdf'
 folder = 'folder_name_within_repo'
 targetfolder=f'{gitfolder}/{folder}'
-
-# move the sdf_file to individual mol files in your repo
-page.sdf_to_mols(sdfile=sdfile,
-             targetfolder=targetfolder,
-             skip_first=True) # first row is metadata in a SDF for XChem
-# make a json for the table
-page.sdf_to_json(sdfile=sdfile,
-             keys=('∆∆G', 'comRMSD', 'N_constrained_atoms', 'runtime', 'disregarded', 'smiles'),
-             key_defaults=(999., 999., 0, 999., 'NA', 'NA'), #what to set stuff that is null
-             filename=f'{targetfolder}/data.json')
+# make a smaller table and json store it
+scores['filename'] = page.pandas_to_mols(scores, targetfolder)
+headers = ['filename', 'regarded', '∆∆G', 'comRMSD']
+mini = scores.loc[~scores.filename.isna()][headers]  # filename None has some issue.
+mini.to_json(f'{targetfolder}/data.json')
 # make a table
-page.make_fragment_table(sdfile=sdfile,
+page.make_fragment_table(metadata=dict(zip(headers, ['name', 'used hits', '∆∆G', 'RMSD'],
                username='matteoferla',
                repo_name='Data_for_own_Michelanglo_pages',
                foldername=folder,
                protein_sele='145:A', # show this on protein. NGL selection
-               sort_col=2, #sort by column index 2.
+               sort_col=2, #sort by column index 2. ∆∆G
                sort_dir='asc', #asc or desc
                template_row=-1, # is the template a file called `template.pdb` (-1) or a filename in the row n?
                fragment_row=1, # the inspiration fragments (-1 for none). The names must match with or without a .mol.
                jsonfile='data.json')
-# commit changes
+# commit changes with github
 page.commit()
 ```
 
