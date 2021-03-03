@@ -41,7 +41,7 @@ def compute_mol_to_grid(mol, grid_config, as_numpy):
     tfm[:3,-1] =  - grid_config["coordinates_origin"]
     AllChem.TransformMol(mol, tfm)
     Chem.rdShapeHelpers.EncodeShape(mol, grid, ignoreHs=False, vdwScale=grid_config["vdwScale"])
-    # save_grid_as_mrc(grid, "prueba_%d.mrc"%cur_mol_num)
+    # save_grid_as_mrc(grid, "prueba_%d.mrc"%i)
 
     if as_numpy:
         grid = uniformGrid3D_to_numpy(grid)
@@ -287,9 +287,9 @@ class _COSLikeBase(_ScorerBase):
     #         mols_grids = mols_list
     #
     #     clashes_list = [0]* len(mols_list)
-    #     for cur_mol_num, grid in enumerate(mols_grids):
+    #     for i, grid in enumerate(mols_grids):
     #         grid_intersect = (grid * ref_grid)
-    #         clashes_list[cur_mol_num] = np.sum(grid_intersect) / np.sum( grid) # np.count_nonzero
+    #         clashes_list[i] = np.sum(grid_intersect) / np.sum( grid) # np.count_nonzero
     #
     #     return clashes_list
 

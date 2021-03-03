@@ -123,7 +123,7 @@ class CombineMerge_FragmensteinDefault(InputAdapter):
             # print(self.templates_dir, self.template_pattern, fragment_ids)
             template = sorted( template_fnames)[0]
 
-            # template_fname = Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{cur_mol_num}_0/Mpro-{cur_mol_num}_0_bound.pdb' for cur_mol_num in hit_codes], target_resi=145, target_chain='A',  target_atomname='SG', ligand_resn='LIG')
+            # template_fname = Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{i}_0/Mpro-{i}_0_bound.pdb' for i in hit_codes], target_resi=145, target_chain='A',  target_atomname='SG', ligand_resn='LIG')
         else:
             template = self.template
 

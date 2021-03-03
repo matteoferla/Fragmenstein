@@ -224,9 +224,9 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
                 atom.SetProp('_Category', 'overlapping')
         # if self._debug_draw: # depracated... but this could be useful...
         #     high = list(internals) + list(attachments) + list(anchors)
-        #     color = {**{cur_mol_num: (0, 0.8, 0) for cur_mol_num in internals},
-        #              **{cur_mol_num: (0, 0, 0.8) for cur_mol_num in attachments},
-        #              **{cur_mol_num: (0.8, 0, 0.8) for cur_mol_num in anchors}}
+        #     color = {**{i: (0, 0.8, 0) for i in internals},
+        #              **{i: (0, 0, 0.8) for i in attachments},
+        #              **{i: (0.8, 0, 0.8) for i in anchors}}
         #     print('Purple: anchor atoms, Blue: attachments, Green: internals')
         #     self.draw_nicely(mol, highlightAtoms=high, highlightAtomColors=color)
         #     print({atom.GetIdx(): atom.GetProp('_Category') for atom in mol.GetAtoms()})

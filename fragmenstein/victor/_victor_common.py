@@ -120,18 +120,18 @@ class _VictorCommon(_VictorIgor):
                 if atom.GetSymbol() == '*':
                     continue
                 elif atom.GetPDBResidueInfo() is None:
-                    self.journal.critical(f'Atom {cur_mol_num} ({atom.GetSymbol()}) has no name!')
+                    self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
                     continue
                 pos = conf.GetAtomPosition(i)
                 if self.constraint_function_type.upper() == 'HARMONIC':
-                    fxn = f'HARMONIC 0 {std[cur_mol_num] + 1}'
+                    fxn = f'HARMONIC 0 {std[i] + 1}'
                 elif self.constraint_function_type.upper() == 'FLAT_HARMONIC':
                     if len(origins[i]) > 1:
-                        fxn = f'FLAT_HARMONIC 0 1.0 {mx[cur_mol_num]}'
+                        fxn = f'FLAT_HARMONIC 0 1.0 {mx[i]}'
                     else:
                         fxn = f'HARMONIC 0 1.0'
                 elif self.constraint_function_type.upper() == 'BOUNDED':
-                    fxn = f'BOUNDED 0 {mx[cur_mol_num]} 1 0.5 TAG'
+                    fxn = f'BOUNDED 0 {mx[i]} 1 0.5 TAG'
                 else:
                     raise ValueError(f'{self.constraint_function_type} is not HARMONIC or FADE or BOUNDED')
                 atomname = atom.GetPDBResidueInfo().GetName()
@@ -154,7 +154,7 @@ class _VictorCommon(_VictorIgor):
             elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):
                 continue # novels
             elif atom.GetPDBResidueInfo() is None:
-                self.journal.critical(f'Atom {cur_mol_num} ({atom.GetSymbol()}) has no name!')
+                self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
                 continue
             else:
                 pos = conf.GetAtomPosition(i)

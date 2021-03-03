@@ -176,7 +176,7 @@ class _MonsterRing( _MonsterJoinNeigh):
             old2new = {**old2new, **dict(zip(old, new))}
         # this has to be done afterwards in case of a bonded mol
         for atom in self._get_collapsed_atoms(mol):
-            old_neighss = json.loads(atom.GetProp('_neighbors'))  # if cur_mol_num in old2new else cur_mol_num
+            old_neighss = json.loads(atom.GetProp('_neighbors'))  # if i in old2new else i
             new_neighss = [[old2new[i] for i in old_neighs if i in old2new] for old_neighs in old_neighss]
             atom.SetProp('_neighbors', json.dumps(new_neighss))
         # determine if the new atoms have close neighbours.
@@ -258,7 +258,7 @@ class _MonsterRing( _MonsterJoinNeigh):
         of that atom.
 
         :param ring: see ``_get_expansion_data``
-        :param i: the internal index. Say 'elements': ['C', 'C', 'C', 'O', 'C', 'C'].  cur_mol_num = 3 would will be Oxygen.
+        :param i: the internal index. Say 'elements': ['C', 'C', 'C', 'O', 'C', 'C'].  i = 3 would will be Oxygen.
         :return:
         """
         try:
@@ -266,7 +266,7 @@ class _MonsterRing( _MonsterJoinNeigh):
         except IndexError:
             troublesome = [k for k in ring if isinstance(ring[k], list) and len(ring[k]) <= i]
             if len(troublesome) == 0:
-                raise IndexError(f'There is a major issue with ring data for index {cur_mol_num}: {ring}')
+                raise IndexError(f'There is a major issue with ring data for index {i}: {ring}')
             elif troublesome[0] == 'current_is':
                 self.journal.warning(f'One atom lacks a current index!' + \
                                      'This is a fallback that should not happen')
@@ -275,7 +275,7 @@ class _MonsterRing( _MonsterJoinNeigh):
                                       ring['ori_is']]
                 return self._get_expansion_for_atom(ring, i)
             else:
-                raise IndexError(f'The indices of the collapsed atom do not extend to {cur_mol_num} for {troublesome}')
+                raise IndexError(f'The indices of the collapsed atom do not extend to {i} for {troublesome}')
 
     # === Key steps ====================================================================================================
 
@@ -438,7 +438,7 @@ class _MonsterRing( _MonsterJoinNeigh):
 
     def _is_present(self, mol, i):
         """
-        Find if in ``mol`` there is an atom whose original index was ``cur_mol_num``.
+        Find if in ``mol`` there is an atom whose original index was ``i``.
         Wrapper around ``_get_new_index``, but does not return the index.
 
         :param mol:
@@ -501,7 +501,7 @@ class _MonsterRing( _MonsterJoinNeigh):
                 # checking:
                 if has_ringcore_neighbor and is_new_pair and is_novel_connection:
                     # This ringcore atom shares a novel border with another ringcore atom
-                    bonded_pairs.append((ringcore, neigh))  # cur_mol_num.e. List[Tuple[Chem.Atom, Chem.Atom]}
+                    bonded_pairs.append((ringcore, neigh))  # i.e. List[Tuple[Chem.Atom, Chem.Atom]}
         return bonded_pairs
 
     def merge_pairing_lists(self,
@@ -872,7 +872,7 @@ class _MonsterRing( _MonsterJoinNeigh):
     def _add_bond_by_reference(self, mol, a, b, reference_bond):
         """
         _copy_bonding copies all the bonds. THis just adds one like the reference bond.
-        It calls ``_add_bond_if_possible`` if its a closeness bond, cur_mol_num.e. reference_bond is None
+        It calls ``_add_bond_if_possible`` if its a closeness bond, i.e. reference_bond is None
         It calls ``_add_bond_regardlessly`` if its an orginal one.
 
         :param mol:
@@ -916,7 +916,7 @@ class _MonsterRing( _MonsterJoinNeigh):
                 # ----- get names ---------------
                 name = mol.GetProp('_Name')
                 for i, frag in enumerate(frags):
-                    frag.SetProp('_Name', f'name.{cur_mol_num}')
+                    frag.SetProp('_Name', f'name.{i}')
                 # find which fragments are closest ------------------------------
                 # TODO use the distance_matrix = self._get_distance_matrix(..) code
                 closeness = np.ones([n, n])

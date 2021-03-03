@@ -120,7 +120,7 @@ class Unmerge(GPM):
         if len(equals) > 1:
             log.warning(f'There are {len(equals)} equally good mappings.')
         # if self._debug_draw:
-        #     print(f'## Option #{cur_mol_num}  for combinations:')
+        #     print(f'## Option #{i}  for combinations:')
         #     for j in range(len(self.c_options)):
         #         mol = self.c_options[j]
         #         m = self.c_map_options[j]
@@ -311,7 +311,7 @@ class Unmerge(GPM):
         strikes = 0  # x strikes is discarded
         accounted_for = set(combined_map.keys())
         for i, o in o_map.items():  # check each atom is okay
-            # cur_mol_num = followup index
+            # i = followup index
             # o = other index
             if i in accounted_for:  # this atom is accounted for. Check it is fine.
                 if o in inter_map:  # this position overlaps
@@ -332,7 +332,7 @@ class Unmerge(GPM):
                 # overlaps but the overlap was not counted
                 possible_map[i] = combined.GetNumAtoms() + o
             else:  # mismatch!
-                log.debug(f'{label} - {cur_mol_num} mismatch')
+                log.debug(f'{label} - {i} mismatch')
                 strikes += 1
         if strikes >= self.max_strikes:
             return {}

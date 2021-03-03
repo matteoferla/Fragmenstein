@@ -27,7 +27,7 @@ class ReactionFragmentation():
                     continue
                 for i, reaction in enumerate(ps):
                     products = []
-                    # print("reaction %d"%cur_mol_num)
+                    # print("reaction %d"%i)
                     ignore = False
                     for product in reaction:
                         # print(Chem.MolToSmiles(product))

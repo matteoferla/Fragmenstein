@@ -174,7 +174,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         """
         This is a silly debug-by-print debug method. drop it in where you want to spy on stuff.
         """
-        Chem.MolToMolFile(mol, f'debug_temp{self.cur_mol_num}.mol', kekulize=False)
+        Chem.MolToMolFile(mol, f'debug_temp{self.i}.mol', kekulize=False)
         self._i += 1
 
     def save_commonality(self, filename: Optional[str] = None):
@@ -227,8 +227,8 @@ class _MonsterUtil(_MonsterCommunal, GPM):
                 pymol.cmd.color('tv_green', f'followup and name C*')
             if self.mol_options:
                 for i, mol in enumerate(self.mol_options):
-                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), f'opt{cur_mol_num}')
-                    pymol.cmd.color('grey50', f'opt{cur_mol_num} and name C*')
+                    pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), f'opt{i}')
+                    pymol.cmd.color('grey50', f'opt{i} and name C*')
             pymol.cmd.hide('sticks')
             pymol.cmd.hide('cartoon')  # there should not be....
             pymol.cmd.show('lines', 'not polymer')
