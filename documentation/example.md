@@ -210,6 +210,29 @@ with pymol2.PyMOL() as pymol:
     pymol.cmd.save('moved.pdb', 'mini')
 ```
 
+Another issue may arise when hydrogens are present in the hits somehow.
+
+If the calculations fail along a step the compounds can be inspected, but these are not `victor.minimised_mol`
+
+If an error happens polishing up the minimised molecule from pyrosetta:
+
+```jupyterpython
+ligand = victor.igor.mol_from_pose()
+from rdkit import Chem
+from rdkit.Chem import AllChem
+AllChem.Compute2DCoords(ligand)
+ligand = AllChem.RemoveAllHs(ligand)
+ligand
+```
+
+If the error happens during Igor, but Monster worked fine, the ligand is in `victor.monster.positioned_mol`.
+Additionally if the issue is with one of the atoms and the indices are required there is a debug focused method in Monster:
+
+```jupyterpython
+mol = victor.monster.positioned_mol
+victor.monster.draw_nicely(mol)
+```
+
 ## Advanced
 
 ### Warheads
