@@ -124,6 +124,7 @@ class _VictorBase:
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
+        self._correct_covalent_resi()  # in plonk
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
         # ## Fill by place and combine differently

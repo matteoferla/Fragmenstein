@@ -86,6 +86,21 @@ class _VictorPlonk(_VictorJournal):
         pdbdata.append(moldata)  # fixes offsets in ATOM/HETATM and CONECT lines.
         return str(pdbdata)
 
+    def _correct_covalent_resi(self):
+        """
+        An unresolved issue is that covalent_resi acts both as a covalent residue and the reference residue.
+        This corrects for the case there is no covalent_resi
+        """
+        pdbdata = MinimalPDBParser(self.apo_pdbblock)
+        entry = pdbdata.coordinates[0]
+        if self.covalent_resi is None:
+            self.covalent_resi = f'{pdbdata.get_residue(entry)}{pdbdata.get_chain(entry)}'
+        else:
+            p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
+            if not pdbdata.has_residue(int(p_resi), p_chain):
+                self.covalent_resi = f'{pdbdata.get_residue(entry)}{pdbdata.get_chain(entry)}'
+
+
     def _plonk_monster_in_structure_raw(self):
         """
         Plonks the molecule in the structure without using pymol.

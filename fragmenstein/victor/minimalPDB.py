@@ -65,9 +65,18 @@ class MinimalPDBParser:
     def __str__(self):
         return '\n'.join(self.headers + self.coordinates + self.connections + ['END'] + self.tails)
 
-    def get_serial(self, entry: str):
+    def get_serial(self, entry: str) -> int:
         # ATOM    588 11 - 14
         return int(entry[6:12].strip())
+
+    def get_residue(self, entry: str) -> int:
+        # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
+        # 23 - 26        Integer       resSeq       Residue sequence number.
+        return int(entry[22:26].strip())
+
+    def get_chain(self, entry: str) -> str:
+        # 22             Character     chainID      Chain identifier.
+        return entry[21].strip()
 
     def get_max_serial(self) -> int:
         # assuming ordered
@@ -96,3 +105,12 @@ class MinimalPDBParser:
         other.offset_connections(offset)
         self.coordinates += other.coordinates
         self.connections += other.connections
+
+    def has_residue(self, index:int, chain: str):
+        for entry in self.coordinates:
+            if self.get_residue(entry) == index and self.get_chain(entry) == chain:
+                return True
+        else:
+            return False
+
+

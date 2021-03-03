@@ -83,7 +83,15 @@ To parse a whole folder (flat) of PDBs and get a dictionary of names -> Chem.Mol
 mols = Victor.extract_mols(folder='PDBs',
                            smilesdex={'x01234': 'CCO'}, # optional
                            ligand_resn= 'LIG',
-                           regex_name='x(\d+)', # optional regex to run get rid of fluff)
+                           regex_name='x(\d+)', # optional regex to run get rid of fluff
+                           proximityBonding=False, # change this to True if you lack CONECT entries (disconnected ligand)
+                           )
+```
+
+To have a gander
+```jupyterpython
+from rdkit import Chem
+Chem.Draw.MolsToGridImage(mols.values())
 ```
                            
 NB. there is a Victor method called `from_files`, 
@@ -171,6 +179,31 @@ Or individual values
 
 ```jupyterpython
 victor.ddG
+```
+
+### Troubleshooting
+To see the Pyrosetta pose
+```jupyterpython
+import nglview as nv
+
+view = nv.show_rosetta(victor.igor.pose)
+view
+```
+If there is something like this:
+![farway](../images/farway.png)
+Then it means that the PDB where the molecule was extracted is in a different from the template.
+To fix, before extracting or before using a template align them in say PyMOL (`align` command).
+Just remember than PyMOL strips LINK entries making covalents non-covalent
+(unless `proximityBonding=True` is used in the extraction, which is not recommended).
+Doing it within python:
+```jupyterpython
+import pymol2
+
+with pymol2.PyMOL() as pymol:
+    pymol.cmd.load('minimized.pdb', 'mini')
+    pymol.cmd.load('x01234_refined.pdb', 'hit')
+    pymol.cmd.align('mini', 'hit and chain A')
+    pymol.cmd.save('moved.pdb', 'mini')
 ```
 
 ## Advanced
