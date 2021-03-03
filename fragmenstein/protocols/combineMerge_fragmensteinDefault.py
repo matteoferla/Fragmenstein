@@ -186,7 +186,7 @@ class CombineMerge_FragmensteinDefault(InputAdapter):
                 result = generated_molecule
 
             else:
-                metadata_dict = None
+                metadata_dict = {"error": v.error_msg }
                 result = ErrorInComputation()
 
             if not os.path.exists(os.path.join(Victor.work_path, merge_id)):
