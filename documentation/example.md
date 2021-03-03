@@ -97,6 +97,10 @@ Chem.Draw.MolsToGridImage(mols.values())
 NB. there is a Victor method called `from_files`, 
 this is for restarting a run precariously from the saves and has nothing to do with these.
 
+NB2. One thing to be vigilant for is that the ligands are in aligned protein.
+Fragmenstein does nothing to ensure this is true as multichain protein etc. make everything harder and
+it does not require much effort at all to fix (see Troubleshooting).
+
 ## Template
 Like in a docking experiment, the template protein conformer is important
 even if sidechains and backbones can move.
