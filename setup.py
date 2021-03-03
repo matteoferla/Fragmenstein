@@ -24,7 +24,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.6',
+    version='0.6.4',
     packages=find_packages(),
     install_requires=['numpy', 'rdkit-to-params', 'molecular-rectifier'],
     extras_require={'jupyter': ['jupyter']},
