@@ -1,31 +1,26 @@
 import os
-import sys
+import re
 from abc import abstractmethod, ABC
+from collections import defaultdict
 from itertools import chain
 
-import re
 from rdkit import Chem
 
-
-from collections import defaultdict
-
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
-
-from fragmenstein.protocols.loadInput_XchemDefault import LoadInput_XchemDefault
-from fragmenstein.protocols.score_combinedDefault import Score_CombinedDefault
+from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
+from fragmenstein.protocols.steps.score_combinedDefault import Score_CombinedDefault
 from fragmenstein.protocols.xchem_info import Xchem_info
-
 
 RANDOM_SEED = 121
 
-class Protocol_FragmensteinBase(ABC):
+class Protocol_mergeCombineBase(ABC):
 
     def __init__(self, data_root_dir, output_dir, merging_mode=None, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
         self.output_dir = os.path.expanduser(output_dir)
-        self.wdir_fragmenstein =  os.path.join(self.output_dir, "fragmenstein")
+        self.wdir_fragmenstein =  os.path.join(self.output_dir, "merges")
         self.merging_mode = merging_mode
 
         self._loader = None
@@ -33,18 +28,27 @@ class Protocol_FragmensteinBase(ABC):
         self._fragments_dict = None
         self._ref_hits_for_scoring = None
         self.mol_num = 0
-        self._cur_mol_num = 0
+        self._cur_molNum_scored = 0
 
 
     @property
-    def cur_mol_num(self):
-        val = self._cur_mol_num
-        self._cur_mol_num += 1
+    def cur_molNum_scored(self):
+        '''
+        Used for scoring only
+        :return:
+        '''
+        val = self._cur_molNum_scored
+        self._cur_molNum_scored += 1
         return val
 
     @property
     @abstractmethod
     def sdf_outname(self):
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def hit_ids(self):
         raise NotImplementedError()
 
     @property
@@ -114,8 +118,8 @@ class Protocol_FragmensteinBase(ABC):
             :param mol_id:
             :return:
             '''
-            smiles_molId = mol_id.split("_")
-            mol_id = smiles_molId[0]
+            molId_additionalInfo = mol_id.split("_")
+            mol_id = molId_additionalInfo[0]
             fragments = [ elem.rstrip("-") for elem in filter(lambda x: x!="", mol_id.split("x"))]
             fragIds_dict = defaultdict(lambda : defaultdict(set))
             for fragId_chainId_bitId in fragments:
@@ -128,7 +132,7 @@ class Protocol_FragmensteinBase(ABC):
                 fragId = "x"+ fragId
                 fragIds_dict[fragId][chainId].add( bitId )
 
-            mol_id = "%d_"%self.cur_mol_num
+            mol_id = "%d_"%self.cur_molNum_scored
             for fragId, chain_to_bit_dict in fragIds_dict.items():
                 mol_id += fragId+"_"
                 for chainId, bitIds in chain_to_bit_dict.items():
@@ -178,4 +182,5 @@ class Protocol_FragmensteinBase(ABC):
         protocol.initialize(*args, **kwargs)
         results = protocol.compute()
 
-        protocol.score_results(results)
+        scores = protocol.score_results(results)
+        return scores

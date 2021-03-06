@@ -1,11 +1,10 @@
 import os
+import re
 from collections import OrderedDict
 
-import re
-
-from fragmenstein.protocols.loadInput_base import LoadInput_base
+from fragmenstein.protocols.dataModel.compound import Compound
+from fragmenstein.protocols.steps.loadInput_base import LoadInput_base
 from fragmenstein.protocols.xchem_info import Xchem_info
-from fragmenstein.utils.compound import Compound
 from fragmenstein.utils.io_utils import load_files_as_mols, apply_func_to_files
 
 

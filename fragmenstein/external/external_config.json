@@ -12,7 +12,10 @@
   "pyrosetta": {
     "ROOT_DIR": "~/app/anaconda3/envs/Fragmenstein/lib/python3.7/site-packages/pyrosetta",
     "PYTHONPATH": [],
-    "POST_IMPORT":["import pyrosetta", "pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')"]
+    "POST_IMPORT":[
+                    "import pyrosetta",
+                    "if 'pyrosetta_init' not in globals(): pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')",
+                    "pyrosetta_init=True"]
   },
 
   "plip": {

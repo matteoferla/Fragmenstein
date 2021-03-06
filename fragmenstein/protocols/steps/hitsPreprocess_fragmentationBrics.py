@@ -4,7 +4,7 @@ from rdkit import Chem
 from rdkit.Chem import BRICS
 from rdkit.Chem.Lipinski import RotatableBondSmarts
 
-from fragmenstein.protocols.hitsPreprocess_fragmentation_base import HitsPreprocess_fragmentation_base
+from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBase import HitsPreprocess_fragmentationBase
 
 
 def split_mol_to_brics_bits(mol: Chem.Mol, delete_dummy=False) -> List[Chem.Mol]:
@@ -28,7 +28,7 @@ def split_mol_to_brics_bits(mol: Chem.Mol, delete_dummy=False) -> List[Chem.Mol]
     return mols
 
 
-class HitsPreprocess_fragmentationBRICS(HitsPreprocess_fragmentation_base):
+class HitsPreprocess_fragmentationBRICS(HitsPreprocess_fragmentationBase):
 
 
     def __init__(self, original_fragments, *args, **kwargs):

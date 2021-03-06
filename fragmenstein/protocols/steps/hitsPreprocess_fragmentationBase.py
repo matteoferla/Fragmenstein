@@ -1,33 +1,23 @@
-import random
 from collections import defaultdict
-from itertools import combinations, chain, product
+from itertools import chain, product
 
 from rdkit import Chem
 from rdkit.Chem.Descriptors import HeavyAtomMolWt
 
-from fragmenstein.external.smarts_fragmentation.reaction_fragmentation import ReactionFragmentation
-from fragmenstein.protocols.hitsPreprocess_base import HitsPreprocess_base
-from fragmenstein.utils.compound import Compound
+from fragmenstein.protocols.dataModel.compound import Compound
+from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.utils.modify_molecules import change_atom_type
 
 
-class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
+class HitsPreprocess_fragmentationBase(HitsPreprocess_base) :
 
 
     TEMPORAL_DUMMY_ATOM ="[Xe]"
     MAX_NUMBER_TO_COMBINE = 3
 
-    def __init__(self, original_fragments, fragmentation_function, min_num_fragments= 2, take_n_random=None, random_seed=None,
+    def __init__(self, original_fragments, fragmentation_function, min_num_fragments= 2,
+                 take_n_random=None, random_seed=None,
                  *args, **kwargs):
-
-
-        # if self.fragmentation_mode == Fragmentator.SMARTS_MODE:
-        #     reactFragmentator = ReactionFragmentation(*args, **kwargs)
-        #     self.yield_possible_molFrags = lambda mol : reactFragmentator.yield_reactant_decomposition(mol)
-        # elif self.fragmentation_mode == Fragmentator.BRICS_MODE:
-        #     self.yield_possible_molFrags = lambda mol: (split_mol_to_brics_bits(mol),)
-        # else:
-        #     raise ValueError("Error, not valid fragmentation_mode (%s) "%(fragmentation_mode, ) )
 
 
         self.min_num_fragments = min_num_fragments
@@ -66,7 +56,7 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         for mol_id, _mol in input_mols:
             bitId_to_molId[mol_id] = mol_id
             molId_to_bitLists_dict[mol_id].append([_mol])
-            mol = change_atom_type(_mol, initial_symbol= '*', final_symbol=HitsPreprocess_fragmentation_base.TEMPORAL_DUMMY_ATOM)
+            mol = change_atom_type(_mol, initial_symbol= '*', final_symbol=HitsPreprocess_fragmentationBase.TEMPORAL_DUMMY_ATOM)
             for i, split_option in  enumerate(self.yield_possible_molFrags(mol)):
                 bits = sorted(split_option, key=lambda x: HeavyAtomMolWt(x))
                 molId_to_bitLists_dict[mol_id].append([])
@@ -74,13 +64,12 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
                     bitId = mol_id + "_%db%d" % (i,j)
                     bit = Chem.DeleteSubstructs(bit, Chem.MolFromSmiles('*'))
 
-                    bit = change_atom_type(bit, initial_symbol=HitsPreprocess_fragmentation_base.TEMPORAL_DUMMY_ATOM, final_symbol='*')
+                    bit = change_atom_type(bit, initial_symbol=HitsPreprocess_fragmentationBase.TEMPORAL_DUMMY_ATOM, final_symbol='*')
                     bit = Compound(bit)
                     bit.molId = bitId
                     bit.parents = [_mol]
                     bitId_to_molId[bitId] = mol_id
                     molId_to_bitLists_dict[mol_id][-1].append( bit )
-
         return molId_to_bitLists_dict, bitId_to_molId
 
 
@@ -91,8 +80,8 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         :param take_n_random:
         :return:
         '''
-        assert len(self.original_fragments_dict) <= HitsPreprocess_fragmentation_base.MAX_NUMBER_TO_COMBINE, "Error, yield combinations scales with O(2**N_bits)**N_FRAGS, " \
-                                                                   "so the number of fragments to consider has been limited to %d" % HitsPreprocess_fragmentation_base.MAX_NUMBER_TO_COMBINE
+        assert len(self.original_fragments_dict) <= HitsPreprocess_fragmentationBase.MAX_NUMBER_TO_COMBINE, "Error, yield combinations scales with O(2**N_bits)**N_FRAGS, " \
+                                                                   "so the number of fragments to consider has been limited to %d" % HitsPreprocess_fragmentationBase.MAX_NUMBER_TO_COMBINE
 
         full_compounds = list( self.original_fragments_dict.values() )
 
@@ -107,8 +96,9 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
 
     def _yield_combinations(self, min_num_fragments=2):
 
-        bitDecompositions_perCompound = self.broken_fragments.values() # [compound1_all_options, compound2_all_options, ...]
+        bitDecompositions_perCompound = list(self.broken_fragments.values()) # [compound1_all_options, compound2_all_options, ...]
 
+        # n_compounds = len(bitDecompositions_perCompound)
         oneDecomposition_perCompound_list =  list( product( *bitDecompositions_perCompound ))
 
         final_fragments = []
@@ -121,9 +111,10 @@ class HitsPreprocess_fragmentation_base(HitsPreprocess_base) :
         final_fragments = chain.from_iterable( final_fragments)
         return  final_fragments
 
-    def getOrinalFragmentId(self, bit):
-        if isinstance(bit, Compound):
-            bitId = bit.molId
-        elif isinstance(bit, str):
-            bitId = bit
-        return self.bitId_to_molId[bitId]
+    # def getOrinalFragmentId(self, bit):
+    #     print(self.bitId_to_molId)
+    #     if isinstance(bit, Compound):
+    #         bitId = bit.molId
+    #     elif isinstance(bit, str):
+    #         bitId = bit
+    #     return self.bitId_to_molId[bitId]

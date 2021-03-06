@@ -3,8 +3,8 @@ from abc import abstractmethod
 from itertools import chain, permutations
 from itertools import combinations
 
-from fragmenstein.protocols.adapt_input import InputAdapter
-from fragmenstein.utils.compound import Compound
+from fragmenstein.protocols.dataModel.compound import Compound
+from fragmenstein.protocols.steps.adapt_input import InputAdapter
 
 
 class HitsPreprocess_base(InputAdapter):
@@ -45,12 +45,14 @@ class HitsPreprocess_base(InputAdapter):
         return molId
 
     def take_random_from_iterator(self, iterable, take_n_random):
+
         if take_n_random:
             if self.random_seed:
                 random.seed(self.random_seed)
                 iterable = self.iter_sample_fast(iterable, take_n_random)
             if self.random_seed:
                 random.seed(None)
+            iterable = list( iterable)
             return  iterable
         else:
             return iterable

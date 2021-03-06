@@ -8,9 +8,7 @@ from rdkit.Chem import PropertyMol
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore
 from fragmenstein.utils.io_utils import load_mol
 
-#TODO; create module dataModel
-
-class Compound(Chem.PropertyMol.PropertyMol):
+class Compound(Chem.Mol):
 
     ID_SEP = "-"
 
@@ -52,7 +50,7 @@ class Compound(Chem.PropertyMol.PropertyMol):
             molId = molId
 
         self.covalent_info = covalent_info  #E.g. {'covalent_resi':'145A', 'covalent_resn':'CYS'}
-
+        self.props_as_dict = {}
         if parents:
             self.parents = parents
         else:
@@ -156,15 +154,25 @@ class Compound(Chem.PropertyMol.PropertyMol):
         self._scores_dict = scores_dict
         self.SetProp("scores_dict", json.dumps(self._scores_dict ) )
 
-    def add_scores(self, scores_dict):
-        for key, val in scores_dict.items():
+
+    def _set_typedScore(self, key, val ):
+        if isinstance(val, int, ):
+            self.SetIntProp(key, val)
+        elif isinstance(val, float):
+            self.SetDoubleProp(key, val)
+        else:
+            self.SetProp(key, val)
+
+    def add_scores(self, new_scores_dict):
+        current_scores = self.scores_dict.copy()
+        for key, val in new_scores_dict.items():
             if key in self.scores_dict:
                 raise ValueError("Error, key (%s) already included  in scores"%(key))
             else:
                 if checkIfNameIsScore(key):
-                    self.SetProp(key, val)
-                    self.scores_dict[key] = val
-        self.SetProp("scores_dict", json.dumps(self.scores_dict ) )
+                    self._set_typedScore(key, val)
+        self.scores_dict = current_scores
+        # self.SetProp("scores_dict", json.dumps(self.scores_dict ) )
 
 
     def getFragIds(self):
@@ -172,6 +180,40 @@ class Compound(Chem.PropertyMol.PropertyMol):
 
     def __str__(self):
         return "<"+str(type(self).__name__)+": "+self.molId+">"
+
+
+    __getstate_manages_dict__ = True
+
+    def __getstate__(self):
+        self.props_as_dict = self.GetPropsAsDict()
+        self.mol_as_bin = self.ToBinary()
+
+        return self.__dict__
+
+    def __setstate__(self, stateD):
+        # print( stateD )
+        type(self)( stateD["mol_as_bin"] )
+
+        self.__dict__ = stateD
+
+        self.molId = self.molId #Required to activate SetProp("_Name", name)
+
+        for key, val in self.props_as_dict.items():
+            self._set_typedScore(key, val)
+
+    ### This also works
+    # def __getstate__(self):
+    #     pDict = {}
+    #     for pn in self.GetPropNames(includePrivate=True):
+    #         pDict[pn] = self.GetProp(pn)
+    #     return {'pkl': self.ToBinary(), 'propD': pDict, 'parents': pickle.dumps(self.parents), "molId":self.molId}
+    #
+    # def __setstate__(self, stateD):
+    #     Chem.Mol.__init__(self, stateD['pkl'])
+    #     for prop, val in stateD['propD'].items():
+    #         self._set_typedScore(prop, val)
+    #     self.parents = pickle.loads(stateD["parents"])
+    #     self.molId = stateD["molId"]
 
 def test_getMols():
     m1 = Compound.MolFromSmiles("CC")
@@ -211,15 +253,22 @@ def test_primitiveId():
     m2.parents = [m1]
     print(m4.primitiveId)
     Compound(m2)
+
 def test_pickleProps():
     import  pickle
     m1,m2,m3,m4 = test_getMols()
-    m1.SetProp("_Name", "kk")
+    m1.molId ="kk"
+
+    m1.parents = [m2, m3]
+    print(m1.parents)
+
     m_str = pickle._dumps( m1)
     m1 = pickle.loads( m_str )
     print( m1.GetProp("_Name") )
     print( type(m1))
     print( m1.molId )
+    print("parents after pickle", m1.parents)
+    print( m1.primitiveId )
 
 def test_pickleScores():
     m1,m2,m3,m4 = test_getMols()
@@ -231,11 +280,11 @@ def test_pickleScores():
 
 if __name__=="__main__":
     # test_primitiveId()
-    # test_pickleProps()
-    test_pickleScores()
+    test_pickleProps()
+    # test_pickleScores()
 
     '''
 
-python -m fragmenstein.utils.compound
+python -m fragmenstein.protocols.dataModel.compound
 
     '''

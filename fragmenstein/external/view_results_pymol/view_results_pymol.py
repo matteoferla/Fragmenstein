@@ -1,14 +1,12 @@
 import os
 import re
-
-from rdkit.Chem import PandasTools
 from itertools import cycle
 
 from rdkit import Chem
-
+from rdkit.Chem import PandasTools
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
-from fragmenstein.protocols.loadInput_XchemDefault import LoadInput_XchemDefault
+from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, removeScoreTag, SCORE_NAME_TEMPLATE
 
 

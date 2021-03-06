@@ -4,6 +4,7 @@ import warnings
 from typing import Union, List
 
 import numpy as np
+from rdkit import RDLogger
 
 from fragmenstein.external import ExternalToolImporter
 
@@ -31,7 +32,8 @@ class DeLinkerWrapper():
 
     DUMMY_SYMBOL = "*"
     VECTOR_SYMBOL = "*"
-    def __init__(self, number_of_generation_per_valid=50, n_atomPairs_attemps=3, n_cores=1, gpu_id=0, interactive=False, random_seed=None):
+    def __init__(self, number_of_generation_per_valid=50, n_atomPairs_attemps=3, n_cores=1, gpu_id=None,
+                 interactive=False, random_seed=None):
 
         self.n_atomPairs_attemps = n_atomPairs_attemps
         self.number_of_generation_per_valid = number_of_generation_per_valid
@@ -40,7 +42,7 @@ class DeLinkerWrapper():
         self.interactive= interactive
         self.random_seed = -1 if not random_seed else random_seed
 
-    def load_andOr_prepare_mol(self, fnameOrMol, removeDummy=True, removeHs= True):
+    def _load_andOr_prepare_mol(self, fnameOrMol, removeDummy=True, removeHs= True):
         #TODO: check if removeDummy interferes with covalent warheads
         if isinstance(fnameOrMol, str):
             mol = Chem.MolFromMolFile(fnameOrMol)
@@ -68,7 +70,7 @@ class DeLinkerWrapper():
             if atom.GetImplicitValence() <1:
                 yield i
 
-    def pick_closest_atoms(self, mol1, mol2, atom_idx1=None, atom_idx2=None, n_to_retrieve=None, cumm_idxs=True):
+    def _pick_closest_atoms(self, mol1, mol2, atom_idx1=None, atom_idx2=None, n_to_retrieve=None, cumm_idxs=True):
         '''
 
         :param mol1:
@@ -111,7 +113,7 @@ class DeLinkerWrapper():
 
         bad_atoms1 = list(self._get_non_available_atoms(mol1))
         bad_atoms2 = list(self._get_non_available_atoms(mol2))
-qq
+
         distance_matrix[bad_atoms1, :] =  sys.maxsize
         distance_matrix[:, bad_atoms2] =  sys.maxsize
 
@@ -137,6 +139,7 @@ qq
     def _link_molecule_pairs_given_atom_idxs(self, frag_1_mol: Chem.Mol, frag_2_mol: Chem.Mol, atom_idx_1:int, atom_idx_2:int,
                                                     min_atoms: int=2, max_atoms: int=6) -> List[Chem.Mol]:
 
+        RDLogger.DisableLog('rdApp.info')
 
         combo_no_exit = Chem.CombineMols(frag_1_mol, frag_2_mol)
         combo = Chem.CombineMols(combo_no_exit, Chem.MolFromSmiles(DeLinkerWrapper.VECTOR_SYMBOL+"."+DeLinkerWrapper.VECTOR_SYMBOL))  #TODO: Check if *.* can be used due to DUMMY symbol
@@ -206,6 +209,9 @@ qq
                 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
             else:
                 os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
+                os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
+
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
             # Arguments for DeLinker_to_remove
             args = defaultdict(None)
@@ -310,23 +316,21 @@ qq
         mols_with_conf = []
         for smi in new_gen_mols_smi:
             mol = Chem.MolFromSmiles(smi)
-            try:
-                AllChem.ConstrainedEmbed(mol, combo_no_exit, self.random_seed)
+            mol = self.place_linked_mol( mol, combo_no_exit)
+            if mol:
                 mols_with_conf.append(  mol )
-            except ValueError:
-                continue
 
         return mols_with_conf
 
-    def place_linked_mol(self, mol, combined_mol_ref):
+    def place_linked_mol(self, mol, combined_mol_ref,):
         try:
-            AllChem.ConstrainedEmbed( Chem.Mol(mol), combined_mol_ref)
+            AllChem.ConstrainedEmbed( Chem.Mol(mol), combined_mol_ref, self.random_seed)
             return mol
         except ValueError:
             return None
 
 
-    def estimate_num_atoms(self, distance, min_num=1, max_factor=3):
+    def _estimate_num_atoms(self, distance, min_num=1, max_factor=3):
         required_atoms = round(distance/1.2)
         min_atoms = max(min_num, int(required_atoms))
         max_atoms = int(max_factor*min_atoms)
@@ -343,12 +347,12 @@ qq
         if not n_attempts:
             n_attempts = self.n_atomPairs_attemps
 
-        frag_1_mol = self.load_andOr_prepare_mol(fnameOrMol_1)
-        frag_2_mol = self.load_andOr_prepare_mol(fnameOrMol_2)
+        frag_1_mol = self._load_andOr_prepare_mol(fnameOrMol_1)
+        frag_2_mol = self._load_andOr_prepare_mol(fnameOrMol_2)
 
         linked_molecules = []
-        for (atom_idx_1, atom_idx_2), distance in self.pick_closest_atoms(frag_1_mol, frag_2_mol ):
-            min_atoms, max_atoms = self.estimate_num_atoms( distance )
+        for (atom_idx_1, atom_idx_2), distance in self._pick_closest_atoms(frag_1_mol, frag_2_mol):
+            min_atoms, max_atoms = self._estimate_num_atoms(distance)
             linked_molecules += self._link_molecule_pairs_given_atom_idxs( frag_1_mol, frag_2_mol, atom_idx_1, atom_idx_2,
                                                                            min_atoms, max_atoms)
             n_attempts-=1
@@ -363,14 +367,14 @@ def example():
     frag_binaries= [b"\xef\xbe\xad\xde\x00\x00\x00\x00\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x11\x00\x00\x00\x11\x00\x00\x00\x80\x01\x07\x00(\x00\x00\x00\x03\x03\x06\x00`\x00\x00\x00\x01\x03\x08\x00(\x00\x00\x00\x03\x02\x06\x00`\x00\x00\x00\x03\x01\x07\x00(\x00\x00\x00\x03\x03\x08\x00(\x00\x00\x00\x03\x02\x06\x00`\x00\x00\x00\x01\x03\x06\x00`\x00\x00\x00\x01\x03\x06\x00(\x00\x00\x00\x03\x04\x06\x00`\x00\x00\x00\x03\x01\x06\x00`\x00\x00\x00\x02\x02\x06\x00`\x00\x00\x00\x02\x02\x06\x00`\x00\x00\x00\x02\x02\x06\x00`\x00\x00\x00\x02\x02\x06\x00(\x00\x00\x00\x03\x04\x06\x00`\x00\x00\x00\x02\x02\x000(\x00\x00\x00\x00\x01\x19\x08\x00\x00\x00AtomNull(\x1c\x00+\x0b\x00\x03\x00\x03\x01\x00\x03\x06\x00\x00\x07\x00\x00\x08 \x02\x08(\x02\t\x08\x00\t\n\x00\x04\x0b\x00\n\x0b\x00\x04\x0c\x00\t\r\x00\x0c\r\x00\x04\x0e \x05\x0e(\x02\x0e\x0f\x00\x0f\x10\x00\x14\x01\x06\x04\x0c\r\t\n\x0b\x17\x01\x00\x00\x00\x01\x00\x00\x00\x00\x11)\\\xdf@\xf8SS\xc01\x08\xd4A\xf8S\x0fAff\x96\xc0\x1f\x85\xd8A33\x9f@\x1f\x85K\xc0\xfc\xa9\xcbA\x7fj\xf0@;\xdf\x8b\xc0\x87\x16\xdbA\x9a\x99\xdd@\xf4\xfd\x8c\xc0\x8f\xc2\xaaA\xfa~\xb2@\xee|\x9f\xc0%\x06\x9dA1\x08\xd4@\x02+\xb3\xc0\xecQ\xdbA;\xdf\xef@5^\xfa\xbf\x0e-\xd6A\x87\x16\xc5@\xac\x1cb\xc0\x08\xac\xcbA\xb6\xf3\xd9@\xf8S\x83\xc0!\xb0\xc1A\n\xd7\xbb@\xdfO\xa1\xc0\xa6\x9b\xbbA%\x06\xd1@}?\xb1\xc0\x1f\x85\xb1A\x1f\x85\xfb@\x8bl_\xc0b\x10\xb0A'1\xe8@\xcb\xa1=\xc0\xc7K\xbaA\x85\xeb\xcd@\n\xd7\x87\xc0\x83\xc0\xa0A\xee|\xdf@\x02+G\xc0\xe9&\x9aA\x0c\x02\tA5^b\xc0\x17\xd9\x93A\x16", b'\xef\xbe\xad\xde\x00\x00\x00\x00\x0c\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x11\x00\x00\x00\x80\x01\x06\x00`\x00\x00\x00\x01\x03\x06\x00(\x00\x00\x00\x03\x04\x08\x00(\x00\x00\x00\x03\x02\x07\x00h\x00\x00\x00\x03\x02\x01\x06\x00`\x00\x00\x00\x02\x02\x06\x00`\x00\x00\x00\x02\x02\x06@(\x00\x00\x00\x03\x04\x06@h\x00\x00\x00\x03\x03\x01\x07@8\x00\x00\x00\x03\x01\x03\x06@(\x00\x00\x00\x03\x04\x06@h\x00\x00\x00\x03\x03\x01\x06@h\x00\x00\x00\x03\x03\x01\x06@(\x00\x00\x00\x03\x04\x06@h\x00\x00\x00\x03\x03\x01\x06@(\x00\x00\x00\x03\x04\t\x00 \x00\x00\x00\x01\x0b\x00\x01\x00\x01\x02(\x02\x01\x03 \x03\x04\x00\x04\x05\x00\x05\x06\x00\x06\x07h\x0c\x07\x08h\x0c\x08\th\x0c\t\nh\x0c\n\x0bh\x0c\x0b\x0ch\x0c\x0c\rh\x0c\x06\x0eh\x0c\t\x0eh\x0c\r\x0eh\x0c\x0c\x0f\x00\x14\x02\x05\x06\x07\x08\t\x0e\x06\n\x0b\x0c\r\x0e\t\x17\x01\x00\x00\x00\x01\x00\x00\x00\x00\x10b\x10\x10A\x04V\xc6@{\x14\xb5A\\\x8f$A\x9c\xc4\xbc@q=\xbbA\x1b/%A\xaa\xf1\xc2@P\x8d\xc4A\xf4\xfd6Aw\xbe\xab@\x81\x95\xb5A\x17\xd9JA\xe9&\xa1@\xdb\xf9\xbaAy\xe9PAy\xe9f@\xd9\xce\xb7A\xb8\x1eAA7\x89!@\x12\x83\xbbA\xb8\x1e/A\x91\xed,@\xe5\xd0\xc1A\x14\xae%A33\xc3?\xd1"\xc3A\xb4\xc80A\xcd\xcc\x0c?y\xe9\xbdA\xe9&-A\xfe\xd4X\xbf\xaa\xf1\xbcA\xaeG;A\xc5 \xd0\xbf\x00\x00\xb7A\xaa\xf1LAX9\x84\xbf1\x08\xb2A\xfa~PAD\x8b\xac>=\n\xb3A\xc5 BA\x85\xeb\x91?o\x12\xb9A\x17\xd9ZA\xb8\x1e\xe5\xbf33\xacA\x16']
     frag_mols = list(map(Chem.Mol, frag_binaries))
     dlw= DeLinkerWrapper(n_cores=4, number_of_generation_per_valid=10, n_atomPairs_attemps=1)
-    sp= dlw.link_molecule_pair(dlw.load_andOr_prepare_mol(frag_mols[0]), dlw.load_andOr_prepare_mol(frag_mols[1]))
+    sp= dlw.link_molecule_pair(dlw._load_andOr_prepare_mol(frag_mols[0]), dlw._load_andOr_prepare_mol(frag_mols[1]))
     print( sp )
 
     view_batch_size=4
     mols = []
     for i, mol in enumerate(sp):
         mols.append(mol)
-        Chem.MolToMolFile(mol, "/home/ruben/tmp/mols/%d.mol"%i)
+        Chem.MolToMolFile(mol, os.path.expanduser("~/tmp/mols/%d.mol"%i))
         if (i+1)%view_batch_size==0:
             plt.imshow(Draw.MolsToGridImage(mols, molsPerRow=1))
             plt.show()

@@ -1,17 +1,13 @@
-from typing import List
-
 from rdkit import Chem
-from rdkit.Chem import BRICS
-from rdkit.Chem.Lipinski import RotatableBondSmarts
 
 from fragmenstein.external.smarts_fragmentation.reaction_fragmentation import ReactionFragmentation
-from fragmenstein.protocols.hitsPreprocess_fragmentation_base import HitsPreprocess_fragmentation_base
+from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBase import HitsPreprocess_fragmentationBase
 
 
 
 
 
-class HitsPreprocess_fragmentationSMARTS(HitsPreprocess_fragmentation_base):
+class HitsPreprocess_fragmentationSMARTS(HitsPreprocess_fragmentationBase):
 
 
     def __init__(self, original_fragments, *args, **kwargs):

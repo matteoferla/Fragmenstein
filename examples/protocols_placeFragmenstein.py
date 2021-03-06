@@ -1,14 +1,13 @@
 import os
 import sys
 
-from examples.protocols_FragmensteinBase import Protocol_FragmensteinBase
-from fragmenstein.protocols.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
-
+from examples.protocols_mergeCombineBase import Protocol_mergeCombineBase
+from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
 from fragmenstein.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.config_manager import ConfigManager
 
 
-class Protocol_placeFragmenstein(Protocol_FragmensteinBase):
+class Protocol_placeFragmenstein(Protocol_mergeCombineBase):
 
 
     def initialize(self, smile_fragIds_list, *args, **kwargs):
