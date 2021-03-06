@@ -1,3 +1,5 @@
+from fragmenstein.utils.config_manager import ConfigManager
+from fragmenstein.utils.timeout import timeout
 from ._victor_store import _VictorStore
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -30,6 +32,7 @@ class _VictorIgor(_VictorStore):
         ddG = dG_bound - dG_unbound
         return ddG
 
+    @timeout( ConfigManager.IGOR_TIMEOUT)
     def reanimate(self) -> float:
         """
         Calls Igor recursively until the ddG is negative or zero.
