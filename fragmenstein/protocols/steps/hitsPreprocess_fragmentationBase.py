@@ -92,9 +92,6 @@ class HitsPreprocess_fragmentationBase(HitsPreprocess_base) :
             final_fragments = self._yield_combinations(min_num_fragments)
 
         final_fragments = chain.from_iterable([[full_compounds], final_fragments])
-
-        final_fragments = self.take_random_from_iterator( final_fragments, take_n_random)
-
         return final_fragments
 
     def _yield_combinations(self, min_num_fragments=2):

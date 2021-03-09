@@ -4,6 +4,7 @@ from typing import Tuple, List, Dict
 from examples.protocols_combineBase import Protocol_combineBase
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
+from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
 from fragmenstein.protocols.steps.hitsPreprocess_permutations import HitsPreprocess_permutations
 
@@ -66,7 +67,10 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
                 bitId_to_molId.update( preprocesser.bitId_to_molId )
             fragsCombin_iter = chain.from_iterable( list_of_iters )
 
-        fragsCombin_iter = list (fragsCombin_iter )
+        fragsCombin_iter = fragsCombin_iter
+
+        fragsCombin_iter = HitsPreprocess_base.take_random_from_iterator( fragsCombin_iter, self.max_attemps)
+
         return fragsCombin_iter, bitId_to_molId
 
 
