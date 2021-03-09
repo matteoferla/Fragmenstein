@@ -5,6 +5,7 @@ from typing import Union, List
 
 import numpy as np
 from rdkit import RDLogger
+from rdkit.Chem import rdFMCS
 
 from fragmenstein.external import ExternalToolImporter
 
@@ -275,11 +276,6 @@ class DeLinkerWrapper():
                 continue
             linker = Chem.MolFromSmiles(re.sub('[0-9]+'+re.escape(DeLinkerWrapper.VECTOR_SYMBOL), DeLinkerWrapper.VECTOR_SYMBOL, linker))
             Chem.rdmolops.RemoveStereochemistry(linker)
-
-            for i in range(linker.GetNumAtoms()):
-                atom = linker.GetAtomWithIdx(i)
-                atom.SetProp("is_linker", "True")
-
             linkers[i] = Chem.MolStandardize.canonicalize_tautomer_smiles(Chem.MolToSmiles(linker))
         # Update results
         for i in range(len(results)):
@@ -288,8 +284,7 @@ class DeLinkerWrapper():
         # Create dictionary of results
         results_dict = {}
         for res in results:
-            if res[0] + '.' + res[
-                1] in results_dict:  # Unique identifier - starting fragments and original molecule
+            if res[0] + '.' + res[1] in results_dict:  # Unique identifier - starting fragments and original molecule
                 results_dict[res[0] + '.' + res[1]].append(tuple(res))
             else:
                 results_dict[res[0] + '.' + res[1]] = [tuple(res)]
@@ -326,17 +321,24 @@ class DeLinkerWrapper():
             print("Number molecules passing 2D filters:\t\t%d" % len(results_filt))
 
         results_filt_unique = self.example_utils.unique_mols(results_filt)
-        new_gen_mols_smi = [x[2] for x in results_filt_unique]
+
+
+        # new_genMols_linker_smi = [(x[2], x[4]) for x in results_filt_unique]
 
         if self.interactive:
             print("Number unique molecules passing 2D filters:\t%d" % len(results_filt_unique))
 
         mols_with_conf = []
-        for smi in new_gen_mols_smi:
+        for __, __, smi, fragments_smi, linker_smi in results_filt_unique:
             mol = Chem.MolFromSmiles(smi)
+            mol = self._annotate_atom_origin(mol, fragments_smi, linker_smi)
+            if mol is None: continue
             mol = self.place_linked_mol( mol, combo_no_exit)
             if mol:
                 mols_with_conf.append(  mol )
+                # print(mol)
+                # for atom in mol.GetAtoms():
+                #     print(atom.HasProp("is_original_atom"))
 
         return mols_with_conf
 
@@ -355,6 +357,32 @@ class DeLinkerWrapper():
         except ValueError:
             return None
 
+    def _annotate_atom_origin(self, mol, combo_fragments_smi, linker_smi):
+
+        fragments = Chem.GetMolFrags(Chem.MolFromSmiles(combo_fragments_smi), asMols=True)
+        # lin = Chem.MolFromSmiles(linker)
+        for frag in fragments:
+            mcs = rdFMCS.FindMCS([mol, frag], ringMatchesRingOnly=True)
+
+            if len(mcs.smartsString) == 0:
+                return None
+
+            match = mol.GetSubstructMatches(Chem.MolFromSmarts(mcs.smartsString))
+            atoms_idxs = match[0]
+
+            for j in atoms_idxs:
+                atom = mol.GetAtomWithIdx(j)
+                atom.SetProp("is_original_atom", "True")
+
+            if self.interactive:
+                fig = plt.figure()
+                fig.add_subplot(121)
+                plt.imshow(Draw.MolsToGridImage([mol, Chem.MolFromSmiles(linker_smi),  frag], molsPerRow=1))
+                fig.add_subplot(122)
+                plt.imshow(Draw.MolToImage(mol, highlightAtoms=atoms_idxs))
+                plt.show()
+
+        return mol
 
     def _estimate_num_atoms(self, distance, min_num=1, max_factor=3):
         required_atoms = round(distance/1.2)

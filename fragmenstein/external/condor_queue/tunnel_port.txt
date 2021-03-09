@@ -1,0 +1,6 @@
+
+#This works but on the submit work
+ssh -J sanchezg@130.246.215.88 -NL 8787:localhost:$DASK_PORT sanchezg@192.168.199.151
+
+#This is not working. It seems that condor_ssh_to_job is the problem
+ssh  -L 8787:localhost:8787 sanchezg@130.246.215.88 ssh -L 8787:localhost:8787 sanchezg@192.168.199.151 condor_ssh_to_job 1716306.0 -L 8787:localhost:$DASK_PORT

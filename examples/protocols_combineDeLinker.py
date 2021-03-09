@@ -52,6 +52,7 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
 
         bitId_to_molId  =  fragmentator.bitId_to_molId
 
+        #TODO: add redundancy filter
         def fragsCombin_iter():
             for key1, key2 in frags_keys_pairs:
                 frags_ops1 = dict_of_frags[key1]

@@ -14,7 +14,9 @@ from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
 from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
 from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
+from fragmenstein.protocols.steps.minimizePdbComplex_pyrosetta import MinimizePDBComplex_pyrosetta
 from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.pdb_utils import PdbDistanceManager
 
@@ -38,112 +40,16 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         )
 
 
-    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=1, *args, **kwargs):
+    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=1, n_atomPairs_attemps=1, *args, **kwargs):
 
         super().__init__( *args, **kwargs)
 
         self.random_seed = random_seed
-        self.merging_mode = "full"
         from fragmenstein.external.DeLinker.DeLinkerWrapper import DeLinkerWrapper
         self.delinker = DeLinkerWrapper( number_of_generation_per_valid=number_of_generation_per_valid,
-                         n_atomPairs_attemps=3, n_cores=1, gpu_id=gpu_id,
+                         n_atomPairs_attemps=n_atomPairs_attemps, n_cores=1, gpu_id=gpu_id,
                          interactive=False, random_seed= self.random_seed)
 
-
-    def appendMolToPdb(self, mol, unboudFname): #TODO: move it to pdb_utils
-
-        for atom in mol.GetAtoms():
-            info = atom.GetPDBResidueInfo()
-            info.SetResidueNumber(1)
-            info.SetChainId( "Z" )
-            info.SetIsHeteroAtom(True)
-            info.SetOccupancy(1.)
-            info.SetResidueName("LIG")
-
-        from fragmenstein.victor import MinimalPDBParser
-        with open(unboudFname) as f:
-            pdbdata = MinimalPDBParser(f.read())
-        mol = Chem.Mol( mol.ToBinary() )
-        moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
-        pdbdata.append(moldata)
-        return str(pdbdata)
-
-    def get_constrains(self, params, templateFname):
-        from rdkit_to_params import constraint
-
-        mol = params.mol
-        chainId, resId, resname = PdbDistanceManager(templateFname).find_closest_residue(mol)
-        ligand_resi = "1Z"
-        covalent_resi = resId + chainId
-        constrains = constraint.Constraints.mock()
-
-        conf = mol.GetConformer()
-        lines = []
-        for i in range(mol.GetNumAtoms()):
-            atom = mol.GetAtomWithIdx(i)
-            if not atom.HasProp("is_linker"):
-                if atom.GetSymbol() == '*':
-                    continue
-                elif atom.GetPDBResidueInfo() is None:
-                    print('Atom {i} ({sym}) has no name!'.format(i=i,sym=atom.GetSymbol()))
-                    continue
-                pos = conf.GetAtomPosition(i)
-                fxn = 'HARMONIC 0 1'
-
-                atomname = atom.GetPDBResidueInfo().GetName()
-                lines.append(('CoordinateConstraint {atomname} {ligand_resi} ' +
-                             'CA {covalent_resi} ' +
-                             '{pos_x} {pos_y} {pos_z} {fxn}\n').format(atomname=atomname, ligand_resi=ligand_resi,
-                                                                    covalent_resi=covalent_resi, fxn=fxn,
-                                                                    pos_x = pos[0], pos_y = pos[1], pos_z= pos[2]) )
-
-        constrains.custom_constraint += ''.join(lines)
-
-        return  constrains
-
-    def minimize(self, mol, templateFname, wdir): #TODO: clean all this thing
-
-
-        ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
-
-        # smi = Chem.MolToSmiles(mol)
-
-        from rdkit_to_params import Params, constraint
-        Params.log.setLevel("ERROR")
-
-        params = Params.from_mol( mol, name="LIG")
-        constrains = self.get_constrains(params, templateFname)
-
-
-        with NamedTemporaryFile() as tmp1, NamedTemporaryFile() as tmp2:
-
-            params_filename = tmp1.name
-            constrains_filename = tmp2.name
-
-            params.dump(params_filename)
-            constrains.dump(constrains_filename)
-            tmp1.seek(0)
-            tmp2.seek(0)
-
-            boundPdbStr = self.appendMolToPdb( params.mol, templateFname)
-            igor = Igor.from_pdbblock(
-                pdbblock=boundPdbStr ,
-                params_file= params_filename ,
-                constraint_file= constrains_filename, ligand_residue='LIG'
-            )
-            print( igor.pose)
-
-            igor.minimise(10, default_coord_constraint=False)
-            with open(os.path.join(wdir, "minimized.pdb"), "w") as f:
-                f.write( igor.pose2str() )
-
-            ligand = igor.mol_from_pose()
-            template = AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
-
-            print(igor.ligand_score())
-            print("minimization done!!!"); input("enter")
-
-            return AllChem.AssignBondOrdersFromTemplate(template, ligand)
 
 
 
@@ -170,7 +76,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         # plt.imshow(Draw.MolsToGridImage(fragments, molsPerRow=1)); plt.show()
 
         RDLogger.DisableLog('rdApp.warning')
-        # proposed_mols = self.delinker.link_molecule_pair(*fragments)
+        proposed_mols = self.delinker.link_molecule_pair(*fragments)
         RDLogger.EnableLog('rdApp.warning')
 
         # proposed_mols = proposed_mols[:20]
@@ -180,23 +86,36 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         # for i in range(len(proposed_mols)):
         #     plt.imshow(Draw.MolsToGridImage([proposed_mols[i]], molsPerRow=1)); plt.show()
 
-        proposed_mols = list(map(Chem.Mol, type(self).example_delkinker))
+        # proposed_mols = list(map(Chem.Mol, type(self).example_delkinker))
 
-        for mol in proposed_mols:
-            for i in range(mol.GetNumAtoms()):
-                atom = mol.GetAtomWithIdx(i)
-                if i< 5:
-                    atom.SetProp("is_linker", "True")
 
         placed_results = []
 
         w_DeLinker = Chem.SDWriter( os.path.join(final_outdir, "delinker_mols.sdf"))
 
+        minimizer = MinimizePDBComplex_pyrosetta(templateFname, atom_constrain_filter=lambda atom: atom.HasProp("is_original_atom"))
+
+        def minimizeMol(molId, mol ):
+            mol, metadata_dict = minimizer.minimize(mol, molId=molId, outdir=wdir, reference_fragments=fragments)
+            metadata_dict = _FragmensteinScorer.old_scoring_fun(metadata_dict)[-1]
+            metadata_dict = _FragmensteinScorer.new_scoring_fun(metadata_dict)[-1]
+
+            metadata_dict["fragments"] = [ frag.primitiveId for frag in fragments]
+            metadata_dict["ref_pdb"] = templateFname
+
+            generated_molecule = Compound( mol, molId=molId, parents= fragments)
+            generated_molecule.ref_pdb = templateFname
+            generated_molecule.metadata = metadata_dict
+            generated_molecule.ref_molIds =  metadata_dict["fragments"]
+
+            return  generated_molecule
+
         for i, proposal in enumerate(proposed_mols):
             w_DeLinker.write(proposal)
-            smi = Chem.MolToSmiles( proposal )
 
-            placed_mols = [ self.minimize( proposal, templateFname, wdir) ]
+            # smi = Chem.MolToSmiles( proposal )
+
+            placed_mols = [ minimizeMol( merge_id+"_"+str(i), proposal) ]
 
             # ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
             # Victor.work_path = wdir
@@ -226,7 +145,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
 def test_applyCombine():
     init_params = CombineMerge_DeLinkerDefault.get_examples_init_params()
     init_params["number_of_generation_per_valid"] = 2
-    combiner = CombineMerge_DeLinkerDefault( **init_params, use_dask=False)
+    combiner = CombineMerge_DeLinkerDefault( **init_params, use_dask=False, gpu_id=0)
     results = combiner.applyCombine( **CombineMerge_DeLinkerDefault.get_examples_combine_params())
     print("RESULTS applyCombine:")
     print( results)

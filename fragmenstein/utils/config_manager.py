@@ -13,11 +13,22 @@ def instancer(cls):
 @instancer #ConfigManager will be an instance of the ConfigManager() class
 class ConfigManager():
 
+    def parseBool( x ):
+        if isinstance(x, str):
+            if x == "True":
+                return True
+            elif x == "False":
+                return False
+            else:
+                raise  ValueError("Error, x (%s) should be either True or False"%x)
+        else:
+            return bool(x)
+
     PARSEABLE_PARAMETERS = [
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),
         ("DASK_WORKER_MEMORY", str, "-1", "Memory for each dask worker. E.g 16GB'. Default 90%% of host memory / N_CPUS"),
-        ("VICTOR_VERBOSE", bool, False, "Enable verbosity in Victor. Default: %(default)s"),
+        ("VICTOR_VERBOSE", parseBool, False, "Enable verbosity in Victor. Default: %(default)s"),
         ("TMP_DIR", str, "/tmp", "Temporal directory for computations. Default: %(default)s"),
         ("RANDOM_SEED_PERMUT", int, 121, "Random seed for permutations. Default: %(default)s"),
     ]
@@ -36,6 +47,8 @@ class ConfigManager():
         self.params_dict = dict(zip( names, funcs) )
         self.default_params = dict(zip( names, defaults) )
 
+    def _isBoolean(self, name):
+        return isinstance(self.default_params[name], bool)
     def get(self, name):
         assert  name in self.params_dict, "Error, {name} is not a configurable parameter".format(name=name)
         property = os.environ.get(name, None)
