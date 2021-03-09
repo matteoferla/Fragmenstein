@@ -84,6 +84,7 @@ class _MonsterBase:
         # # ivars of type Chem.Mol or List[Chem.Mol] or Dict[Chem.Mol]
         self.modifications = {}
         self.positioned_mol = None  # final molecule
+        self.joining_cutoff = 5  # over-ridden
         self.mol_options = []  # equally valid alternatives to self.positioned_mol
         self._collapsed_ring_offset = 0  # variable to keep track of how much to offset in ring collapse.
         # formerly:
