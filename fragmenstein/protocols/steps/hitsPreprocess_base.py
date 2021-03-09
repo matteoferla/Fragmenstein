@@ -50,7 +50,7 @@ class HitsPreprocess_base(InputAdapter):
         if take_n_random:
             if random_seed:
                 random.seed(random_seed)
-                iterable = cls.iter_sample_fast(iterable, take_n_random)
+            iterable = cls.iter_sample_fast(iterable, take_n_random)
             if random_seed:
                 random.seed(None)
             # iterable = list( iterable)

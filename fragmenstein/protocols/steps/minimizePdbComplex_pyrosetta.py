@@ -203,6 +203,8 @@ class MinimizePDBComplex_pyrosetta():
                                 constraint_file= constrains_filename, ligand_residue= type(self).LIGAND_PLACED_RESNAME
             )
 
+            unminimizedPdbBlock = self.igor.pose2str()
+
 
             ddG = self.minimize_recipe( params)
 
@@ -232,6 +234,10 @@ class MinimizePDBComplex_pyrosetta():
                 holo_fname = os.path.join(outdir, "{molId}.holo_minimised.pdb".format(molId=molId))
                 with open(holo_fname, "w") as f:
                     f.write( minimizedPdbBlock )
+
+                holo_fname = os.path.join(outdir, "{molId}.holo_unminimised.pdb".format(molId=molId))
+                with open(holo_fname, "w") as f:
+                    f.write( unminimizedPdbBlock )
 
                 lig_fname = os.path.join(outdir, "{molId}.minimised.mol".format(molId=molId))
                 Chem.MolToMolFile(ligand, lig_fname)
