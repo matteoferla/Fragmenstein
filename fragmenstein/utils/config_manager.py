@@ -17,6 +17,7 @@ class ConfigManager():
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),
         ("DASK_WORKER_MEMORY", str, "-1", "Memory for each dask worker. E.g 16GB'. Default 90%% of host memory / N_CPUS"),
+        ("VICTOR_VERBOSE", bool, False, "Enable verbosity in Victor. Default: %(default)s"),
         ("TMP_DIR", str, "/tmp", "Temporal directory for computations. Default: %(default)s"),
         ("RANDOM_SEED_PERMUT", int, 121, "Random seed for permutations. Default: %(default)s"),
     ]
@@ -24,7 +25,6 @@ class ConfigManager():
     NONPARSEABLE_PARAMETERS = [
         ("EXTERNAL_TOOLS_CONFIG_FILE", str, os.path.abspath(os.path.join(__file__, "../../external/external_config.json")),  "A json file for external tools configuration"),
         ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2, "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s"),
-        ("VICTOR_VERBOSE", bool, False, "Enable verbosity in Victor. Default: %(default)s"),
         ("IGOR_TIMEOUT", int, 200, "Seconds till rosetta minimize timeout. Default: %(default)s")
 
     ]

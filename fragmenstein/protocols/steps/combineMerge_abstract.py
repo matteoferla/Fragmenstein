@@ -137,16 +137,20 @@ class CombineMerge_Base(ABC, InputAdapter):
                 os.mkdir(wdir)
 
             result_list = self.tryOneGeneric(merge_id, templateFname, frags, wdir, smi=smi)
-            # result = ErrorInComputation()
+            if not isinstance(result_list, ErrorInComputation) and len(result_list) == 0:
+                result_list = ErrorInComputation()
+            # print( result_list)
+            # print(self.get_final_results_name(merge_id, outdir=Victor.work_path))
+            # input(wdir + "  -> enter")
 
-            with open(self.get_final_results_name(merge_id, outdir=Victor.work_path), "wb") as f:
+            with open(self.get_final_results_name(merge_id, outdir=wdir), "wb") as f:
                 pickle.dump(result_list, f)
 
             dest_dir = os.path.join(self.output_path, merge_id)
 
             if os.path.isdir( dest_dir ):
                 shutil.rmtree(dest_dir)
-            shutil.copytree(os.path.join(Victor.work_path, merge_id), dest_dir )
+            shutil.copytree(os.path.join(wdir, merge_id), dest_dir )
 
         return result_list
 

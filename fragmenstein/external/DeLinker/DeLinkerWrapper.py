@@ -20,9 +20,7 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 
 
-(DeLinker_test, frag_utils, rdkit_conf_parallel,
-                data_prepare_data, example_utils)=  ExternalToolImporter.import_tool("DeLinker",
-                                                      ["DeLinker_test", "frag_utils", "rdkit_conf_parallel", "data.prepare_data", "example_utils"])
+
 
 DELINKER_ROOT = os.path.join(ExternalToolImporter.get_rootdir("DeLinker"))
 DEEP_MODEL_FNAME = os.path.join(DELINKER_ROOT, "models/pretrained_DeLinker_model.pickle")
@@ -41,6 +39,12 @@ class DeLinkerWrapper():
         self.gpu_id= gpu_id
         self.interactive= interactive
         self.random_seed = -1 if not random_seed else random_seed
+
+        (self.DeLinker_test, self.frag_utils, self.rdkit_conf_parallel,
+         self.data_prepare_data, self.example_utils) = ExternalToolImporter.import_tool("DeLinker",
+                                                                          ["DeLinker_test", "frag_utils",
+                                                                           "rdkit_conf_parallel", "data.prepare_data",
+                                                                           "example_utils"])
 
     def _load_andOr_prepare_mol(self, fnameOrMol, removeDummy=True, removeHs= True):
         #TODO: check if removeDummy interferes with covalent warheads
@@ -95,11 +99,11 @@ class DeLinkerWrapper():
         n_atoms2 = mol2.GetNumAtoms()
 
         if self.interactive:
-            mol_with_idxs = example_utils.mol_with_atom_index(combo)
+            mol_with_idxs = self.example_utils.mol_with_atom_index(combo)
             plt.imshow(Draw.MolsToGridImage([mol_with_idxs], molsPerRow=1))
             plt.show()
 
-        distance_matrix = distance_matrix[:n_atoms1, n_atoms2:].copy()
+        distance_matrix = distance_matrix[:n_atoms1, n_atoms1:].copy()
 
         if atom_idx1:
             distance_matrix_tmp = np.ones_like(distance_matrix) * sys.maxsize
@@ -139,7 +143,7 @@ class DeLinkerWrapper():
     def _link_molecule_pairs_given_atom_idxs(self, frag_1_mol: Chem.Mol, frag_2_mol: Chem.Mol, atom_idx_1:int, atom_idx_2:int,
                                                     min_atoms: int=2, max_atoms: int=6) -> List[Chem.Mol]:
 
-        RDLogger.DisableLog('rdApp.info')
+        # RDLogger.DisableLog('rdApp.info')
 
         combo_no_exit = Chem.CombineMols(frag_1_mol, frag_2_mol)
         combo = Chem.CombineMols(combo_no_exit, Chem.MolFromSmiles(DeLinkerWrapper.VECTOR_SYMBOL+"."+DeLinkerWrapper.VECTOR_SYMBOL))  #TODO: Check if *.* can be used due to DUMMY symbol
@@ -191,7 +195,7 @@ class DeLinkerWrapper():
 
 
         # Get distance and angle between fragments
-        dist, ang = frag_utils.compute_distance_and_angle(mol_to_link, "", Chem.MolToSmiles(mol_to_link))
+        dist, ang = self.frag_utils.compute_distance_and_angle(mol_to_link, "", Chem.MolToSmiles(mol_to_link))
 
         if self.interactive:
             print(Chem.MolToSmiles(mol_to_link), dist, ang)
@@ -202,8 +206,8 @@ class DeLinkerWrapper():
             data_path = "./fragments_test_data.txt"
             with open(data_path, 'w') as f:
                 f.write("%s %s %s" % (Chem.MolToSmiles(mol_to_link), dist, ang))
-            raw_data = data_prepare_data.read_file(data_path)
-            data_prepare_data.preprocess(raw_data, "zinc", "fragments_test", True)
+            raw_data = self.data_prepare_data.read_file(data_path)
+            self.data_prepare_data.preprocess(raw_data, "zinc", "fragments_test", True)
 
             if not self.gpu_id:
                 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -212,6 +216,9 @@ class DeLinkerWrapper():
                 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
 
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+            from tensorflow.python.util import deprecation
+            deprecation._PRINT_DEPRECATION_WARNINGS = False
 
             # Arguments for DeLinker_to_remove
             args = defaultdict(None)
@@ -228,7 +235,8 @@ class DeLinkerWrapper():
             args['--restore'] = DEEP_MODEL_FNAME
 
             # Setup model and generate molecules
-            model = DeLinker_test.DenseGGNNChemModel(args)
+
+            model = self.DeLinker_test.DenseGGNNChemModel(args)
             generated_smiles = model.generate_new_graphs(model.valid_data, return_list=True)
             del model
 
@@ -238,6 +246,7 @@ class DeLinkerWrapper():
         gen_mols = [smi[2] for smi in generated_smiles]
 
         du = Chem.MolFromSmiles(DeLinkerWrapper.VECTOR_SYMBOL)
+        # for smi in frag_mols: print(  smi )
         clean_frags = [Chem.MolToSmiles(Chem.RemoveHs(
             AllChem.ReplaceSubstructs(Chem.MolFromSmiles(smi), du, Chem.MolFromSmiles('[H]'), True)[0])) for smi in
                        frag_mols]
@@ -257,7 +266,7 @@ class DeLinkerWrapper():
             print("%% Valid: \t\t\t%.2f%%" % (len(results) / len(generated_smiles) * 100))
 
 
-        linkers = list(map(frag_utils.get_linker, [Chem.MolFromSmiles(m[2]) for m in results],
+        linkers = list(map(self.frag_utils.get_linker, [Chem.MolFromSmiles(m[2]) for m in results],
                            [Chem.MolFromSmiles(m[3]) for m in results], [m[1] for m in results]
                            ))
         # Standardise linkers
@@ -266,6 +275,11 @@ class DeLinkerWrapper():
                 continue
             linker = Chem.MolFromSmiles(re.sub('[0-9]+'+re.escape(DeLinkerWrapper.VECTOR_SYMBOL), DeLinkerWrapper.VECTOR_SYMBOL, linker))
             Chem.rdmolops.RemoveStereochemistry(linker)
+
+            for i in range(linker.GetNumAtoms()):
+                atom = linker.GetAtomWithIdx(i)
+                atom.SetProp("is_linker", "True")
+
             linkers[i] = Chem.MolStandardize.canonicalize_tautomer_smiles(Chem.MolToSmiles(linker))
         # Update results
         for i in range(len(results)):
@@ -279,12 +293,16 @@ class DeLinkerWrapper():
                 results_dict[res[0] + '.' + res[1]].append(tuple(res))
             else:
                 results_dict[res[0] + '.' + res[1]] = [tuple(res)]
+
+        if len(results_dict) == 0:
+            return []
+
         # Check uniqueness
         if self.interactive:
-            print("Unique molecules: %.2f%%" % (frag_utils.unique(results_dict.values()) * 100))
+            print("Unique molecules: %.2f%%" % (self.frag_utils.unique(results_dict.values()) * 100))
 
         # Check if molecules pass 2D filters
-        filters_2d = frag_utils.calc_filters_2d_dataset(results,
+        filters_2d = self.frag_utils.calc_filters_2d_dataset(results,
                                                         pains_smarts_loc=PAINS_DATA_FNAME,
                                                         n_cores= self.n_cores)
 
@@ -307,7 +325,7 @@ class DeLinkerWrapper():
             print("Pass PAINS filters: \t\t\t\t%.2f%%" % (len([f for f in filters_2d if f[2]]) / len(filters_2d) * 100))
             print("Number molecules passing 2D filters:\t\t%d" % len(results_filt))
 
-        results_filt_unique = example_utils.unique_mols(results_filt)
+        results_filt_unique = self.example_utils.unique_mols(results_filt)
         new_gen_mols_smi = [x[2] for x in results_filt_unique]
 
         if self.interactive:
@@ -324,7 +342,15 @@ class DeLinkerWrapper():
 
     def place_linked_mol(self, mol, combined_mol_ref,):
         try:
-            AllChem.ConstrainedEmbed( Chem.Mol(mol), combined_mol_ref, self.random_seed)
+
+            mol = AllChem.ConstrainedEmbed( Chem.Mol(mol), combined_mol_ref, self.random_seed)
+            # print( mol.GetProp("EmbedRMS"))
+            # print( AllChem.UFFGetMoleculeForceField(mol).CalcEnergy() )
+            # print( AllChem.UFFGetMoleculeForceField(mol).CalcEnergy()/mol.GetNumBonds() )
+            # print( mol )
+            # import matplotlib.pyplot as plt
+            # from rdkit.Chem import Draw
+            # plt.imshow(Draw.MolsToGridImage([mol, combined_mol_ref], molsPerRow=1)); plt.show()
             return mol
         except ValueError:
             return None
@@ -352,13 +378,24 @@ class DeLinkerWrapper():
 
         linked_molecules = []
         for (atom_idx_1, atom_idx_2), distance in self._pick_closest_atoms(frag_1_mol, frag_2_mol):
+
             min_atoms, max_atoms = self._estimate_num_atoms(distance)
             linked_molecules += self._link_molecule_pairs_given_atom_idxs( frag_1_mol, frag_2_mol, atom_idx_1, atom_idx_2,
                                                                            min_atoms, max_atoms)
+
+            #Try with aromatic for min_atoms:
+            min_atoms += 6
+            max_atoms = max(min_atoms+1, max_atoms)
+            linked_molecules += self._link_molecule_pairs_given_atom_idxs( frag_1_mol, frag_2_mol, atom_idx_1, atom_idx_2,
+                                                                           min_atoms, max_atoms)
+
+
             n_attempts-=1
             if n_attempts<1:
                 break
 
+        linked_molecules = ( elem[0] for elem in self.example_utils.unique_mols( map(lambda mol: (mol,),linked_molecules)) )
+        linked_molecules = list( filter(None.__ne__, linked_molecules ))
         return linked_molecules
 
 

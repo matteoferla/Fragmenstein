@@ -2,11 +2,14 @@ import json
 import pickle
 from typing import Union, OrderedDict
 
+import logging
 from rdkit import Chem
 from rdkit.Chem import PropertyMol
 
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore
 from fragmenstein.utils.io_utils import load_mol
+
+journal = logging.getLogger("Compound")
 
 class Compound(Chem.Mol):
 
@@ -26,20 +29,30 @@ class Compound(Chem.Mol):
             comp.molId = molId
         return comp
 
-    # @classmethod
-    # def DeleteSubstructs(cls, compound, *args, **kwargs ):
-    #     new_mol = Chem.DeleteSubstructs(compound, *args, **kwargs)
-    #     return cls.copyMetadata( new_mol, compound)
+    @classmethod
+    def DeleteSubstructs(cls, compound, *args, **kwargs ):
+        new_mol = Chem.DeleteSubstructs( Chem.Mol(compound), *args, **kwargs)
+        return cls.copyMetadata( new_mol, compound)
+
+    @classmethod
+    def GetMolFrags(cls, compound, *args, **kwargs ):
+        new_mols = Chem.GetMolFrags( Chem.Mol(compound), asMols=True, *args, **kwargs)
+        return [ cls.copyMetadata( new_mol, compound)  for new_mol in new_mols]
 
     @classmethod
     def copyMetadata(cls, mol, compound):
         comp = Compound(mol)
         comp.parents = compound.parents
-        comp.molId = compound.parents
+        comp.molId = compound.molId
+        comp.covalent_info = compound.covalent_info
+        comp.scores_dict = compound.scores_dict
+        comp.ref_pdb = compound.ref_pdb
+        comp.ref_molIds = compound.ref_molIds
+        comp.metadata = compound.metadata
         return comp
 
     def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None,
-                 ref_pdbId=None, *args, **kwargs):
+                 ref_pdb=None, *args, **kwargs):
 
 
         super().__init__(mol, *args, **kwargs)
@@ -60,8 +73,8 @@ class Compound(Chem.Mol):
         else:
             self._molId = None
 
-        if ref_pdbId:
-            self.ref_pdb = ref_pdbId
+        if ref_pdb:
+            self.ref_pdb = ref_pdb
         else:
             self._ref_pdb = None
 
@@ -107,13 +120,19 @@ class Compound(Chem.Mol):
     @property
     def ref_pdb(self):
         if not self._ref_pdb:
-            self._ref_pdb = self.GetProp("ref_pdb")
+            try:
+                self._ref_pdb = self.GetProp("ref_pdb")
+            except KeyError:
+                return None
         return self._ref_pdb
 
     @ref_pdb.setter
-    def ref_pdb(self, ref_pdb):
-        self.SetProp("ref_pdb", ref_pdb)
-        self._ref_pdb = ref_pdb
+    def ref_pdb(self, new_pdb):
+        if new_pdb is None:
+            journal.warning("ref_pdb is None when setting  for %s"%self)
+            return
+        self.SetProp("ref_pdb", new_pdb)
+        self._ref_pdb = new_pdb
 
 
     @property
@@ -139,6 +158,9 @@ class Compound(Chem.Mol):
 
     @ref_molIds.setter
     def ref_molIds(self, frag_ids):
+        if frag_ids is None:
+            journal.warning("Warning. frag_ids is None when setting  for %s"%self)
+            return
         self.SetProp("ref_mols", ",".join(frag_ids))
         self._ref_molsIds = frag_ids
 
@@ -164,6 +186,9 @@ class Compound(Chem.Mol):
             self.SetProp(key, val)
 
     def add_scores(self, new_scores_dict):
+        if new_scores_dict is None:
+            journal.warning("Warning. new_scores_dict is None when setting  for %s"%self)
+            return
         current_scores = self.scores_dict.copy()
         for key, val in new_scores_dict.items():
             if key in self.scores_dict:

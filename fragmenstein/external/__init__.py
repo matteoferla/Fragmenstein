@@ -48,17 +48,23 @@ class ExternalToolImporter():
     '''
     data = cls._get_data_dict(toolName)
     data["ROOT_DIR"] = os.path.expanduser(data["ROOT_DIR"] )
+    cur_pythonpath = None
+    if len(data["PYTHONPATH"]) >0:
+      cur_pythonpath = sys.path[:]
+      for dir in data["PYTHONPATH"]:
+        dir = dir % data
+        if dir not in sys.path:
+          sys.path.insert(0, dir)
 
-    for dir in data["PYTHONPATH"]:
-      dir = dir % data
-      if dir not in sys.path:
-        sys.path.append(dir)
     modules=[]
     for moduleName in moduleNames:
       modules.append(importlib.import_module(moduleName))
 
     for code in data["POST_IMPORT"]:
       exec(code)
+
+    if cur_pythonpath:
+      sys.path = cur_pythonpath
     return modules
 
 if __name__=="__main__":

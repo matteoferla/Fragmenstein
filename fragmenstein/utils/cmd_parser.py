@@ -27,7 +27,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 varType = str
             else:
                 varType = type(defaultVal)
-            self.add_argument(self.from_nameInConfig_to_argname(name), type= varType , default= defaultVal, help=help)
+
+            if varType == bool:
+                self.add_argument(self.from_nameInConfig_to_argname(name), action="store_true", help=help)
+            else:
+                self.add_argument(self.from_nameInConfig_to_argname(name), type= varType , default= defaultVal, help=help)
 
     def parse_args(self, *args, **kwargs):
 

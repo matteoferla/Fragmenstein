@@ -29,11 +29,12 @@ class PdbDistanceManager():
         center = np.mean (mol.GetConformer().GetPositions(), axis=0)
         dist2 = np.sum( (self.pdb_coords - center)**2, axis=1)
         idx = np.argmin(dist2)
-        __, __, chainId, resId = self.pdb_residues[idx].get_full_id()
+        residue = self.pdb_residues[idx]
+        __, __, chainId, resId = residue.get_full_id()
         resId = list(resId)
         resId[1] = str( resId[1])
         resId= "".join([ elem.strip() for elem in resId])
-        return chainId, resId
+        return chainId, resId, residue.resname
 
 
 

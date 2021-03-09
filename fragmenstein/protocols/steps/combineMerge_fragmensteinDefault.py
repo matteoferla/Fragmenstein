@@ -19,7 +19,10 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
     RESULT_METADATA_PATTERN= "%s.scores.json"
 
     def __init__(self, output_path, template=None, templates_dir=None, template_pattern=None, use_dask=False,
-                 merging_mode="none_permissive", verbose= ConfigManager.VICTOR_VERBOSE, save_pymol=False):
+                 merging_mode="none_permissive", verbose= None, save_pymol=False):
+
+        if verbose is None:
+            verbose = ConfigManager.VICTOR_VERBOSE
 
         self.save_pymol = save_pymol
         self.merging_mode = merging_mode
@@ -38,9 +41,9 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
         if covalent_info is None:
             distManager = PdbDistanceManager(templateFname, limit_to_resname="CYS")
             for frag in fragments:
-                chainId_resId = distManager.find_closest_residue(frag)
-                if chainId_resId:
-                    covalent_info = {'covalent_resi': "".join(reversed(chainId_resId)), 'covalent_resn':'CYS' }
+                chainId_resId_resname = distManager.find_closest_residue(frag)
+                if chainId_resId_resname:
+                    covalent_info = {'covalent_resi': "".join(reversed(chainId_resId_resname[:2])), 'covalent_resn':'CYS' }
                     break
     
         Victor.work_path = wdir
@@ -50,6 +53,8 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
             Victor.enable_stdout(level=logging.CRITICAL)
             Victor.enable_logfile("/dev/null", level=logging.CRITICAL)
             Victor.journal.setLevel(logging.CRITICAL)
+            from rdkit_to_params import Params
+            Params.log.setLevel("ERROR")
 
         # Victor.error_to_catch = NotImplementedError
 

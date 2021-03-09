@@ -123,6 +123,8 @@ class _IgorInit:
                                                 pyrosetta.Vector1]):
         parsed = []
         if key_residues is None:
+            if self.pose.residue(self.ligand_residue[0]).connect_map_size() == 0:
+                return parsed
             try:
                 parsed = [self.pose.residue(self.ligand_residue[0]).connect_map(1).resid()]
             except RuntimeError:
