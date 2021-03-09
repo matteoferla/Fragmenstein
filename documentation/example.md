@@ -233,6 +233,10 @@ mol = victor.monster.positioned_mol
 victor.monster.draw_nicely(mol)
 ```
 
+### Equal solutions
+If the solution is not ideal, you may want to check other equally valid solutions, 
+which are stored in `monster.mol_options`.
+
 ## Advanced
 
 ### Warheads
@@ -311,7 +315,6 @@ page.columns_text = 6
 Add the data to the page and GitHub:
 ```jupyterpython
 gitfolder='/Users/you/path_to_your_github_repo_on_your_machine'
-sdfile='/Users/you/path_to_sdfile.sdf'
 folder = 'folder_name_within_repo'
 targetfolder=f'{gitfolder}/{folder}'
 # make a smaller table and json store it
@@ -333,6 +336,25 @@ page.make_fragment_table(metadata=dict(zip(headers, ['name', 'used hits', 'âˆ†âˆ
 # commit changes with github
 page.commit()
 ```
+### Waters
+In addition to extracting a hit, the extract_mol code can work with waters.
 
+```jupyterpython
+hit = Victor.extract_mol(name='x1234',
+                         smiles='CCCC',
+                         filepath='path/filename.pdb',
+                         ligand_resn = 'LIG')
+
+waters = Victor.extract_mol(name='water',
+                 filepath='path/filename.pdb',
+                 ligand_resn = 'HOH')
+```
+This waters molecule will have disconnected waters.
+These can be combined as a single object (`hits=[hit, waters]`) or split up (`hits=[hit, *waters]`) with
+
+```jupyterpython
+waters = Chem.GetMolFrags(waters, asMols=True, sanitizeFrags=False)
+```
+One thing to note is that it may be best to use `joining_cutoff=3` and the `keep_all=False`
 
 
