@@ -1,24 +1,16 @@
 
 import os
-from tempfile import NamedTemporaryFile
 from typing import List
 
 from rdkit import Chem
 from rdkit import RDLogger
-from rdkit.Chem import AllChem
 
-from fragmenstein import Igor
-from fragmenstein import Victor
-from fragmenstein.external import ExternalToolImporter
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
-from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
-from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
 from fragmenstein.protocols.steps.minimizePdbComplex_pyrosetta import MinimizePDBComplex_pyrosetta
 from fragmenstein.protocols.xchem_info import Xchem_info
 from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.config_manager import ConfigManager
-from fragmenstein.utils.pdb_utils import PdbDistanceManager
 
 
 class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
@@ -96,7 +88,8 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         minimizer = MinimizePDBComplex_pyrosetta(templateFname, atom_constrain_filter=lambda atom: atom.HasProp("is_original_atom"))
 
         def minimizeMol(molId, mol ):
-            mol, metadata_dict = minimizer.minimize(mol, molId=molId, outdir=wdir, reference_fragments=fragments)
+
+            mol, metadata_dict = minimizer.minimize(mol, molId=molId, outdir=final_outdir, reference_fragments=fragments)
             metadata_dict = _FragmensteinScorer.old_scoring_fun(metadata_dict)[-1]
             metadata_dict = _FragmensteinScorer.new_scoring_fun(metadata_dict)[-1]
 
@@ -132,7 +125,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         w_DeLinker.close()
 
         if len(placed_results)>0:
-            w_placed = Chem.SDWriter(os.path.join(final_outdir, "placed_mols.sdf"))
+            w_placed = Chem.SDWriter(os.path.join(final_outdir, "deLinker_minimized_mols.sdf"))
             for mol in placed_results:
                 w_placed.write(mol)
 

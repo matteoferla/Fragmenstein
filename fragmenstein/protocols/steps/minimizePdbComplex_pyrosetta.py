@@ -204,6 +204,7 @@ class MinimizePDBComplex_pyrosetta():
             )
 
 
+            ddG = self.minimize_recipe( params)
 
 
             ligand = self.igor.mol_from_pose()
@@ -211,7 +212,6 @@ class MinimizePDBComplex_pyrosetta():
             AllChem.AssignBondOrdersFromTemplate(template, ligand)
 
 
-            ddG = self.minimize_recipe( params)
 
             if reference_fragments:
                 rmsd = self.simple_mRSMD(ligand, mol, reference_fragments)

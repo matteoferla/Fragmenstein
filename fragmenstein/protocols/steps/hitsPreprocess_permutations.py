@@ -20,7 +20,7 @@ class HitsPreprocess_permutations(HitsPreprocess_base):
                                                combinations_instead_permutations = combinations_instead_permutations)
         results = get_results()
         try:
-            results = self.take_random_from_iterator(results, take_n_random)
+            results = self._take_random_from_iterator(results, take_n_random)
         except ValueError:
             results = get_results()
         return results

@@ -44,18 +44,23 @@ class HitsPreprocess_base(InputAdapter):
             molId = mol
         return molId
 
-    def take_random_from_iterator(self, iterable, take_n_random):
+    @classmethod
+    def take_random_from_iterator(cls, iterable, take_n_random, random_seed=None):
 
         if take_n_random:
-            if self.random_seed:
-                random.seed(self.random_seed)
-                iterable = self.iter_sample_fast(iterable, take_n_random)
-            if self.random_seed:
+            if random_seed:
+                random.seed(random_seed)
+                iterable = cls.iter_sample_fast(iterable, take_n_random)
+            if random_seed:
                 random.seed(None)
-            iterable = list( iterable)
+            # iterable = list( iterable)
             return  iterable
         else:
             return iterable
+
+    def _take_random_from_iterator(self, iterable, take_n_random):
+
+        return type(self).take_random_from_iterator(iterable, take_n_random, self.random_seed)
 
     @abstractmethod
     def yield_combinations(self):

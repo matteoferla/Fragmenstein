@@ -87,7 +87,7 @@ class HitsPreprocess_fragmentationBase(HitsPreprocess_base) :
 
         try:
             final_fragments = self._yield_combinations(min_num_fragments)
-            final_fragments = self.take_random_from_iterator(final_fragments, take_n_random)
+            final_fragments = self._take_random_from_iterator(final_fragments, take_n_random)
         except ValueError:
             final_fragments = self._yield_combinations(min_num_fragments)
 
