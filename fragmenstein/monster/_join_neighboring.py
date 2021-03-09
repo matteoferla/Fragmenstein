@@ -120,3 +120,10 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         else:
             raise ValueError('Impossible')
         return combo.GetMol()
+
+    def get_largest_fragment(self, mol):
+        frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+        frags = sorted(frags, key=lambda mol: mol.GetNumAtoms(), reverse=True)
+        discarded_origins = {a.GetProp('_ori_name') for m in frags[1:] for a in m.GetAtoms() if a.HasProp('_ori_name')}
+        self.unmatched.extend(discarded_origins)
+        return frags[0]

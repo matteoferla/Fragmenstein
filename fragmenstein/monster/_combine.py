@@ -41,7 +41,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.positioned_mol = self.simply_merge_hits(col_hits, linked=False)
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
-        if keep_all and len(self.unmatched):
+        if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'Could not combine with {self.unmatched} (>{self.joining_cutoff}')
         # expand and fix
         self.journal.debug(f'Merged')

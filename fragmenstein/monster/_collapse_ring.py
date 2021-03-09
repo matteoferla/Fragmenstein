@@ -136,7 +136,14 @@ class _MonsterRing( _MonsterJoinNeigh):
         self._add_novel_bonding(mol, rings)  # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
         self._delete_collapsed(mol)
         self._detriangulate(mol)
-        mol = self._emergency_joining(mol)  # does not modify in place!
+        try:
+            mol = self._emergency_joining(mol)  # does not modify in place!
+        except ConnectionError as error:
+            if self.throw_on_discard:
+                raise error
+            else:
+                self.journal.info('Disconnect ignored due to keep_all=False')
+                mol = self.get_largest_fragment(mol)
         if mol is None:
             raise ValueError('(Impossible) Failed at some point...')
         elif isinstance(mol, Chem.RWMol):
