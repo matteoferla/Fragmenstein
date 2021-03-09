@@ -29,6 +29,9 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         :param joining_cutoff:
         :return:
         """
+        # blanking
+        self.unmatched = []
+        self.modifications = {}
         # The following override class declared attributes.
         self.joining_cutoff = joining_cutoff
         self.throw_on_discard = keep_all
