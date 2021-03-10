@@ -1,10 +1,16 @@
 import os
 import pickle
 import re
+import tempfile
+import threading
 from abc import abstractmethod, ABC
 from collections import defaultdict
 from itertools import chain
 
+import shutil
+
+import dirsync
+import time
 from rdkit import Chem
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
@@ -202,16 +208,53 @@ class Protocol_mergeCombineBase(ABC):
     @classmethod
     def main(cls, *args, **kwargs):
 
-        protocol = cls(*args, **kwargs)
-        protocol.initialize(*args, **kwargs)
+        in_dir = kwargs["data_root_dir"]
+        out_dir = kwargs["output_dir"]
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
 
-        if ("skip_enumeration_and_score_available" in kwargs and
-            kwargs["skip_enumeration_and_score_available"]):
-            results = protocol.load_avilable_results()
+        if "working_dir" in kwargs:
+            wdir = kwargs["working_dir"]
         else:
-            results = protocol.compute()
+            wdir = tempfile.gettempdir()
 
-        scores = protocol.score_results(results)
+        keep_working = True
+
+        def syncronizer(new_out_dir, time_sleep):
+            while keep_working:
+                print("keep sync?", keep_working)
+                dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False)
+                time.sleep(time_sleep)
+
+        with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
+             tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir:
+
+            new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
+            shutil.copytree(in_dir, new_in_dir)
+            kwargs["data_root_dir"] = new_in_dir
+
+            new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+            os.mkdir(new_out_dir)
+            kwargs["output_dir"] = new_out_dir
+
+            syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
+            syncronizerThr.start()
+
+            protocol = cls(*args, **kwargs)
+            protocol.initialize(*args, **kwargs)
+
+            if ("skip_enumeration_and_score_available" in kwargs and
+                kwargs["skip_enumeration_and_score_available"]):
+                results = protocol.load_avilable_results()
+            else:
+                results = protocol.compute()
+
+            scores = protocol.score_results(results)
+
+            keep_working = False
+            syncronizerThr.join()
+            dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
+
         return scores
 
 

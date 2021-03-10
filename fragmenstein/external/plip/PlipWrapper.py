@@ -1,4 +1,5 @@
 import os
+import tempfile
 from collections import defaultdict
 
 import sys
@@ -32,10 +33,15 @@ class PlipWrapper():
         :return a dictionary that containes, for each type interaction, the protein residue ids that interact with the ligand
                 e.g. [('hbonds_pdon', ['166_A_GLU', '142_A_ASN', '143_A_GLY']), ('hydrophobic_contacts', ['166_A_GLU', '187_A_ASP', '189_A_GLN'])]
         '''
-        my_mol = PlipWrapper.plip_preparation.PDBComplex()
-        my_mol.load_pdb( fname)
-        my_mol.analyze()
 
+
+        cur_wd = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            os.chdir(tmp)
+            my_mol = PlipWrapper.plip_preparation.PDBComplex()
+            my_mol.load_pdb( fname)
+            my_mol.analyze()
+            os.chdir(cur_wd)
         interactions = [ my_mol.interaction_sets[keyId] for keyId in my_mol.interaction_sets if keyId.startswith(self.ligand_resname) ] #TODO. Include distance and angle
         interactions_dict = defaultdict(list)
         for inters_list in interactions:
