@@ -275,6 +275,7 @@ class DeLinkerWrapper():
             if linker == "":
                 continue
             linker = Chem.MolFromSmiles(re.sub('[0-9]+'+re.escape(DeLinkerWrapper.VECTOR_SYMBOL), DeLinkerWrapper.VECTOR_SYMBOL, linker))
+            if linker is None: continue
             Chem.rdmolops.RemoveStereochemistry(linker)
             linkers[i] = Chem.MolStandardize.canonicalize_tautomer_smiles(Chem.MolToSmiles(linker))
         # Update results

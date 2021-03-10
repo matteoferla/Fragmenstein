@@ -11,6 +11,8 @@ import shutil
 
 import dirsync
 import time
+
+import logging
 from rdkit import Chem
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
@@ -210,8 +212,10 @@ class Protocol_mergeCombineBase(ABC):
 
         in_dir = kwargs["data_root_dir"]
         out_dir = kwargs["output_dir"]
+        existing_outdir = False
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
+            existing_outdir = True
 
         if "working_dir" in kwargs:
             wdir = kwargs["working_dir"]
@@ -222,9 +226,9 @@ class Protocol_mergeCombineBase(ABC):
 
         def syncronizer(new_out_dir, time_sleep):
             while keep_working:
-                print("keep sync?", keep_working)
-                dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False)
                 time.sleep(time_sleep)
+                dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+                # print("keep sync?", keep_working)
 
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
              tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir:
@@ -234,7 +238,10 @@ class Protocol_mergeCombineBase(ABC):
             kwargs["data_root_dir"] = new_in_dir
 
             new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
-            os.mkdir(new_out_dir)
+            if existing_outdir:
+                dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+            else:
+                os.mkdir(new_out_dir)
             kwargs["output_dir"] = new_out_dir
 
             syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))

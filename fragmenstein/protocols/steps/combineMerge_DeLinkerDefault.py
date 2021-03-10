@@ -132,7 +132,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         w_DeLinker.close()
 
         if len(placed_results)>0:
-            w_placed = Chem.SDWriter(os.path.join(final_outdir, "deLinker_minimized_mols.sdf"))
+            w_placed = Chem.SDWriter(os.path.join(final_outdir, "deLinker_minimised_mols.sdf"))
             for mol in placed_results:
                 w_placed.write(mol)
 
