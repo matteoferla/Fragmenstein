@@ -25,8 +25,6 @@ journal = logging.getLogger('Scorer')
 journal.setLevel(logging.DEBUG)
 
 
-# from fragmenstein.external.uploadToFragalysis.FragalysisFormater import SDF_SCORES_HEADER_INFO
-
 
 computeters = []
 def joblibMapFunction(cls, c_args, c_kwargs, inner_args):
@@ -177,46 +175,26 @@ class _ScorerBase(ABC):
         alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_molAndfragIds.keys()))
         not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_molAndfragIds.items()) if elem is None)
 
-        use_dask = True
-        if use_dask:
 
-            def mapFunction(args):
-                mol_id, (mol, frag_ids) = args
-                return computer.processOneMolecule(mol_id, mol, frag_ids)
+        def mapFunction(args):
+            mol_id, (mol, frag_ids) = args
+            return computer.processOneMolecule(mol_id, mol, frag_ids)
 
-            dask_client = get_parallel_client()
-            results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
+        dask_client = get_parallel_client()
+        results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
 
-            prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
+        prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
 
-            results_future = DB.concat([results_future, prev_results_future])
+        results_future = DB.concat([results_future, prev_results_future])
 
 
-            # results_future.compute()
+        # results_future.compute()
 
-            results_future = dask_client.persist(results_future)  # , scheduler='single-threaded')
+        results_future = dask_client.persist(results_future)  # , scheduler='single-threaded')
 
-            results_future = dask_client.futures_of(results_future)
-            results_computed = (x[0] for x in (res.result() for res in as_completed( results_future)) if len(x)>0)
+        results_future = dask_client.futures_of(results_future)
+        results_computed = (x[0] for x in (res.result() for res in as_completed( results_future)) if len(x)>0)
 
-        else:
-            from joblib import Parallel, delayed
-
-            # computeters = []
-            # def mapFunction(inner_args):
-            #
-            #     if len(computeters) == 0:
-            #         computeters.append(  cls(*args, **kwargs) )
-            #     computer = computeters[0]
-            #     mol_id, (mol, frag_ids) = inner_args
-            #     return computer.processOneMolecule(mol_id, mol, frag_ids)
-            # ConfigManager.N_CPUS = 1
-            results_computed = Parallel(n_jobs = ConfigManager.N_CPUS, backend="dask")(
-                        delayed(joblibMapFunction)(cls, args, kwargs, inner_args)
-                                                        for inner_args in not_computed_mols)
-
-            results_computed = itertools.chain.from_iterable([results_computed, alreadyComputed_or_None])
-            results_computed = filter( None.__ne__, results_computed)
 
         scores_ids = None
         record = None

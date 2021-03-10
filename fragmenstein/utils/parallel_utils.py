@@ -6,7 +6,7 @@ from dask.distributed import Client, LocalCluster
 
 from fragmenstein.utils.config_manager import ConfigManager
 
-os.environ['DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT']= "20" #Default is 10
+# DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT="20" #Default is 10, try to set up
 
 journal = logging.getLogger('Dask_Parallel')
 journal.setLevel(logging.DEBUG)

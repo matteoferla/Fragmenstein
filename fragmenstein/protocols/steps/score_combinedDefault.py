@@ -66,12 +66,14 @@ class Score_CombinedDefault(Xchem_info):
             print("All scorers initialized",flush=True)
             scores_dict = CombineScorer.computeScoreForMolecules(proposed_mols_dict , scorers_objects_list=scorers_iter, working_dir=tmp)
 
-
-            for mol in proposed_mols:
+            bad_num = 0
+            for i, mol in enumerate(proposed_mols):
                 try:
                     record = scores_dict[ mol.molId]
                     mol.add_scores(record)
                 except KeyError:
                     print("Bad scoring for mol %s. Skipping!"%mol.molId)
+                    bad_num += 1
 
+        print("Number of non-scored mols: %d/%d"%(bad_num, 1+1))
         return proposed_mols

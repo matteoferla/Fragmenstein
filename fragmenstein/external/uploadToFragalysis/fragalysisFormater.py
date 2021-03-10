@@ -40,7 +40,7 @@ class FragalysisFormater():
     def _check_molecule_metadata(cls, mol, scores_names):
         for required in list(FragalysisFormater.REQUIRED_FIELDS)+list(scores_names):
             if not cls._check_property(mol, required):
-                journal.error("Mol does not contain property %s\n\n"%required)
+                journal.error("Mol (%s) does not contain property %s\n\n"%(str(mol),required))
                 return False
         return True
 
@@ -136,7 +136,7 @@ class FragalysisFormater():
     def _autodetect_missing_scores_in_header(self, mol):
         missing_properties = []
         for propName in mol.GetPropNames():
-            if propName.endswith("_score") and not propName in self.metadata_header:
+            if checkIfNameIsScore(propName) and not propName in self.metadata_header:
                 missing_properties.append( (propName, "Score %s"%propName) )
         return missing_properties
 
