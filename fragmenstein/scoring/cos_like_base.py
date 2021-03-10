@@ -207,7 +207,6 @@ class _COSLikeBase(_ScorerBase):
         final_weights= client.gather(final_weights)
 
         journal.info( "Grid weights computed")
-        print( "\nGrid weights computed")
         # print(final_weights)
         return final_weights
 

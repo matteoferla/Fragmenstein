@@ -4,7 +4,6 @@
 Scoring based on interactions preservation
 """
 import os
-import dask
 import re
 import numpy as np
 from itertools import chain
@@ -45,9 +44,12 @@ class InteractionBasedScorer(_ScorerBase):
 
         journal.warning("Computing interactions for fragments")
 
-
-
-        self._fragInteractions_dict = None
+        def load_fragments_interactions(bound_pdb_fname):
+            return self._computeInteractionsOneComplex(bound_pdb_fname,
+                                                       selected_fragment_ids=self.selected_fragment_ids)
+        self.fragInteractions_dict = dict(filter(None.__ne__,
+                                                  apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
+                                                                      load_fragments_interactions)))
 
         journal.warning("Fragments interactions computed")
 
@@ -57,20 +59,6 @@ class InteractionBasedScorer(_ScorerBase):
 
         self.atomic_models_fnames = dict(apply_func_to_files(self.boundPdbs_to_score_dir, self.boundPdbs_to_score_pattern,
                                                                   prepare_bound_pdbNames))
-
-
-    @property
-    def fragInteractions_dict(self):
-        if not self._fragInteractions_dict:
-            print("\nloading interactions again %s\n"%self.fragments_dir, flush=True)
-            def load_fragments_interactions(bound_pdb_fname):
-                return self._computeInteractionsOneComplex(bound_pdb_fname, selected_fragment_ids=self.selected_fragment_ids)
-            self._fragInteractions_dict = dict(filter(None.__ne__,
-                                                     apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
-                                                                         load_fragments_interactions)))
-        else:
-            print("\nthis time was not necessary to load interactions\n", flush=True)
-        return self._fragInteractions_dict
 
     @property
     def fragments_id(self):

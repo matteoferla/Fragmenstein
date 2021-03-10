@@ -210,8 +210,8 @@ class _ScorerBase(ABC):
             #     computer = computeters[0]
             #     mol_id, (mol, frag_ids) = inner_args
             #     return computer.processOneMolecule(mol_id, mol, frag_ids)
-            ConfigManager.N_CPUS = 1
-            results_computed = Parallel(n_jobs = ConfigManager.N_CPUS, backend="multiprocessing")(
+            # ConfigManager.N_CPUS = 1
+            results_computed = Parallel(n_jobs = ConfigManager.N_CPUS, backend="dask")(
                         delayed(joblibMapFunction)(cls, args, kwargs, inner_args)
                                                         for inner_args in not_computed_mols)
 
@@ -265,6 +265,7 @@ class _ScorerBase(ABC):
                 df.sort_values(by=scores_ids[0], inplace=True)
                 df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
 
+        results_computed = { record[cls.MOL_NAME_ID]: record for record in results_computed }
         return results_computed
 
     def __init__(self, working_dir, verbose=False, *args, **kwargs):
