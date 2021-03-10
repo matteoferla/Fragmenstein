@@ -218,7 +218,7 @@ class Protocol_mergeCombineBase(ABC):
             os.mkdir(out_dir)
             existing_outdir = False
 
-        if "working_dir" in kwargs:
+        if "working_dir" in kwargs and  kwargs["working_dir"] is not None:
             wdir = kwargs["working_dir"]
         else:
             wdir = tempfile.gettempdir()
@@ -233,7 +233,7 @@ class Protocol_mergeCombineBase(ABC):
 
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
              tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir:
-
+            print("Copying data to working directories...", end=" ", flush=True)
             new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
             shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
@@ -241,12 +241,15 @@ class Protocol_mergeCombineBase(ABC):
             new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
             os.mkdir(new_out_dir)
             if existing_outdir:
-                dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+                for name in os.listdir(out_dir):
+                    os.symlink(os.path.join(out_dir, name), os.path.join(new_out_dir, name))
 
             kwargs["output_dir"] = new_out_dir
 
             syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
             syncronizerThr.start()
+
+            print("Done!", flush=True)
 
             protocol = cls(*args, **kwargs)
             protocol.initialize(*args, **kwargs)
@@ -284,6 +287,9 @@ class Protocol_mergeCombineBase(ABC):
 
         parser.add_argument( "--skip_enumeration_and_score_available", action="store_true",
                             help="Do not propose more molecules and only score them ")
+
+        parser.add_argument( "--working_dir", type=str, default=None, help="Directory where results are computed before"
+                                                                           " being synchronized to output_dir")
 
 
         return parser

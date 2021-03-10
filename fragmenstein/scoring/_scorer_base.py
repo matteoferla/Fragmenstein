@@ -187,11 +187,10 @@ class _ScorerBase(ABC):
         prev_results= DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
 
         results_computed = DB.concat([results_new, prev_results])
+        results_computed = list( results_computed) #We want to store it in memory as a list to iterate multiple times
 
         scores_ids = None
         record = None
-
-        results_computed = list(results_computed) #We want to store it in memory as a list to return it
 
         for record in results_computed:
             if record is None: continue
