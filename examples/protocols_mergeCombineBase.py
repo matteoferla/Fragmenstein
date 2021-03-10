@@ -212,10 +212,11 @@ class Protocol_mergeCombineBase(ABC):
 
         in_dir = kwargs["data_root_dir"]
         out_dir = kwargs["output_dir"]
-        existing_outdir = False
+
+        existing_outdir = True
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
-            existing_outdir = True
+            existing_outdir = False
 
         if "working_dir" in kwargs:
             wdir = kwargs["working_dir"]
