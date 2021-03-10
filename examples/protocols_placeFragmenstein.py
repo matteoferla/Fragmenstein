@@ -12,6 +12,7 @@ class Protocol_placeFragmenstein(Protocol_mergeCombineBase):
 
     def initialize(self, smile_fragIds_list, *args, **kwargs):
         self.smile_fragIds_list = smile_fragIds_list
+        self.max_attemps = None
 
     @property
     def sdf_outname(self):
@@ -19,7 +20,7 @@ class Protocol_placeFragmenstein(Protocol_mergeCombineBase):
 
     def compute(self):
         print("computing")
-        fragmensteiner = CombineMerge_FragmensteinDefault(output_path=self.wdir_fragmenstein, template=None,
+        fragmensteiner = CombineMerge_FragmensteinDefault(output_path=self.wdir_enumeration, template=None,
                                                           templates_dir=self.data_root_dir,
                                                           template_pattern=Xchem_info.unboundPdb_id_pattern,
                                                           merging_mode=self.merging_mode,
@@ -32,7 +33,7 @@ class Protocol_placeFragmenstein(Protocol_mergeCombineBase):
 
 if __name__ == "__main__":
     from fragmenstein.utils.cmd_parser import ArgumentParser, argparse
-
+    raise  NotImplementedError("Error, needs to be refactored to protocols_mergeCombineBase")
     parser = ArgumentParser(prog="protocol_placeFragmenstein", description="places a smiles given the inspirational fragments using Fragmenstein")
     parser.add_argument("-d", "--data_root_dir", type=str, help="The Xchem root dir for data, typically target_name/aligned/ ", required=True)
     parser.add_argument("-i", "--input", nargs=None, type=argparse.FileType('r'), default=sys.stdin, help="Tab separated file with two columns: smiles and fragment_ids."

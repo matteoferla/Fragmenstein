@@ -16,7 +16,6 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
         super().initialize(*args, **kwargs)
         self.permutations_size = permutations_size
 
-
     @property
     def combiner_class(self):
         return CombineMerge_FragmensteinDefault

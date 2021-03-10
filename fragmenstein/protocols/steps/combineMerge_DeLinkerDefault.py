@@ -104,7 +104,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
             metadata_dict = _FragmensteinScorer.old_scoring_fun(metadata_dict)[-1]
             metadata_dict = _FragmensteinScorer.new_scoring_fun(metadata_dict)[-1]
 
-            metadata_dict["fragments"] = [ frag.primitiveId for frag in fragments]
+            metadata_dict["fragments"] = sorted(set([ frag.primitiveId for frag in fragments]))
             metadata_dict["ref_pdb"] = templateFname
 
             generated_molecule = Compound( mol, molId=molId, parents= fragments)
@@ -114,13 +114,6 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
 
             return  generated_molecule
 
-        # if self.use_dask:
-        #     from fragmenstein.utils.parallel_utils import get_parallel_client
-        #     _minimizeMol = minimizeMol
-        #     dask_client = get_parallel_client()
-        #     def minimizeMol(molId, mol ):
-        #         fut = dask_client.submit(minimizeMol, (molId, mol))
-        #         res = fut.result( timeout= ConfigManager.IGOR_TIMEOUT )
 
         for i, proposal in enumerate(proposed_mols):
             w_DeLinker.write(proposal)

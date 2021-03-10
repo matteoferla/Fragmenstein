@@ -87,7 +87,6 @@ class HitsPreprocess_base(InputAdapter):
         '''
         https://stackoverflow.com/questions/12581437/python-random-sample-with-a-generator-iterable-iterator
         '''
-
         results = []
         iterator = iter(iterable)
         # Fill in the first samplesize elements:

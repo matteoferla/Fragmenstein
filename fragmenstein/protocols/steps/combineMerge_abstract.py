@@ -26,8 +26,7 @@ class NotComputedYet():
 
 
 class CombineMerge_Base(ABC, InputAdapter):
-    RESULT_METADATA_PATTERN = "%s.scores.json"
-
+    RESULT_PICKLE_TEMPLATE  = "%s.final.pickle"
     def __init__(self, output_path, template=None, templates_dir=None, template_pattern=None,
                  use_dask=False, verbose=False, *args, **kwargs):
 
@@ -76,7 +75,7 @@ class CombineMerge_Base(ABC, InputAdapter):
     def get_final_results_name(self, merge_id, outdir=None):
         if not outdir:
             outdir = self.output_path
-        return os.path.join(outdir, merge_id, merge_id + ".final.pickle")
+        return os.path.join(outdir, merge_id, CombineMerge_Base.RESULT_PICKLE_TEMPLATE%merge_id )
 
     def load_final_results(self, merge_id, outdir=None) -> Union[NotComputedYet, ErrorInComputation, Compound]:
         if not outdir:

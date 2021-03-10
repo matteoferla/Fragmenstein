@@ -79,13 +79,20 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
             metadata_dict = _FragmensteinScorer.old_scoring_fun(metadata_dict)[-1]
             metadata_dict = _FragmensteinScorer.new_scoring_fun(metadata_dict)[-1]
 
-            metadata_dict["fragments"] = metadata_dict["regarded"]
+            ori_frag_ids = set([ x.primitiveId for x in fragments])
+
+            derived_frags = metadata_dict["regarded"]
+            regarded_fragments = sorted(set([ oriFragId for oriFragId in ori_frag_ids
+                                                    if any([oriFragId in devFrag
+                                                            for devFrag in derived_frags])]))
+
+            metadata_dict["fragments"] = regarded_fragments
             metadata_dict["ref_pdb"] = templateFname
 
             generated_molecule = Compound( generated_molecule, molId=merge_id, parents= fragments)
             generated_molecule.ref_pdb = templateFname
             generated_molecule.metadata = metadata_dict
-            generated_molecule.ref_molIds =  metadata_dict["regarded"]
+            generated_molecule.ref_molIds =  regarded_fragments
 
             result = [ generated_molecule ]
 

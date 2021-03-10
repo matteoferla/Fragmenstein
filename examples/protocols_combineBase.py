@@ -74,13 +74,13 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
             assert self.template_info_dict["template_pattern"] is  None, "Error, template_pattern is incompatible with template "
 
     def compute(self):
-        print("computing")
+        print("computing enumeration", flush=True)
 
         fragsCombin_iter, fragId_to_oriFragId = self.preprocess_fragments()
         self.checkTemplateArgs()
 
-        combiner = self.combiner_class(output_path=self.wdir_fragmenstein, use_dask =ConfigManager.N_CPUS > 1,
-                                        ** self.template_info_dict)
+        combiner = self.combiner_class(output_path=self.wdir_enumeration, use_dask =ConfigManager.N_CPUS > 1,
+                                       ** self.template_info_dict)
 
         results = combiner.applyCombine(fragsCombin_iter)
 
@@ -94,13 +94,13 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
 
     @classmethod
     def generateCmdParser(cls, prog, description):
-        from fragmenstein.utils.cmd_parser import ArgumentParser
-        parser = ArgumentParser(prog=prog, description=description)
+        parser = Protocol_mergeCombineBase.generateCmdParser(prog, description)
+
+        #TODO: skip_enummeration
+
         parser.add_argument("-i", "--data_root_dir", type=str,
                             help="The Xchem root dir for data, typically target_name/aligned/ ", required=True)
         parser.add_argument("-f", "--hit_ids", type=str, nargs="+", help="The hits ids to use  in the form x0020",
-                            required=True)
-        parser.add_argument("-o", "--output_dir", type=str, help="The directory where results will be saved",
                             required=True)
 
         parser.add_argument("-t", "--template", type=str,
@@ -109,14 +109,6 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
                             required=False)
         parser.add_argument("-x", "--template_xchemId", type=str,
                             help="The xchem id that would be used for reference pdb in Fragalysis if --template used", required=False)
-
-        parser.add_argument("-d", "--templates_dir", type=str,
-                            help="The directory where templates would be look for if not --template or", required=False)
-
-        parser.add_argument("--template_pattern", type=str,
-                            help="The regex pattern of a template to find them in --templates_dir. "
-                                 "Default: '%(default)s'", required=False, default= Xchem_info.unboundPdb_id_pattern)
-
 
         parser.add_argument("-s", "--permutations_size", type=int, default=None,
                             help="The number of fragments to process together. Default all. Min 2")

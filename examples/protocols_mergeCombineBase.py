@@ -1,4 +1,5 @@
 import os
+import pickle
 import re
 from abc import abstractmethod, ABC
 from collections import defaultdict
@@ -7,9 +8,13 @@ from itertools import chain
 from rdkit import Chem
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
+from fragmenstein.protocols.dataModel.compound import Compound
+from fragmenstein.protocols.steps.combineMerge_abstract import CombineMerge_Base, ErrorInComputation
+from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
 from fragmenstein.protocols.steps.score_combinedDefault import Score_CombinedDefault
 from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.utils.io_utils import apply_func_to_files
 
 RANDOM_SEED = 121
 
@@ -20,7 +25,7 @@ class Protocol_mergeCombineBase(ABC):
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
         self.output_dir = os.path.expanduser(output_dir)
-        self.wdir_fragmenstein =  os.path.join(self.output_dir, "merges")
+        self.wdir_enumeration =  os.path.join(self.output_dir, "merges")
         self.merging_mode = merging_mode
 
         self._loader = None
@@ -91,8 +96,27 @@ class Protocol_mergeCombineBase(ABC):
         return self._ref_hits_for_scoring
 
 
+    def load_avilable_results(self):
+
+        def readFname(fname):
+            with open(fname, "rb") as f:
+                result = pickle.load(f)
+                if isinstance(result, ErrorInComputation):
+                    return [None]
+                else:
+                    return result
+
+        results = apply_func_to_files(self.wdir_enumeration, ".*"+re.escape(CombineMerge_Base.RESULT_PICKLE_TEMPLATE%"")
+                                      , readFname)
+
+        results = filter(None.__ne__,
+                         chain.from_iterable( results) )
+        if self.max_attemps: #TODO: check if available in placeFragmenstein
+            results = HitsPreprocess_base.take_random_from_iterator(results, self.max_attemps)
+        return list(results)
+
     def score_results(self, results):
-        print("Scoring")
+        print("Scoring", flush=True)
         assert len(results)>0, "Error, no valid results were obtained."
 
         proposed_mols = []
@@ -104,7 +128,7 @@ class Protocol_mergeCombineBase(ABC):
             already_available.add(smi)
             proposed_mols.append(mol)
 
-        scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_fragmenstein,
+        scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_enumeration,
                                        selected_fragment_ids= self.ref_hits_for_scoring,
                                        working_dir = os.path.join(self.output_dir, "scoring"),
                                        **Score_CombinedDefault.default_params_xchem())
@@ -180,7 +204,35 @@ class Protocol_mergeCombineBase(ABC):
 
         protocol = cls(*args, **kwargs)
         protocol.initialize(*args, **kwargs)
-        results = protocol.compute()
+
+        if ("skip_enumeration_and_score_available" in kwargs and
+            kwargs["skip_enumeration_and_score_available"]):
+            results = protocol.load_avilable_results()
+        else:
+            results = protocol.compute()
 
         scores = protocol.score_results(results)
         return scores
+
+
+    @classmethod
+    def generateCmdParser(cls, prog, description):
+        from fragmenstein.utils.cmd_parser import ArgumentParser
+        parser = ArgumentParser(prog=prog, description=description)
+
+
+        parser.add_argument("-o", "--output_dir", type=str, help="The directory where results will be saved",
+                            required=True)
+
+        parser.add_argument("-d", "--templates_dir", type=str,
+                            help="The directory where templates would be look for if not --template or", required=False)
+
+        parser.add_argument("--template_pattern", type=str,
+                            help="The regex pattern of a template to find them in --templates_dir. "
+                                 "Default: '%(default)s'", required=False, default= Xchem_info.unboundPdb_id_pattern)
+
+        parser.add_argument( "--skip_enumeration_and_score_available", action="store_true",
+                            help="Do not propose more molecules and only score them ")
+
+
+        return parser
