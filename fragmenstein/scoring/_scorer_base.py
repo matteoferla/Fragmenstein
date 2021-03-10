@@ -175,26 +175,18 @@ class _ScorerBase(ABC):
         alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_molAndfragIds.keys()))
         not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_molAndfragIds.items()) if elem is None)
 
+        # alreadyComputed_or_NoneD = { x["name"]: x for x in alreadyComputed_or_None}
+        # input( alreadyComputed_or_NoneD["x0438-0B-x0283-0B-x0183-0B-0b0-x0183-0B-0b1-x0183-0B-0b3"] )
+
 
         def mapFunction(args):
             mol_id, (mol, frag_ids) = args
             return computer.processOneMolecule(mol_id, mol, frag_ids)
 
-        dask_client = get_parallel_client()
-        results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
+        results_new = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
+        prev_results= DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
 
-        prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
-
-        results_future = DB.concat([results_future, prev_results_future])
-
-
-        # results_future.compute()
-
-        results_future = dask_client.persist(results_future)  # , scheduler='single-threaded')
-
-        results_future = dask_client.futures_of(results_future)
-        results_computed = (x[0] for x in (res.result() for res in as_completed( results_future)) if len(x)>0)
-
+        results_computed = DB.concat([results_new, prev_results])
 
         scores_ids = None
         record = None

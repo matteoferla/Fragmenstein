@@ -67,13 +67,13 @@ class Score_CombinedDefault(Xchem_info):
             scores_dict = CombineScorer.computeScoreForMolecules(proposed_mols_dict , scorers_objects_list=scorers_iter, working_dir=tmp)
 
             bad_num = 0
-            for  molId in proposed_mols_dict:
-                print(molId)
+            proposed_mols = []
+            for  molId in sorted(proposed_mols_dict):
                 try:
                     record = scores_dict[ molId]
-                    print(record)
                     mol = proposed_mols_dict[ molId][0]
                     mol.add_scores(record)
+                    proposed_mols.append(mol)
                 except KeyError:
                     print("Bad scoring for mol %s. Skipping!"%molId)
                     bad_num += 1
