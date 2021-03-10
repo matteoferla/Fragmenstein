@@ -29,7 +29,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 varType = type(defaultVal)
 
             if varType == bool:
-                self.add_argument(self.from_nameInConfig_to_argname(name), action="store_true", help=help)
+                if defaultVal is False:
+                    self.add_argument(self.from_nameInConfig_to_argname(name), action="store_true", help=help)
+                else:
+                    self.add_argument(self.from_nameInConfig_to_argname(name), action="store_false", help=help)
+
             else:
                 self.add_argument(self.from_nameInConfig_to_argname(name), type= varType , default= defaultVal, help=help)
 

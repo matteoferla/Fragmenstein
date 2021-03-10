@@ -56,7 +56,7 @@ class Score_CombinedDefault(Xchem_info):
             scorers_list = [scorer1, scorer2, scorer3, scorer4]
 
             proposed_mols_dict = { mol.molId: (mol, mol.getFragIds()) for mol in proposed_mols}
-
+            print("All scorers initialized",flush=True)
             scores_list = CombineScorer.computeScoreForMolecules(proposed_mols_dict , scorers_objects_list=scorers_list, working_dir=tmp)
 
 
