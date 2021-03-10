@@ -238,10 +238,10 @@ class Protocol_mergeCombineBase(ABC):
             kwargs["data_root_dir"] = new_in_dir
 
             new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+            os.mkdir(new_out_dir)
             if existing_outdir:
                 dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
-            else:
-                os.mkdir(new_out_dir)
+
             kwargs["output_dir"] = new_out_dir
 
             syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
