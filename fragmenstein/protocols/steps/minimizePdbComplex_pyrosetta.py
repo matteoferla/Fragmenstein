@@ -9,20 +9,13 @@ from rdkit.Chem import rdFMCS
 from rdkit_to_params import constraint, Params
 
 from rdkit import Chem
-from rdkit import RDLogger
 from rdkit.Chem import AllChem
+from timeout_decorator import timeout_decorator
 
 from fragmenstein import Igor
-from fragmenstein import Monster
-from fragmenstein import Victor
-from fragmenstein import mRSMD
+
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.monster import GPM
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
-from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
-from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
-from fragmenstein.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.pdb_utils import PdbDistanceManager
 from fragmenstein.utils.timeout import timeout
@@ -120,13 +113,11 @@ class MinimizePDBComplex_pyrosetta():
         return  constrains, (n_constrained_atoms, n_unconstrained_atoms)
 
 
-    @timeout( ConfigManager.IGOR_TIMEOUT)
     def minimize_recipe(self, params):
         dG_unbound = self.igor.detailed_scores(params.test(), 1)['total_score']
         return self.minimize_victor_igor(dG_unbound)
 
 
-    @timeout( ConfigManager.IGOR_TIMEOUT)
     def minimize_victor_igor(self, dG_unbound) -> float:
         """
         Calls Igor recursively until the ddG is negative or zero.
@@ -244,6 +235,7 @@ class MinimizePDBComplex_pyrosetta():
 
 
             return ligand, metadata
+
 
 
 

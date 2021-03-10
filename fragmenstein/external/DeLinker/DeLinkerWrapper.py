@@ -41,6 +41,17 @@ class DeLinkerWrapper():
         self.interactive= interactive
         self.random_seed = -1 if not random_seed else random_seed
 
+        if self.gpu_id is None:
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+        else:
+            os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
+            os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
+
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+        from tensorflow.python.util import deprecation
+        deprecation._PRINT_DEPRECATION_WARNINGS = False
+
         (self.DeLinker_test, self.frag_utils, self.rdkit_conf_parallel,
          self.data_prepare_data, self.example_utils) = ExternalToolImporter.import_tool("DeLinker",
                                                                           ["DeLinker_test", "frag_utils",
@@ -209,17 +220,6 @@ class DeLinkerWrapper():
                 f.write("%s %s %s" % (Chem.MolToSmiles(mol_to_link), dist, ang))
             raw_data = self.data_prepare_data.read_file(data_path)
             self.data_prepare_data.preprocess(raw_data, "zinc", "fragments_test", True)
-
-            if not self.gpu_id:
-                os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-            else:
-                os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
-                os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = "true"
-
-            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-            from tensorflow.python.util import deprecation
-            deprecation._PRINT_DEPRECATION_WARNINGS = False
 
             # Arguments for DeLinker_to_remove
             args = defaultdict(None)

@@ -3,7 +3,7 @@ import logging
 import socket
 
 import dask
-from distributed import Client, LocalCluster
+from dask.distributed import Client, LocalCluster
 
 from fragmenstein.utils.config_manager import ConfigManager
 

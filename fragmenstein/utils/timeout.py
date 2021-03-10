@@ -1,37 +1,49 @@
-'''
-
-https://www.saltycrane.com/blog/2010/04/using-python-timeout-decorator-uploading-s3/
-
-'''
-import sys
+import functools
 import threading
 
-from concurrent.futures import thread
+'''
+https://stackoverflow.com/questions/308999/what-does-functools-wraps-do
+'''
+def timeout(timeout, raise_exc=False):
+    """
+    raise_exc - if exception should be raised on timeout
+                or exception inside decorated func.
+                Otherwise None will be returned.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            res = None
+            exc = None
+            def _run():
+                nonlocal res
+                nonlocal exc
+                try:
+                    res = func(*args, **kwargs)
+                except Exception as e:
+                    exc = e
+            t = threading.Thread(target=_run)
+            t.daemon = True
+            t.start()
+            t.join(timeout=timeout)
+            if raise_exc and t.is_alive():
+                raise TimeoutError()
+            elif raise_exc and (exc is not None):
+                raise exc
+            else:
+                return res
+        return wrapper
+    return decorator
+
+def test():
+    import time
+    @timeout(2)
+    def dummy(x):
+        time.sleep(4)
+        return 1
+
+    dummy(3)
 
 
-def quit_function(fn_name):
-    print('{0} took too long'.format(fn_name), file=sys.stderr)
-    sys.stderr.flush() # Python 3 stderr is likely buffered.
-    thread.interrupt_main() # raises KeyboardInterrupt
-
-
-class TimeoutError(Exception):
-    def __init__(self, value = "Timed Out"):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
-
-def timeout(seconds_before_timeout):
-    def outer(fn):
-        def inner(*args, **kwargs):
-            timer = threading.Timer(seconds_before_timeout, quit_function, args=[fn.__name__])
-            timer.start()
-            try:
-                result = fn(*args, **kwargs)
-            finally:
-                timer.cancel()
-            return result
-
-        return inner
-
-    return outer
+if __name__ == "__main__":
+    test()

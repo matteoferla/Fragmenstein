@@ -67,7 +67,6 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
                 bitId_to_molId.update( preprocesser.bitId_to_molId )
             fragsCombin_iter = chain.from_iterable( list_of_iters )
 
-
         fragsCombin_iter = HitsPreprocess_base.take_random_from_iterator( fragsCombin_iter, self.max_attemps, self.random_seed)
 
         return fragsCombin_iter, bitId_to_molId
