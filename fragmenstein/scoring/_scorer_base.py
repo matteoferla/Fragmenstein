@@ -2,6 +2,8 @@ import csv
 import json
 import logging
 import os
+import itertools
+
 from abc import ABC, abstractmethod, abstractproperty
 import dask.bag as DB
 
@@ -175,7 +177,7 @@ class _ScorerBase(ABC):
         alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_molAndfragIds.keys()))
         not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_molAndfragIds.items()) if elem is None)
 
-        use_dask =True
+        use_dask = True
         if use_dask:
 
             def mapFunction(args):
@@ -184,18 +186,20 @@ class _ScorerBase(ABC):
 
             dask_client = get_parallel_client()
             results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
+
             prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
 
             results_future = DB.concat([results_future, prev_results_future])
 
 
-            results_future = dask_client.compute(results_future)  # , scheduler='single-threaded')
-            if computer.verbose:
-                progress(results_future)
+            # results_future.compute()
+
+            results_future = dask_client.persist(results_future)  # , scheduler='single-threaded')
+
             results_future = dask_client.futures_of(results_future)
-            results_computed = as_completed( results_future)
+            results_computed = (x[0] for x in (res.result() for res in as_completed( results_future)) if len(x)>0)
+
         else:
-            import itertools
             from joblib import Parallel, delayed
 
             # computeters = []
@@ -206,23 +210,25 @@ class _ScorerBase(ABC):
             #     computer = computeters[0]
             #     mol_id, (mol, frag_ids) = inner_args
             #     return computer.processOneMolecule(mol_id, mol, frag_ids)
-            # ConfigManager.N_CPUS = 1
+            ConfigManager.N_CPUS = 1
             results_computed = Parallel(n_jobs = ConfigManager.N_CPUS, backend="multiprocessing")(
                         delayed(joblibMapFunction)(cls, args, kwargs, inner_args)
                                                         for inner_args in not_computed_mols)
 
-            results_computed = itertools.chain.from_iterable([results_computed, not_computed_mols])
+            results_computed = itertools.chain.from_iterable([results_computed, alreadyComputed_or_None])
             results_computed = filter( None.__ne__, results_computed)
 
         scores_ids = None
         record = None
-        for record_furure in results_computed:
-            record =  record_furure.result()[0]
+
+        results_computed = list(results_computed) #We want to store it in memory as a list to return it
+
+        for record in results_computed:
             if record is None: continue
             scores_ids = [ elem for elem in record.keys() if checkIfNameIsScore(elem) ]
             break
-
         assert  scores_ids is not None, "Error, not even a single molecule was scored"
+
 
         if results_sdf_fname or results_table_fname:
             md_dicts_list, mols_list = [], []
@@ -234,7 +240,8 @@ class _ScorerBase(ABC):
                     return mol
 
             panda_rows = []
-            for record in np.itertools.chain.from_iterable([[record], results_computed]):
+            for record in itertools.chain.from_iterable([[record], results_computed]):
+                input(record)
                 if record is None: continue
                 panda_rows.append( [record[_ScorerBase.MOL_NAME_ID]] + [ record[score_id] for score_id in scores_ids] + [  ",".join(record[_ScorerBase.FRAGMENTS_ID]) ] )
                 mol_name = record[_ScorerBase.MOL_NAME_ID]
@@ -244,10 +251,12 @@ class _ScorerBase(ABC):
                 if len(fragments) == 0: continue
                 mol = load_mol_if_str(mol)
                 if mol is None: continue
+
                 mol = add_ref_pdb(mol, fragments)
-                md_dicts_list.append( record)
+                md_dicts_list.append( record )
                 mols_list.append( mol )
 
+            assert  len(md_dicts_list) >0, "Error, no molecules scored"
             if results_sdf_fname:
                 FragalysisFormater(ref_pdb_xchemId= ref_pdb_xchemId).write_molsList_to_sdf( results_sdf_fname, mols_list, md_dicts_list)
 

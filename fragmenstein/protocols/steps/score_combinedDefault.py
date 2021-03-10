@@ -54,21 +54,21 @@ class Score_CombinedDefault(Xchem_info):
             #                                  selected_fragment_ids=self.selected_fragment_ids, boundPdbs_to_score_dir= self.to_score_dir,
             #                                  boundPdbs_to_score_pattern= self.predicted_boundPdb_id_pattern, working_dir=tmp)
 
-            scorers_classes = [SuCOSComputer, PropertiesScorer, XcosComputer ] #, InteractionBasedScorer]
+            scorers_classes = [SuCOSComputer, PropertiesScorer, XcosComputer] # , InteractionBasedScorer]
             scorers_args = [
                 dict(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern, use_weights=True,
                                     selected_fragment_ids= self.selected_fragment_ids, working_dir=tmp ),
                 dict(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern,
                                     selected_fragment_ids=self.selected_fragment_ids, working_dir=tmp ),
                 dict(fragments_dir=self.fragments_dir, fragment_id_pattern=self.fragment_id_pattern,
-                                    selected_fragment_ids=self.selected_fragment_ids, working_dir=tmp ),
-                dict(fragments_dir=self.fragments_dir,
-                                                 fragment_id_pattern=self.boundPdb_id_pattern,
-                                                 selected_fragment_ids=self.selected_fragment_ids,
-                                                 boundPdbs_to_score_dir=self.to_score_dir,
-                                                 boundPdbs_to_score_pattern=self.predicted_boundPdb_id_pattern,
-                                                 working_dir=tmp)
-            ]
+                                    selected_fragment_ids=self.selected_fragment_ids, working_dir=tmp ), ]
+            #     dict(fragments_dir=self.fragments_dir,
+            #                                      fragment_id_pattern=self.boundPdb_id_pattern,
+            #                                      selected_fragment_ids=self.selected_fragment_ids,
+            #                                      boundPdbs_to_score_dir=self.to_score_dir,
+            #                                      boundPdbs_to_score_pattern=self.predicted_boundPdb_id_pattern,
+            #                                      working_dir=tmp)
+            # ]
 
             scorers_iter = list( scorer(**s_kwargs) for scorer, s_kwargs in zip(scorers_classes,scorers_args) )
 

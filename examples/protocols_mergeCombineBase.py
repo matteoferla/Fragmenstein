@@ -134,7 +134,7 @@ class Protocol_mergeCombineBase(ABC):
                                        **Score_CombinedDefault.default_params_xchem())
 
         scored_mols = scorer.compute_scores(proposed_mols)
-        print(scored_mols)
+        # print(scored_mols)
 
         def get_simplified_mol_name(mol_id):  # TODO: Move it within fragalysis??
             '''

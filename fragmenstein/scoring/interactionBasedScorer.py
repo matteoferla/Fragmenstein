@@ -62,11 +62,14 @@ class InteractionBasedScorer(_ScorerBase):
     @property
     def fragInteractions_dict(self):
         if not self._fragInteractions_dict:
+            print("\nloading interactions again %s\n"%self.fragments_dir, flush=True)
             def load_fragments_interactions(bound_pdb_fname):
                 return self._computeInteractionsOneComplex(bound_pdb_fname, selected_fragment_ids=self.selected_fragment_ids)
             self._fragInteractions_dict = dict(filter(None.__ne__,
                                                      apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
                                                                          load_fragments_interactions)))
+        else:
+            print("\nthis time was not necessary to load interactions\n", flush=True)
         return self._fragInteractions_dict
 
     @property

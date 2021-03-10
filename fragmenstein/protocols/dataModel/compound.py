@@ -58,9 +58,11 @@ class Compound(Chem.Mol):
         super().__init__(mol, *args, **kwargs)
 
         covalent_info = None
+        metadata = None
         if isinstance(mol, type(self)):
             parents = mol.parents
-            molId = molId
+            molId = molId if molId else mol.molId
+            metadata = mol.metadata
 
         self.covalent_info = covalent_info  #E.g. {'covalent_resi':'145A', 'covalent_resn':'CYS'}
         self.props_as_dict = {}
@@ -84,6 +86,9 @@ class Compound(Chem.Mol):
         self._scores_dict = {}
 
         self.disregarded_frags= None
+
+        if metadata:
+            self.metadata = metadata
 
     @property
     def parents(self):
