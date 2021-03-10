@@ -15,6 +15,7 @@ from rdkit import Chem
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
 from fragmenstein.scoring.scorer_labels import SCORE_NAME_TEMPLATE, FRAGMENTS_ID, MOL_NAME_ID, checkIfNameIsScore
+from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.io_utils import load_mol_if_str
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
@@ -23,6 +24,16 @@ journal.setLevel(logging.DEBUG)
 
 
 # from fragmenstein.external.uploadToFragalysis.FragalysisFormater import SDF_SCORES_HEADER_INFO
+
+
+computeters = []
+def joblibMapFunction(cls, c_args, c_kwargs, inner_args):
+    print(cls, c_args, c_kwargs, inner_args) #; input("enter")
+    if len(computeters) == 0:
+        computeters.append(cls(*c_args, **c_kwargs))
+    computer = computeters[0]
+    mol_id, (mol, frag_ids) = inner_args
+    return computer.processOneMolecule(mol_id, mol, frag_ids)
 
 
 class _ScorerBase(ABC):
@@ -141,86 +152,6 @@ class _ScorerBase(ABC):
             dask_client.close()
         return results
 
-    # @classmethod
-    # def computeScoreForMolecules(cls, molId_to_molAndfragIds: Dict[str, Tuple[Chem.Mol, Union[List[str], None]]],
-    #                              results_sdf_fname: str = None, ref_pdb_xchemId: str=None, results_table_fname: str= None,
-    #                              *args, **kwargs):
-    #     '''
-    #     :param molId_to_molAndfragIds: dict of molecules to evaluate. mol_id -> (mol, [frag_ids]). If frag_ids is None, use all fragments
-    #                             mol can be either a Chem.Mol or a filename
-    #     :param results_sdf_fname: an sdf file where the molecules would be stored and the scores, fragments found and additional
-    #                             information would be stored as molecule properties. First molecule is a dummy molecule that describe
-    #                             the fields.
-    #
-    #     :param ref_pdb_xchemId: string : The xchem Id for the atomic model used during computations. Usesd only to write sdf file. If None,
-    #                                      the first fragment from each element in  molId_to_molAndfragIds would be used instead
-    #
-    #     :param results_table_fname: string : fname where summary table will be saved.
-    #
-    #
-    #     :return:
-    #     '''
-    #     computer = cls(*args, **kwargs)
-    #     alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_molAndfragIds.keys()))
-    #     not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_molAndfragIds.items()) if elem is None)
-    #
-    #
-    #
-    #     results_computed = []
-    #     for mol_id, (mol, frag_ids) in not_computed_mols:
-    #         result = dask.delayed(computer.processOneMolecule)(mol_id, mol, frag_ids, *args, **kwargs)
-    #         results_computed.append( result )
-    #
-    #     dask_client = get_parallel_client()
-    #     results_computed = dask_client.compute( results_computed )
-    #     progress(results_computed)
-    #     results_computed = dask_client.gather(results_computed)
-    #
-    #
-    #     results_computed = list( chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] ) )
-    #
-    #     scores_ids = None
-    #     for record in results_computed:
-    #         if record is None: continue
-    #         scores_ids = [ elem for elem in record.keys() if checkIfNameIsScore(elem) ]
-    #         break
-    #
-    #     assert  scores_ids is not None, "Error, not even a single molecule was scored"
-    #
-    #     if results_sdf_fname:
-    #         md_dicts_list, mols_list = [], []
-    #         if ref_pdb_xchemId:
-    #             add_ref_pdb = lambda mol, frag_ids: mol
-    #         else:
-    #             def add_ref_pdb(mol, frag_ids):
-    #                 mol.SetProp(FragalysisFormater.REF_PDB_FIELD , frag_ids[0].split("_")[0] )
-    #                 return mol
-    #         for record in results_computed:
-    #             if record is None: continue
-    #             mol_name = record[_ScorerBase.MOL_NAME_ID]
-    #             mol, fragments = molId_to_molAndfragIds[mol_name]
-    #             if fragments is None:
-    #                 fragments = record[_ScorerBase.FRAGMENTS_ID]
-    #             if len(fragments) == 0: continue
-    #             mol = load_mol_if_str(mol)
-    #             if mol is None: continue
-    #             mol = add_ref_pdb(mol, fragments)
-    #             md_dicts_list.append( record)
-    #             mols_list.append( mol )
-    #         FragalysisFormater(ref_pdb_xchemId= ref_pdb_xchemId).write_molsList_to_sdf( results_sdf_fname, mols_list, md_dicts_list)
-    #
-    #     if results_table_fname:
-    #         panda_rows = []
-    #         for record in results_computed:
-    #             if record is None: continue
-    #             panda_rows.append( [record[_ScorerBase.MOL_NAME_ID]] + [ record[score_id] for score_id in scores_ids] + [  ",".join(record[_ScorerBase.FRAGMENTS_ID]) ] )
-    #         df = pd.DataFrame(panda_rows, columns=[_ScorerBase.MOL_NAME_ID]+scores_ids+ [_ScorerBase.FRAGMENTS_ID])
-    #         df.sort_values(by=scores_ids[0], inplace=True)
-    #         df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
-    #
-    #     return results_computed
-
-
     @classmethod
     def computeScoreForMolecules(cls, molId_to_molAndfragIds: Dict[str, Tuple[Chem.Mol, Union[List[str], None]]],
                                  results_sdf_fname: str = None, ref_pdb_xchemId: str=None, results_table_fname: str= None,
@@ -244,49 +175,44 @@ class _ScorerBase(ABC):
         alreadyComputed_or_None = list(map(computer.loadPreviousResult, molId_to_molAndfragIds.keys()))
         not_computed_mols =  (mol_and_info for elem, mol_and_info in zip(alreadyComputed_or_None, molId_to_molAndfragIds.items()) if elem is None)
 
+        use_dask =True
+        if use_dask:
+
+            def mapFunction(args):
+                mol_id, (mol, frag_ids) = args
+                return computer.processOneMolecule(mol_id, mol, frag_ids)
+
+            dask_client = get_parallel_client()
+            results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
+            prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
+
+            results_future = DB.concat([results_future, prev_results_future])
 
 
-        # results_computed = []
-        # for mol_id, (mol, frag_ids) in not_computed_mols:
-        #     result = dask.delayed(computer.processOneMolecule)(mol_id, mol, frag_ids, *args, **kwargs)
-        #     results_computed.append( result )
-        #
-        # dask_client = get_parallel_client()
-        # results_computed = dask_client.compute( results_computed )
-        # progress(results_computed)
-        # results_computed = dask_client.gather(results_computed)
+            results_future = dask_client.compute(results_future)  # , scheduler='single-threaded')
+            if computer.verbose:
+                progress(results_future)
+            results_future = dask_client.futures_of(results_future)
+            results_computed = as_completed( results_future)
+        else:
+            import itertools
+            from joblib import Parallel, delayed
 
+            # computeters = []
+            # def mapFunction(inner_args):
+            #
+            #     if len(computeters) == 0:
+            #         computeters.append(  cls(*args, **kwargs) )
+            #     computer = computeters[0]
+            #     mol_id, (mol, frag_ids) = inner_args
+            #     return computer.processOneMolecule(mol_id, mol, frag_ids)
+            # ConfigManager.N_CPUS = 1
+            results_computed = Parallel(n_jobs = ConfigManager.N_CPUS, backend="multiprocessing")(
+                        delayed(joblibMapFunction)(cls, args, kwargs, inner_args)
+                                                        for inner_args in not_computed_mols)
 
-
-        # def mapFunction(args):
-        #     mol_id, (mol, frag_ids) = args
-        #     return computer.processOneMolecule(mol_id, mol, frag_ids)
-        #
-        # dask_client = get_parallel_client()
-        # import dask.bag as DB
-        # results_future = DB.from_sequence(not_computed_mols).map(mapFunction) #.filter(keep_fun)
-        #
-        # results = dask_client.compute(results_future)  # , scheduler='single-threaded')
-        # # progress(results)
-        # results_computed = results.result()
-        # results_computed = list( chain.from_iterable( [results_computed, filter(None.__ne__, alreadyComputed_or_None) ] ) )
-
-
-        def mapFunction(args):
-            mol_id, (mol, frag_ids) = args
-            return computer.processOneMolecule(mol_id, mol, frag_ids)
-
-        dask_client = get_parallel_client()
-        results_future = DB.from_sequence(not_computed_mols).map(mapFunction)  # .filter(keep_fun)
-        prev_results_future = DB.from_sequence(alreadyComputed_or_None).filter(None.__ne__)
-
-        results_future = DB.concat([results_future, prev_results_future])
-
-
-        results_future = dask_client.compute(results_future)  # , scheduler='single-threaded')
-        results_future = dask_client.futures_of(results_future)
-        results_computed = as_completed( results_future)
-
+            results_computed = itertools.chain.from_iterable([results_computed, not_computed_mols])
+            results_computed = filter( None.__ne__, results_computed)
 
         scores_ids = None
         record = None
@@ -332,11 +258,12 @@ class _ScorerBase(ABC):
 
         return results_computed
 
-    def __init__(self, working_dir, *args, **kwargs):
+    def __init__(self, working_dir, verbose=False, *args, **kwargs):
         if not os.path.exists(working_dir):
             raise ValueError(("Error, working directory (%s) does not exists. If this is the first time you execute the progam, "+
                              "please, create the directory")%working_dir)
         self.working_dir = working_dir
+        self.verbose = verbose
         # assert  hasattr(self, " fragments_id"), "Error,  fragments_id is a required attribute, but was not used"
 
     @abstractproperty
