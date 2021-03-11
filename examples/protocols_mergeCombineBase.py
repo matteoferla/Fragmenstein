@@ -223,13 +223,13 @@ class Protocol_mergeCombineBase(ABC):
         else:
             wdir = tempfile.gettempdir()
 
-        keep_working = True
-
+        only_evaluation = ("skip_enumeration_and_score_available" in kwargs and
+                kwargs["skip_enumeration_and_score_available"])
+        keep_sync = True
         def syncronizer(new_out_dir, time_sleep):
-            while keep_working:
+            while keep_sync:
                 time.sleep(time_sleep)
                 dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
-                # print("keep sync?", keep_working)
 
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
              tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir:
@@ -238,8 +238,7 @@ class Protocol_mergeCombineBase(ABC):
             shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
 
-            if ("skip_enumeration_and_score_available" in kwargs and
-                kwargs["skip_enumeration_and_score_available"]):
+            if not only_evaluation:
                 new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
                 os.mkdir(new_out_dir)
                 if existing_outdir:
@@ -255,15 +254,14 @@ class Protocol_mergeCombineBase(ABC):
             protocol = cls(*args, **kwargs)
             protocol.initialize(*args, **kwargs)
 
-            if ("skip_enumeration_and_score_available" in kwargs and
-                kwargs["skip_enumeration_and_score_available"]):
+            if only_evaluation:
                 results = protocol.load_avilable_results()
             else:
                 results = protocol.compute()
 
             scores = protocol.score_results(results)
 
-            keep_working = False
+            keep_sync = False
             syncronizerThr.join()
             dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
 
