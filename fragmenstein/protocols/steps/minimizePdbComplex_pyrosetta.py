@@ -10,7 +10,6 @@ from rdkit_to_params import constraint, Params
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from timeout_decorator import timeout_decorator
 
 from fragmenstein import Igor
 
