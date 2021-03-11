@@ -110,6 +110,9 @@ class InteractiveInterface():
 
 
     def get_mol_repr(self, mol):
+
+        # print( mol.ToBinary())
+
         sorted_tuples = sorted([(removeScoreTag(key), round(val, 6)) for key, val in mol.GetPropsAsDict().items() if
                                 checkIfNameIsScore(key)], key=lambda x: len(x[0]))
         score_str = mol.GetProp("_Name")+" -> ["+mol.GetProp("ref_mols")+"]\n"

@@ -352,7 +352,7 @@ if __name__ == "__main__":
     if args.option == "combine_sdf":
         FragalysisFormater.merge_sdfs(args.output_file, *args.input_files)
         '''
-python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater combine_sdf f1.sdf f2.sdf -o out.sdf
+python -m fragmenstein.external.uploadToFragalysis.fragalysisFormater combine_sdf f1.sdf f2.sdf -o out.sdf
         '''
     elif args.option == "gather_scores":
 
@@ -367,7 +367,7 @@ python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater combine_sd
                                                                         json_pattern=args.json_pattern,
                                                                         mols_pattern=args.mols_pattern)
             '''
-python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater gather_scores output -f json -r x0020 -o out.sdf -j '([\w-]+)\.scores\.json$' -p '([\w-]+)\.minimised\.mol$'
+python -m fragmenstein.external.uploadToFragalysis.fragalysisFormater gather_scores output -f json -r x0020 -o out.sdf -j '([\w-]+)\.scores\.json$' -p '([\w-]+)\.minimised\.mol$'
             '''
 
         elif args.input_format == "sdf":
@@ -380,19 +380,19 @@ python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater gather_sco
                                                                        sdfs_dir=args.data_dir,
                                                                        sdfs_pattern=args.mols_pattern)
             '''
-python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater gather_scores sdf_trials/ -f sdf -r x0020 -o out.sdf -p '.*\.sdf$'
+python -m fragmenstein.external.uploadToFragalysis.fragalysisFormater gather_scores sdf_trials/ -f sdf -r x0020 -o out.sdf -p '.*\.sdf$'
             '''
 
     elif args.option == "metadata_example":
         FragalysisFormater(None).metadata_example()
         '''
-python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater metadata_example
+python -m fragmenstein.external.uploadToFragalysis.fragalysisFormater metadata_example
         '''
 
     elif args.option == "filter":
         FragalysisFormater(None).filter_sdf_file( outname=args.output_file, fname_in= args.input_file, list_of_filters=args.filters)
         '''
-python -m fragmenstein.external.uploadToFragalysis.FragalysisFormater filter results_prueba.sdf -o results_prueba_filtered.sdf -f "xcos_score>0.1"
+python -m fragmenstein.external.uploadToFragalysis.fragalysisFormater filter results_prueba.sdf -o results_prueba_filtered.sdf -f "xcos_score>0.1"
 
         '''
     else:
