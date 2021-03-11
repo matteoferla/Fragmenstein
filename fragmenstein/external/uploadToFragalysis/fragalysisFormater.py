@@ -113,7 +113,7 @@ class FragalysisFormater():
                             f_out.write(line)
         assert  n_lines_detect_header>0, "Error, header was not found."
 
-    def __init__(self, ref_pdb_xchemId, metadata_header=None, drop_unknown_fields=True): #TOOD: Ref pdb could be many different. One per compound even
+    def __init__(self, ref_pdb_xchemId=None, metadata_header=None, drop_unknown_fields=True): #TOOD: Ref pdb could be many different. One per compound even
 
 
         self.drop_unknown_fields = drop_unknown_fields
@@ -218,7 +218,7 @@ class FragalysisFormater():
                     journal.warning("Molecule %s has not associated fragments. Skipping..."%mol_name)
                     continue
 
-                mol = self.trimCharFieldInMol(mol)
+                mol = self.trimCharFieldInMol(mol, "_Name")
                 w.write(mol)
             w.close()
 

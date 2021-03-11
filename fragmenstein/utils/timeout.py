@@ -3,6 +3,8 @@ import threading
 
 '''
 https://stackoverflow.com/questions/308999/what-does-functools-wraps-do
+
+TODO: does not work well with dask
 '''
 def timeout(timeout, raise_exc=False):
     """

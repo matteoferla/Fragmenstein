@@ -5,9 +5,12 @@ from rdkit.Chem import PandasTools
 import matplotlib.pyplot as plt
 import numpy as np
 
+from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, SCORE_NAME_TEMPLATE
 
-sdf_fname= os.path.expanduser('~/nsp3_Bs1_x0034_0B,x0176_0B,x0183_0B,x0208_0A,x0212_0B,x0246_0B,x0276_0B,x0283_0B,x0311_0B,x0438_0B.sdf')
+# sdf_fname= os.path.expanduser('~/nsp3_Bs1_x0034_0B,x0176_0B,x0183_0B,x0208_0A,x0212_0B,x0246_0B,x0276_0B,x0283_0B,x0311_0B,x0438_0B.sdf')
+sdf_fname= os.path.expanduser('~/nsp3_Bs1_few.sdf')
+sdf_filtered_fname = os.path.expanduser('~/nsp3_Bs1_filtered.sdf')
 
 with open(sdf_fname, "rb") as f:
 
@@ -30,6 +33,7 @@ for prop in props:
     if checkIfNameIsScore(prop):
        df[prop] = df[prop].astype(np.float32)
        # print(prop); plt.hist( df[prop], label= prop ); plt.show()
+       # print(prop); plt.boxplot( df[prop] ); plt.show()
 
 print(df.columns)
 
@@ -49,9 +53,6 @@ df = df.query( " 100 < molMass_score < 500")
 print(df.shape)
 
 
-df = df.query( " 0.1 < SA_score < 7 and 0.2 < SC_score < 3.5")
-print(df.shape)
-
 
 # fig = plt.figure()
 # ax1 = fig.add_subplot(121)
@@ -63,20 +64,37 @@ print(df.shape)
 # plt.show()
 
 
-df = df.query( " -1 < aLogP_score < 4 ")
-print(df.shape)
+# df = df.query( " 0.1 < SA_score < 7 and 0.2 < SC_score < 3.5")
+# print(df.shape)
+#
+# df = df.query( " -1 < aLogP_score < 4 ")
+# print(df.shape)
 
-df = df.query( " polarSurfaceArea_score <=140 ")
-print(df.shape)
+# df = df.query( " polarSurfaceArea_score <=140 ")
+# print(df.shape)
+#
+# df = df.query( " 2 <rotableBonds_score <= 10 ")
+# print(df.shape)
+#
+# df = df.query( " meanSuCosW_score >0.2 ")
+# print(df.shape)
+#
+# df = df.query( " xcos_score >0.1 ")
+# print(df.shape)
+#
+# df = df.query( " fragmensteinOld_score < 5 ")
+# print(df.shape)
+#
+# df = df.query( " fragmensteinNew_score < 130 ")
+# print(df.shape)
 
-df = df.query( " 2 <rotableBonds_score <= 10 ")
-print(df.shape)
 
-df = df.query( " meanSuCosW_score >0.2 ")
-print(df.shape)
+# for mol in df["mol"]:
+#     print( mol.GetPropsAsDict() )
+#     input(mol)
 
-df = df.query( " xcos_score >0.1 ")
-print(df.shape)
+FragalysisFormater().write_molsList_to_sdf(sdf_filtered_fname,  df["mol"])
+# PandasTools.WriteSDF()
 
 '''
 python -m examples.analize

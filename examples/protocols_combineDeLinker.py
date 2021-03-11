@@ -10,6 +10,7 @@ from scipy.spatial import distance_matrix
 from examples.protocols_combineBase import Protocol_combineBase
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_DeLinkerDefault import CombineMerge_DeLinkerDefault
+from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
 
 
@@ -66,7 +67,9 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
         # print( [ [Chem.MolToSmiles(mol) for mol in comb]  for comb in fragsCombin_iter() ] )
         # print( len(list(fragsCombin_iter())))
 
-        return fragsCombin_iter(), bitId_to_molId
+        fragsCombin_iter = HitsPreprocess_base.take_random_from_iterator( fragsCombin_iter(), self.max_attemps, self.random_seed)
+
+        return fragsCombin_iter, bitId_to_molId
 
     @property
     def combiner_class(self):
