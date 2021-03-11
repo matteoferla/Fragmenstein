@@ -57,6 +57,22 @@ class FragalysisFormater():
             mol.SetProp(name, val)
 
     @classmethod
+    def trimStr(cls, val):
+        if len(val) > 50:
+            new_val = val[:50]
+            journal.warning(
+                "Name %s is to long to be displayed in Fragalysis, it would be trimemed to %s" % (val, new_val))
+            val = new_val
+        return val
+
+    @classmethod
+    def trimCharFieldInMol(cls, mol, propertyName):
+        val = mol.GetProp(propertyName)
+        val = cls.trimStr(val)
+        mol.SetProp(propertyName, val)
+        return mol
+
+    @classmethod
     def add_metadata_to_mol(cls, mol, metadata_dict, round_digits=6):
         for prop, val in metadata_dict.items():
             if checkIfNameIsScore(prop):
@@ -66,10 +82,7 @@ class FragalysisFormater():
                 val = ",".join(val)
             elif prop in  ["name", "mol_name"]:
                 prop= "_Name"
-                if len(val)>50:
-                    new_val = val[:50]
-                    journal.warning("Name %s is to long to be displayed in Fragalysis, it would be trimemed to %s"%(val, new_val))
-                    val = new_val
+                val = cls.trimStr( val )
 
             cls._add_prop_if_not_available(mol, prop, str(val))
         return mol
@@ -205,6 +218,7 @@ class FragalysisFormater():
                     journal.warning("Molecule %s has not associated fragments. Skipping..."%mol_name)
                     continue
 
+                mol = self.trimCharFieldInMol(mol)
                 w.write(mol)
             w.close()
 

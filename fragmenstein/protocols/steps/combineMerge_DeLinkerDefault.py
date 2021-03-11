@@ -33,7 +33,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         )
 
 
-    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=1, n_atomPairs_attemps=1, *args, **kwargs):
+    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=10, n_atomPairs_attemps=3, *args, **kwargs):
 
         super().__init__( *args, **kwargs)
 

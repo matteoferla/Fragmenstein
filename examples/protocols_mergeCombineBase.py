@@ -28,12 +28,15 @@ RANDOM_SEED = 121
 
 class Protocol_mergeCombineBase(ABC):
 
+    MERGES_SUBDIR="merges"
+    SCORES_SUBDIR="scoring"
     def __init__(self, data_root_dir, output_dir, merging_mode=None, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
         self.output_dir = os.path.expanduser(output_dir)
-        self.wdir_enumeration =  os.path.join(self.output_dir, "merges")
+        self.wdir_enumeration =  os.path.join(self.output_dir, Protocol_mergeCombineBase.MERGES_SUBDIR)
+        self.wdir_scoring = os.path.join(self.output_dir, Protocol_mergeCombineBase.SCORES_SUBDIR)
         self.merging_mode = merging_mode
 
         self._loader = None
@@ -138,7 +141,7 @@ class Protocol_mergeCombineBase(ABC):
 
         scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_enumeration,
                                        selected_fragment_ids= self.ref_hits_for_scoring,
-                                       working_dir = os.path.join(self.output_dir, "scoring"),
+                                       working_dir = self.wdir_scoring,
                                        **Score_CombinedDefault.default_params_xchem())
 
         scored_mols = scorer.compute_scores(proposed_mols)
@@ -238,17 +241,44 @@ class Protocol_mergeCombineBase(ABC):
             shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
 
-            if not only_evaluation:
-                new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
-                os.mkdir(new_out_dir)
-                if existing_outdir:
-                    dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+            # if not only_evaluation:
+            #     new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+            #     os.mkdir(new_out_dir)
+            #     if existing_outdir:
+            #         dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+            #
+            #     kwargs["output_dir"] = new_out_dir
+            #     syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
+            #     syncronizerThr.start()
 
-                kwargs["output_dir"] = new_out_dir
-                syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
-                syncronizerThr.start()
 
+            new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+            os.mkdir(new_out_dir)
+            if existing_outdir: #create links to files that could be readed
+                new_scoring_dir = os.path.join(new_out_dir, cls.SCORES_SUBDIR)
+                os.mkdir(new_scoring_dir)
+                old_scoring_dir = os.path.join(out_dir, cls.SCORES_SUBDIR)
+                if os.path.exists(old_scoring_dir):
+                    for name in os.listdir(old_scoring_dir):
+                        os.symlink(os.path.join(old_scoring_dir, name), os.path.join(new_scoring_dir, name))
+                else:
+                    os.mkdir( old_scoring_dir )
 
+                new_merges_dir = os.path.join(new_out_dir, cls.MERGES_SUBDIR)
+                old_merges_dir = os.path.join(out_dir, cls.MERGES_SUBDIR)
+                if os.path.exists(old_merges_dir):
+                    if  only_evaluation:
+                        os.symlink(os.path.join(out_dir, cls.MERGES_SUBDIR), new_merges_dir)
+                    else:
+                        os.mkdir(new_merges_dir)
+                        for name in os.listdir(old_merges_dir):
+                            os.symlink(os.path.join(old_merges_dir, name), os.path.join(new_merges_dir, name))
+                else:
+                    os.mkdir(new_merges_dir)
+
+            kwargs["output_dir"] = new_out_dir
+            syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
+            syncronizerThr.start()
 
             print("Done!", flush=True)
 
@@ -262,10 +292,9 @@ class Protocol_mergeCombineBase(ABC):
 
             scores = protocol.score_results(results)
 
-            if not only_evaluation:
-                keep_sync = False
-                syncronizerThr.join()
-                dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
+            keep_sync = False
+            syncronizerThr.join()
+            dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
 
         return scores
 
