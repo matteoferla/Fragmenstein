@@ -238,13 +238,14 @@ class Protocol_mergeCombineBase(ABC):
             shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
 
-            new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
-            os.mkdir(new_out_dir)
-            if existing_outdir:
-                for name in os.listdir(out_dir):
-                    os.symlink(os.path.join(out_dir, name), os.path.join(new_out_dir, name))
+            if ("skip_enumeration_and_score_available" in kwargs and
+                kwargs["skip_enumeration_and_score_available"]):
+                new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+                os.mkdir(new_out_dir)
+                if existing_outdir:
+                    dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
 
-            kwargs["output_dir"] = new_out_dir
+                kwargs["output_dir"] = new_out_dir
 
             syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
             syncronizerThr.start()
