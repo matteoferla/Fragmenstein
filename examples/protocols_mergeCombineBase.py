@@ -232,7 +232,7 @@ class Protocol_mergeCombineBase(ABC):
                 dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
 
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
-             tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir:
+             tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir: #TODO: tmp_outdir should not be temporary if working_dir provided
             print("Copying data to working directories...", end=" ", flush=True)
             new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
             shutil.copytree(in_dir, new_in_dir)
@@ -245,9 +245,10 @@ class Protocol_mergeCombineBase(ABC):
                     dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
 
                 kwargs["output_dir"] = new_out_dir
+                syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
+                syncronizerThr.start()
 
-            syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
-            syncronizerThr.start()
+
 
             print("Done!", flush=True)
 
@@ -261,9 +262,10 @@ class Protocol_mergeCombineBase(ABC):
 
             scores = protocol.score_results(results)
 
-            keep_sync = False
-            syncronizerThr.join()
-            dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
+            if not only_evaluation:
+                keep_sync = False
+                syncronizerThr.join()
+                dirsync.sync(new_out_dir, out_dir, 'sync', verbose=False )
 
         return scores
 
