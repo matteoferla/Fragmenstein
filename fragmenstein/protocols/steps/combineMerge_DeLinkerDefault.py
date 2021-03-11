@@ -4,7 +4,6 @@ from typing import List
 
 from rdkit import Chem
 from rdkit import RDLogger
-from timeout_decorator import timeout_decorator
 
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
