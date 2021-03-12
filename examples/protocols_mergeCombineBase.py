@@ -137,7 +137,7 @@ class Protocol_mergeCombineBase(ABC):
             if smi in already_available: continue # Heuristic filter for uniqueness
             already_available.add(smi)
             #Get rid of bad stuff
-            mol = Chem.SanitizeMol(mol)
+            mol = Compound.SanitizeMol(mol)
             proposed_mols.append(mol)
 
         scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_enumeration,

@@ -40,6 +40,12 @@ class Compound(Chem.Mol):
         return [ cls.copyMetadata( new_mol, compound)  for new_mol in new_mols]
 
     @classmethod
+    def SanitizeMol(cls, compound, *args, **kwargs ):
+        new_mol = Chem.Mol(compound.ToBinary())
+        Chem.SanitizeMol( new_mol, *args, **kwargs)
+        return  cls.copyMetadata( new_mol, compound)
+
+    @classmethod
     def copyMetadata(cls, mol, compound):
         comp = Compound(mol)
         comp.parents = compound.parents
