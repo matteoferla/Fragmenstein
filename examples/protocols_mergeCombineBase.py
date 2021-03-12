@@ -133,10 +133,11 @@ class Protocol_mergeCombineBase(ABC):
         proposed_mols = []
         already_available = set([])
         for  mol in results:
-            # Heuristic filter for uniqueness
             smi = Chem.MolToSmiles(mol )
-            if smi in already_available: continue
+            if smi in already_available: continue # Heuristic filter for uniqueness
             already_available.add(smi)
+            #Get rid of bad stuff
+            mol = Chem.SanitizeMol(mol)
             proposed_mols.append(mol)
 
         scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_enumeration,
