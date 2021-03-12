@@ -11,8 +11,7 @@ from fragmenstein.utils.config_manager import ConfigManager
 class Protocol_combineBase(Protocol_mergeCombineBase):
 
     def initialize(self, hit_ids,  preprocess_mode, data_root_dir, template, template_xchemId, templates_dir=None,
-                   template_pattern=None, max_attemps=None,
-                   random_seed=None, *args, **kwargs):
+                   template_pattern=None, max_attemps=None, random_seed=None, protocol_verbose=False, *args, **kwargs):
 
         self._hit_ids = hit_ids
         self.data_root_dir = data_root_dir
@@ -25,7 +24,7 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
 
         self.max_attemps = max_attemps
         self.random_seed = random_seed if random_seed else ConfigManager.RANDOM_SEED_PERMUT
-
+        self.verbose = protocol_verbose
 
     @property
     def sdf_outname(self):
@@ -80,7 +79,7 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
         self.checkTemplateArgs()
 
         combiner = self.combiner_class(output_path=self.wdir_enumeration, use_dask =ConfigManager.N_CPUS > 1,
-                                       ** self.template_info_dict)
+                                       verbose = self.verbose, ** self.template_info_dict)
 
         results = combiner.applyCombine(fragsCombin_iter)
 

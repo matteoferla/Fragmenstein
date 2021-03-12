@@ -17,7 +17,7 @@ Log             = /data/xchem-fragalysis/sanchezg/logs/$(Cluster).$(Process).log
 #request_disk   = 262144
 request_gpus    = 1
 
-requirements = (TARGET.Machine == "pulsar-exec-node-gpu-2.xchem.novalocal")
+requirements = (TARGET.Machine == "pulsar-exec-node-cuda-1.xchem.novalocal")
 
 Queue
 

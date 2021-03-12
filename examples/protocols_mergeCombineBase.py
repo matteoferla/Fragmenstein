@@ -30,7 +30,7 @@ class Protocol_mergeCombineBase(ABC):
 
     MERGES_SUBDIR="merges"
     SCORES_SUBDIR="scoring"
-    def __init__(self, data_root_dir, output_dir, merging_mode=None, *args, **kwargs):
+    def __init__(self, data_root_dir, output_dir, merging_mode=None, verbose=True, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
@@ -38,7 +38,7 @@ class Protocol_mergeCombineBase(ABC):
         self.wdir_enumeration =  os.path.join(self.output_dir, Protocol_mergeCombineBase.MERGES_SUBDIR)
         self.wdir_scoring = os.path.join(self.output_dir, Protocol_mergeCombineBase.SCORES_SUBDIR)
         self.merging_mode = merging_mode
-
+        self.verbose = verbose
         self._loader = None
         self._fragments = None
         self._fragments_dict = None
@@ -240,16 +240,6 @@ class Protocol_mergeCombineBase(ABC):
             new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
             shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
-
-            # if not only_evaluation:
-            #     new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
-            #     os.mkdir(new_out_dir)
-            #     if existing_outdir:
-            #         dirsync.sync(out_dir, new_out_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
-            #
-            #     kwargs["output_dir"] = new_out_dir
-            #     syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
-            #     syncronizerThr.start()
 
 
             new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))

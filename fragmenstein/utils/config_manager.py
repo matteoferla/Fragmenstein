@@ -24,12 +24,15 @@ class ConfigManager():
         else:
             return bool(x)
 
-    victor_default =  False if os.environ.get("VICTOR_VERBOSE", None) is None else parseBool(os.environ.get("VICTOR_VERBOSE", None))
+    victorVerbose_default =  False if os.environ.get("VICTOR_VERBOSE", None) is None else parseBool(os.environ.get("VICTOR_VERBOSE", None))
+    protocolVerbose_default =  False if os.environ.get("PROTOCOL_VERBOSE", None) is None else parseBool(os.environ.get("VICTOR_VERBOSE", None))
+
     PARSEABLE_PARAMETERS = [
         # parameter_name, str_to_value_funcion, default_value, help
         ("N_CPUS", int, 1, "Number of cpus for parallel computing. Default %(default)s"),
         ("DASK_WORKER_MEMORY", str, "-1", "Memory for each dask worker. E.g 16GB'. Default 90%% of host memory / N_CPUS"),
-        ("VICTOR_VERBOSE", parseBool, victor_default, "Enable verbosity in Victor. Default: %(default)s"),
+        ("VICTOR_VERBOSE", parseBool, victorVerbose_default, "Enable verbosity in Victor. Default: %(default)s"),
+        ("PROTOCOL_VERBOSE", parseBool, protocolVerbose_default, "Enable verbosity in protocol. Default: %(default)s"),
         ("TMP_DIR", str, "/tmp", "Temporal directory for computations. Default: %(default)s"),
         ("RANDOM_SEED_PERMUT", int, 121, "Random seed for permutations. Default: %(default)s"),
     ]

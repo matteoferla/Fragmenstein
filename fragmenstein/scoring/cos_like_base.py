@@ -117,6 +117,10 @@ class _COSLikeBase(_ScorerBase):
             fms[0].scoreMode = score_mode
             fm_score = fms[0].ScoreFeats(featLists[1]) / min(fms[0].GetNumFeatures(), len(featLists[1]))
             return fm_score
+
+        except RuntimeError:
+            return np.nan
+
         except ZeroDivisionError:
             return 0
 

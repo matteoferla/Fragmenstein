@@ -4,6 +4,7 @@ from typing import Tuple, List, Dict
 
 import itertools
 
+from rdkit.Chem import Descriptors
 from rdkit.Chem.Descriptors import HeavyAtomMolWt
 from scipy.spatial import distance_matrix
 
@@ -54,6 +55,12 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
         bitId_to_molId  =  fragmentator.bitId_to_molId
 
         #TODO: add redundancy filter
+        seen_smis = set([])
+
+        def get_hash(mol1, mol2):
+            mols = sorted([mol1, mol2], key = lambda x: Descriptors.MolWt(x))
+            return ".".join(map(Chem.MolToSmiles, mols))
+
         def fragsCombin_iter():
             for key1, key2 in frags_keys_pairs:
                 frags_ops1 = dict_of_frags[key1]
@@ -61,12 +68,15 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
                 for bits1, bits2 in itertools.product(frags_ops1, frags_ops2):
                     for bit1 in bits1:
                         for bit2 in bits2:
+                            pair_hash = get_hash(bit1, bit2)
+                            if pair_hash in seen_smis:
+                                continue
+                            seen_smis.add(pair_hash)
                             if self._check_compability(bit1, bit2, min_dist_thr=5):
                                 yield ( bit1, bit2 )
 
         # print( [ [Chem.MolToSmiles(mol) for mol in comb]  for comb in fragsCombin_iter() ] )
-        # print( len(list(fragsCombin_iter())))
-
+        # input( len( list(fragsCombin_iter() )))
         fragsCombin_iter = HitsPreprocess_base.take_random_from_iterator( fragsCombin_iter(), self.max_attemps, self.random_seed)
 
         return fragsCombin_iter, bitId_to_molId

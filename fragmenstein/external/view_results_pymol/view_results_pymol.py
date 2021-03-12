@@ -1,5 +1,6 @@
 import os
 import re
+import numpy as np
 from itertools import cycle
 
 from rdkit import Chem
@@ -12,11 +13,15 @@ from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, removeScoreTa
 
 class InteractiveInterface():
 
+    MOL_FIELD_ID = "mol"
+
+
     EXIT_OPTION = 0
     NEXT_COMPOUND_OPTION = 1
     PREV_COMPOUND_OPTION = 2
     GO_TO_MOL_OPTION = 3
     SORT_BY_OPTION = 4
+    COMBINE_SCORES = 5
 
     def __init__(self, sdf_fname, fragments_dir, fragment_id_pattern=None, unboundPdb_id_pattern=None):
 
@@ -32,13 +37,14 @@ class InteractiveInterface():
             else:
                 f.seek(0)
 
-            self.df = PandasTools.LoadSDF(f, idName="molId", smilesName='smi', molColName='mol', embedProps=True,
+            self.df = PandasTools.LoadSDF(f, idName="molId", smilesName='smi', molColName=self.MOL_FIELD_ID, embedProps=True,
                                      includeFingerprints=False)
 
             self.scores_names = sorted([x for x in self.df.columns if checkIfNameIsScore(x)])
+            for score_name in self.scores_names:
+                self.df[score_name] = self.df[score_name].astype(np.float32)
 
-
-        self.df = self.df.sort_values(by=self.scores_names[0], ascending=True)
+        # self.df = self.df.sort_values(by=self.scores_names[0], ascending=True)
 
         if not fragment_id_pattern:
             fragment_id_pattern = LoadInput_XchemDefault.fragment_id_pattern
@@ -58,6 +64,7 @@ class InteractiveInterface():
             r"prev": (cls.NEXT_COMPOUND_OPTION, lambda groups: self.prev_mol()),
             r"goto (-?\d+)$": (cls.GO_TO_MOL_OPTION, lambda groups: self.goto(groups)),
             r"sortby (\w+) (asc|desc)": (cls.SORT_BY_OPTION, lambda groups: self.sortby(groups)),
+            r"combinescores (\w+) (.+)": (cls.COMBINE_SCORES, lambda groups: self.combineScores(groups)),
 
         }
 
@@ -99,6 +106,31 @@ class InteractiveInterface():
 
         self.df = self.df.sort_values(by=feature, ascending= True if order.startswith("asc") else False)
         self.molecule_idx = 0
+
+    def combineScores(self, name_expresion):
+        '''
+
+        E.g.         'combinescores s1 plipGlobalPreser_score/rotableBonds_score'
+
+        :param name_expresion:
+        :return:
+        '''
+        name, expression = name_expresion
+        if not checkIfNameIsScore(name):
+            name = SCORE_NAME_TEMPLATE%name
+        if name in self.df:
+            print("Error, feature name already exists: %s" % str(name))
+            return
+        self.df[name] = self.df.eval(expression)
+        def updateMol(row):
+            newFeat = row[name]
+            mol = row[self.MOL_FIELD_ID]
+            mol.SetProp(name, str(newFeat))
+            return mol
+
+        self.df[ self.MOL_FIELD_ID] = self.df.apply( updateMol, axis=1)
+        self.scores_names.append( name)
+        pass
 
     def get_current_mol(self):
         name, mol = self.df.iloc[self.molecule_idx, :][["molId", "mol"]]
