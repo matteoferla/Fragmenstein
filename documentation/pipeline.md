@@ -1,3 +1,5 @@
+> This code has not been updated. So usage may differ.
+
 Here is an example of a pipeline to iterate across all the compounds in a list, merge them, score then and upload them.
 For MPro, see the MPro.
 
