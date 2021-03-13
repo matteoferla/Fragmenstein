@@ -30,8 +30,11 @@ Pyrosetta needs to be initialised as normal
 
 ```jupyterpython
 import pyrosetta
-pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
+pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res false -load_PDB_components false')
 ```
+The `ignore_unrecognized_res` controls whether to raise an error if a residue can be loaded.
+While `load_PDB_components` stop the PDB defined database from being loaded,
+which is handy as it prevents weird errors (e.g. there is a [PDB ligand called `LIG`](https://www.rcsb.org/ligand/LIG))
 
 Alternatively, a cleaner way can be using a helper function in laboratory
 
@@ -40,7 +43,7 @@ import pyrosetta
 from fragmenstein.laboratory import make_option_string
 extras = make_option_string(no_optH=False,
                             mute='all',
-                            ignore_unrecognized_res=True,
+                            ignore_unrecognized_res=False,
                             load_PDB_components=False)
 pyrosetta.init(extra_options=extras)
 ```
@@ -185,7 +188,9 @@ Or individual values
 victor.ddG
 ```
 
-### Troubleshooting
+## Troubleshooting
+
+### Inspect
 To see the Pyrosetta pose
 ```jupyterpython
 import nglview as nv
@@ -210,6 +215,7 @@ with pymol2.PyMOL() as pymol:
     pymol.cmd.save('moved.pdb', 'mini')
 ```
 
+### Hydrogen in hits
 Another issue may arise when hydrogens are present in the hits somehow.
 
 If the calculations fail along a step the compounds can be inspected, but these are not `victor.minimised_mol`
@@ -232,6 +238,26 @@ Additionally if the issue is with one of the atoms and the indices are required 
 mol = victor.monster.positioned_mol
 victor.monster.draw_nicely(mol)
 ```
+### That is taken!
+If either the ligand name `ligand_resn` (default: `LIG`) or the `ligand_resi` (default `1B`)
+appear in the template it will fail. 
+
+    ValueError: Residue 20A already exists in structure
+
+If the issue slipped through, 
+say Igor is being accessed manually, an error like `Atom 'C1 0' not found`. This is because the constraint
+file has the residue number as a PDB number (`1B`), which gets converted internally to the pose number
+and pose number 0 means it does not exist.
+Therefore make sure to there are no shared names or specify a free name/index.
+
+```jupyterpython
+victor = Victor(hits=[atp], pdb_filename='1ATP_apo.pdb',
+                ligand_resi='1Z', ligand_resn='ATP'
+               )
+```
+
+There are a few residue names that should not be taken. Such as PTMs, `ACE` etc.
+Additionally, I don't know why but the residue name cannot be `XXX` (which is expected to be an amino acid).
 
 ### Equal solutions
 If the solution is not ideal, you may want to check other equally valid solutions, 

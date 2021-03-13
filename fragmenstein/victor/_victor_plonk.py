@@ -43,6 +43,8 @@ class _VictorPlonk(_VictorJournal):
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()  # TODO improve ligand_resi
         for atom in mol.GetAtoms():
             info = atom.GetPDBResidueInfo()
+            if info is None:
+                raise ValueError(f'The atom #{atom.GetIdx()} has no PDB information in RDKit')
             info.SetResidueNumber(int(l_resi))
             info.SetChainId(l_chain)
             info.SetIsHeteroAtom(True)
@@ -78,11 +80,20 @@ class _VictorPlonk(_VictorJournal):
 
         :return:
         """
+        # ----- load
         mol = self._get_preminimised_undummied_monster()
         pdbdata = MinimalPDBParser(self.apo_pdbblock)
         moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
+        # ------- covalent fix
         if self.is_covalent:
             pdbdata.headers.append(self._get_LINK_record())
+        # ------- assertions
+        l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()  # TODO improve ligand_resi
+        if pdbdata.has_residue_index(index=int(l_resi), chain=l_chain):
+            raise ValueError(f'Residue {self.ligand_resi} already exists in structure')
+        elif pdbdata.has_residue_name(self.ligand_resn):
+            raise ValueError(f'Residue {self.ligand_resn} already exists in structure')
+        # -------- append
         pdbdata.append(moldata)  # fixes offsets in ATOM/HETATM and CONECT lines.
         return str(pdbdata)
 
@@ -94,11 +105,11 @@ class _VictorPlonk(_VictorJournal):
         pdbdata = MinimalPDBParser(self.apo_pdbblock)
         entry = pdbdata.coordinates[0]
         if self.covalent_resi is None:
-            self.covalent_resi = f'{pdbdata.get_residue(entry)}{pdbdata.get_chain(entry)}'
+            self.covalent_resi = f'{pdbdata.get_residue_index(entry)}{pdbdata.get_chain(entry)}'
         else:
             p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
-            if not pdbdata.has_residue(int(p_resi), p_chain):
-                self.covalent_resi = f'{pdbdata.get_residue(entry)}{pdbdata.get_chain(entry)}'
+            if not pdbdata.has_residue_index(int(p_resi), p_chain):
+                self.covalent_resi = f'{pdbdata.get_residue_index(entry)}{pdbdata.get_chain(entry)}'
 
 
     def _plonk_monster_in_structure_raw(self):

@@ -69,7 +69,7 @@ class MinimalPDBParser:
         # ATOM    588 11 - 14
         return int(entry[6:12].strip())
 
-    def get_residue(self, entry: str) -> int:
+    def get_residue_index(self, entry: str) -> int:
         # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
         # 23 - 26        Integer       resSeq       Residue sequence number.
         return int(entry[22:26].strip())
@@ -77,6 +77,11 @@ class MinimalPDBParser:
     def get_chain(self, entry: str) -> str:
         # 22             Character     chainID      Chain identifier.
         return entry[21].strip()
+
+    def get_residue_name(self, entry: str) -> int:
+        # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
+        # 18 - 20        Residue name  resName      Residue name.
+        return entry[17:20].strip()
 
     def get_max_serial(self) -> int:
         # assuming ordered
@@ -106,9 +111,19 @@ class MinimalPDBParser:
         self.coordinates += other.coordinates
         self.connections += other.connections
 
-    def has_residue(self, index:int, chain: str):
+    def has_residue_index(self, index:int, chain: str):
         for entry in self.coordinates:
-            if self.get_residue(entry) == index and self.get_chain(entry) == chain:
+            if self.get_residue_index(entry) == index and self.get_chain(entry) == chain:
+                return True
+        else:
+            return False
+
+    def has_residue_name(self, name: str):
+        """
+        residue name, resn 3-letters
+        """
+        for entry in self.coordinates:
+            if self.get_residue_name(entry) == name:
                 return True
         else:
             return False
