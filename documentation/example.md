@@ -190,6 +190,13 @@ victor.ddG
 
 ## Troubleshooting
 
+### Too many results
+
+The ∆∆G (kcal/mol) is not that you would get if the compound were in the spot in with the energy minimum (as in docking).
+It is nearby there, hopefully. But can be used for reducing the list of results.
+Given that linking two indole-sized compounds is already in the 250-300 dalton range, 
+sorting by ligand efficiency (ratio of ∆∆G over number of heavy atoms) is best (good: 0.4 kcal/mol/HA upwards)
+
 ### Inspect
 To see the Pyrosetta pose
 ```jupyterpython
@@ -214,6 +221,17 @@ with pymol2.PyMOL() as pymol:
     pymol.cmd.align('mini', 'hit and chain A')
     pymol.cmd.save('moved.pdb', 'mini')
 ```
+
+### Protonation
+
+The SMILES provided needs to be given formal charges to match the protonation at pH 7.
+Namely,
+
+* `*C(=O)O` will yield a carboxylic acid, while `*C(=O)[O-]` a carboxylate (conjugate base).
+* `*N` will yield a base (`*[NH2]`), while `*[N+]` or `*[NH3+]`, will yield the conjugate acid.
+* `*OP(=O)(O)O` will yield phosphoric acid `*OP(=O)([OH])[OH]`, while `*OP(=O)([O-])[O-]` will yield a phosphate.
+
+There are modules and tools to correct the protonation at pH 7. Also, there are several paper suggesting isosteres.
 
 ### Hydrogen in hits
 Another issue may arise when hydrogens are present in the hits somehow.
