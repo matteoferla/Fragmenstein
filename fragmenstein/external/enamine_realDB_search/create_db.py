@@ -11,9 +11,8 @@ import dask.bag as db
 import dask.dataframe as dd
 from dask.distributed import futures_of, as_completed
 from joblib import Parallel, delayed
-from rdkit.DataStructs import cDataStructs
-from fragmenstein.external.enamine_realDB_search.common import get_fingerPrint
 
+from fragmenstein.external.enamine_realDB_search.common import computeFingerprintStr, computeFingerprint_np_Str
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
@@ -107,23 +106,16 @@ def process_cxsmi_file( fname,  outdir):
             data = dd.read_csv(chunked_fname, sep="\t", header=None, usecols=[0,1])
             print("%s raw data read"%chunked_basename, flush=True)
 
-            def computeFingerStr( smi):
-                # print(smi)
-                finPrint = get_fingerPrint(smi)
-                if finPrint is None:
-                    return b""
-                finStr = cDataStructs.BitVectToBinaryText(finPrint)
-                return finStr
-
             t = time.time()
 
             binary_name = os.path.join(binaries_dir, chunked_basename+".fingerprints.BitVect")
 
-            with open(binary_name, "wb") as bin_f:  # TODO. store fingerprints as matrices, going from bits -> np.int8 and chunk it when computing fingerprints.  2 | 4 = 6. Or perhaps using bitarrays or np.packbits int.from_bit
+            with open(binary_name, "wb") as bin_f:
                 for smi in data[0]:
-                    fp = computeFingerStr(smi)
+                    fp = computeFingerprint_np_Str(smi)
                     if fp is not None:
                         bin_f.write(fp)
+
             print(time.time() - t)
             print("%s fingenprints computed" % chunked_basename, flush=True)
 
@@ -142,19 +134,7 @@ def process_cxsmi_file( fname,  outdir):
         b = b.persist()
         futures_b = futures_of(b)
 
-        fname_basename = os.path.basename(fname).split(".")[0]
-        # binary_name = os.path.join( outdir, fname_basename+".fingerprints.BitVect")
-
-
-
-
         con = sqlite3.connect( compounds_name)
-        cur = con.cursor()
-        # def save_to_disk(compounds_data, smiles_data, ):
-        #     cur.executemany('INSERT INTO compounds VALUES (?,?,?)', compounds_data)
-        #     cur.executemany('INSERT INTO smiles VALUES (?,?)', smiles_data)
-        #     con.commit()
-
         total_count = 0
         for fut in as_completed(futures_b):
             for res in fut.result():
@@ -170,9 +150,10 @@ def process_cxsmi_file( fname,  outdir):
     total_time = time.time() - starting_time
     print( "Total time for %s ( %d smi): %s"%(fname, total_count, str(datetime.timedelta(seconds=total_time)) ))
 
-def process_all_files(indir, outdir):
+def process_all_files(inpath, outdir):
 
     compounds_name = os.path.join( outdir, "compounds.sqlite")
+    assert  not os.path.exists(compounds_name), "Error, sqlite file %s already existing"%compounds_name
     con = sqlite3.connect( compounds_name)
     cur = con.cursor()
 
@@ -186,7 +167,11 @@ def process_all_files(indir, outdir):
                    (compoundId VARCHAR(20) PRIMARY KEY, smi TEXT)''')
     con.commit()
 
-    Parallel(n_jobs=1)(delayed(process_cxsmi_file)(os.path.join(indir, fname), outdir) for fname in os.listdir(indir)  if not fname.startswith("_") )
+    if os.path.isdir(inpath):
+        fnames = map( lambda x: os.path.join(inpath, x), os.listdir(inpath))
+    else:
+        fnames = [inpath]
+    Parallel(n_jobs=1)(delayed(process_cxsmi_file)(fname, outdir)  for fname in fnames )
 
 
 
