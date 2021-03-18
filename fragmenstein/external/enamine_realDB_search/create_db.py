@@ -16,11 +16,9 @@ from fragmenstein.external.enamine_realDB_search.common import computeFingerprin
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
-PRINT_FREQ= int(1e4)
 
-BATCH_SIZE_TO_DUMP= int(1e5)
 
-N_LINES_PER_CHUNK = int(1e5) # int(1e6)
+N_LINES_PER_CHUNK = int(5e5) # int(1e6)
 
 SPOOLING_TIME = 5
 
