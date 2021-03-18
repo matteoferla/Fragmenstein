@@ -34,7 +34,7 @@ def chunk_fname(fname,  chunked_dir):
         if ConfigManager.N_CPUS > 1:
             decompression += "-n% d "%ConfigManager.N_CPUS
 
-    cmd = "tail -n +2  "+fname+decompression+" | split -l "+str(N_LINES_PER_CHUNK)+" - "+ chunk_prefix # +"--filter='lbzip2 > $FILE.csv.gz' "
+    cmd = "cat "+fname+ decompression+" | tail -n +2  | split -l "+str(N_LINES_PER_CHUNK)+" - "+ chunk_prefix # +"--filter='lbzip2 > $FILE.csv.gz' "
     # input( cmd)
     proc = subprocess.Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None,
                                   close_fds=True)
