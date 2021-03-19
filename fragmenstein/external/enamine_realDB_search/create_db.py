@@ -3,6 +3,8 @@ import os
 import sqlite3
 import subprocess
 import tempfile
+import numpy as np
+import pandas as pd
 import threading
 import time
 from queue import Queue
@@ -20,10 +22,9 @@ from fragmenstein.utils.parallel_utils import get_parallel_client
 
 N_LINES_PER_CHUNK = int(5e5) # int(1e6)
 
-SPOOLING_TIME = 5
 
 
-def chunk_fname(fname,  chunked_dir, n_lines_per_chunk=N_LINES_PER_CHUNK, spooling_time=SPOOLING_TIME):
+def chunk_fname(fname,  chunked_dir, n_lines_per_chunk=N_LINES_PER_CHUNK):
 
     fname_base = os.path.basename(fname).split(".")[0]
     chunk_prefix = os.path.join(chunked_dir, fname_base)
@@ -38,49 +39,56 @@ def chunk_fname(fname,  chunked_dir, n_lines_per_chunk=N_LINES_PER_CHUNK, spooli
     # input( cmd)
     proc = subprocess.Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None,
                                   close_fds=True)
-    keep_spooling = True
-    available_paths = Queue()
-    already_seen_names = set([])
 
-    def find_unseen_names():
-        all_fnames = filter(os.path.isfile, (os.path.join(chunked_dir, name) for name in os.listdir(chunked_dir)))
-        # remove already seen
-        all_fnames = set(all_fnames) - already_seen_names
-        unseen_names = sorted(all_fnames, key=os.path.getmtime)
-        return unseen_names
+    proc.wait() #todo, check returncode
 
-    def spool():
-        while keep_spooling:
-            paths = find_unseen_names()
-            if len(paths)>1:
-                for path in paths[:-1]:
-                    available_paths.put( path )
-                    already_seen_names.add( path )
-            time.sleep(SPOOLING_TIME)
+    return list(filter(os.path.isfile, (os.path.join(chunked_dir, name) for name in os.listdir(chunked_dir)) ) )
 
-    t1 = threading.Thread(target=spool, daemon=True)
-    t1.start()
+    #SPOOLING DOES NOT MAKE SENSE IF USING dask bag, as it converts iterable to list
+    #SPOOLING_TIME =5
+    # keep_spooling = True
+    # available_paths = Queue()
+    # already_seen_names = set([])
+    #
+    # def find_unseen_names():
+    #     all_fnames = filter(os.path.isfile, (os.path.join(chunked_dir, name) for name in os.listdir(chunked_dir)))
+    #     # remove already seen
+    #     all_fnames = set(all_fnames) - already_seen_names
+    #     unseen_names = sorted(all_fnames, key=os.path.getmtime)
+    #     return unseen_names
+    #
+    # def spool():
+    #     while keep_spooling:
+    #         paths = find_unseen_names()
+    #         if len(paths)>1:
+    #             for path in paths[:-1]:
+    #                 available_paths.put( path )
+    #                 already_seen_names.add( path )
+    #         time.sleep(SPOOLING_TIME)
+    #
+    # t1 = threading.Thread(target=spool, daemon=True)
+    # t1.start()
+    #
+    #
+    # while proc.poll() is None: #while still compressing
+    #     while not available_paths.empty():
+    #         fname = available_paths.get()
+    #         yield fname
+    #     time.sleep(SPOOLING_TIME+1)
+    # else: #afther while loop, will the the thread
+    #     keep_spooling = False
+    #
+    # t1.join()
+    #
+    # while not available_paths.empty():
+    #     fname = available_paths.get()
+    #     yield fname
+    #
+    # for fname in find_unseen_names():
+    #     yield fname
 
 
-    while proc.poll() is None: #while still compressing
-        while not available_paths.empty():
-            fname = available_paths.get()
-            yield fname
-        time.sleep(SPOOLING_TIME+1)
-    else: #afther while loop, will the the thread
-        keep_spooling = False
-
-    t1.join()
-
-    while not available_paths.empty():
-        fname = available_paths.get()
-        yield fname
-
-    for fname in find_unseen_names():
-        yield fname
-
-
-def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chunk=N_LINES_PER_CHUNK, spooling_time=SPOOLING_TIME):
+def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chunk=N_LINES_PER_CHUNK):
 
     starting_time = time.time()
 
@@ -88,12 +96,7 @@ def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chun
     with tempfile.TemporaryDirectory() as tmpdir:
         print(tmpdir)
 
-        chunked_names = chunk_fname(fname, tmpdir, n_lines_per_chunk=n_lines_per_chunk, spooling_time=spooling_time)
-
-        # compounds_name = os.path.join( outdir, "compounds.sqlite")
-        # binaries_dir = os.path.join( outdir, "fingerprints")
-        # if not os.path.exists( binaries_dir ):
-        #     os.mkdir( binaries_dir )
+        chunked_names = chunk_fname(fname, tmpdir, n_lines_per_chunk=n_lines_per_chunk)
 
         def process_one_chunkedFile(chunked_fname):
 
@@ -109,16 +112,24 @@ def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chun
             binary_name = os.path.join(binaries_dir, chunked_basename+".fingerprints.BitVect")
 
             data = data.compute()
+
+            ids = []
+            smis = []
+            n_fingerprints =0
             with open(binary_name, "wb") as bin_f:
-                for smi in data[0]:
+                for row in data.itertuples():
+                    __, smi, cid = row[:3]
                     fp = computeFingerprint_np_Str(smi)
                     if fp is not None:
                         bin_f.write(fp)
-            id_table=  data[[1]]
-            id_table.columns = ["compoundId"]
-            id_table["fileSource"] = chunked_basename
-            id_table["rowNum"] = id_table.index
-            smis_table = data[[1,0]]
+                        smis.append( smi)
+                        ids.append(cid )
+                        n_fingerprints+=1
+
+            id_table=  pd.DataFrame( (cid, chunked_basename, i) for i,cid in enumerate(ids) )
+            id_table.columns = ["compoundId", "fileSource", "rowNum"]
+
+            smis_table = pd.DataFrame(zip(ids, smis))
             smis_table.columns = ["compoundId", "smi" ]
 
             print("%s fingenprints computed (%s s)" % (chunked_basename, time.time() - t), flush=True)
@@ -134,6 +145,7 @@ def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chun
         for fut in as_completed(futures_b):
             for res in fut.result():
                 (chunked_basename, compounds_df, smiles_df) = res
+                print( compounds_df.query("rowNum==0"))
                 compounds_df.to_sql("compounds", con, index=False, if_exists="append")
                 smiles_df.to_sql("smiles", con, index=False, if_exists="append")
                 con.commit()
@@ -145,16 +157,20 @@ def process_cxsmi_file( fname, compunds_db_fname, binaries_dir, n_lines_per_chun
     total_time = time.time() - starting_time
     print( "Total time for %s ( %d smi): %s"%(fname, total_count, str(datetime.timedelta(seconds=total_time)) ))
 
-def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK, spooling_time=SPOOLING_TIME, work_in_memory=False, *args, **kwargs):
+def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK, work_in_memory=False, *args, **kwargs):
 
     actual_compunds_db_fname = os.path.join( outdir, "compounds.sqlite")
     assert  not os.path.exists(actual_compunds_db_fname), "Error, sqlite file %s already existing"%actual_compunds_db_fname
+
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
 
     with tempfile.TemporaryDirectory(dir="/dev/shm", suffix="_"+str(abs(hash(cxsmiles_dir)%2048))) as tmp:
         if work_in_memory:
             compunds_db_fname = os.path.join(tmp, os.path.basename(actual_compunds_db_fname) )
         else:
             compunds_db_fname = actual_compunds_db_fname
+
 
         con = sqlite3.connect( compunds_db_fname)
 
@@ -181,7 +197,7 @@ def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK,
             os.mkdir( binaries_dir )
 
         Parallel(n_jobs=1)(delayed(process_cxsmi_file)(fname,compunds_db_fname, binaries_dir,
-                                                       n_lines_per_chunk, spooling_time)  for fname in fnames)
+                                                       n_lines_per_chunk)  for fname in fnames)
 
 
         if work_in_memory:
@@ -219,20 +235,18 @@ def main():
     parser.add_argument('-f', '--fingerprint', nargs=None, choices=["Morgan"], default="Morgan", required=False,
                         help="fingerprint to use")
 
-    parser.add_argument('-m', '--work_in_memory', action="store_true", default=False,
+    parser.add_argument( '--work_in_memory', action="store_true", default=False,
                         help="if work in memory, database will be created in memory and dumped to file after completion")
 
     parser.add_argument('-n', '--n_lines_to_chunk', type=int, default=N_LINES_PER_CHUNK,
                         help="Number of lines to chunkenize input files for parallel processing. Default: %(default)s")
 
-    parser.add_argument('-t', '--spooling_time', type=int, default=SPOOLING_TIME,
-                        help="Seconds to wait for file sppoling during decompression. Make it bigger for slow file systems. Default: %(default)s")
 
     # parser.add_argument('-v', '--verbose', action="store_true", default=False,
     #                     help="Print to stdout working information ")
 
     args = parser.parse_args()
-
+    print(args)
     dask_client = get_parallel_client()
     process_all_files(**vars(args))
     dask_client.shutdown()
@@ -249,6 +263,9 @@ if __name__ == "__main__":
 
     '''
 
-N_CPUS=4 python -m fragmenstein.external.enamine_realDB_search.create_db /home/ruben/oxford/enamine/cxsmiles /home/ruben/oxford/enamine/fingerprints
+N_CPUS=4 python -m fragmenstein.external.enamine_realDB_search.create_db -i /home/ruben/oxford/enamine/cxsmiles -o /home/ruben/oxford/enamine/fingerprints
+
+python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH DASK_WORKER_MEMORY=4GB N_CPUS=42 --ncpus 42 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.external.enamine_realDB_search.create_db  --work_in_memory -i /data/xchem-fragalysis/sanchezg/oxford/enamine/full_cxsmiles/full_cxsmiles/Enamine_REAL_HAC_21_22_CXSMILES.cxsmiles.bz2 -o /data/xchem-fragalysis/sanchezg/oxford/enamine/fingerprints_db/Enamine_REAL_HAC_21_22_CXSMILES"
+
 
     '''

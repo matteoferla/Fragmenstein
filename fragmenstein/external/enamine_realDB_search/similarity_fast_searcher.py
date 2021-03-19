@@ -9,22 +9,71 @@ from collections import OrderedDict
 
 import dask.bag as db
 import numpy as np
-from rdkit import DataStructs
-from rdkit.DataStructs import cDataStructs
 
-from fragmenstein.external.enamine_realDB_search.common import FINGERPRINT_NBITS, get_fingerPrint_as_npBool, \
+from fragmenstein.external.enamine_realDB_search.common import get_fingerPrint_as_npBool, \
     decompressFingerprint_npStr
 from fragmenstein.utils.cmd_parser import ArgumentParser
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
 
+
+def jaccard_vectorized(x,y):
+  intersections_count= x.astype(np.float32) @ y.T
+  counts_x = np.sum(x, axis=-1)
+  counts_y = np.sum(y, axis=-1)
+  sums = counts_x.reshape(-1,1)+counts_y.reshape(-1,1).T
+  union = sums - intersections_count
+  return intersections_count / union
+
+
 # @numba.jit( "float64( Array(b1, 1, 'C', readonly=True), b1[:])", nopython=True, cache=True)
+@numba.jit( nopython=True, cache=True)
 def compute_2FingerPrints_similarity(query_fp, db_fp):
 
     n11 = np.sum((query_fp == 1) & (db_fp == 1))
     n00 = np.sum((query_fp == 0) & (db_fp == 0))
     jac = n11 / (query_fp.shape[0] - n00)
     return jac
+
+
+numba_decompressFingerprint_npStr = numba.jit(decompressFingerprint_npStr, nopython=True, cache=True)
+
+@numba.jit( nopython=True, cache=True, )
+def compute_FingerPrints_similarity_from_bytes(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi):
+
+    n_query_fps = query_fp_matrix.shape[0]
+    fp_bipts = query_fp_matrix.shape[1]
+    matched_similarities = np.ones((n_query_fps, n_hits_per_smi)) * -1  # query_id, hit_num, similarity
+    matched_ids = np.ones((n_query_fps, n_hits_per_smi, 2),
+                          dtype=np.int64) * -1  # query_id, hit_num, [ file_id, hit_id]
+
+
+    n_byes_in_db_fps = len(db_many_fps_bool)
+    assert n_byes_in_db_fps >= fp_bipts, "Error, fingerprints_byte string does not contain fingerprints"
+    assert n_byes_in_db_fps % fp_bipts ==0, "Error, somo corruption found in db_many_fps_bool"
+    n_mols = n_byes_in_db_fps//fp_bipts
+
+    n_mol_processed =0
+
+    print_step = 10**int(np.ceil(np.log10((int(1e5) //n_query_fps))))
+    for j in range(0, n_byes_in_db_fps, fp_bipts):
+        bin_finPrint = db_many_fps_bool[j:j + fp_bipts]
+        n_mol_processed += 1
+        if n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in bloc",file_num,"of size", n_mols)
+        for i, query_fp in enumerate(query_fp_matrix):
+            # print(numba.typeof(query_fp))
+            # print(numba.typeof(finPrint))
+            simil = compute_2FingerPrints_similarity(query_fp, bin_finPrint)
+            # print(compute_2FingerPrints_similarity.signatures)
+            # print(np.sum(query_fp), np.sum(finPrint), simil)
+            less_similar_idx = np.argmin(matched_similarities[i, :])
+
+            if simil > matched_similarities[i, less_similar_idx]:
+                matched_similarities[i, less_similar_idx] = simil
+                matched_ids[i, less_similar_idx, :] = [file_num, j//fp_bipts]
+
+    return matched_similarities, matched_ids
+
 
 def combine_search_jsons(path_to_jsons):
 
@@ -72,36 +121,35 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     query_smi_list = list(query_smi_list)
     query_fps = list(query_fps)
 
-    chunk_bytes = FINGERPRINT_NBITS // 8
+    query_fps = np.stack(query_fps, axis=0) # N_queriesxfingerprint_n_bits type boolean (wasting 7/8 memory but faster)
 
     def process_one_subFile(fileNum_chunkFname):
 
         file_num, chunk_fname = fileNum_chunkFname
 
-        matched_similarities = np.ones((len(query_fps), n_hits_per_smi)) * -1  # query_id, hit_num, similarity
-        matched_ids = np.ones((len(query_fps), n_hits_per_smi, 2),
-                              dtype=np.int64) * -1  # query_id, hit_num, [ file_id, hit_id]
+        with open(chunk_fname, "rb") as f:
+            db_many_fps_bool = decompressFingerprint_npStr (f.read() )
 
-        with open(chunk_fname, "rb") as f: #TODO: read the whole file and process it within numba
-            bin_finPrint = f.read(chunk_bytes)
-            chunk_number = 0
-            while bin_finPrint:
-                # process
-                finPrint = decompressFingerprint_npStr(bin_finPrint)
-                for i, query_fp in enumerate(query_fps):
-                    # print(numba.typeof(query_fp))
-                    # print(numba.typeof(finPrint))
-                    simil = compute_2FingerPrints_similarity(query_fp, finPrint)
-                    # print(compute_2FingerPrints_similarity.signatures)
-                    # print(np.sum(query_fp), np.sum(finPrint), simil)
-                    less_similar_idx = np.argsort(matched_similarities[i, :])[0]
-                    if simil > matched_similarities[i, less_similar_idx]:
-                        matched_similarities[i, less_similar_idx] = simil
-                        matched_ids[i, less_similar_idx, :] = [file_num, chunk_number]
+        matched_similarities, matched_ids = compute_FingerPrints_similarity_from_bytes(query_fps, db_many_fps_bool, file_num, n_hits_per_smi)
 
-                chunk_number += 1
-                bin_finPrint = f.read(chunk_bytes)
+        return  matched_similarities, matched_ids
 
+    #TODO: this is buuuugy
+    def _process_one_subFile(fileNum_chunkFname): #this is slower than numba for small number of queries
+
+        file_num, chunk_fname = fileNum_chunkFname
+
+        with open(chunk_fname, "rb") as f:
+            db_many_fps_bool = decompressFingerprint_npStr (f.read() )
+
+        sim_matrix = jaccard_vectorized(query_fps, np.frombuffer(db_many_fps_bool, dtype=np.bool).reshape(-1, query_fps.shape[1]) )
+        max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
+        matched_similarities = np.ones( (len(query_fps), n_hits_per_smi) ) * -1
+        matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
+        matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
+        matched_ids[...,0] *= -file_num
+        matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
+        # print(matched_similarities)
         return  matched_similarities, matched_ids
 
     def combine_two_chunk_searchs(cs1, cs2):
@@ -118,6 +166,11 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
         out_simil[biggerSim_second_mask] = cs2[0][biggerSim_second_mask]
         out_ids[biggerSim_second_mask] = cs2[1][biggerSim_second_mask]
 
+        # print("------------------------------")
+        # print(cs1, cs2)
+        # print( out_simil, out_ids)
+        # print("+++++++++++++++++++++++++++++++++")
+
         return out_simil, out_ids
 
     matched_similarities= np.ones( (len(query_fps), n_hits_per_smi) ) * -1              #query_id, hit_num, similarity
@@ -131,9 +184,8 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     bag = db.from_sequence( enumerate(filenames)).map(process_one_subFile).fold(combine_two_chunk_searchs, initial=(matched_similarities, matched_ids))
     matched_similarities, matched_ids = bag.compute()
 
-    # print( matched_similarities )
-    # print( matched_ids )
-
+    print( matched_similarities )
+    print( matched_ids )
 
     compounds_name = os.path.join(database_dir, "compounds.sqlite")
 
@@ -154,12 +206,16 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
         # print( matches_db_entries_compound )
         if len(matches_db_entries_compound) > 0:
             resultsDict[query_smi] = []
-            for sim, match_entry in zip(matches_sim_compound, matches_db_entries_compound):
+            found_in_db=0
+            for sim, match_entry in sorted(zip(matches_sim_compound, matches_db_entries_compound), key= lambda x: -x[0]):
+                # print( match_entry )
                 for row in cur.execute("SELECT compoundId, smi FROM smiles NATURAL JOIN ("
                                        " SELECT compoundId FROM compounds WHERE rowNum=? AND fileSource=?)", match_entry):
                     resultsDict[query_smi].append((sim, row[0], row[1]))
                     if verbose: print("%.4f\t%s\t%s" % (sim, row[0], row[1]))
                     n_found +=1
+                    found_in_db+=1
+            assert  found_in_db == len(matches_db_entries_compound), "Error in database!!"
         else:
             if verbose: print("No matching compounds were found")
 
@@ -225,5 +281,8 @@ if __name__ == "__main__":
 
     '''
 echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -
+
+tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -v -
+
 
     '''
