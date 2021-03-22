@@ -66,13 +66,16 @@ class HitsPreprocess_fragmentationBase(HitsPreprocess_base) :
 
                     bit = change_atom_type(bit, initial_symbol=HitsPreprocess_fragmentationBase.TEMPORAL_DUMMY_ATOM, final_symbol='*')
 
-                    Chem.SanitizeMol(bit)
-
+                    try:
+                        Chem.SanitizeMol(bit)
+                    except Chem.rdchem.KekulizeException:
+                        continue
                     bit = Compound(bit)
                     bit.molId = bitId
                     bit.parents = [_mol]
                     bitId_to_molId[bitId] = mol_id
                     molId_to_bitLists_dict[mol_id][-1].append( bit )
+
         return molId_to_bitLists_dict, bitId_to_molId
 
 
