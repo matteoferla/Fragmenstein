@@ -60,7 +60,7 @@ parser.add_argument("--logdirs", type=str, required=False, default=DEFAULT_LOGS_
 parser.add_argument("--tmpdir", type=str, required=False, default=DEFAULT_SUBMITS_DIR, help="Logs directory. Default %(default)s")
 
 parser.add_argument("--env_vars", type=str, nargs="+", required=False, default=[], help="enviramental variables")
-parser.add_argument("--conda_activate", type=str, required=False, default=None, help="the name of the environment to activate")
+parser.add_argument("--conda_activate", type=str, required=False, default="", help="the name of the environment to activate")
 
 parser.add_argument("--print", action="store_true", help="print files instead submitting")
 

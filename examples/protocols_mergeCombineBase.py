@@ -241,8 +241,11 @@ class Protocol_mergeCombineBase(ABC):
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
              tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir: #TODO: tmp_outdir should not be temporary if working_dir provided
             new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
-            print("Copying data to working directories (%s, %s)..."%(new_in_dir, tmp_outdir), end=" ", flush=True)
+            # print("Copying data to working directories (%s, %s)..."%(new_in_dir, tmp_outdir), end=" ", flush=True)
+            if not os.path.exists(new_in_dir):
+                os.mkdir(new_in_dir)
             dirsync.sync(in_dir, new_in_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
+            # shutil.copytree(in_dir, new_in_dir)
             kwargs["data_root_dir"] = new_in_dir
 
 
