@@ -105,6 +105,7 @@ class InteractionBasedScorer(_ScorerBase):
             all_fragments_interactions = set([])
             for frag_id in frag_ids:
                 frag_inter_residues = self.fragInteractions_dict.get(frag_id, None)
+                # print(frag_id, frag_inter_residues)
                 if frag_inter_residues is None or len(
                     frag_inter_residues) < InteractionBasedScorer.MIN_NUM_CONTACTS_FOR_POSITIVE_FRAGMENT:
                     continue
@@ -131,7 +132,10 @@ class InteractionBasedScorer(_ScorerBase):
             selected_fragments = [(f_id, score) for f_id, score in zip(selected_frag_ids, per_fragment_score)
                                   if score > self.fragment_match_threshold]
 
-            gobal_score = (1 + len(already_shared_interactions)) / (1 + float(len(all_fragments_interactions)))
+            if len(all_fragments_interactions) == 0:
+                gobal_score = np.nan
+            else:
+                gobal_score =  len(already_shared_interactions) / float(len(all_fragments_interactions))
             if len(selected_fragments) > 0:
                 fragments, per_fragment_score = zip(*selected_fragments)
                 score_interPreservPerFrag = np.median(per_fragment_score)
@@ -139,7 +143,7 @@ class InteractionBasedScorer(_ScorerBase):
                 score_interPreservPerFrag = 0
                 fragments = []
         except KeyError:
-            journal.warning("Warning, not pdb file found for the mol_id: %s"%mol_id)
+            journal.warning("Warning, no pdb file found for the mol_id: %s"%mol_id)
             score_interPreservPerFrag= np.nan
             gobal_score = np.nan
             fragments = []

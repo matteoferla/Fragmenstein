@@ -54,7 +54,7 @@ def apply_func_to_files( folder, file_pattern, function, use_parallel_dask=None,
 
         if use_parallel_dask:
             function = dask.delayed(function)
-        for root, dirs, fnames in os.walk(folder):
+        for root, dirs, fnames in os.walk(folder, followlinks=True):
             for fname in fnames:
                 match_obj = re.match(file_pattern, fname)
                 if match_obj:

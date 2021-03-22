@@ -38,11 +38,11 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
         min_val = np.min(dist_mat)
         max_val = np.max(dist_mat)
 
-        return min_val >= min_dist_thr and max_val <= max_dist_thr
+        return min_dist_thr < min_val < max_dist_thr and max_val <= 2*max_dist_thr
 
     def preprocess_fragments(self) -> Tuple[Tuple[List[Compound], Dict[str, str]]]:
 
-
+        min_dist_thr_abort_deLinker = 5
         if self.preprocess_mode:
             print("preprocessing fragments")
             if self.preprocess_mode=="BRICS_decomposition":
@@ -53,7 +53,13 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
             else:
                 raise ValueError("Error, not implemented option preprocess_mode=%s"%self.preprocess_mode)
         else:
-            return None
+            class DummyFragmentator():
+                def __init__(self, fragments):
+                    self.broken_fragments = { comp.molId: [[comp]] for comp in fragments}
+                    self.bitId_to_molId = {  comp.molId: comp.molId for comp in fragments }
+
+            min_dist_thr_abort_deLinker = 3
+            fragmentator = DummyFragmentator(self.fragments)
 
         dict_of_frags = fragmentator.broken_fragments
 
@@ -78,7 +84,7 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
                             if pair_hash in seen_smis:
                                 continue
                             seen_smis.add(pair_hash)
-                            if self._check_compability(bit1, bit2, min_dist_thr=5):
+                            if self._check_compability(bit1, bit2, min_dist_thr=min_dist_thr_abort_deLinker):
                                 yield ( bit1, bit2 )
 
         # print( [ [Chem.MolToSmiles(mol) for mol in comb]  for comb in fragsCombin_iter() ] )

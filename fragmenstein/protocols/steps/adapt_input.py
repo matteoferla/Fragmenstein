@@ -7,6 +7,7 @@ class InputAdapter():
 
     @classmethod
     def adapt_dict_or_compoundsList(cls, input_data ):
+        assert  len(input_data) > 0 ,"Error, novalid input data provided"
         if isinstance(input_data, (tuple, list)) and isinstance(input_data[0], Compound):
             return OrderedDict([ (x.molId, x) for x in input_data])
         elif isinstance(input_data, dict):

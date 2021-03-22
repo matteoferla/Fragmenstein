@@ -27,7 +27,6 @@ def jaccard_vectorized(x,y):
   return intersections_count / union
 
 
-# @numba.jit( "float64( Array(b1, 1, 'C', readonly=True), b1[:])", nopython=True, cache=True)
 @numba.jit( nopython=True, cache=True)
 def compute_2FingerPrints_similarity(query_fp, db_fp):
 
@@ -36,10 +35,9 @@ def compute_2FingerPrints_similarity(query_fp, db_fp):
     jac = n11 / (query_fp.shape[0] - n00)
     return jac
 
-
 numba_decompressFingerprint_npStr = numba.jit(decompressFingerprint_npStr, nopython=True, cache=True)
 
-@numba.jit( nopython=True, cache=True, parallel=False)# parallel=False  is faster. Why???
+@numba.jit( nopython=True, cache=True)
 def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi):
 
     n_query_fps = query_fp_matrix.shape[0]
@@ -80,6 +78,52 @@ def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_b
 
     return matched_similarities, matched_ids
 
+
+def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi):
+
+    file_num, chunk_fname = fileNum_chunkFname
+    with open(chunk_fname, "rb") as f:
+        db_many_fps_bool = decompressFingerprint_npStr (f.read() )
+
+    matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps_mat, db_many_fps_bool, file_num, n_hits_per_smi)
+
+    return  matched_similarities, matched_ids
+
+
+def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+
+    #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
+    #TODO: estimante memory requirements and process chunk by chunk
+
+    file_num, chunk_fname = fileNum_chunkFname
+
+    with open(chunk_fname, "rb") as f:
+        db_many_fps_bool = decompressFingerprint_npStr (f.read() )
+
+    sim_matrix = jaccard_vectorized(query_fps_mat, np.frombuffer(db_many_fps_bool, dtype=np.bool).reshape(-1, query_fps_mat.shape[1]))
+    max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
+    matched_similarities = np.ones((len(query_fps_mat), n_hits_per_smi)) * -1
+    matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
+    matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
+    matched_ids[...,0] *= -file_num
+    matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
+    return  matched_similarities, matched_ids
+
+
+def combine_two_chunk_searchs(cs1, cs2):
+    '''
+
+    :param cs1: tuple( similarities, ids)
+    :param cs2: same as cs1
+    :return:
+    '''
+
+    out_simil, out_ids = cs1[0].copy(), cs1[1].copy()
+    biggerSim_second_mask = cs1[0] < cs2[0]
+
+    out_simil[biggerSim_second_mask] = cs2[0][biggerSim_second_mask]
+    out_ids[biggerSim_second_mask] = cs2[1][biggerSim_second_mask]
+    return out_simil, out_ids
 
 def combine_search_jsons(path_to_jsons):
 
@@ -128,54 +172,16 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     query_fps = list(query_fps)
 
     query_fps = np.stack(query_fps, axis=0) # N_queriesxfingerprint_n_bits type boolean (wasting 7/8 memory but faster)
-    def process_one_subFile(fileNum_chunkFname): #very fast for small number of queries
 
-        file_num, chunk_fname = fileNum_chunkFname
 
-        with open(chunk_fname, "rb") as f:
-            db_many_fps_bool = decompressFingerprint_npStr (f.read() )
-
-        matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps, db_many_fps_bool, file_num, n_hits_per_smi)
-
-        return  matched_similarities, matched_ids
-
-    def _process_one_subFile(fileNum_chunkFname): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
-
-        #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
-        #TODO: estimante memory requirements and process chunk by chunk
-
-        file_num, chunk_fname = fileNum_chunkFname
-
-        with open(chunk_fname, "rb") as f:
-            db_many_fps_bool = decompressFingerprint_npStr (f.read() )
-
-        sim_matrix = jaccard_vectorized(query_fps, np.frombuffer(db_many_fps_bool, dtype=np.bool).reshape(-1, query_fps.shape[1]) )
-        max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
-        matched_similarities = np.ones( (len(query_fps), n_hits_per_smi) ) * -1
-        matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
-        matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
-        matched_ids[...,0] *= -file_num
-        matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
-        # print(matched_similarities)
-        return  matched_similarities, matched_ids
-
-    def combine_two_chunk_searchs(cs1, cs2):
-        '''
-
-        :param cs1: tuple( similarities, ids)
-        :param cs2: same as cs1
-        :return:
-        '''
-
-        out_simil, out_ids = cs1[0].copy(), cs1[1].copy()
-        biggerSim_second_mask = cs1[0] < cs2[0]
-
-        out_simil[biggerSim_second_mask] = cs2[0][biggerSim_second_mask]
-        out_ids[biggerSim_second_mask] = cs2[1][biggerSim_second_mask]
-        return out_simil, out_ids
 
     matched_similarities= np.ones( (len(query_fps), n_hits_per_smi) ) * -1              #query_id, hit_num, similarity
     matched_ids = np.ones( (len(query_fps), n_hits_per_smi, 2), dtype= np.int64 ) * -1  #query_id, hit_num, [ file_id, hit_id]
+
+    if query_fps.shape[0] > 5:
+        process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
+    else:
+        process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi) #faster for small number of query mols
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))

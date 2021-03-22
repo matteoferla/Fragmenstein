@@ -103,7 +103,6 @@ class CombineMerge_Base(ABC, InputAdapter):
 
     def guessTemplate(self, fragment_ids):
         if self.template is None:  # If no global template, take the first fragment pdb as template
-
             template_fnames = apply_func_to_files(self.templates_dir, self.template_pattern, lambda x: x,
                                                   ids_to_check=fragment_ids)
             assert len(template_fnames)>0, "Error, template not found for fragment ids: %s"%str(fragment_ids)

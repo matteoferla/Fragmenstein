@@ -28,7 +28,6 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
 
         if self.permutations_size:
             assert self.permutations_size >1 and self.permutations_size <= len(self.hit_ids), "Error, the permutations size should be between 2 and num_hits"
-
             proprocesser = HitsPreprocess_permutations(fragments, random_seed=self.random_seed)
             fragsCombin_iter = proprocesser.yield_combinations(max_num_elems=self.permutations_size, take_n_random=self.max_attemps,
                                                                combinations_instead_permutations = False)

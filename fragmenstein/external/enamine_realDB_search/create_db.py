@@ -14,7 +14,7 @@ import dask.dataframe as dd
 from dask.distributed import futures_of, as_completed
 from joblib import Parallel, delayed
 
-from fragmenstein.external.enamine_realDB_search.common import  computeFingerprint_np_Str
+from fragmenstein.external.enamine_realDB_search.common import  computeFingerprint_np_Str, FINGERPRINT_NBITS
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
@@ -184,6 +184,11 @@ def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK,
 
         cur.execute('''CREATE TABLE smiles
                        (compoundId VARCHAR(20) PRIMARY KEY, smi TEXT)''')
+
+        cur.execute('''CREATE TABLE information
+                       (fingerprintType VARCHAR(50), fingerprintLength INTEGER, numberMoleculesPerBinFile )''')
+
+        cur.execute('INSERT INTO information values (?,?, ?)', ("Morgan", FINGERPRINT_NBITS, N_LINES_PER_CHUNK))
         con.commit()
 
 
@@ -210,18 +215,8 @@ def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK,
 
         con.close()
 
-# def main():
-#     import sys
-#     cxsmiles_dir = sys.argv[1]
-#     fp_outdir = sys.argv[2]
-#
-#     dask_client = get_parallel_client()
-#     process_all_files(cxsmiles_dir, fp_outdir)
-#     dask_client.shutdown()
-
 
 def main():
-    import sys
     from fragmenstein.utils.cmd_parser import ArgumentParser
     parser = ArgumentParser(prog="compile_similarity_search_db", description="Compiles a database for similarity search on cxsmiles files coming from enamine")
 
