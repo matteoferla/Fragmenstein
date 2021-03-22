@@ -197,6 +197,9 @@ class Compound(Chem.Mol):
 
     @unminimized_mol_pdbblock.setter
     def unminimized_mol_pdbblock(self, pdbblock):
+        if pdbblock is None:
+            journal.warning("Warning. pdbblock is None when setting  for %s"%self)
+            return
         self.SetProp("unminimized_mol_pdbblock", pdbblock )
 
 
