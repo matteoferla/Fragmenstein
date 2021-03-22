@@ -402,8 +402,11 @@ class DeLinkerWrapper():
         if not n_attempts:
             n_attempts = self.n_atomPairs_attemps
 
-        frag_1_mol = self._load_andOr_prepare_mol(fnameOrMol_1)
-        frag_2_mol = self._load_andOr_prepare_mol(fnameOrMol_2)
+        try:
+            frag_1_mol = self._load_andOr_prepare_mol(fnameOrMol_1)
+            frag_2_mol = self._load_andOr_prepare_mol(fnameOrMol_2)
+        except Chem.rdchem.KekulizeException:
+            return []
 
         linked_molecules = []
         for (atom_idx_1, atom_idx_2), distance in self._pick_closest_atoms(frag_1_mol, frag_2_mol):

@@ -17,7 +17,11 @@ from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, SCORE_NAME_TE
 
 
 sdf_fname= os.path.expanduser(sys.argv[1])
-sdf_filtered_fname = os.path.expanduser(sys.argv[2])
+
+sdf_filtered_fname = None
+
+if len( sys.argv) ==3:
+    sdf_filtered_fname = os.path.expanduser(sys.argv[2])
 
 with open(sdf_fname, "rb") as f:
 
@@ -39,7 +43,7 @@ props = df.columns
 for prop in props:
     if checkIfNameIsScore(prop):
        df[prop] = df[prop].astype(np.float32)
-       # print(prop); plt.hist( df[prop], label= prop ); plt.show()
+       # print(prop); plt.title(prop); plt.hist( df[prop], label= prop ); plt.show()
        # print(prop); plt.boxplot( df[prop] ); plt.show()
 
 print(df.columns)
@@ -65,10 +69,14 @@ print(df.columns)
 
 print(df.shape)
 
+
+df = df.query( " comRMSD_score < 1")
+print("mass", df.shape)
+
 df = df.query( " 100 < molMass_score < 500")
 print("mass", df.shape)
 
-df = df.query( " 0.1 < SA_score < 7 and 0.2 < SC_score < 3.5")
+df = df.query( " 0.1 < SA_score < 6 and 0.2 < SC_score < 3")
 print("Synthetic accesibility", df.shape)
 
 df = df.query( " -1 < aLogP_score < 4 ")
@@ -99,11 +107,11 @@ print("plip", df.shape)
 #     print( mol.GetPropsAsDict() )
 #     input(mol)
 
-input("enter")
+# df = df.sort_values(by="rotableBonds_score").iloc[:40]
 
-FragalysisFormater().write_molsList_to_sdf(sdf_filtered_fname,  df["mol"])
-# PandasTools.WriteSDF()
+if sdf_filtered_fname:
+    FragalysisFormater().write_molsList_to_sdf(sdf_filtered_fname,  df["mol"])
 
 '''
-python -m examples.analize
+python -m examples.analize in.sdf out.sdf
 '''

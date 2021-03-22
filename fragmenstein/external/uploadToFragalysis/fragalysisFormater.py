@@ -113,9 +113,9 @@ class FragalysisFormater():
                             f_out.write(line)
         assert  n_lines_detect_header>0, "Error, header was not found."
 
-    def __init__(self, ref_pdb_xchemId=None, metadata_header=None, drop_unknown_fields=True): #TOOD: Ref pdb could be many different. One per compound even
+    def __init__(self, ref_pdb_xchemId=None, metadata_header=None, drop_unknown_fields=True, addtitional_fields=[]): #TOOD: Ref pdb could be many different. One per compound even
 
-
+        #TODO: add option ref_pdbs_folder
         self.drop_unknown_fields = drop_unknown_fields
 
         if metadata_header is None:
@@ -126,6 +126,8 @@ class FragalysisFormater():
 
 
         self.ref_pdb_xchemId = ref_pdb_xchemId
+
+        self.optional_fileds = list(FragalysisFormater.OPTIONAL_FIELDS)+addtitional_fields
 
     def parse_metadata_config(self, fname_or_iterable):
 
@@ -188,7 +190,7 @@ class FragalysisFormater():
             # create dummy mol as file header
             w.write( self._get_header_mol(missing_properties) )
 
-            valid_props = set(list(FragalysisFormater.REQUIRED_FIELDS) + list(FragalysisFormater.OPTIONAL_FIELDS) + list(missing_properties_names))
+            valid_props = set(list(FragalysisFormater.REQUIRED_FIELDS) + self.optional_fileds + list(missing_properties_names))
 
 
             for mol in mol_list:
@@ -207,7 +209,6 @@ class FragalysisFormater():
                                      str( FragalysisFormater.REQUIRED_FIELDS))
 
                 fragments =  mol.GetProp("ref_mols")
-
                 if self.drop_unknown_fields:
                     allProps = mol.GetPropsAsDict()
                     for prop,val in allProps.items():

@@ -222,7 +222,6 @@ def process_all_files(cxsmiles_dir, outdir, n_lines_per_chunk=N_LINES_PER_CHUNK,
 
 def main():
     import sys
-    import argparse
     from fragmenstein.utils.cmd_parser import ArgumentParser
     parser = ArgumentParser(prog="compile_similarity_search_db", description="Compiles a database for similarity search on cxsmiles files coming from enamine")
 

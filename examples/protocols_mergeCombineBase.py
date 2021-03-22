@@ -64,7 +64,7 @@ class Protocol_mergeCombineBase(ABC):
 
     @property
     @abstractmethod
-    def hit_ids(self):
+    def hit_ids(self, values):
         raise NotImplementedError()
 
     @property
@@ -132,13 +132,15 @@ class Protocol_mergeCombineBase(ABC):
 
         proposed_mols = []
         already_available = set([])
-        for  mol in results:
-            smi = Chem.MolToSmiles(mol )
+
+        for  compound in results:
+            smi = Chem.MolToSmiles(compound )
             if smi in already_available: continue # Heuristic filter for uniqueness
             already_available.add(smi)
             #Get rid of bad stuff
-            mol = Compound.SanitizeMol(mol)
-            proposed_mols.append(mol)
+            compound = Compound.SanitizeMol(compound)
+            proposed_mols.append(compound)
+        assert  proposed_mols != [], "Error, no valid molecules for scoring were found"
 
         scorer = Score_CombinedDefault(fragments_dir=self.data_root_dir, to_score_dir=self.wdir_enumeration,
                                        selected_fragment_ids= self.ref_hits_for_scoring,
@@ -181,23 +183,24 @@ class Protocol_mergeCombineBase(ABC):
             mol_id = mol_id.rstrip("-").rstrip("_")
             return mol_id
 
-
+        #TODO: skip this part to zip the ref_pdbs
         def get_xchem_template_name(ref_pdb):
             ref_pdb = os.path.basename(ref_pdb)
             ref_pdb = re.match(Xchem_info.fragment_no_chain_pattern, ref_pdb).group(1)
             return ref_pdb
 
-        for mol in scored_mols:
-            mol.SetProp("original_name", mol.GetProp("_Name") )
-            mol.SetProp("_Name", get_simplified_mol_name( mol.molId))
-            mol.SetProp("ref_pdb", get_xchem_template_name(mol.ref_pdb))
+
+        for compound in scored_mols:
+            compound.SetProp("original_name", compound.GetProp("_Name") )
+            compound.SetProp("_Name", get_simplified_mol_name( compound.molId))
+            compound.SetProp("ref_pdb", get_xchem_template_name(compound.ref_pdb))
 
         if hasattr(self, "template_xchemId"):
             template_xchemId = self.template_xchemId
         else:
             template_xchemId = None
 
-        frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId) #TODO: store original name and original template
+        frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId, addtitional_fields=['unminimized_mol_pdbblock']) #TODO: store original name and original template
         frag_writer.write_molsList_to_sdf(self.sdf_outname, scored_mols) #, metadata_list)
         print("Results written to %s" % self.sdf_outname)
 
@@ -237,9 +240,9 @@ class Protocol_mergeCombineBase(ABC):
 
         with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp_indir, \
              tempfile.TemporaryDirectory(dir=wdir) as tmp_outdir: #TODO: tmp_outdir should not be temporary if working_dir provided
-            print("Copying data to working directories...", end=" ", flush=True)
             new_in_dir = os.path.join(tmp_indir, os.path.basename(in_dir))
-            shutil.copytree(in_dir, new_in_dir)
+            print("Copying data to working directories (%s, %s)..."%(new_in_dir, tmp_outdir), end=" ", flush=True)
+            dirsync.sync(in_dir, new_in_dir, 'sync', verbose=False, logger=logging.getLogger('dummy'))
             kwargs["data_root_dir"] = new_in_dir
 
 

@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import time
+#os.environ["NUMBA_NUM_THREADS"]=4
 import numba
 from numba.types import Array
 from collections import OrderedDict
@@ -38,8 +39,8 @@ def compute_2FingerPrints_similarity(query_fp, db_fp):
 
 numba_decompressFingerprint_npStr = numba.jit(decompressFingerprint_npStr, nopython=True, cache=True)
 
-@numba.jit( nopython=True, cache=True, )
-def compute_FingerPrints_similarity_from_bytes(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi):
+@numba.jit( nopython=True, cache=True, parallel=False)# parallel=False  is faster. Why???
+def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi):
 
     n_query_fps = query_fp_matrix.shape[0]
     fp_bipts = query_fp_matrix.shape[1]
@@ -59,8 +60,10 @@ def compute_FingerPrints_similarity_from_bytes(query_fp_matrix, db_many_fps_bool
     for j in range(0, n_byes_in_db_fps, fp_bipts):
         bin_finPrint = db_many_fps_bool[j:j + fp_bipts]
         n_mol_processed += 1
-        if n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in bloc",file_num,"of size", n_mols)
-        for i, query_fp in enumerate(query_fp_matrix):
+        if n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in block",file_num,"of size", n_mols)
+        # for i, query_fp in enumerate(query_fp_matrix):
+        for i in numba.prange(query_fp_matrix.shape[0]):
+            query_fp = query_fp_matrix[i]
             # print(numba.typeof(query_fp))
             # print(numba.typeof(finPrint))
             simil = compute_2FingerPrints_similarity(query_fp, bin_finPrint)
@@ -70,7 +73,10 @@ def compute_FingerPrints_similarity_from_bytes(query_fp_matrix, db_many_fps_bool
 
             if simil > matched_similarities[i, less_similar_idx]:
                 matched_similarities[i, less_similar_idx] = simil
-                matched_ids[i, less_similar_idx, :] = [file_num, j//fp_bipts]
+                # matched_ids[i, less_similar_idx, :] = [file_num, j//fp_bipts]
+                matched_ids[i, less_similar_idx, 0] = file_num
+                matched_ids[i, less_similar_idx, 1] = j//fp_bipts
+
 
     return matched_similarities, matched_ids
 
@@ -122,20 +128,21 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     query_fps = list(query_fps)
 
     query_fps = np.stack(query_fps, axis=0) # N_queriesxfingerprint_n_bits type boolean (wasting 7/8 memory but faster)
-
-    def process_one_subFile(fileNum_chunkFname):
+    def process_one_subFile(fileNum_chunkFname): #very fast for small number of queries
 
         file_num, chunk_fname = fileNum_chunkFname
 
         with open(chunk_fname, "rb") as f:
             db_many_fps_bool = decompressFingerprint_npStr (f.read() )
 
-        matched_similarities, matched_ids = compute_FingerPrints_similarity_from_bytes(query_fps, db_many_fps_bool, file_num, n_hits_per_smi)
+        matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps, db_many_fps_bool, file_num, n_hits_per_smi)
 
         return  matched_similarities, matched_ids
 
-    #TODO: this is buuuugy
-    def _process_one_subFile(fileNum_chunkFname): #this is slower than numba for small number of queries
+    def _process_one_subFile(fileNum_chunkFname): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+
+        #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
+        #TODO: estimante memory requirements and process chunk by chunk
 
         file_num, chunk_fname = fileNum_chunkFname
 
@@ -165,12 +172,6 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
 
         out_simil[biggerSim_second_mask] = cs2[0][biggerSim_second_mask]
         out_ids[biggerSim_second_mask] = cs2[1][biggerSim_second_mask]
-
-        # print("------------------------------")
-        # print(cs1, cs2)
-        # print( out_simil, out_ids)
-        # print("+++++++++++++++++++++++++++++++++")
-
         return out_simil, out_ids
 
     matched_similarities= np.ones( (len(query_fps), n_hits_per_smi) ) * -1              #query_id, hit_num, similarity
@@ -184,8 +185,8 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     bag = db.from_sequence( enumerate(filenames)).map(process_one_subFile).fold(combine_two_chunk_searchs, initial=(matched_similarities, matched_ids))
     matched_similarities, matched_ids = bag.compute()
 
-    print( matched_similarities )
-    print( matched_ids )
+    # print( matched_similarities )
+    # print( matched_ids )
 
     compounds_name = os.path.join(database_dir, "compounds.sqlite")
 
@@ -260,6 +261,7 @@ def mainSearch():
 
     dask_client = get_parallel_client()
 
+    # numba.set_num_threads(multiprocessing.cpu_count()/n_dask_workers)
     search_smi_list(query_smi_list, args.database_dir, n_hits_per_smi=args.n_hits_per_smi, output_name=args.output_name,
                     verbose=args.verbose)
 

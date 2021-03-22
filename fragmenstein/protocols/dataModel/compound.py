@@ -55,6 +55,7 @@ class Compound(Chem.Mol):
         comp.ref_pdb = compound.ref_pdb
         comp.ref_molIds = compound.ref_molIds
         comp.metadata = compound.metadata
+        comp.unminimized_mol_pdbblock = compound.unminimized_mol_pdbblock
         return comp
 
     def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None,
@@ -187,9 +188,20 @@ class Compound(Chem.Mol):
         self._scores_dict = scores_dict
         self.SetProp("scores_dict", json.dumps(self._scores_dict ) )
 
+    @property
+    def unminimized_mol_pdbblock(self):
+        try:
+            return self.GetProp("unminimized_mol_pdbblock")
+        except KeyError:
+            return None
+
+    @unminimized_mol_pdbblock.setter
+    def unminimized_mol_pdbblock(self, pdbblock):
+        self.SetProp("unminimized_mol_pdbblock", pdbblock )
+
 
     def _set_typedScore(self, key, val ):
-        if isinstance(val, int, ):
+        if isinstance(val, int ):
             self.SetIntProp(key, val)
         elif isinstance(val, float):
             self.SetDoubleProp(key, val)

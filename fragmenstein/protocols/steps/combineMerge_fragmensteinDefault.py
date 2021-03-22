@@ -1,11 +1,12 @@
 import json
 import logging
 import os
+import copy
 from typing import List
 
 from rdkit import Chem
 
-from fragmenstein import Victor
+from fragmenstein import Victor, Monster
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
@@ -29,10 +30,21 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
         super().__init__( output_path=output_path, template=template, templates_dir=templates_dir,
                           template_pattern=template_pattern, use_dask=use_dask, verbose=verbose)
 
-    def tryOneGeneric(self, merge_id, templateFname, fragments: List[Compound], wdir, smi: str = None, *args, **kwargs):
+        self._setVerbosity()
 
-        ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
+    def _setVerbosity(self):
+        if self.verbose:
+            Victor.enable_stdout(level=logging.DEBUG)
+            Victor.quick_renanimation = True
+        else:
+            Victor.enable_stdout(level=logging.CRITICAL)
+            Victor.enable_logfile("/dev/null", level=logging.CRITICAL)
+            Victor.journal.setLevel(logging.CRITICAL)
+            from rdkit_to_params import Params
+            Params.log.setLevel("ERROR")
+        Victor.error_to_catch = NotImplementedError
 
+    def _resolveCovalentInfo(self, fragments, templateFname):
         covalent_info = None
         for frag in fragments:
             if frag.covalent_info is not None:
@@ -45,33 +57,36 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
                 if chainId_resId_resname:
                     covalent_info = {'covalent_resi': "".join(reversed(chainId_resId_resname[:2])), 'covalent_resn':'CYS' }
                     break
-    
+        return covalent_info
+
+    def tryOneGeneric(self, merge_id, templateFname, fragments: List[Compound], wdir, smi: str = None,
+                      alternative_templateFnames=[], *args, **kwargs):
+
+        ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
+
+        covalent_info = self._resolveCovalentInfo( fragments, templateFname)
+
         Victor.work_path = wdir
-        if self.verbose:
-            Victor.enable_stdout(level=logging.DEBUG)
-        else:
-            Victor.enable_stdout(level=logging.CRITICAL)
-            Victor.enable_logfile("/dev/null", level=logging.CRITICAL)
-            Victor.journal.setLevel(logging.CRITICAL)
-            from rdkit_to_params import Params
-            Params.log.setLevel("ERROR")
 
-        # Victor.error_to_catch = NotImplementedError
-
-        generated_molecule = None
+        minimized_mol = None
+        unminimized_mol_pdbblock = None
         v = Victor(hits=fragments, pdb_filename=templateFname, **covalent_info)
         try:
             if smi is None:
-                v.combine( long_name=merge_id ) #Warning long_name= merge_id will mutate merge_id to replace "_" -> "-", so already done in prev line
+                v.combine( long_name=merge_id ) #Warning long_name= merge_id will mutate merge_id to replace "_" -> "-", so should be obtained from self.getMergeId(fragIds)
             else:
                 assert  Chem.MolFromSmiles(smi) is not None, "Error, invalid smiles: %s"%smi
                 v.place( smi, long_name=merge_id, merging_mode=self.merging_mode )
-            generated_molecule = v.minimised_mol
+            minimized_mol = copy.deepcopy(v.minimised_mol)
+            _unminimized_mol = copy.deepcopy(v.monster.positioned_mol)
+
+            Chem.SanitizeMol(minimized_mol)
+            Chem.SanitizeMol(_unminimized_mol)
+            unminimized_mol_pdbblock = Chem.MolToPDBBlock(_unminimized_mol)
         except Exception as e:
             print(e)
-            pass
 
-        if generated_molecule is not None:
+        if minimized_mol is not None and unminimized_mol_pdbblock is not None:
             if self.save_pymol:
                 v.make_pse()
 
@@ -88,13 +103,12 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
 
             metadata_dict["fragments"] = regarded_fragments
             metadata_dict["ref_pdb"] = templateFname
-
-            generated_molecule = Compound( generated_molecule, molId=merge_id, parents= fragments)
-            generated_molecule.ref_pdb = templateFname
-            generated_molecule.metadata = metadata_dict
-            generated_molecule.ref_molIds =  regarded_fragments
-
-            result = [ generated_molecule ]
+            minimized_mol = Compound( minimized_mol, molId=merge_id, parents= fragments)
+            minimized_mol.ref_pdb = templateFname
+            minimized_mol.metadata = metadata_dict
+            minimized_mol.ref_molIds =  regarded_fragments
+            minimized_mol.unminimized_mol_pdbblock = unminimized_mol_pdbblock
+            result = [ minimized_mol ]
 
         else:
             metadata_dict = {"error": v.error_msg }

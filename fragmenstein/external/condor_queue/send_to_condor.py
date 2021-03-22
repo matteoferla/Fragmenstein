@@ -8,11 +8,14 @@ DEFAULT_LOGS_DIR = "/data/xchem-fragalysis/sanchezg/logs/"
 DEFAULT_SUBMITS_DIR = "/data/xchem-fragalysis/sanchezg/submits/"
 
 BASH_TEMPLATE='''###################
+%(conda_activate)s
 %(env_vars)s
 %(cmd)s
 
 ###################
 '''
+
+
 
 CONDOR_TEMPLATE='''###################
 Executable      = /usr/bin/bash
@@ -44,18 +47,21 @@ Queue
 ###################
 '''
 
+
 parser = argparse.ArgumentParser("utility to send commands to condor queue")
 
 parser.add_argument("--ncpus", type=int, required=True, help="number of cpus")
 parser.add_argument("--memory", type=int, required=False, default=None, help="Total memory in MB. Default %(default)s")
 parser.add_argument("--gpus", type=int, required=False, default=None, help="Number of GPUs")
-parser.add_argument("--nodename", type=str, required=False, default=None, help="nodo where job will be executed")
+parser.add_argument("--nodename", type=str, required=False, default=None, help="node where job will be executed")
 
 # parser.add_argument("--bindir", type=str, required=False, default=None, help="directory where the binary lives") #TODO
 parser.add_argument("--logdirs", type=str, required=False, default=DEFAULT_LOGS_DIR, help="Logs directory. Default %(default)s")
 parser.add_argument("--tmpdir", type=str, required=False, default=DEFAULT_SUBMITS_DIR, help="Logs directory. Default %(default)s")
 
 parser.add_argument("--env_vars", type=str, nargs="+", required=False, default=[], help="enviramental variables")
+parser.add_argument("--conda_activate", type=str, required=False, default=None, help="the name of the environment to activate")
+
 parser.add_argument("--print", action="store_true", help="print files instead submitting")
 
 parser.add_argument("cmd", type=str, help="commands between \"\"")
@@ -69,6 +75,12 @@ if args:
     for env_var in args["env_vars"]:
         env_vars+= ("export " +env_var+ "\n")
     args["env_vars"]= env_vars
+    if args["conda_activate"]:
+        args["conda_activate"] ='''
+eval "$(conda shell.bash hook)"
+conda activate %s
+        '''%args["conda_activate"]
+
     bash_str = BASH_TEMPLATE%(args)
 
     additional_requirements=""
@@ -104,6 +116,8 @@ if args:
                 tmpfile.write( condor_str)
 
             check_call(["condor_submit", condor_tmpFile ])
+
+
 '''
 python -m fragmenstein.external.condor_queue.send_to_condor --ncpus 4 "python -c 'print(0)'"
 '''

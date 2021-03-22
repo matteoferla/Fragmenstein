@@ -68,6 +68,7 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
 
         fragsCombin_iter = HitsPreprocess_base.take_random_from_iterator( fragsCombin_iter, self.max_attemps, self.random_seed)
 
+        print("fragment iterator prepared")
         return fragsCombin_iter, bitId_to_molId
 
 

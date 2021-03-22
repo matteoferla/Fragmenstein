@@ -89,7 +89,7 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         minimizer = MinimizePDBComplex_pyrosetta(templateFname, atom_constrain_filter=lambda atom: atom.HasProp("is_original_atom"))
 
         def minimizeMol(molId, mol ):
-
+            unminimized_mol_pdbblock = Chem.MolToPDBBlock( mol )
             try:
                 mol_metadata_dict = minimizer.minimize(mol, molId=molId, outdir=final_outdir, reference_fragments=fragments)
             except (RuntimeError, TimeoutError):
@@ -110,6 +110,8 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
             generated_molecule.ref_pdb = templateFname
             generated_molecule.metadata = metadata_dict
             generated_molecule.ref_molIds =  metadata_dict["fragments"]
+            generated_molecule.unminimized_mol_pdbblock = unminimized_mol_pdbblock
+
 
             return  generated_molecule
 

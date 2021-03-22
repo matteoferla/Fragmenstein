@@ -107,11 +107,14 @@ class CombineMerge_Base(ABC, InputAdapter):
             template_fnames = apply_func_to_files(self.templates_dir, self.template_pattern, lambda x: x,
                                                   ids_to_check=fragment_ids)
             assert len(template_fnames)>0, "Error, template not found for fragment ids: %s"%str(fragment_ids)
-            template = sorted(template_fnames)[0]
+            template_fnames = sorted(template_fnames)
+            template = template_fnames[0]
+            alternative_templates = template_fnames[1:]
             # template_fname = Victor.closest_hit(pdb_filenames=[f'{mpro_folder}/Mpro-{i}_0/Mpro-{i}_0_bound.pdb' for i in hit_codes], target_resi=145, target_chain='A',  target_atomname='SG', ligand_resn='LIG')
         else:
             template = self.template
-        return template
+            alternative_templates = []
+        return template, alternative_templates
 
     def _tryOneGeneric(self, fragments, smi=None, *args, **kwargs) -> List[Compound] :
 
@@ -124,7 +127,7 @@ class CombineMerge_Base(ABC, InputAdapter):
             bits_ids.append( frag.molId )
 
         merge_id = self.getMergeId( bits_ids, smi=smi)
-        templateFname = self.guessTemplate(fragment_ids)
+        templateFname, alternative_fnames = self.guessTemplate(fragment_ids)
 
         prev_results = self.load_final_results(merge_id)
         if not isinstance(prev_results, NotComputedYet):

@@ -65,6 +65,9 @@ class HitsPreprocess_fragmentationBase(HitsPreprocess_base) :
                     bit = Chem.DeleteSubstructs(bit, Chem.MolFromSmiles('*'))
 
                     bit = change_atom_type(bit, initial_symbol=HitsPreprocess_fragmentationBase.TEMPORAL_DUMMY_ATOM, final_symbol='*')
+
+                    Chem.SanitizeMol(bit)
+
                     bit = Compound(bit)
                     bit.molId = bitId
                     bit.parents = [_mol]

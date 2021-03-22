@@ -42,6 +42,7 @@ class ConfigManager():
         ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2, "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s"),
         ("COMBINE_PERMUTATIONS_MAX_NUM_ELEMENTS", int, 2,
          "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s"),
+        ("DISABLE_DASHBOARD", parseBool, False, "Set it to True if you want to disable dask dashboard. Default: %(default)s"),
         #("IGOR_TIMEOUT", int, 200, "Seconds till rosetta minimize timeout. Default: %(default)s") #Mot working because of dask nanny
 
     ]

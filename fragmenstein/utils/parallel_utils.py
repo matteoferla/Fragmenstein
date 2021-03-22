@@ -29,11 +29,16 @@ def get_parallel_client(threads_per_worker=None, n_workers=None, memory_limit=No
                 memory_limit="%dGB"%( (0.9 *mem.total/n_workers) // 2 ** 30)
         dask.config.set({'temporary_directory': os.path.join(ConfigManager.TMP_DIR, "dask")})
         if n_workers>1 or threads_per_worker>1:
-            DASK_CLIENT = Client( LocalCluster(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit)) # dashboard_address=8787
+            if ConfigManager.DISABLE_DASHBOARD:
+                kwargs = {"dashboard_address":None}
+            else:
+                kwargs = {}
+            DASK_CLIENT = Client( LocalCluster(threads_per_worker=threads_per_worker, n_workers=n_workers, memory_limit=memory_limit, **kwargs)) # dashboard_address=8787
         else:
             DASK_CLIENT = Client( LocalCluster(threads_per_worker=1, n_workers=1) )
-        print(DASK_CLIENT)
-        print(DASK_CLIENT.scheduler_info()['services'])
+        print(DASK_CLIENT, flush=True)
+        if not ConfigManager.DISABLE_DASHBOARD:
+            print(DASK_CLIENT.scheduler_info()['services'])
     return DASK_CLIENT
 
 

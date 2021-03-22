@@ -52,13 +52,13 @@ class MinimizePDBComplex_pyrosetta():
 
         mol = params.mol
 
-        lig_chainId_redId = type(self).LIGAND_PLACED_RESID
+        lig_redId_chainId = type(self).LIGAND_PLACED_RESID
         lig_resname = type(self).LIGAND_PLACED_RESNAME
 
         for atom in mol.GetAtoms():
             info = atom.GetPDBResidueInfo()
-            info.SetResidueNumber(lig_chainId_redId[0])
-            info.SetChainId( lig_chainId_redId[1] )
+            info.SetResidueNumber(lig_redId_chainId[0])
+            info.SetChainId( lig_redId_chainId[1] )
             info.SetIsHeteroAtom(True)
             info.SetOccupancy(1.)
             info.SetResidueName(lig_resname)
