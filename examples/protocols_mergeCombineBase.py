@@ -189,18 +189,28 @@ class Protocol_mergeCombineBase(ABC):
             ref_pdb = re.match(Xchem_info.fragment_no_chain_pattern, ref_pdb).group(1)
             return ref_pdb
 
-
-        for compound in scored_mols:
-            compound.SetProp("original_name", compound.GetProp("_Name") )
-            compound.SetProp("_Name", get_simplified_mol_name( compound.molId))
-            compound.SetProp("ref_pdb", get_xchem_template_name(compound.ref_pdb))
+        from zipfile import ZipFile
+        compoundName_to_pdbName = []
+        with ZipFile(os.path.join(self.output_dir, 'bound_minimized_pdbs.zip'), 'w') as f:
+            for compound in scored_mols:
+                original_name = compound.GetProp("_Name")
+                compound.SetProp("original_name", original_name )
+                simplified_name =  get_simplified_mol_name( compound.molId)
+                compound.SetProp("_Name",simplified_name)
+                unbound_pdb_fname = compound.ref_pdb
+                compound.SetProp("ref_pdb", get_xchem_template_name(unbound_pdb_fname))
+                minimized_pdb = os.path.join(self.wdir_enumeration, original_name, Xchem_info.predicted_boundPdb_template%original_name)
+                pdbBasename = os.path.basename(minimized_pdb)
+                f.write(minimized_pdb, os.path.join( "bound_pdbs",  "bound_pdbs", pdbBasename))
+                compoundName_to_pdbName.append( "%s\t%s"%( simplified_name, pdbBasename))
+            f.writestr("bound_pdbs/compoundName_to_pdbName.tab", "\n".join(compoundName_to_pdbName))
 
         if hasattr(self, "template_xchemId"):
             template_xchemId = self.template_xchemId
         else:
             template_xchemId = None
 
-        frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId, addtitional_fields=['unminimized_mol_pdbblock']) #TODO: store original name and original template
+        frag_writer = FragalysisFormater(ref_pdb_xchemId=template_xchemId, addtitional_fields=['atomic_mapping']) #TODO: store original name and original template
         frag_writer.write_molsList_to_sdf(self.sdf_outname, scored_mols) #, metadata_list)
         print("Results written to %s" % self.sdf_outname)
 

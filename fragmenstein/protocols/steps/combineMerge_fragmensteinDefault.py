@@ -4,9 +4,10 @@ import os
 import copy
 from typing import List
 
+from collections import defaultdict
 from rdkit import Chem
 
-from fragmenstein import Victor, Monster
+from fragmenstein import Victor
 from fragmenstein.external import ExternalToolImporter
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
@@ -79,10 +80,10 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
                 v.place( smi, long_name=merge_id, merging_mode=self.merging_mode )
             minimized_mol = copy.deepcopy(v.minimised_mol)
             _unminimized_mol = copy.deepcopy(v.monster.positioned_mol)
-
             Chem.SanitizeMol(minimized_mol)
             Chem.SanitizeMol(_unminimized_mol)
             unminimized_mol_pdbblock = Chem.MolToPDBBlock(_unminimized_mol)
+
         except Exception as e:
             print(e)
 
@@ -97,17 +98,20 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
             ori_frag_ids = set([ x.primitiveId for x in fragments])
 
             derived_frags = metadata_dict["regarded"]
-            regarded_fragments = sorted(set([ oriFragId for oriFragId in ori_frag_ids
+            regarded_fragIds = sorted(set([ oriFragId for oriFragId in ori_frag_ids
                                                     if any([oriFragId in devFrag
                                                             for devFrag in derived_frags])]))
 
-            metadata_dict["fragments"] = regarded_fragments
+            atomic_mapping = self.find_atoms_mapping(_unminimized_mol, filter(lambda x: x.primitiveId in regarded_fragIds, fragments))
+
+            metadata_dict["atomic_mapping"] = atomic_mapping
+            metadata_dict["fragments"] = regarded_fragIds
             metadata_dict["ref_pdb"] = templateFname
             minimized_mol = Compound( minimized_mol, molId=merge_id, parents= fragments)
             minimized_mol.ref_pdb = templateFname
             minimized_mol.metadata = metadata_dict
-            minimized_mol.ref_molIds =  regarded_fragments
-            minimized_mol.unminimized_mol_pdbblock = unminimized_mol_pdbblock
+            minimized_mol.ref_molIds =  regarded_fragIds
+            minimized_mol.atomic_mapping = atomic_mapping
             result = [ minimized_mol ]
 
         else:

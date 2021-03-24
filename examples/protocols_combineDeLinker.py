@@ -28,7 +28,7 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
         #at least one ring
         n_rings1 = frag1.GetRingInfo().NumRings()
         n_rings2 = frag2.GetRingInfo().NumRings()
-        if n_rings1+n_rings2 ==0:
+        if n_rings1+ n_rings2 <2:
             return  False
 
         coords1 =  frag1.GetConformer().GetPositions()

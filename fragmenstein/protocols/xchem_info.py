@@ -9,6 +9,8 @@ class Xchem_info():
     predicted_boundPdb_id_pattern = r".*?(x[\w\-_]+)\.holo_minimised\.pdb$"
     fragment_no_chain_pattern = r"^.*(x\d+).*$"
 
+    predicted_boundPdb_template = "%s.holo_minimised.pdb"
+
     examples_dir = os.path.abspath(os.path.join(__file__, "../../mpro/data/"))
 
 

@@ -55,7 +55,7 @@ class Compound(Chem.Mol):
         comp.ref_pdb = compound.ref_pdb
         comp.ref_molIds = compound.ref_molIds
         comp.metadata = compound.metadata
-        comp.unminimized_mol_pdbblock = compound.unminimized_mol_pdbblock
+        comp.atomic_mapping = compound.atomic_mapping
         return comp
 
     def __init__(self, mol: Union[Chem.Mol, Chem.PropertyMol.PropertyMol, "Compound"], molId=None, parents=None,
@@ -189,18 +189,18 @@ class Compound(Chem.Mol):
         self.SetProp("scores_dict", json.dumps(self._scores_dict ) )
 
     @property
-    def unminimized_mol_pdbblock(self):
+    def atomic_mapping(self):
         try:
-            return self.GetProp("unminimized_mol_pdbblock")
+            return self.GetProp("atomic_mapping")
         except KeyError:
             return None
 
-    @unminimized_mol_pdbblock.setter
-    def unminimized_mol_pdbblock(self, pdbblock):
-        if pdbblock is None:
-            journal.warning("Warning. pdbblock is None when setting  for %s"%self)
+    @atomic_mapping.setter
+    def atomic_mapping(self, mapping_dict):
+        if mapping_dict is None:
+            journal.warning("Warning. mapping_dict is None when setting  for %s"%self)
             return
-        self.SetProp("unminimized_mol_pdbblock", pdbblock )
+        self.SetProp("atomic_mapping", json.dumps(mapping_dict ) )
 
 
     def _set_typedScore(self, key, val ):

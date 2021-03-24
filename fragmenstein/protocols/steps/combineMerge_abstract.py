@@ -7,9 +7,12 @@ from itertools import chain
 from typing import List, Union, Tuple
 
 import dask.bag as DB
+from collections import defaultdict
 from dask.distributed import progress
 
 from fragmenstein import Victor
+from fragmenstein.monster import GPM
+
 from fragmenstein.protocols.dataModel.compound import Compound
 from fragmenstein.protocols.steps.adapt_input import InputAdapter
 from fragmenstein.protocols.xchem_info import Xchem_info
@@ -114,6 +117,15 @@ class CombineMerge_Base(ABC, InputAdapter):
             template = self.template
             alternative_templates = []
         return template, alternative_templates
+
+    def find_atoms_mapping(self, unminimized_mol, fragments):
+        final_map = defaultdict(list)
+        for frag in fragments:
+            fragId = frag.primitiveId
+            mapping = GPM.get_positional_mapping(unminimized_mol, frag)
+            for i, j in mapping.items():
+                final_map[i].append([fragId, j])
+        return final_map
 
     def _tryOneGeneric(self, fragments, smi=None, *args, **kwargs) -> List[Compound] :
 
