@@ -26,7 +26,6 @@ def jaccard_vectorized(x,y):
   union = sums - intersections_count
   return intersections_count / union
 
-
 @numba.jit( nopython=True, cache=True)
 def compute_2FingerPrints_similarity(query_fp, db_fp):
 
@@ -34,8 +33,6 @@ def compute_2FingerPrints_similarity(query_fp, db_fp):
     n00 = np.sum((query_fp == 0) & (db_fp == 0))
     jac = n11 / (query_fp.shape[0] - n00)
     return jac
-
-numba_decompressFingerprint_npStr = numba.jit(decompressFingerprint_npStr, nopython=True, cache=True)
 
 @numba.jit( nopython=True, cache=True)
 def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi, verbose):
@@ -79,42 +76,82 @@ def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_b
     return matched_similarities, matched_ids
 
 
-def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False):
+# def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False):
+#     file_num, chunk_fname = fileNum_chunkFname
+#     with open(chunk_fname, "rb") as f:
+#         db_many_fps_bool = decompressFingerprint_npStr(f.read())
+#
+#     matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps_mat, db_many_fps_bool,
+#                                                                                       file_num, n_hits_per_smi, verbose)
+#
+#     return matched_similarities, matched_ids
+#
+# def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+#
+#     #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
+#     #TODO: estimante memory requirements and process chunk by chunk
+#
+#     file_num, chunk_fname = fileNum_chunkFname
+#
+#     with open(chunk_fname, "rb") as f:
+#         db_many_fps_bool = decompressFingerprint_npStr (f.read() ).reshape(-1, query_fps_mat.shape[1])
+#
+#     sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
+#     max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
+#     matched_similarities = np.ones((len(query_fps_mat), n_hits_per_smi)) * -1
+#     matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
+#     matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
+#     matched_ids[...,0] = file_num
+#     matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
+#     return  matched_similarities, matched_ids
 
-    file_num, chunk_fname = fileNum_chunkFname
-    with open(chunk_fname, "rb") as f:
-        db_many_fps_bool = decompressFingerprint_npStr (f.read() )
 
-    matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps_mat, db_many_fps_bool, file_num, n_hits_per_smi, verbose)
-
-    return  matched_similarities, matched_ids
-
-
-def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
-
-    #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
-    #TODO: estimante memory requirements and process chunk by chunk
-
-    file_num, chunk_fname = fileNum_chunkFname
-
-    with open(chunk_fname, "rb") as f:
-        db_many_fps_bool = decompressFingerprint_npStr (f.read() ).reshape(-1, query_fps_mat.shape[1])
-
+def process_chunk_using_numpy(query_fps_mat, db_many_fps_bool, n_hits_per_smi, verbose=False ):
     sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
     max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
-    matched_similarities = np.ones((len(query_fps_mat), n_hits_per_smi)) * -1
-    matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
-    matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
-    matched_ids[...,0] = file_num
-    matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
-    return  matched_similarities, matched_ids
+    n_hits_found = max_sim_idx_per_compound.shape[1]
+    found_similarities = -1 * np.ones((query_fps_mat.shape[0], n_hits_per_smi))
+    found_similarities[:, : n_hits_found] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
+
+    idxs = -1 * np.ones((query_fps_mat.shape[0], n_hits_per_smi), dtype=np.int64)
+    idxs[:, : n_hits_found] = max_sim_idx_per_compound
+    return found_similarities, idxs, n_hits_found
+
+@numba.jit(nopython=True, cache=True)
+def process_chunk_using_numba(query_fps_mat, db_fps_mat, n_hits_per_smi, verbose=False):
+
+    n_query_fps = query_fps_mat.shape[0]
+    matched_similarities = np.ones((n_query_fps, n_hits_per_smi)) * -1  # query_id, hit_num, similarity
+    matched_ids = np.ones((n_query_fps, n_hits_per_smi), dtype=np.int64) * -1  # query_id, hit_num,  hit_id
+
+    n_mols = db_fps_mat.shape[0]
+
+    n_mol_processed = 0
+
+    print_step = 10 ** int(np.ceil(np.log10((int(1e5) // n_query_fps))))
+    for j in range(db_fps_mat.shape[0]):
+        bin_finPrint = db_fps_mat[j]
+        n_mol_processed += 1
+        if verbose and n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in block of size", n_mols)
+        for i in numba.prange(query_fps_mat.shape[0]):
+            query_fp = query_fps_mat[i]
+            simil = compute_2FingerPrints_similarity(query_fp, bin_finPrint)
+            less_similar_idx = np.argmin(matched_similarities[i, :])
+
+            if simil > matched_similarities[i, less_similar_idx]:
+                matched_similarities[i, less_similar_idx] = simil
+                matched_ids[i, less_similar_idx] = j
+
+    n_elems_found = 0
+    for elem in matched_similarities[0,...]:
+        if elem<0:
+            break
+        n_elems_found += 1
+    return matched_similarities, matched_ids, n_elems_found
 
 
-def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname,
-                              n_hits_per_smi, n_mols_per_chunk=1000000, verbose=False):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
-
-    # TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
-    # TODO: estimante memory requirements and process chunk by chunk
+def process_one_subFile_by_chunks(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, n_mols_per_chunk=1000000,
+                                  use_numpy_as_backend=True, verbose=False):
 
     file_num, chunk_fname = fileNum_chunkFname
     if verbose: print( "Processing %s: %s"%(file_num, chunk_fname))
@@ -125,30 +162,26 @@ def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname,
     matched_ids = -1 * np.ones(matched_similarities.shape + (2,), dtype=np.int64)
     matched_ids[..., 0] = file_num
 
+    if use_numpy_as_backend:
+        process_chunk_fun = process_chunk_using_numpy
+    else:
+        process_chunk_fun = process_chunk_using_numba
+
     with open(chunk_fname, "rb") as f:
         bytes_ = f.read(chunkSize)
         i=0
         while bytes_:
             db_many_fps_bool = decompressFingerprint_npStr( bytes_ ).reshape(-1, query_fps_mat.shape[1])
-            sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
 
-            max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
-
-            n_hits_found = max_sim_idx_per_compound.shape[1]
-            found_similarities = -1*np.ones_like(matched_similarities)
-            found_similarities[:, : n_hits_found] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
-
-            idxs = -1*np.ones_like(matched_ids, dtype=np.int64)
-            matched_ids[..., 0] = file_num
-            idxs[:, : n_hits_found, 1] = max_sim_idx_per_compound + i
-
+            found_similarities, idxs, n_hits_found = process_chunk_fun( query_fps_mat, db_many_fps_bool, n_hits_per_smi )
+            idxs[:, : n_hits_found] += i
+            idxs = np.stack([file_num*np.ones_like(idxs), idxs], axis = -1 )
             matched_similarities, matched_ids=combine_two_chunk_searchs( (found_similarities, idxs), (matched_similarities, matched_ids))
 
             i += db_many_fps_bool.shape[0]
             bytes_ = f.read(chunkSize)
 
     return matched_similarities, matched_ids
-
 
 def combine_two_chunk_searchs(cs1, cs2):
     '''
@@ -204,7 +237,7 @@ def combine_search_jsons(path_to_jsons):
     print(final_search)
     return final_search
 
-def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name=None, verbose=True):
+def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name=None, backend="numpy", verbose=True):
 
     starting_time = time.time()
 
@@ -228,13 +261,15 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     matched_similarities= np.ones( (len(query_fps), n_hits_per_smi) ) * -1              #query_id, hit_num, similarity
     matched_ids = np.ones( (len(query_fps), n_hits_per_smi, 2), dtype= np.int64 ) * -1  #query_id, hit_num, [ file_id, hit_id]
 
-    # if query_fps.shape[0] > 5:
-    #     process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
-    # else:
-    #     process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi, verbose=verbose) #faster for small number of query mols
-
-    # process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
-    process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi, verbose=verbose)
+    if backend =="numpy":
+        use_numpy_as_backend =True
+    elif backend =="numba":
+        use_numpy_as_backend =False
+    else:
+        raise ValueError("Error, not valid backend %s"%backend)
+    process_one_subFile = lambda fname: process_one_subFile_by_chunks(query_fps, fname, n_hits_per_smi,
+                                                                      use_numpy_as_backend=use_numpy_as_backend,
+                                                                      verbose=verbose)
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))
@@ -306,6 +341,9 @@ def mainSearch():
     parser.add_argument('-n', '--n_hits_per_smi', type=int, default=30,
                         help="K highest score molecules to retrieve per query smiles ")
 
+    parser.add_argument('-b', '--backend', choices=["numpy", "numba"], default="numpy", required=False,
+                        help="computation backend ")
+
     parser.add_argument('-o', '--output_name', type=str, required=True,
                         help="The fname for a json file where search results will be stored")
 
@@ -322,6 +360,7 @@ def mainSearch():
 
     # numba.set_num_threads(multiprocessing.cpu_count()/n_dask_workers)
     search_smi_list(query_smi_list, args.database_dir, n_hits_per_smi=args.n_hits_per_smi, output_name=args.output_name,
+                    backend=args.backend,
                     verbose=args.verbose)
 
     dask_client.shutdown()
