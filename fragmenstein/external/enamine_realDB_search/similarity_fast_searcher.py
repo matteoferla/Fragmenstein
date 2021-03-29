@@ -111,7 +111,7 @@ def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi
 
 
 def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname,
-                              n_hits_per_smi, n_mols_per_chunk=100000):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+                              n_hits_per_smi, n_mols_per_chunk=1000000):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
 
     # TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
     # TODO: estimante memory requirements and process chunk by chunk
@@ -355,6 +355,8 @@ if __name__ == "__main__":
 echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -
 
 tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -v -
+
+python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH DASK_WORKER_MEMORY=4GB N_CPUS=42 --ncpus 42 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /data/xchem-fragalysis/sanchezg/oxford/enamine/fingerprints_db/Enamine_REAL_HAC_21_22_CXSMILES -o /data/xchem-fragalysis/sanchezg/oxford/enamine/output/first_partition.json  /data/xchem-fragalysis/sanchezg/oxford/enamine/examples/example1.smi"
 
 
     '''
