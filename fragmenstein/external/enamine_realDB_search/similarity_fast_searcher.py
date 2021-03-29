@@ -228,10 +228,12 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     matched_similarities= np.ones( (len(query_fps), n_hits_per_smi) ) * -1              #query_id, hit_num, similarity
     matched_ids = np.ones( (len(query_fps), n_hits_per_smi, 2), dtype= np.int64 ) * -1  #query_id, hit_num, [ file_id, hit_id]
 
-    if query_fps.shape[0] > 5:
-        process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
-    else:
-        process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi) #faster for small number of query mols
+    # if query_fps.shape[0] > 5:
+    #     process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
+    # else:
+    #     process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi) #faster for small number of query mols
+
+    process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))
