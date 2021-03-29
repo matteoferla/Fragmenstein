@@ -90,7 +90,7 @@ def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi)
     return  matched_similarities, matched_ids
 
 
-def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
 
     #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
     #TODO: estimante memory requirements and process chunk by chunk
@@ -111,13 +111,13 @@ def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi
 
 
 def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname,
-                              n_hits_per_smi, n_mols_per_chunk=1000000):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+                              n_hits_per_smi, n_mols_per_chunk=1000000, verbose=False):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
 
     # TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
     # TODO: estimante memory requirements and process chunk by chunk
 
     file_num, chunk_fname = fileNum_chunkFname
-
+    if verbose: print( "Processing %s: %s"%(file_num, chunk_fname))
     if n_mols_per_chunk is not None:
         chunkSize = n_mols_per_chunk * (query_fps_mat.shape[1] // 8)
 
@@ -233,7 +233,7 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     # else:
     #     process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi) #faster for small number of query mols
 
-    process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
+    process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))
