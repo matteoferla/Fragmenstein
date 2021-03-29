@@ -1,6 +1,9 @@
 import os
 
 import sys
+import argparse
+from zipfile import ZipFile
+
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rdkit.Chem import PandasTools
@@ -10,18 +13,19 @@ import numpy as np
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, SCORE_NAME_TEMPLATE
 
-# sdf_fname= os.path.expanduser('~/nsp13_Bs1_x0034_0B,x0176_0B,x0183_0B,x0208_0A,x0212_0B,x0246_0B,x0276_0B,x0283_0B,x0311_0B,x0438_0B.sdf')
-# # sdf_fname= os.path.expanduser('~/nsp3_Bs1_x0041_0A,x0058_0B,x0176_0A,x0309_0A,x0494_0B.sdf')
-#
-# sdf_filtered_fname = os.path.expanduser('~/nsp13_Bs1_filtered.sdf')
+parser = argparse.ArgumentParser("analyze_sdf")
+parser.add_argument("-i", "--input", type=str, required=True, help="input sdf file")
+parser.add_argument("-o", "--output", type=str, required=False, default=None, help="output sdf file")
+parser.add_argument("-p", "--pdbZipIn", type=str, required=False, default=None, help="input pdb zip file")
+parser.add_argument("-b", "--pdbZipOut", type=str, required=False, default=None, help="output pdb zip file")
 
+args = parser.parse_args()
+sdf_fname= os.path.expanduser(args.input)
 
-sdf_fname= os.path.expanduser(sys.argv[1])
+sdf_filtered_fname = os.path.expanduser(args.output)  if args.output else None
+inPdbs_fname = os.path.expanduser(args.pdbZipIn)  if args.pdbZipIn else None
+outPdbs_fname = os.path.expanduser(args.pdbZipOut)  if args.pdbZipOut else None
 
-sdf_filtered_fname = None
-
-if len( sys.argv) ==3:
-    sdf_filtered_fname = os.path.expanduser(sys.argv[2])
 
 with open(sdf_fname, "rb") as f:
 
@@ -86,15 +90,39 @@ print("fragmesteinNew", df.shape)
 # df = df.query( " plipGlobalPreser_score > 0.1 ")
 # print("plip", df.shape)
 
-# for mol in df["mol"]:
-#     print( mol.GetPropsAsDict() )
-#     input(mol)
+
 
 # df = df.sort_values(by="rotableBonds_score").iloc[:40]
 
 if sdf_filtered_fname:
     FragalysisFormater().write_molsList_to_sdf(sdf_filtered_fname,  df["mol"])
 
+
+#TODO: if zip file provided extract the associated molecules https://docs.python.org/3/library/zipfile.html#zipfile.ZipFile.open
+
+if inPdbs_fname:
+    assert outPdbs_fname is not None, "Error if inPdbs_fname is not None, outPdbs_fname should be provided"
+    selectedIds = set( [ mol.GetProp("original_name") for mol in df["mol"]] )
+    found_pdbs = set([])
+    summary_fname = None
+    with ZipFile( inPdbs_fname ) as f_in, ZipFile( outPdbs_fname, "w" ) as f_out:
+        for fname in f_in.namelist():
+            if fname.endswith(".pdb"):
+                basename = os.path.basename(fname)
+                molId = basename.split(".")[0]
+                if molId in selectedIds:
+                    found_pdbs.add(basename)
+                    file_str = f_in.read( fname )
+                    f_out.writestr(fname, file_str)
+            elif fname.endswith(".txt"):
+                summary_fname = fname
+        found_lines = []
+        for line in  f_in.read( summary_fname).decode("utf-8").split("\n"):
+            molName, pdbFname = line.split()
+            if pdbFname in found_pdbs:
+                found_lines.append( line )
+        f_out.writestr(summary_fname, "\n".join(found_lines))
+
 '''
-python -m examples.analyze in.sdf out.sdf
+python -m examples.analyze  -i in.sdf -o out.sdf
 '''

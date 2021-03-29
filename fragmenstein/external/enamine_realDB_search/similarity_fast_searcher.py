@@ -12,7 +12,7 @@ import dask.bag as db
 import numpy as np
 
 from fragmenstein.external.enamine_realDB_search.common import get_fingerPrint_as_npBool, \
-    decompressFingerprint_npStr
+    decompressFingerprint_npStr, get_fingerPrint
 from fragmenstein.utils.cmd_parser import ArgumentParser
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
@@ -90,7 +90,7 @@ def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi)
     return  matched_similarities, matched_ids
 
 
-def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+def _process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi): #this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
 
     #TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
     #TODO: estimante memory requirements and process chunk by chunk
@@ -98,16 +98,56 @@ def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname, n_hits_per_smi)
     file_num, chunk_fname = fileNum_chunkFname
 
     with open(chunk_fname, "rb") as f:
-        db_many_fps_bool = decompressFingerprint_npStr (f.read() )
+        db_many_fps_bool = decompressFingerprint_npStr (f.read() ).reshape(-1, query_fps_mat.shape[1])
 
-    sim_matrix = jaccard_vectorized(query_fps_mat, np.frombuffer(db_many_fps_bool, dtype=np.bool).reshape(-1, query_fps_mat.shape[1]))
+    sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
     max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
     matched_similarities = np.ones((len(query_fps_mat), n_hits_per_smi)) * -1
     matched_similarities[:,:max_sim_idx_per_compound.shape[1]] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
     matched_ids = -1*np.ones( matched_similarities.shape+(2,) )
-    matched_ids[...,0] *= -file_num
+    matched_ids[...,0] = file_num
     matched_ids[:,:max_sim_idx_per_compound.shape[1], 1] = max_sim_idx_per_compound
     return  matched_similarities, matched_ids
+
+
+def process_one_subFile_numpy(query_fps_mat, fileNum_chunkFname,
+                              n_hits_per_smi, n_mols_per_chunk=100000):  # this is slower than numba for small number of queries but A LOT faster large query numbers . Consumes a lot of memory # TODO use dask array to use mapped arrays
+
+    # TODO: Add gpu support with https://docs.cupy.dev/en/stable/tutorial/basic.html
+    # TODO: estimante memory requirements and process chunk by chunk
+
+    file_num, chunk_fname = fileNum_chunkFname
+
+    if n_mols_per_chunk is not None:
+        chunkSize = n_mols_per_chunk * (query_fps_mat.shape[1] // 8)
+
+    matched_similarities = -1 * np.ones((query_fps_mat.shape[0], n_hits_per_smi))
+    matched_ids = -1 * np.ones(matched_similarities.shape + (2,), dtype=np.int64)
+    matched_ids[..., 0] = file_num
+
+    with open(chunk_fname, "rb") as f:
+        bytes_ = f.read(chunkSize)
+        i=0
+        while bytes_:
+            db_many_fps_bool = decompressFingerprint_npStr( bytes_ ).reshape(-1, query_fps_mat.shape[1])
+            sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
+
+            max_sim_idx_per_compound = np.argsort(-sim_matrix, axis=1)[:, :n_hits_per_smi]
+
+            n_hits_found = max_sim_idx_per_compound.shape[1]
+            found_similarities = -1*np.ones_like(matched_similarities)
+            found_similarities[:, : n_hits_found] = np.take_along_axis(sim_matrix, max_sim_idx_per_compound, axis=1)
+
+            idxs = -1*np.ones_like(matched_ids, dtype=np.int64)
+            matched_ids[..., 0] = file_num
+            idxs[:, : n_hits_found, 1] = max_sim_idx_per_compound + i
+
+            matched_similarities, matched_ids=combine_two_chunk_searchs( (found_similarities, idxs), (matched_similarities, matched_ids))
+
+            i += db_many_fps_bool.shape[0]
+            bytes_ = f.read(chunkSize)
+
+    return matched_similarities, matched_ids
 
 
 def combine_two_chunk_searchs(cs1, cs2):
@@ -117,13 +157,23 @@ def combine_two_chunk_searchs(cs1, cs2):
     :param cs2: same as cs1
     :return:
     '''
+    assert cs1[0].shape == cs2[0].shape, "Error, union for different shapes not implemented"
 
-    out_simil, out_ids = cs1[0].copy(), cs1[1].copy()
-    biggerSim_second_mask = cs1[0] < cs2[0]
+    sim_concat =  np.concatenate([ cs1[0], cs2[0]], axis=1 )
+    idxs_concat = np.concatenate([ cs1[1], cs2[1]], axis=1 )
 
-    out_simil[biggerSim_second_mask] = cs2[0][biggerSim_second_mask]
-    out_ids[biggerSim_second_mask] = cs2[1][biggerSim_second_mask]
-    return out_simil, out_ids
+    to_pick_idxs = np.argsort(-sim_concat, axis = -1)[:, :cs1[0].shape[1]]
+    new_sim =  -1 * np.ones_like(cs1[0])
+    new_idxs = -1 * np.ones_like(cs1[1])
+    for i in range(sim_concat.shape[0]):
+        new_sim[i,:] = sim_concat[i, to_pick_idxs[i, :]]
+        new_idxs[i,...] = idxs_concat[i, to_pick_idxs[i, :], :]
+
+    # print("s1"); print(cs1[0])
+    # print("s2"); print(cs2[0])
+    # print("res="); print(new_sim)
+
+    return new_sim, new_idxs
 
 def combine_search_jsons(path_to_jsons):
 
@@ -273,6 +323,7 @@ def mainSearch():
 
     dask_client.shutdown()
 
+
 def testSearch():
     fp_outdir = "/home/ruben/oxford/enamine/fingerprints"
     save_fname = "/home/ruben/tmp/mols/first_partition.json"
@@ -283,6 +334,19 @@ def testSearch():
 def testCombine():
     jsons_dir = "/home/ruben/tmp/mols/"
     res = combine_search_jsons(jsons_dir)
+
+def testResult1():
+
+    from rdkit import DataStructs
+
+    smi1 = 'O=C(NCC(O)C1=CSC=C1)C1CCN(C2=CC=NC=C2)C1'
+    smi2 = 'CCC(NC(=O)C1CCN(C2=CC=NC=C2)C1)C(=O)OC'
+
+    fp1 = get_fingerPrint(smi1)
+    fp2 = get_fingerPrint(smi2)
+
+    sim = DataStructs.FingerprintSimilarity(fp1, fp2)
+    print(sim)
 
 if __name__ == "__main__":
     mainSearch()

@@ -8,6 +8,7 @@ from collections import defaultdict
 from itertools import chain
 
 import shutil
+from zipfile import ZipFile
 
 import dirsync
 import time
@@ -189,7 +190,6 @@ class Protocol_mergeCombineBase(ABC):
             ref_pdb = re.match(Xchem_info.fragment_no_chain_pattern, ref_pdb).group(1)
             return ref_pdb
 
-        from zipfile import ZipFile
         compoundName_to_pdbName = []
         with ZipFile(os.path.join(self.output_dir, 'bound_minimized_pdbs.zip'), 'w') as f:
             for compound in scored_mols:
