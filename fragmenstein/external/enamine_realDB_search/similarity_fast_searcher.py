@@ -38,7 +38,7 @@ def compute_2FingerPrints_similarity(query_fp, db_fp):
 numba_decompressFingerprint_npStr = numba.jit(decompressFingerprint_npStr, nopython=True, cache=True)
 
 @numba.jit( nopython=True, cache=True)
-def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi):
+def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_bool, file_num, n_hits_per_smi, verbose):
 
     n_query_fps = query_fp_matrix.shape[0]
     fp_bipts = query_fp_matrix.shape[1]
@@ -58,7 +58,7 @@ def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_b
     for j in range(0, n_byes_in_db_fps, fp_bipts):
         bin_finPrint = db_many_fps_bool[j:j + fp_bipts]
         n_mol_processed += 1
-        if n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in block",file_num,"of size", n_mols)
+        if verbose and n_mol_processed % print_step == 0: print(n_mol_processed, "mols processed in block",file_num,"of size", n_mols)
         # for i, query_fp in enumerate(query_fp_matrix):
         for i in numba.prange(query_fp_matrix.shape[0]):
             query_fp = query_fp_matrix[i]
@@ -79,13 +79,13 @@ def compute_FingerPrints_similarity_from_allbools(query_fp_matrix, db_many_fps_b
     return matched_similarities, matched_ids
 
 
-def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi):
+def process_one_subFile_numba(query_fps_mat, fileNum_chunkFname, n_hits_per_smi, verbose=False):
 
     file_num, chunk_fname = fileNum_chunkFname
     with open(chunk_fname, "rb") as f:
         db_many_fps_bool = decompressFingerprint_npStr (f.read() )
 
-    matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps_mat, db_many_fps_bool, file_num, n_hits_per_smi)
+    matched_similarities, matched_ids = compute_FingerPrints_similarity_from_allbools(query_fps_mat, db_many_fps_bool, file_num, n_hits_per_smi, verbose)
 
     return  matched_similarities, matched_ids
 
@@ -229,11 +229,12 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     matched_ids = np.ones( (len(query_fps), n_hits_per_smi, 2), dtype= np.int64 ) * -1  #query_id, hit_num, [ file_id, hit_id]
 
     # if query_fps.shape[0] > 5:
-    #     process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi)
+    #     process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
     # else:
-    #     process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi) #faster for small number of query mols
+    #     process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi, verbose=verbose) #faster for small number of query mols
 
-    process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
+    # process_one_subFile = lambda fname: process_one_subFile_numpy(query_fps, fname, n_hits_per_smi, verbose=verbose)
+    process_one_subFile = lambda fname: process_one_subFile_numba(query_fps, fname, n_hits_per_smi, verbose=verbose)
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))
