@@ -14,7 +14,7 @@ import dask.dataframe as dd
 from dask.distributed import futures_of, as_completed
 from joblib import Parallel, delayed
 
-from fragmenstein.external.enamine_realDB_search.common import  computeFingerprint_np_Str, FINGERPRINT_NBITS
+from fragmenstein.external.enamine_realDB_search.compute_fingerprints import  computeFingerprint_np_Str, FINGERPRINT_NBITS
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
