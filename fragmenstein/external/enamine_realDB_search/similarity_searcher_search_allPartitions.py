@@ -101,10 +101,11 @@ def globalSearch():
 
   kwargs = vars( args )
 
-  if  kwargs["run_locally"]:
+  if  not kwargs["run_locally"]:
     tmpdir = SHARED_TMP
   else:
     tmpdir = tempfile.tempdir
+
   with tempfile.NamedTemporaryFile(mode="w", dir=tmpdir, suffix=".smi") as f:
     f.write( query_smi_str )
     f.flush()
