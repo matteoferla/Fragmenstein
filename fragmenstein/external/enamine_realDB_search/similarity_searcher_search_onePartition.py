@@ -9,8 +9,6 @@ import dask.bag as db
 import numba
 import numpy as np
 
-from fragmenstein.external.enamine_realDB_search.combine_searches import combine_two_chunk_searches, \
-    combine_search_jsons
 from fragmenstein.external.enamine_realDB_search.compute_fingerprints import get_fingerPrint_as_npBool, \
     decompressFingerprint_npStr, FINGERPRINT_NBITS
 from fragmenstein.external.enamine_realDB_search.compute_metrics import jaccard_vectorized, jaccard_numba, \
@@ -18,6 +16,32 @@ from fragmenstein.external.enamine_realDB_search.compute_metrics import jaccard_
 from fragmenstein.utils.cmd_parser import ArgumentParser
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
+
+
+def combine_two_chunk_searches(cs1, cs2):
+    '''
+
+    :param cs1: tuple( similarities_1, ids_1)
+    :param cs2: tuple( similarities_2, ids_2)
+    :return:
+    '''
+    assert cs1[0].shape == cs2[0].shape, "Error, union for different shapes not implemented"
+
+    sim_concat =  np.concatenate([ cs1[0], cs2[0]], axis=1 )
+    idxs_concat = np.concatenate([ cs1[1], cs2[1]], axis=1 )
+
+    to_pick_idxs = np.argsort(-sim_concat, axis = -1)[:, :cs1[0].shape[1]]
+    new_sim =  -1 * np.ones_like(cs1[0])
+    new_idxs = -1 * np.ones_like(cs1[1])
+    for i in range(sim_concat.shape[0]):
+        new_sim[i,:] = sim_concat[i, to_pick_idxs[i, :]]
+        new_idxs[i,...] = idxs_concat[i, to_pick_idxs[i, :], :]
+
+    # print("s1"); print(cs1[0])
+    # print("s2"); print(cs2[0])
+    # print("res="); print(new_sim)
+
+    return new_sim, new_idxs
 
 def process_chunk_using_numpy(query_fps_mat, db_many_fps_bool, n_hits_per_smi, verbose=False ):
     sim_matrix = jaccard_vectorized(query_fps_mat, db_many_fps_bool)
@@ -245,7 +269,7 @@ def mainSearch():
     parser.add_argument('-n', '--n_hits_per_smi', type=int, default=30,
                         help="K highest score molecules to retrieve per query smiles ")
 
-    parser.add_argument('-b', '--backend', choices=["numpy", "numba"], default="numpy", required=False,
+    parser.add_argument('-b', '--backend', choices=["numpy", "numba"], default="numba", required=False,
                         help="computation backend ")
 
     parser.add_argument('-o', '--output_name', type=str, required=True,
@@ -286,13 +310,13 @@ if __name__ == "__main__":
     mainSearch()
 
     '''
-echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -
+echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -
 
-tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -v -
+tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -v -
 
-python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH DASK_WORKER_MEMORY=4GB N_CPUS=42 --ncpus 42 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /data/xchem-fragalysis/sanchezg/oxford/enamine/fingerprints_db/Enamine_REAL_HAC_21_22_CXSMILES -o /data/xchem-fragalysis/sanchezg/oxford/enamine/output/first_partition.json  /data/xchem-fragalysis/sanchezg/oxford/enamine/examples/example1.smi"
+python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH DASK_WORKER_MEMORY=4GB N_CPUS=42 --ncpus 42 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /data/xchem-fragalysis/sanchezg/oxford/enamine/fingerprints_db/Enamine_REAL_HAC_21_22_CXSMILES -o /data/xchem-fragalysis/sanchezg/oxford/enamine/output/first_partition.json  /data/xchem-fragalysis/sanchezg/oxford/enamine/examples/example1.smi"
 
 
-echo -e "CC=1C=CC(CS(=O)(=O)N)=CC1,OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_fast_searcher -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -b numba -v -
+echo -e "CC=1C=CC(CS(=O)(=O)N)=CC1,OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -b numba -v -
 
     '''

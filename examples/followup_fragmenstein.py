@@ -27,8 +27,9 @@ Victor.work_path=  out_dir #where results would be saved
 v= Victor(       hits=hits,
                  pdb_filename= pdb_filename, #file name of apo protein
                  ligand_resn="LIG",
-                 #Next line is nonsense for non covalent residues but required (at the moment). Just pick a random CYS
-                 covalent_resn= 'CYS', covalent_resi= '1382A'
+                 # #Next line is nonsense for non covalent residues but required (at the moment). Just pick a random CYS
+                 # covalent_resn= 'CYS',
+                  covalent_resi= '1382A'
 )
 
 v.place(smiles=smi,
