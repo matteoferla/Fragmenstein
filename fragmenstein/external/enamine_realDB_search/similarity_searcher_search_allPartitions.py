@@ -14,7 +14,7 @@ def findDB_partitions(db_path):
   return partitions
 
 
-def launch_searcher(use_condor=False, **kwargs):
+def launch_searcher(run_locally=False, **kwargs):
 
   partition_name = kwargs["database_dir"]
   output_name = os.path.join( kwargs["working_dir"], os.path.basename(partition_name).split(".")[0]+".json")
@@ -32,7 +32,7 @@ def launch_searcher(use_condor=False, **kwargs):
   cmd_args = ' -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition ' \
              '-d %(database_dir)s -o %(output_name)s  %(smilesFname)s'
 
-  if use_condor:
+  if not run_locally:
     python = " /data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python "
     cmd = cmd_condor + python + cmd_args +'"'
   else:
@@ -83,6 +83,9 @@ def globalSearch():
   parser.add_argument('-w', '--working_dir', type=str, required=True,
                       help="The directory where per partition results will be saved")
 
+  parser.add_argument('-l', '--run_locally', action="store_true",
+                      help="run computations locally instead submitting to condor")
+
   parser.add_argument('-v', '--verbose', action="store_true", default=False,
                       help="Print to stdout working information ")
 
@@ -112,6 +115,6 @@ if __name__ == "__main__":
 
 '''
 
-echo "CCC" | python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_allPartitions -d ../../enamine/fingerprints -o kk.join --n_cpus=4 -w ~/tmp/kkdir/ -
+echo "CCC" | python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_allPartitions -d ../../enamine/fingerprints  --n_cpus=4 -w ~/tmp/kkdir/ -
 
 '''
