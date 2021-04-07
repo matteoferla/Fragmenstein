@@ -32,6 +32,18 @@ def launch_searcher(run_locally=False, **kwargs):
   cmd_args = ' -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition ' \
              '-d %(database_dir)s -o %(output_name)s  %(smilesFname)s'
 
+  if "metric" in kwargs:
+    cmd_args += " --metric %s "%kwargs["metric"]
+
+  if "n_hits_per_smi" in kwargs:
+    cmd_args += " --n_hits_per_smi %s"% kwargs["n_hits_per_smi"]
+
+  if "backend" in kwargs:
+    cmd_args += " --backend %s"% kwargs["backend"]
+
+  if kwargs.get("verbose", False):
+    cmd_args += " -v "
+
   if not run_locally:
     python = " /data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python "
     cmd = cmd_condor + python + cmd_args +'"'
@@ -41,17 +53,7 @@ def launch_searcher(run_locally=False, **kwargs):
 
   cmd = cmd%kwargs
 
-  if "metric" in kwargs:
-    cmd += " --metric %s "%kwargs["metric"]
 
-  if "n_hits_per_smi" in kwargs:
-    cmd += " --n_hits_per_smi %s"% kwargs["n_hits_per_smi"]
-
-  if "backend" in kwargs:
-    cmd += " --backend %s"% kwargs["backend"]
-
-  if kwargs.get("verbose", False):
-    cmd += " -v "
 
 
   print(cmd)
