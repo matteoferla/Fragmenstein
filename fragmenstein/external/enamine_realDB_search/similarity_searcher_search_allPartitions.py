@@ -1,8 +1,11 @@
 import os
 import tempfile
+import time
 
 from subprocess import check_call
 
+WAIT_TIME_LAUNCH_QUEUE = 5
+SHARED_TMP = "/data/xchem-fragalysis/sanchezg/tmp/"
 
 def findDB_partitions(db_path):
   partitions = []
@@ -98,7 +101,11 @@ def globalSearch():
 
   kwargs = vars( args )
 
-  with tempfile.NamedTemporaryFile(mode="w", suffix=".smi") as f:
+  if  kwargs["run_locally"]:
+    tmpdir = SHARED_TMP
+  else:
+    tmpdir = tempfile.tempdir
+  with tempfile.NamedTemporaryFile(mode="w", dir=tmpdir, suffix=".smi") as f:
     f.write( query_smi_str )
     f.flush()
     kwargs["smilesFname"] = f.name
@@ -109,6 +116,8 @@ def globalSearch():
     for partitionDir in db_partitions:
       kwargs["database_dir"] = partitionDir
       launch_searcher( **kwargs )
+      if not kwargs["run_locally"]:
+        time.sleep(WAIT_TIME_LAUNCH_QUEUE)
 
 
 if __name__ == "__main__":
