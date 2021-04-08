@@ -4,6 +4,8 @@ import time
 
 from subprocess import check_call
 
+import re
+
 WAIT_TIME_LAUNCH_QUEUE = 5
 SHARED_TMP = "/data/xchem-fragalysis/sanchezg/tmp/"
 
@@ -17,6 +19,17 @@ def findDB_partitions(db_path):
   return partitions
 
 
+
+def parse_memsize(size):
+  #https://stackoverflow.com/questions/42865724/parse-human-readable-filesizes-into-bytes/42865957#42865957
+  units = {"KB": 2 ** -10, "MB": 1, "GB": 2 ** 10, "TB": 2 ** 20} #UNIT_TO_MBs
+  size = size.upper()
+  #print("parsing size ", size)
+  if not re.match(r' ', size):
+      size = re.sub(r'([KMGT]?B)', r' \1', size)
+  number, unit = [string.strip() for string in size.split()]
+  return int(float(number)*units[unit])
+
 def launch_searcher(run_locally=False, **kwargs):
 
   partition_name = kwargs["database_dir"]
@@ -25,12 +38,14 @@ def launch_searcher(run_locally=False, **kwargs):
 
   if kwargs.get("dask_worker_memory", "-1") == "-1":
     kwargs["dask_worker_memory"] = " "
+    kwargs["queue_memory"] = ""
   else:
+    kwargs["queue_memory"] = "--memory "+str( parse_memsize(kwargs["dask_worker_memory"])*kwargs["n_cpus"])
     kwargs["dask_worker_memory"] = " DASK_WORKER_MEMORY=%s "%kwargs["dask_worker_memory"]
 
   cmd_condor = 'python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json ' \
         'PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH ' \
-        '%(dask_worker_memory)s N_CPUS=%(n_cpus)s --ncpus %(n_cpus)s "'
+        '%(dask_worker_memory)s N_CPUS=%(n_cpus)s DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT=30 --ncpus %(n_cpus)s %(queue_memory)s"'
 
   cmd_args = ' -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition ' \
              '-d %(database_dir)s -o %(output_name)s  %(smilesFname)s'
@@ -55,9 +70,6 @@ def launch_searcher(run_locally=False, **kwargs):
 
 
   cmd = cmd%kwargs
-
-
-
 
   print(cmd)
   check_call( cmd, shell=True)
@@ -102,7 +114,7 @@ def globalSearch():
   kwargs = vars( args )
 
   if  not kwargs["run_locally"]:
-    tmpdir = SHARED_TMP
+    tmpdir = tempfile.tempdir #SHARED_TMP
   else:
     tmpdir = tempfile.tempdir
 
