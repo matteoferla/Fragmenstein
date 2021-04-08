@@ -114,7 +114,7 @@ def globalSearch():
   kwargs = vars( args )
 
   if  not kwargs["run_locally"]:
-    tmpdir = tempfile.tempdir #SHARED_TMP
+    tmpdir = SHARED_TMP
   else:
     tmpdir = tempfile.tempdir
 
