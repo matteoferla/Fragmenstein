@@ -118,7 +118,7 @@ def globalSearch():
   else:
     tmpdir = tempfile.tempdir
 
-  with tempfile.NamedTemporaryFile(mode="w", dir=tmpdir, suffix=".smi") as f:
+  with tempfile.NamedTemporaryFile(mode="w", dir=tmpdir, suffix=".smi", delete=False) as f:
     f.write( query_smi_str )
     f.flush()
     kwargs["smilesFname"] = f.name
@@ -129,8 +129,6 @@ def globalSearch():
     for partitionDir in db_partitions:
       kwargs["database_dir"] = partitionDir
       launch_searcher( **kwargs )
-      if not kwargs["run_locally"]:
-        time.sleep(WAIT_TIME_LAUNCH_QUEUE)
 
 
 if __name__ == "__main__":
@@ -138,7 +136,7 @@ if __name__ == "__main__":
 
 
 '''
-
-echo "CCC" | python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_allPartitions -d ../../enamine/fingerprints  --n_cpus=4 -w ~/tmp/kkdir/ -
+# Z2770753574
+echo "CCNC(=O)C(F)(F)C(=O)NCC" | python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_allPartitions -d ../../enamine/fingerprints  --n_cpus=4 -w ~/tmp/kkdir/ -
 
 '''
