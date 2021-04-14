@@ -132,7 +132,8 @@ def process_one_subFile_by_chunks(query_fps_mat, fileNum_chunkFname, n_hits_per_
                                   n_mols_per_chunk=1000000, metric_fun= jaccard_numba, verbose=False):
 
     file_num, chunk_fname = fileNum_chunkFname
-    if verbose: print( "[%s]: Processing %s: %s"%(datetime.datetime.now().strftime("%c"), file_num, chunk_fname))
+    initial_time = datetime.datetime.now()
+    if verbose: print( "[%s]: Processing %s: %s"%(initial_time.strftime("%c"), file_num, chunk_fname))
     if n_mols_per_chunk is not None:
         chunkSize = n_mols_per_chunk * (query_fps_mat.shape[1] // 8)
 
@@ -155,6 +156,7 @@ def process_one_subFile_by_chunks(query_fps_mat, fileNum_chunkFname, n_hits_per_
             i += db_many_fps_bool.shape[0]
             bytes_ = f.read(chunkSize)
 
+    if verbose: print( "[%s]: %s: %s was computed in %s"%( datetime.datetime.now().strftime("%c"), chunk_fname, file_num, datetime.datetime.now()-initial_time))
     return matched_similarities, matched_ids
 
 def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name=None, backend="numpy", metric="Tanimoto", verbose=True):
@@ -216,19 +218,19 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
         from joblib import wrap_non_picklable_objects
         process_one_subFile = wrap_non_picklable_objects(process_one_subFile)
         set_loky_pickler('dill')
-        all_partitions = Parallel(n_jobs=ConfigManager.N_CPUS, backend="loky")(delayed(process_one_subFile)( (i, fname) ) for i,fname in enumerate(filenames))
+        all_partitions = Parallel(n_jobs=ConfigManager.N_CPUS, backend="loky", verbose=verbose)(delayed(process_one_subFile)( (i, fname) ) for i,fname in enumerate(filenames))
         matched_similarities, matched_ids = reduce(combine_two_chunk_searches, all_partitions, (matched_similarities, matched_ids) )
     if verbose: print("Binary search completed! Looking into database")
     # print( matched_similarities )
     # print( matched_ids )
 
-    compounds_name = os.path.join(database_dir, "compounds.sqlite")
+    compounds_dbname = os.path.join(database_dir, "compounds.sqlite")
 
 
     basenames = [ os.path.basename(fname).split(".")[0] for fname in filenames]
     # matches_db_entries_compound = [ (int(rowNum), basenames[fileNum]) for fileNum, rowNum in matched_ids.reshape(-1, 2) ]
 
-    con = sqlite3.connect(compounds_name)
+    con = sqlite3.connect(compounds_dbname)
     cur = con.cursor()
 
     resultsDict = OrderedDict([])
