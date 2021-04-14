@@ -87,7 +87,7 @@ def globalSearch():
 
   parser.add_argument('-d', '--database_dir', help="the directory where compounds database was compiled", required=True)
 
-  parser.add_argument('-m', '--metric', nargs=None, choices=["Tanimoto", "Traversky"], default="Tanimoto",
+  parser.add_argument('-m', '--metric', nargs=None, choices=["Tanimoto", "Traversky"], default="Traversky",
                       required=False,
                       help="metric to use")
 

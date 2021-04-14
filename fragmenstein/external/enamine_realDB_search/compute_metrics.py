@@ -30,27 +30,46 @@ def traversky_numba(query_fp, db_fp, alpha=0.3, beta=0.7):
     res = n11 / (n11 + alpha*n10 +beta*n01)
     return res
 
+
+
+def _getTestInput():
+  # merge_smi = 'Cc1ccc([C@@](N)(O)OOCc2ccccc2)cc1F'
+  # f1_smi = 'CC=1C=CC(CS(=O)(=O)N)=CC1'
+  # f2_smi = 'OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1'
+
+  # merge_smi = 'CN(C1CCCCCCC1)S(C)(=O)=O'
+  # f1_smi = 'CN(C1CCCCCC1)S(=O)(=O)C'
+  # f2_smi = 'NC=1C=CC(=CC1)S(=O)(=O)NC=2C=CC=CC2'
+
+
+  merge_smi = 'CN(C1CCCCCCC1)S(C)(=O)=O'
+  f1_smi =    'CN(C1CCCCCC1)S(=O)(=O)C'
+  f2_smi =    'NC=1C=CC(=CC1)S(=O)(=O)NC=2C=CC=CC2'
+
+  f1_smi, f2_smi = f2_smi, f1_smi
+
+  return  f1_smi, f2_smi, merge_smi
+
 def testTanimoto():
   from rdkit import DataStructs
   from fragmenstein.external.enamine_realDB_search.compute_fingerprints import get_fingerPrint
 
-  smi1 = 'O=C(NCC(O)C1=CSC=C1)C1CCN(C2=CC=NC=C2)C1'
-  smi2 = 'CCC(NC(=O)C1CCN(C2=CC=NC=C2)C1)C(=O)OC'
+  f1_smi, f2_smi, merge_smi = _getTestInput()
 
-  fp1 = get_fingerPrint(smi1)
-  fp2 = get_fingerPrint(smi2)
+  fp1 = get_fingerPrint(f1_smi)
+  fp2 = get_fingerPrint(f2_smi)
+  fp_merge = get_fingerPrint(merge_smi)
 
-  sim = DataStructs.FingerprintSimilarity(fp1, fp2)
-  print(sim)
+  print("smi1, smi2", DataStructs.FingerprintSimilarity(fp1, fp2))
+  print("smi1, merge_smi", DataStructs.FingerprintSimilarity(fp1, fp_merge))
+  print("smi2, merge_smi", DataStructs.FingerprintSimilarity(fp2, fp_merge))
 
 
 def testTraversky():
   from rdkit import DataStructs
   from fragmenstein.external.enamine_realDB_search.compute_fingerprints import get_fingerPrint
 
-  merge_smi = 'Cc1ccc([C@@](N)(O)OOCc2ccccc2)cc1F'
-  f1_smi = 'CC=1C=CC(CS(=O)(=O)N)=CC1'
-  f2_smi = 'OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1'
+  f1_smi, f2_smi, merge_smi = _getTestInput()
 
   fp_merge = get_fingerPrint(merge_smi)
   fp1 = get_fingerPrint(f1_smi)
@@ -60,15 +79,19 @@ def testTraversky():
   sim1 = DataStructs.FingerprintSimilarity(fp_merge, fp1,
                                            metric=lambda fp1, fp2: DataStructs.TverskySimilarity(fp1, fp2,
                                                                                                  *traversky_params))
-  print(sim1)
+  print("merge vs 1:", sim1)
   from fragmenstein.external.enamine_realDB_search.compute_fingerprints import get_fingerPrint_as_npBool
   print( traversky_numba(get_fingerPrint_as_npBool(merge_smi), get_fingerPrint_as_npBool(f1_smi), *traversky_params) )
 
   sim2 = DataStructs.FingerprintSimilarity(fp_merge, fp2,
                                            metric=lambda fp1, fp2: DataStructs.TverskySimilarity(fp1, fp2,
                                                                                                  *traversky_params))
-  print(sim2)
+  print("merge vs 2:", sim2)
   print( traversky_numba(get_fingerPrint_as_npBool(merge_smi), get_fingerPrint_as_npBool(f2_smi), *traversky_params) )
 
 if __name__ == "__main__":
+  print("Tanimoto")
+  testTanimoto()
+  print("------------------------------")
+  print("Traversky")
   testTraversky()

@@ -14,9 +14,10 @@ from fragmenstein.external.enamine_realDB_search.compute_fingerprints import get
 from fragmenstein.external.enamine_realDB_search.compute_metrics import jaccard_vectorized, jaccard_numba, \
     traversky_numba
 from fragmenstein.utils.cmd_parser import ArgumentParser
+from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
-
+USE_DASK = False
 
 def combine_two_chunk_searches(cs1, cs2):
     '''
@@ -87,7 +88,7 @@ def _process_chunk_using_numba(query_fps_mat, db_fps_mat, n_hits_per_smi, verbos
     return matched_similarities, matched_ids, n_elems_found
 
 
-@numba.jit(nopython=True, cache=True)
+@numba.jit(nopython=True, cache=False, parallel=False)
 def process_chunk_using_numba(query_fps_mat, db_fps_mat, n_hits_per_smi, metric_fun, verbose=False):
 
     n_query_fps = query_fps_mat.shape[0]
@@ -109,6 +110,7 @@ def process_chunk_using_numba(query_fps_mat, db_fps_mat, n_hits_per_smi, metric_
             query_fp = query_fps_mat[i]
             prod = 1
             for subquery_idx in range(query_multiplicity):
+                query_sim =metric_fun(query_fp[(subquery_idx * fp_size):((subquery_idx + 1) * fp_size)], bin_finPrint)
                 prod *= metric_fun(query_fp[(subquery_idx * fp_size):((subquery_idx + 1) * fp_size)], bin_finPrint)
             prod = prod ** (1. / query_multiplicity)
             simil = prod if 0<=prod<=1 else -1
@@ -130,7 +132,7 @@ def process_one_subFile_by_chunks(query_fps_mat, fileNum_chunkFname, n_hits_per_
                                   n_mols_per_chunk=1000000, metric_fun= jaccard_numba, verbose=False):
 
     file_num, chunk_fname = fileNum_chunkFname
-    if verbose: print( "Processing %s: %s"%(file_num, chunk_fname))
+    if verbose: print( "[%s]: Processing %s: %s"%(datetime.datetime.now().strftime("%c"), file_num, chunk_fname))
     if n_mols_per_chunk is not None:
         chunkSize = n_mols_per_chunk * (query_fps_mat.shape[1] // 8)
 
@@ -195,17 +197,27 @@ def search_smi_list(query_smi_list, database_dir, n_hits_per_smi=30, output_name
     else:
         raise ValueError("Error, not valid backend %s"%backend)
 
-    process_one_subFile = lambda fname: process_one_subFile_by_chunks(query_fps, fname, n_hits_per_smi,
-                                                                      process_chunk_fun=process_chunk_fun,
-                                                                      verbose=verbose, **kwargs)
+    def process_one_subFile(fname):
+        return process_one_subFile_by_chunks(query_fps, fname, n_hits_per_smi,
+                                              process_chunk_fun=process_chunk_fun,
+                                              verbose=verbose, **kwargs)
 
     fingerprints_dir = os.path.join(database_dir, "fingerprints")
     filenames = filter( lambda x:  x.endswith(".fingerprints.BitVect"), sorted(os.listdir(fingerprints_dir)))
     filenames =  list( map( lambda x:  os.path.join(fingerprints_dir,x), filenames ) )
 
-
-    bag = db.from_sequence( enumerate(filenames)).map(process_one_subFile).fold(combine_two_chunk_searches, initial=(matched_similarities, matched_ids))
-    matched_similarities, matched_ids = bag.compute()
+    if USE_DASK:
+        bag = db.from_sequence( enumerate(filenames)).map(process_one_subFile).fold(combine_two_chunk_searches, initial=(matched_similarities, matched_ids))
+        matched_similarities, matched_ids = bag.compute()
+    else:
+        from joblib import Parallel, delayed
+        from functools import reduce
+        from joblib.externals.loky import set_loky_pickler
+        from joblib import wrap_non_picklable_objects
+        process_one_subFile = wrap_non_picklable_objects(process_one_subFile)
+        set_loky_pickler('dill')
+        all_partitions = Parallel(n_jobs=ConfigManager.N_CPUS, backend="loky")(delayed(process_one_subFile)( (i, fname) ) for i,fname in enumerate(filenames))
+        matched_similarities, matched_ids = reduce(combine_two_chunk_searches, all_partitions, (matched_similarities, matched_ids) )
     if verbose: print("Binary search completed! Looking into database")
     # print( matched_similarities )
     # print( matched_ids )
@@ -283,14 +295,15 @@ def mainSearch():
     query_smi_list = [ x.strip().split(",") for x in query_smi_list]
     assert len(query_smi_list) >0, "Error, no smiles provided"
 
-    dask_client = get_parallel_client()
+    if USE_DASK:
+        dask_client = get_parallel_client()
 
     # numba.set_num_threads(multiprocessing.cpu_count()/n_dask_workers)
     search_smi_list(query_smi_list, args.database_dir, n_hits_per_smi=args.n_hits_per_smi, output_name=args.output_name,
                     backend=args.backend, metric = args.metric,
                     verbose=args.verbose)
-
-    dask_client.shutdown()
+    if USE_DASK:
+        dask_client.shutdown()
 
 
 def testSearch():
@@ -310,13 +323,13 @@ if __name__ == "__main__":
     mainSearch()
 
     '''
-echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -
+echo -e "CC1CCSCCN1CCC1=CN=CC(F)=C1\nCOC\nC1C(C(C(C(O1)O)O)O)O" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints/EXAMPLE_1 -o /home/ruben/tmp/mols/first_partition.json -
 
-tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -v -
+tail  -n 1 ~/oxford/enamine/cxsmiles/big_example1.txt | cut -f 1 | N_CPUS=1 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints/EXAMPLE_1 -o /home/ruben/tmp/mols/first_partition.json -v -
 
 python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH DASK_WORKER_MEMORY=4GB N_CPUS=42 --ncpus 42 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /data/xchem-fragalysis/sanchezg/oxford/enamine/fingerprints_db/Enamine_REAL_HAC_21_22_CXSMILES -o /data/xchem-fragalysis/sanchezg/oxford/enamine/output/first_partition.json  /data/xchem-fragalysis/sanchezg/oxford/enamine/examples/example1.smi"
 
 
-echo -e "CC=1C=CC(CS(=O)(=O)N)=CC1,OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints -o /home/ruben/tmp/mols/first_partition.json -b numba -v -
+echo -e "CC=1C=CC(CS(=O)(=O)N)=CC1,OC=1C=CC(NC(=O)CCC=2C=CC=CC2)=CC1" | N_CPUS=2 python -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition -d /home/ruben/oxford/enamine/fingerprints/EXAMPLE_1 -o /home/ruben/tmp/mols/first_partition.json -b numba -v -
 
     '''
