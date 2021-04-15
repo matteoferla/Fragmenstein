@@ -15,7 +15,7 @@ from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
 
 
-class Protocol_combineFragmenstein(Protocol_combineBase):
+class Protocol_combineDeLinker(Protocol_combineBase):
 
     def _check_compability(self, frag1, frag2, min_dist_thr=3,  max_dist_thr=15, min_weight=60): # Many bugs if this is 50 or less
 
@@ -100,13 +100,13 @@ class Protocol_combineFragmenstein(Protocol_combineBase):
 
 if __name__ == "__main__":
 
-    parser = Protocol_combineFragmenstein.generateCmdParser(prog="protocols_combineDeLinker",
-                                                            description="Combines molecules using fragmentation and DeLinker")
+    parser = Protocol_combineDeLinker.generateCmdParser(prog="protocols_combineDeLinker",
+                                                        description="Combines molecules using fragmentation and DeLinker")
 
 
     args = vars(parser.parse_args())
     print(args)
-    Protocol_combineFragmenstein.main(**args)
+    Protocol_combineDeLinker.main(**args)
     print("\nmain DONE!\n")
 
     #TODO: modify fragalysis writer to accept method=DeLInker

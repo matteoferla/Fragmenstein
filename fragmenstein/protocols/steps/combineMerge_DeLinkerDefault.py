@@ -32,9 +32,12 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         )
 
 
-    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=10, n_atomPairs_attemps=3, *args, **kwargs):
+    def __init__(self, random_seed=None, gpu_id=None, number_of_generation_per_valid=10, n_atomPairs_attemps= None, *args, **kwargs):
 
         super().__init__( *args, **kwargs)
+
+        if n_atomPairs_attemps is None:
+            n_atomPairs_attemps = ConfigManager.DE_LINKER_N_ATOMPAIRS_ATTEMPS
 
         self.n_atomPairs_attemps = n_atomPairs_attemps
         self.number_of_generation_per_valid = number_of_generation_per_valid

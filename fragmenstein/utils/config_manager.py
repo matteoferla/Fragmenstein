@@ -44,7 +44,7 @@ class ConfigManager():
          "The max number of fragments that would be considered when doing permutaitons of fragments combinations. Default: %(default)s"),
         ("DISABLE_DASHBOARD", parseBool, False, "Set it to True if you want to disable dask dashboard. Default: %(default)s"),
         #("IGOR_TIMEOUT", int, 200, "Seconds till rosetta minimize timeout. Default: %(default)s") #Mot working because of dask nanny
-
+        ("DE_LINKER_N_ATOMPAIRS_ATTEMPS", int, 3,  "Number of minimun distance pairs that will be intended to be linked"),
     ]
     def __init__(self):
         self_class = type(self)

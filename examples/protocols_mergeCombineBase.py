@@ -227,14 +227,13 @@ class Protocol_mergeCombineBase(ABC):
     @classmethod
     def main(cls, *args, **kwargs):
 
-        in_dir = kwargs["data_root_dir"]
-        out_dir = kwargs["output_dir"]
+        in_dir = os.path.abspath(os.path.expanduser(kwargs["data_root_dir"]))
+        out_dir = os.path.abspath(os.path.expanduser(kwargs["output_dir"]))
 
         existing_outdir = True
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
             existing_outdir = False
-
         if "working_dir" in kwargs and  kwargs["working_dir"] is not None:
             wdir = kwargs["working_dir"]
         else:
@@ -259,7 +258,7 @@ class Protocol_mergeCombineBase(ABC):
             kwargs["data_root_dir"] = new_in_dir
 
 
-            new_out_dir = os.path.join(tmp_outdir, os.path.basename(out_dir))
+            new_out_dir = os.path.join(tmp_outdir, os.path.basename( os.path.abspath(out_dir)))
             os.mkdir(new_out_dir)
             if existing_outdir: #create links to files that could be readed
                 new_scoring_dir = os.path.join(new_out_dir, cls.SCORES_SUBDIR)

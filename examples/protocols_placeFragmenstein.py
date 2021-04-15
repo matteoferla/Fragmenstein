@@ -57,12 +57,11 @@ if __name__ == "__main__":
     print(args)
     lines = args["input_file"].read().splitlines()
     for line in lines:
-      print(line, line.split()) #; input("enter")
       smi, fragIds = line.split()
-      print(smi, fragIds.split(","))
+      # print(smi, fragIds.split(","))
 
     smile_fragIds_list = [ line.split() for line in lines if len(line.strip())>0 ]
-    print(smile_fragIds_list)
+    # print(smile_fragIds_list)
     smile_fragIds_list = [ (smi, fragIds.split(",")) for smi, fragIds in smile_fragIds_list ]
     Protocol_placeFragmenstein.main( smile_fragIds_list = smile_fragIds_list, ** args)
     print("\nmain DONE!\n")

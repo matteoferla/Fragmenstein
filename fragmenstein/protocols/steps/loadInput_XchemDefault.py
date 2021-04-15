@@ -24,8 +24,6 @@ class LoadInput_XchemDefault(LoadInput_base, Xchem_info):
         self.unboundPdb_id_pattern = unboundPdb_id_pattern
         self.target_id = target_id
 
-
-
     def prepare_fragments(self):
         fragments = load_files_as_mols( self.data_dir, self.fragment_id_pattern )
 

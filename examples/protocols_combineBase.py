@@ -14,6 +14,7 @@ class Protocol_combineBase(Protocol_mergeCombineBase):
                    template_pattern=None, max_attemps=None, random_seed=None, protocol_verbose=False, *args, **kwargs):
 
         self._hit_ids = hit_ids
+        assert len(self._hit_ids) > 1, "Error, only one hit was provided: %s"%str(self._hit_ids)
         self.data_root_dir = data_root_dir
         self.preprocess_mode = preprocess_mode
 
