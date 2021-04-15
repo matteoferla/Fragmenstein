@@ -73,7 +73,7 @@ def collectResults():
     def readTxt(fname):
       with open(fname) as f:
         mol_id = re.match(file_pattern, os.path.split(fname)[-1]).group(1)
-        return f.read(), mol_id
+        return f.read().strip(), mol_id
     smiles_to_id = dict(apply_func_to_files(args.fragments_dir, file_pattern, readTxt))
 
     new_dict = {}
