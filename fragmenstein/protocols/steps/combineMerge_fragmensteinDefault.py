@@ -110,10 +110,13 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
             minimized_mol = Compound( minimized_mol, molId=merge_id, parents= fragments)
             minimized_mol.ref_pdb = templateFname
             minimized_mol.metadata = metadata_dict
-            if smi is None: #combine mode
-                minimized_mol.ref_molIds =  regarded_fragIds
-            else: #place mode
-                minimized_mol.ref_molIds = ori_frag_ids
+
+            minimized_mol.ref_molIds =  regarded_fragIds
+
+            # if smi is None: #combine mode
+            #     minimized_mol.ref_molIds =  regarded_fragIds
+            # else: #place mode
+            #     minimized_mol.ref_molIds = ori_frag_ids
 
             minimized_mol.atomic_mapping = atomic_mapping
             result = [ minimized_mol ]

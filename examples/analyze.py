@@ -55,6 +55,10 @@ print(df.columns)
 print(df.shape)
 
 
+num_frags = df['ref_mols'].map(lambda x: len(x.split(",")))
+df = df[num_frags>1]
+print("numFragmentsInvolved > 1", df.shape)
+
 df = df.query( " comRMSD_score < 1.")
 print("rmsd", df.shape)
 

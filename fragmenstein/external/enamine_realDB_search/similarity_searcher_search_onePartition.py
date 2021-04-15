@@ -147,7 +147,6 @@ def process_one_subFile_by_chunks(query_fps_mat, fileNum_chunkFname, n_hits_per_
         i=0
         while bytes_:
             db_many_fps_bool = decompressFingerprint_npStr( bytes_ ).reshape(-1, FINGERPRINT_NBITS)
-
             found_similarities, idxs, n_hits_found = process_chunk_fun( query_fps_mat, db_many_fps_bool, n_hits_per_smi, metric_fun )
             idxs[:, : n_hits_found] += i
             idxs = np.stack([file_num*np.ones_like(idxs), idxs], axis = -1 )
