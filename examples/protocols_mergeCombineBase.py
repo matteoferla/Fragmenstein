@@ -31,7 +31,7 @@ class Protocol_mergeCombineBase(ABC):
 
     MERGES_SUBDIR="merges"
     SCORES_SUBDIR="scoring"
-    def __init__(self, data_root_dir, output_dir, merging_mode=None, verbose=True, *args, **kwargs):
+    def __init__(self, data_root_dir, output_dir, merging_mode=None, filter_out_by_num_inspirational_frags=-1, verbose=True, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
@@ -39,6 +39,7 @@ class Protocol_mergeCombineBase(ABC):
         self.wdir_enumeration =  os.path.join(self.output_dir, Protocol_mergeCombineBase.MERGES_SUBDIR)
         self.wdir_scoring = os.path.join(self.output_dir, Protocol_mergeCombineBase.SCORES_SUBDIR)
         self.merging_mode = merging_mode
+        self.filter_out_by_num_inspirational_frags = filter_out_by_num_inspirational_frags
         self.verbose = verbose
         self._loader = None
         self._fragments = None
@@ -136,6 +137,7 @@ class Protocol_mergeCombineBase(ABC):
 
         for  compound in results:
             smi = Chem.MolToSmiles(compound )
+            if len(compound.getFragIds())< self.filter_out_by_num_inspirational_frags: continue
             if smi in already_available: continue # Heuristic filter for uniqueness
             already_available.add(smi)
             #Get rid of bad stuff
@@ -323,6 +325,10 @@ class Protocol_mergeCombineBase(ABC):
 
         parser.add_argument( "--skip_enumeration_and_score_available", action="store_true",
                             help="Do not propose more molecules and only score them ")
+
+        parser.add_argument( "--filter_out_by_num_inspirational_frags", type=int, default=-1,
+                            help="Discard compounds that only match to NUM number of one inspirational hit. Set to -1 to ignore"
+                                 "this filter. Default %(default)s")
 
         parser.add_argument( "--working_dir", type=str, default=None, help="Directory where results are computed before"
                                                                            " being synchronized to output_dir")
