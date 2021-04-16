@@ -202,6 +202,10 @@ class Protocol_mergeCombineBase(ABC):
                 unbound_pdb_fname = compound.ref_pdb
                 compound.SetProp("ref_pdb", get_xchem_template_name(unbound_pdb_fname))
                 minimized_pdb = os.path.join(self.wdir_enumeration, original_name, Xchem_info.predicted_boundPdb_template%original_name)
+                if not os.path.isfile(minimized_pdb):
+                    subdir = "_".join(original_name.split("_")[:-1]) #for delinker
+                    minimized_pdb = os.path.join(self.wdir_enumeration, subdir,
+                                                    Xchem_info.predicted_boundPdb_template % original_name)
                 pdbBasename = os.path.basename(minimized_pdb)
                 f.write(minimized_pdb, os.path.join( "bound_pdbs",  "bound_pdbs", pdbBasename))
                 compoundName_to_pdbName.append( "%s\t%s"%( simplified_name, pdbBasename))
@@ -287,8 +291,6 @@ class Protocol_mergeCombineBase(ABC):
             kwargs["output_dir"] = new_out_dir
             syncronizerThr = threading.Thread(target=syncronizer, args=(new_out_dir, 30))
             syncronizerThr.start()
-
-            print("Done!", flush=True)
 
             protocol = cls(*args, **kwargs)
             protocol.initialize(*args, **kwargs)

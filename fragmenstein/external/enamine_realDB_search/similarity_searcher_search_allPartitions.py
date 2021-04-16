@@ -45,7 +45,7 @@ def launch_searcher(run_locally=False, **kwargs):
 
   cmd_condor = 'python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json ' \
         'PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin:$PATH ' \
-        '%(dask_worker_memory)s N_CPUS=%(n_cpus)s DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT=30 --ncpus %(n_cpus)s %(queue_memory)s  "'
+        '%(dask_worker_memory)s N_CPUS=%(n_cpus)s DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT=500 --ncpus %(n_cpus)s %(queue_memory)s  "'
 
   cmd_args = ' -m fragmenstein.external.enamine_realDB_search.similarity_searcher_search_onePartition ' \
              '-d %(database_dir)s -o %(output_name)s  %(smilesFname)s'

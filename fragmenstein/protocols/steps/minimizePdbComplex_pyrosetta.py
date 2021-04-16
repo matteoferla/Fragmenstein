@@ -1,4 +1,4 @@
-
+import json
 import os
 import numpy as np
 
@@ -195,7 +195,6 @@ class MinimizePDBComplex_pyrosetta():
 
             unminimizedPdbBlock = self.igor.pose2str()
 
-
             ddG = self.minimize_recipe( params)
 
 
@@ -232,6 +231,9 @@ class MinimizePDBComplex_pyrosetta():
                 lig_fname = os.path.join(outdir, "{molId}.minimised.mol".format(molId=molId))
                 Chem.MolToMolFile(ligand, lig_fname)
 
+                md_fname = os.path.join(outdir, "{molId}.metadata.json".format(molId=molId))
+                with open(md_fname, "w") as f:
+                    json.dump(metadata, f)
 
             return ligand, metadata
 

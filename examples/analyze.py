@@ -67,8 +67,8 @@ print("mass", df.shape)
 
 # prop="SA_score"; print(prop); plt.title(prop); plt.hist( df[prop], label= prop ); plt.show()
 
-df = df.query( " 0.1 < SA_score < 7 and 0.2 < SC_score < 3.5")
-print("Synthetic accesibility", df.shape)
+# df = df.query( " 0.1 < SA_score < 8 and 0.2 < SC_score < 4")
+# print("Synthetic accesibility", df.shape)
 
 df = df.query( " -1 < aLogP_score < 4 ")
 print("log_p", df.shape)

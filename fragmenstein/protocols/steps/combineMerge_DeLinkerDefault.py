@@ -81,11 +81,8 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
         # from rdkit.Chem import Draw
         # for i in range(len(proposed_mols)):
         #     plt.imshow(Draw.MolsToGridImage([proposed_mols[i]], molsPerRow=1)); plt.show()
-
         # proposed_mols = list(map(Chem.Mol, type(self).example_delkinker))
 
-
-        placed_results = []
 
         w_DeLinker = Chem.SDWriter( os.path.join(final_outdir, "delinker_mols.sdf"))
 
@@ -119,14 +116,14 @@ class CombineMerge_DeLinkerDefault( CombineMerge_Base  ):
             metadata_dict["atomic_mapping"] = atomic_mapping
             return  generated_molecule
 
-
+        placed_results = []
         for i, proposal in enumerate(proposed_mols):
             w_DeLinker.write(proposal)
             w_DeLinker.flush()
             minimized_mol = minimizeMol( merge_id+"_"+str(i), proposal)
             if minimized_mol:
                 placed_results +=  [minimized_mol ]
-
+                if i == 1: break #TODO: remove it
             # ExternalToolImporter.import_tool("pyrosetta", ["pyrosetta"])
             # Victor.work_path = wdir
             # v = Victor(fragments, pdb_filename=templateFname)
