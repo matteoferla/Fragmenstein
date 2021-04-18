@@ -82,7 +82,6 @@ def collectResults():
 
     mol_file_pattern =  r".*?(x[\w-]+)\.mol$"
     def computeCentroid(fname):
-      print(os.path.split(fname)[-1])
       molId = re.match(mol_file_pattern, os.path.split(fname)[-1]).group(1)
       mol = Chem.MolFromMolFile(fname)
       return molId, mol.GetConformer().GetPositions().mean(axis=0)
