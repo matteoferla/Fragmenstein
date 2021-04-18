@@ -3,7 +3,11 @@ import json
 import dask.bag as db
 import re
 
+from collections import defaultdict
+
+import itertools
 from rdkit import Chem
+from scipy.spatial.distance import pdist
 
 from fragmenstein.utils.io_utils import apply_func_to_files
 
@@ -69,17 +73,42 @@ def collectResults():
   # print(final_search )
 
   if args.fragments_dir:
-    file_pattern =  r".*?(x[\w-]+)_smiles\.txt"
+    smiles_file_pattern =  r".*?(x[\w-]+)_smiles\.txt$"
     def readTxt(fname):
       with open(fname) as f:
-        mol_id = re.match(file_pattern, os.path.split(fname)[-1]).group(1)
-        return f.read().strip(), mol_id
-    smiles_to_id = dict(apply_func_to_files(args.fragments_dir, file_pattern, readTxt))
+        molId = re.match(smiles_file_pattern, os.path.split(fname)[-1]).group(1)
+        return f.read().strip(), molId
+    smiles_to_id = apply_func_to_files(args.fragments_dir, smiles_file_pattern, readTxt)
+
+    mol_file_pattern =  r".*?(x[\w-]+)\.mol$"
+    def computeCentroid(fname):
+      print(os.path.split(fname)[-1])
+      molId = re.match(mol_file_pattern, os.path.split(fname)[-1]).group(1)
+      mol = Chem.MolFromMolFile(fname)
+      return molId, mol.GetConformer().GetPositions().mean(axis=0)
+
+    fragIds_centroids = apply_func_to_files(args.fragments_dir, mol_file_pattern, computeCentroid)
+    fragIds_centroids = dict(fragIds_centroids)
+
+    smiles_to_id_dict = defaultdict(list)
+    for key, val in smiles_to_id:
+      smiles_to_id_dict[key].append(val)
+    smiles_to_id = dict( smiles_to_id_dict )
 
     new_dict = {}
     for query, resultsList in final_search.items():
-      query = ",".join(tuple( map(lambda x: smiles_to_id[x], query.split(",") )))
-      new_dict[query] = resultsList
+      fragIds_combinations = itertools.product( * map(lambda x: smiles_to_id[x], query.split(",")))
+
+      def checkThrDist(fragmentIds, distThr=15):
+        centroids = [ fragIds_centroids[fragId] for fragId in fragmentIds ]
+        distsMat = pdist(centroids)
+        return max(distsMat) < distThr
+
+      compatible_fragIds = filter( checkThrDist, fragIds_combinations)
+
+      for queryAsFragIds in compatible_fragIds:
+        queryAsFragIds = ",".join(queryAsFragIds)
+        new_dict[queryAsFragIds] = resultsList
     final_search = new_dict
 
     if args.for_fragmenstein_fname:
