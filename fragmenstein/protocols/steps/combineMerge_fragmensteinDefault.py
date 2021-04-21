@@ -36,7 +36,7 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
     def _setVerbosity(self):
         if self.verbose:
             Victor.enable_stdout(level=logging.DEBUG)
-            Victor.quick_renanimation = True
+            # Victor.quick_renanimation = True
         else:
             Victor.enable_stdout(level=logging.CRITICAL)
             Victor.enable_logfile("/dev/null", level=logging.CRITICAL)
@@ -71,6 +71,8 @@ class CombineMerge_FragmensteinDefault( CombineMerge_Base ):
 
         minimized_mol = None
         unminimized_mol_pdbblock = None
+
+        self._setVerbosity()
         v = Victor(hits=fragments, pdb_filename=templateFname, **covalent_info)
         try:
             if smi is None:
