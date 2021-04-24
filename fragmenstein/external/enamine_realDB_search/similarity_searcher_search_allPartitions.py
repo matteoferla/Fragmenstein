@@ -66,7 +66,7 @@ def launch_searcher(run_locally=False, **kwargs):
     python = " /data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python "
     cmd = cmd_condor + python + cmd_args +'"'
   else:
-    cmd = "python " + cmd_args
+    cmd = "%(dask_worker_memory)s N_CPUS=%(n_cpus)s DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT=500 python " + cmd_args
 
 
   cmd = cmd%kwargs
