@@ -119,8 +119,9 @@ if inPdbs_fname:
                     found_pdbs.add(basename)
                     file_str = f_in.read( fname )
                     f_out.writestr(fname, file_str)
-            elif fname.endswith(".txt"):
+            elif fname.endswith(".txt") or fname.endswith(".tab"):
                 summary_fname = fname
+        assert summary_fname is not None, "Error, summary not found"
         found_lines = []
         for line in  f_in.read( summary_fname).decode("utf-8").split("\n"):
             molName, pdbFname = line.split()
