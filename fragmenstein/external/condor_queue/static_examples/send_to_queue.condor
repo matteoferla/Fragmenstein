@@ -1,0 +1,24 @@
+  ####################
+  #
+  # Example 1
+  # Simple condor job description file
+  #
+  ####################
+
+Executable      = /usr/bin/bash
+Arguments       = examples/launch_fragmenstein.sh
+Universe        = vanilla
+Output          = /data/xchem-fragalysis/sanchezg/logs/frag_$(Cluster).$(Process).out
+Error           = /data/xchem-fragalysis/sanchezg/logs/frag_$(Cluster).$(Process).err
+Log             = /data/xchem-fragalysis/sanchezg/logs/frag_$(Cluster).$(Process).log
+
+request_cpus   = 30
+request_memory = 204800
+#request_disk   = 262144
+#request_gpus    = 1
+
+#requirements = (TARGET.Machine == "pulsar-exec-node-gpu-2.xchem.novalocal")
+
+Queue in (xaa,xab,xac,xad,xae,xaf,xag,xah,xai,xaj,xak,xal,xam,xan,xao,xap,xaq,xar,xas,xat,xau,xav,xaw,xax,xay,xaz,xba,xbb,xbc)
+
+
