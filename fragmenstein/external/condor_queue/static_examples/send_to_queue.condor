@@ -6,7 +6,7 @@
   ####################
 
 Executable      = /usr/bin/bash
-Arguments       = /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/fragmenstein/external/condor_queue/static_examples/launch_fragmenstein.sh
+Arguments       = /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/fragmenstein/external/condor_queue/static_examples/launch_fragmenstein.sh $(Item)
 Universe        = vanilla
 Output          = /data/xchem-fragalysis/sanchezg/logs/frag_$(Cluster).$(Process).out
 Error           = /data/xchem-fragalysis/sanchezg/logs/frag_$(Cluster).$(Process).err
