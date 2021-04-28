@@ -247,7 +247,7 @@ class Protocol_mergeCombineBase(ABC):
         only_enumeration = ("skip_scoring" in kwargs and kwargs["skip_scoring"])
         only_evaluation = ("skip_enumeration_and_score_available" in kwargs and  kwargs["skip_enumeration_and_score_available"])
 
-        assert only_enumeration and only_enumeration == False, "Error, skip_scoring and skip_enumeration_and_score_available are incompatible arguments"
+        assert (only_enumeration and only_enumeration) == False, "Error, skip_scoring and skip_enumeration_and_score_available are incompatible arguments"
 
         keep_sync = True
         def syncronizer(new_out_dir, time_sleep):
