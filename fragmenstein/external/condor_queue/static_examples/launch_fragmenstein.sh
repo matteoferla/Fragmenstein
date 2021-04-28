@@ -8,7 +8,7 @@ export PATH=/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/b
 export DASK_WORKER_MEMORY="6GB"
 export N_CPUS=8
 export DASK_DISTRIBUTED__COMM__TIMEOUTS__CONNECT=200
-cmd="$PYTHON  -m examples.protocols_placeFragmenstein -o $OUTDIR -f $OUTDIR/split_input/$1 -i $DATA_ROOT --skip"
+cmd="$PYTHON  -m examples.protocols_placeFragmenstein -o $OUTDIR -f $OUTDIR/split_input/$1 -i $DATA_ROOT --skip_scoring"
 #"--filter_out_by_num_inspirational_frags 2"
 
 echo $cmd
