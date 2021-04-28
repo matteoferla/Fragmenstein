@@ -13,12 +13,16 @@ from itertools import combinations
 # dataDir = "/home/ruben/oxford/myProjects/diamondOthers/fragmenstein/PgDPP11/fragalysis/aligned"
 # projectName="PGN_RS02895PGA-"
 
+#dpp11_new
+frags = "x0120_0A,x0000_0A,x0522_0A,x0597_0A,x0729_0A"
+dataDir = os.path.expanduser("~/oxford/myProjects/diamondOthers/fragmenstein/PgDPP11/downloaded_from_gustavo/like_fragalysis/")
+projectName="PGN_RS02895PGA-"
 
-#parp14
-
-frags = "x0137_1,x0161_1,x0202_1,x0238_1,x0266_1,x0315_1,x0324_1,x0334_1,x0412_1,x0457_1,x0473_1,x0484_1,x0505_1,x0567_1,x0590_1,x0637_1,x0690_1,x0712_1"
-dataDir = "/home/ruben/oxford/myProjects/diamondOthers/fragmenstein/PARP14A/PARP14A_xchemlike/aligned"
-projectName="PARP14A-"
+# #parp14
+#
+# frags = "x0137_1,x0161_1,x0202_1,x0238_1,x0266_1,x0315_1,x0324_1,x0334_1,x0412_1,x0457_1,x0473_1,x0484_1,x0505_1,x0567_1,x0590_1,x0637_1,x0690_1,x0712_1"
+# dataDir = "/home/ruben/oxford/myProjects/diamondOthers/fragmenstein/PARP14A/PARP14A_xchemlike/aligned"
+# projectName="PARP14A-"
 
 frags = frags.split(",")
 

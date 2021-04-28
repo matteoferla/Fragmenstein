@@ -82,7 +82,7 @@ print("rotable bonds", df.shape)
 df = df.query( " meanSuCosW_score > 0.2 ")
 print("suCos", df.shape)
 
-df = df.query( " xcos_score >0.1 ")
+df = df.query( " xcos_score >0.2 ")
 print("xcos", df.shape)
 
 df = df.query( " fragmensteinOld_score < 5 ")
@@ -91,10 +91,11 @@ print("fragmesteinOld", df.shape)
 df = df.query( " fragmensteinNew_score < 130 ")
 print("fragmesteinNew", df.shape)
 
+df = df.query( "energyPoseVsEnsemble_score < 10 ")
+print("energyPoseVsEnsemble", df.shape)
+
 # df = df.query( " plipGlobalPreser_score > 0.1 ")
 # print("plip", df.shape)
-
-
 
 # df = df.sort_values(by="rotableBonds_score").iloc[:40]
 

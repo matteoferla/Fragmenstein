@@ -103,7 +103,7 @@ class Protocol_mergeCombineBase(ABC):
             if hasattr(self, "hit_ids"):
                 self._ref_hits_for_scoring = self.hit_ids
             else:
-                all_smiles, all_hit_ids = zip(*self.smile_fragIds_list)
+                all_smiles, all_hit_ids = zip(*self.smile_fragIds_list) #TODO: Make this an abstract property
                 all_hit_ids = sorted(set(chain.from_iterable(all_hit_ids)))
                 self._ref_hits_for_scoring = all_hit_ids
         return self._ref_hits_for_scoring
@@ -124,7 +124,7 @@ class Protocol_mergeCombineBase(ABC):
 
         results = filter(None.__ne__,
                          chain.from_iterable( results) )
-        if self.max_attemps: #TODO: check if available in placeFragmenstein
+        if self.max_attemps: #TODO: check if available in placeFragmenstein #TODO: Make this an abstract property
             results = HitsPreprocess_base.take_random_from_iterator(results, self.max_attemps)
         return list(results)
 
@@ -244,9 +244,11 @@ class Protocol_mergeCombineBase(ABC):
             wdir = kwargs["working_dir"]
         else:
             wdir = tempfile.gettempdir()
+        only_enumeration = ("skip_scoring" in kwargs and kwargs["skip_scoring"])
+        only_evaluation = ("skip_enumeration_and_score_available" in kwargs and  kwargs["skip_enumeration_and_score_available"])
 
-        only_evaluation = ("skip_enumeration_and_score_available" in kwargs and
-                kwargs["skip_enumeration_and_score_available"])
+        assert only_enumeration and only_enumeration == False, "Error, skip_scoring and skip_enumeration_and_score_available are incompatible arguments"
+
         keep_sync = True
         def syncronizer(new_out_dir, time_sleep):
             while keep_sync:
@@ -300,7 +302,8 @@ class Protocol_mergeCombineBase(ABC):
             else:
                 results = protocol.compute()
 
-            scores = protocol.score_results(results)
+            if not only_enumeration:
+                scores = protocol.score_results(results)
 
             keep_sync = False
             syncronizerThr.join()
@@ -324,6 +327,10 @@ class Protocol_mergeCombineBase(ABC):
         parser.add_argument("--template_pattern", type=str,
                             help="The regex pattern of a template to find them in --templates_dir. "
                                  "Default: '%(default)s'", required=False, default= Xchem_info.unboundPdb_id_pattern)
+
+        parser.add_argument( "--skip_scoring", action="store_true",
+                            help="Do not score enumerated molecules")
+
 
         parser.add_argument( "--skip_enumeration_and_score_available", action="store_true",
                             help="Do not propose more molecules and only score them ")
