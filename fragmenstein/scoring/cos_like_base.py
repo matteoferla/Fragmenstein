@@ -6,8 +6,10 @@ This is a base clase for the COS-like scores such as xcos, suCOS, etc. Those sco
 
 import os
 from copy import deepcopy
+from functools import reduce
 
 import dask
+import joblib
 import mrcfile
 from dask.distributed import progress
 import dask.bag as db
@@ -21,6 +23,8 @@ import numpy as np
 from rdkit.Chem.rdMolTransforms import ComputeCentroid, TransformConformer
 from rdkit.Chem.rdShapeHelpers import ComputeUnionBox, ComputeConfDimsAndOffset, ComputeConfBox, EncodeShape
 from rdkit.Geometry import rdGeometry
+
+from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.parallel_utils import get_parallel_client
 
 from fragmenstein.scoring._scorer_base import _ScorerBase, journal
@@ -77,14 +81,20 @@ class _COSLikeBase(_ScorerBase):
     This is a base clase for the COS-like scores such as xcos, suCOS, etc. Those scores are based on shape and chemical complementarity.
     """
 
-    def __init__(self, fragments_dir, fragment_id_pattern, selected_fragment_ids=None,*args, **kwargs):
+    def __init__(self, fragments_dir=None, fragment_id_pattern=None, fragments_dict=None, selected_fragment_ids=None, *args, **kwargs):
         '''
         This params are generally provided through the class method computeScoreForMolecules directly obtained from cmd parser
         '''
 
-
-        fragments = load_files_as_mols( fragments_dir, file_pattern=fragment_id_pattern)
-        self.fragments_dict = dict(fragments)
+        if not fragments_dict:
+            assert fragments_dir is not None and fragment_id_pattern is not None, "Error, if no list of fragments (Chem.Mol) provided, " \
+                                                                                  "you must specify the fragments_dir and fragment_id_pattern"
+            fragments = load_files_as_mols( fragments_dir, file_pattern=fragment_id_pattern)
+            fragments_dict = dict( fragments )
+        else:
+            assert fragments_dir is None and fragment_id_pattern is None, "Error, if a list of fragments (Chem.Mol) provided, " \
+                                                                          "you should not specify fragments_dir and fragment_id_pattern"
+        self.fragments_dict = fragments_dict
         if selected_fragment_ids:
             self.fragments_dict = { key: val for key,val in self.fragments_dict.items() if key in selected_fragment_ids}
 
@@ -165,7 +175,7 @@ class _COSLikeBase(_ScorerBase):
             yield grid
 
     @classmethod
-    def compute_occupancy_weights(cls, mols_list, vdwScale=0.2, spacing=0.3):
+    def compute_occupancy_weights(cls, mols_list, vdwScale=0.2, spacing=0.3, use_joblib_instead_dask=False):
 
         # print(len(mols_list)); mols_list = mols_list[:30]; print("WARNING, debug MODE")
 
@@ -174,29 +184,6 @@ class _COSLikeBase(_ScorerBase):
 
         grid_config = cls.estimate_grid_params(mols_list, spacing, vdwScale)
 
-        # compute_mol_to_grid(mols_list[0], grid_config, as_numpy=True)
-
-        client = get_parallel_client()
-        #
-        # ##This option seems to eat much more memory
-        # sumGrid = 0
-        # for mol in mols_list:
-        #     grid =  dask.delayed(compute_mol_to_grid)( mol, grid_config, as_numpy=True)
-        #     sumGrid += grid
-        # sumGrid = client.compute(sumGrid)
-        # progress( sumGrid )
-        # sumGrid= sumGrid.result()
-
-
-        b = db.from_sequence( mols_list )
-        mapped_b = b.map(lambda mol: compute_mol_to_grid(mol, grid_config, True)).fold(lambda prev, cur : prev + cur, initial=0)
-        sumGrid_future = client.compute(mapped_b)
-
-        sumGrid_future = client.compute(sumGrid_future)
-        sumGrid_nonZero_future = client.submit( lambda x: ~ np.isclose(x, 0), sumGrid_future)
-
-        del b
-
         def process_one_grid(mol, sumGrid, sumGrid_nonZero):
             grid = compute_mol_to_grid(mol, grid_config, as_numpy=True)
             n_vox_mol =  np.count_nonzero(grid)
@@ -204,11 +191,24 @@ class _COSLikeBase(_ScorerBase):
             result =  np.sum(grid) / n_vox_mol
             return result
 
-        final_weights = map( lambda mol: client.submit(process_one_grid, *(mol, sumGrid_future, sumGrid_nonZero_future)), mols_list)
+        if use_joblib_instead_dask:
+            all_grids = joblib.Parallel(n_jobs = ConfigManager.N_CPUS)( joblib.delayed(compute_mol_to_grid)(mol, grid_config, True) for mol in mols_list )
+            sumGrid = reduce(lambda prev, cur : prev + cur, all_grids, 0)
+            sumGrid_nonZero = ~ np.isclose(sumGrid, 0)
+            final_weights = [process_one_grid(mol, sumGrid, sumGrid_nonZero) for mol in  mols_list ]
 
-        final_weights = client.compute(final_weights)
-        # progress( final_weights )
-        final_weights= client.gather(final_weights)
+        else:
+            client = get_parallel_client()
+            b = db.from_sequence( mols_list )
+            mapped_b = b.map(lambda mol: compute_mol_to_grid(mol, grid_config, True)).fold(lambda prev, cur : prev + cur, initial=0)
+            sumGrid_future = client.compute(mapped_b)
+
+            sumGrid_future = client.compute(sumGrid_future)
+            sumGrid_nonZero_future = client.submit( lambda x: ~ np.isclose(x, 0), sumGrid_future)
+            del b
+            final_weights = map( lambda mol: client.submit(process_one_grid, *(mol, sumGrid_future, sumGrid_nonZero_future)), mols_list)
+            final_weights = client.compute(final_weights)
+            final_weights= client.gather(final_weights)
 
         journal.info( "Grid weights computed")
         # print(final_weights)
@@ -322,10 +322,13 @@ def test2():
 
     mol_0 = load_mol( os.path.expanduser("~/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0176_0B/nsp13-x0176_0B.mol") )
     mol_1 = load_mol( os.path.expanduser("~/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0246_0B/nsp13-x0246_0B.mol") )
+    mol_2 = load_mol( os.path.expanduser("~/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0176_0B/nsp13-x0176_0B.mol") )
 
-    mols_list = [mol_0 , mol_1 ]
+    mols_list = [mol_0 , mol_1, mol_2 ]
 
     results_weight = _COSLikeBase.compute_occupancy_weights( mols_list )
+    print( results_weight )
+    results_weight = _COSLikeBase.compute_occupancy_weights( mols_list , use_joblib_instead_dask=True)
     print( results_weight )
     #TODO: check if makes sense
 

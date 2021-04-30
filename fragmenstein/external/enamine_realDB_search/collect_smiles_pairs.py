@@ -1,5 +1,5 @@
 import os
-from itertools import combinations
+from itertools import combinations, product
 
 #nsp13
 # frags = "x0034_0B,x0176_0B,x0183_0B,x0208_0A,x0212_0B,x0246_0B,x0276_0B,x0283_0B,x0311_0B,x0438_0B"
@@ -14,8 +14,9 @@ from itertools import combinations
 # projectName="PGN_RS02895PGA-"
 
 #dpp11_new
-frags = "x0120_0A,x0000_0A,x0522_0A,x0597_0A,x0729_0A"
-dataDir = os.path.expanduser("~/oxford/myProjects/diamondOthers/fragmenstein/PgDPP11/downloaded_from_gustavo/like_fragalysis/")
+#x0522_0A,x0597_0A,x0729_0A
+frags = "x0729_0A,x0051_0A,x0056_0A,x0083_0A,x0087_0A,x0115_0A,x0199_0A,x0208_0A,x0228_0A,x0230_0B,x0267_0A,x0346_0A"
+dataDir = os.path.expanduser("~/oxford/data/fragalysis/dpp11/aligned_downloaded_from_gustavo")
 projectName="PGN_RS02895PGA-"
 
 # #parp14
@@ -37,5 +38,6 @@ smiles_list = sorted(smiles_list)
 
 # print(dict(zip(frags, smiles_list)))
 # print("#%d"%len(smiles_list))
+# for x,y in product(smiles_list[:1], smiles_list[1:]):
 for x,y in combinations(smiles_list, 2):
   print("%s,%s"%(x,y))

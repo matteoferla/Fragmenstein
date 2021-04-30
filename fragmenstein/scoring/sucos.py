@@ -11,7 +11,7 @@ from fragmenstein.scoring.cos_like_base import _COSLikeBase
 class SuCOSComputer(_COSLikeBase):
 
 
-    def __init__(self, frags_thr=0.1, use_weights=False,  *args, **kwargs):
+    def __init__(self, frags_thr=0.1, use_weights=False,  use_joblib_instead_dask=False, *args, **kwargs):
         '''
         This params are generally provided through the class method computeScoreForMolecules directly obtained from cmd parser
         '''
@@ -26,7 +26,7 @@ class SuCOSComputer(_COSLikeBase):
                     self.weights = json.load(f)
             elif isinstance(use_weights, bool):
                 frag_ids, frags = zip(* self.fragments_dict.items() )
-                weights = self.compute_occupancy_weights( frags, )
+                weights = self.compute_occupancy_weights( frags, use_joblib_instead_dask=use_joblib_instead_dask)
                 self.weights = { frag_id: w for frag_id, w in zip(frag_ids, weights) }
             else:
                 raise ValueError("Error, bad option for use_weights. Found (%s)"%str(use_weights))
