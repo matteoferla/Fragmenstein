@@ -119,17 +119,16 @@ class FragalysisFormater():
         self.drop_unknown_fields = drop_unknown_fields
 
         if metadata_header is None:
-            self.metadata_header =  self.parse_metadata_config(FragalysisFormater.METADATA_FIELDS_DEFAULT_FNAME)
-
+            self.metadata_header = self.parse_metadata_config(FragalysisFormater.METADATA_FIELDS_DEFAULT_FNAME, addtitional_fields=addtitional_fields)
         else:
-            self.metadata_header = self.parse_metadata_config(metadata_header)
+            self.metadata_header = self.parse_metadata_config(metadata_header, addtitional_fields=addtitional_fields)
 
 
         self.ref_pdb_xchemId = ref_pdb_xchemId
 
         self.optional_fileds = list(FragalysisFormater.OPTIONAL_FIELDS)+addtitional_fields
 
-    def parse_metadata_config(self, fname_or_iterable):
+    def parse_metadata_config(self, fname_or_iterable, addtitional_fields=None):
 
         if isinstance(fname_or_iterable, str):
             md_fields = pd.read_csv(fname_or_iterable, comment="#")
@@ -139,6 +138,12 @@ class FragalysisFormater():
         else:
             raise ValueError("fname_or_iterable must be the name of a csv file or an ordered dict ")
         md_fields["generation_date"] = datetime.today().strftime('%Y-%m-%d')
+        if addtitional_fields:
+            for k_v in addtitional_fields:
+                if isinstance(k_v, str):
+                    k_v = (k_v, "NA")
+                k, v = k_v
+                md_fields[k] = v
         return md_fields
 
     def _get_header_mol(self, missing_properties=[]):
@@ -205,8 +210,7 @@ class FragalysisFormater():
                     mol.SetProp("original SMILES",  Chem.MolToSmiles(mol))
 
                 assert self._check_molecule_metadata(mol, missing_properties_names), \
-                       "Error, molecule (%s) does not contain (%s) required information (%s)." % (mol_name, str(mol.GetPropsAsDict()),
-                                     str( FragalysisFormater.REQUIRED_FIELDS))
+                       "Error, molecule (%s) does not contain required information (%s)." % (mol_name, set(valid_props).difference(mol.GetPropsAsDict()))
 
                 fragments =  mol.GetProp("ref_mols")
                 if self.drop_unknown_fields:

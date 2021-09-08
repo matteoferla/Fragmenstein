@@ -1,5 +1,6 @@
 import os
 import sys
+from itertools import chain as chainIterables
 
 from examples.protocols_mergeCombineBase import Protocol_mergeCombineBase
 from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
@@ -49,19 +50,28 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--data_root_dir", type=str, help="The Xchem root dir for data, typically target_name/aligned/ ", required=True)
     parser.add_argument("-f", "--input_file", nargs=None, type=argparse.FileType('r'), default=sys.stdin, help="Tab separated file with two columns: smiles and fragment_ids."
                                                                    " Fragment_ids are commma separated. E.g.:\n"
-                                                                  "CCO  x0020_0B,x0029_0A", required=True)
+                                                                  "CCCCO  x0020_0B,x0029_0A", required=True)
     parser.add_argument( "--merging_mode", nargs=None, choices=["full", "partial", "none", "none_permissive", "off"], default="none_permissive",
-                         help="See https://github.com/matteoferla/Fragmenstein/blob/master/documentation/monster/monster.md")
+                         help="See 'https://github.com/matteoferla/Fragmenstein/blob/master/documentation/monster/monster.md'")
 
     args =vars( parser.parse_args())
     print(args)
-    lines = args["input_file"].read().splitlines()
-    for line in lines:
-      smi, fragIds = line.split()
-      # print(smi, fragIds.split(","))
+    f = args["input_file"]
+    line = f.readline()
+    if ";" in line:
+        sep=";"
+    else:
+        sep=None
+    smile_fragIds_list = []
+    for line in chainIterables.from_iterable([[line], f]):
+        line = line.strip()
+        if len(line)>0:
+            smi, fragIds = line.split(sep)[:2]
+            smile_fragIds_list.append((smi, fragIds))
+    f.close()
 
-    smile_fragIds_list = [ line.split() for line in lines if len(line.strip())>0 ]
-    # print(smile_fragIds_list)
+    # smile_fragIds_list = [ line.split(sep)[:2] for line in lines if len(line.strip())>0 ]
+    print("Number of smis to process: %d"%len(smile_fragIds_list))
     smile_fragIds_list = [ (smi, fragIds.split(",")) for smi, fragIds in smile_fragIds_list ]
     Protocol_placeFragmenstein.main( smile_fragIds_list = smile_fragIds_list, ** args)
     print("\nmain DONE!\n")
@@ -69,7 +79,8 @@ if __name__ == "__main__":
     '''
 
 echo -e "Cc1ccncc1NC(=O)C(C)c1cccc(Cl)c1  x0020_0B,x0029_0A
-CC(=O)N1CCN(Cc2cccs2)CC1 x0020_0B" | N_CPUS=1 python -m examples.protocols_placeFragmenstein -f - -i ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -o ~/oxford/tools/Fragmenstein/outputPlace
+CC(=O)N1CCN(Cc2cccs2)CC1 x0020_0B" | N_CPUS=1 python -m examples.protocols_placeFragmenstein -f - -i ~/oxford/data/fragalysis/nsp13/aligned -o ~/oxford/tools/Fragmenstein/outputPlace  --merging_mode full
 
+--template_pattern ".*?(x[\w-]+)_apo\.pdb$"
 
     '''

@@ -47,9 +47,9 @@ class InteractionBasedScorer(_ScorerBase):
         def load_fragments_interactions(bound_pdb_fname):
             return self._computeInteractionsOneComplex(bound_pdb_fname,
                                                        selected_fragment_ids=self.selected_fragment_ids)
-        self.fragInteractions_dict = dict(filter(None.__ne__,
-                                                  apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
-                                                                      load_fragments_interactions)))
+        self.fragInteractions_dict = dict(map(lambda x: x[:2], filter(None.__ne__,
+                                        apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
+                                                            load_fragments_interactions))))
 
         journal.warning("Fragments interactions computed")
 
@@ -82,8 +82,9 @@ class InteractionBasedScorer(_ScorerBase):
             return None
 
         inters = self.plipWorker.compute_interactions_boundPDB(bound_pdb_fname)
+        num_interactions = sum(map(len, inters.values()))
         inters = set (chain.from_iterable( ( (inter_type.replace("_","-")+"_"+res_id for res_id in res_list)  for inter_type, res_list in inters.items() ) ) )
-        return (frag_id, inters)
+        return frag_id, inters, num_interactions
 
 
     def computeScoreOneMolecule(self, mol_id, mol, frag_ids, *args, **kwargs):
@@ -96,8 +97,8 @@ class InteractionBasedScorer(_ScorerBase):
         try:
             pdb_fname = self.atomic_models_fnames[mol_id]
 
-            current_frag_id, mol_inter_residues = self._computeInteractionsOneComplex(pdb_fname,
-                                                                                      pattern=self.boundPdbs_to_score_pattern)
+            current_frag_id, mol_inter_residues, num_interactions = self._computeInteractionsOneComplex(pdb_fname,
+                                                                              pattern=self.boundPdbs_to_score_pattern)
 
             selected_frag_ids = []
             per_fragment_score = []
@@ -146,11 +147,13 @@ class InteractionBasedScorer(_ScorerBase):
             journal.warning("Warning, no pdb file found for the mol_id: %s"%mol_id)
             score_interPreservPerFrag= np.nan
             gobal_score = np.nan
+            num_interactions = np.nan
             fragments = []
         partial_results = {_ScorerBase.MOL_NAME_ID: mol_id,
                            _ScorerBase.SCORE_NAME_TEMPLATE % "plipMedianPreser": score_interPreservPerFrag,
                            _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalPreser": gobal_score,
                            _ScorerBase.SCORE_NAME_TEMPLATE % "plipGlobalPreserOverMw": 100. * gobal_score / ExactMolWt(mol),
+                           _ScorerBase.SCORE_NAME_TEMPLATE % "plipTotalNumInteractions":  num_interactions,
                            _ScorerBase.FRAGMENTS_ID: list(fragments)}
         return partial_results
 
@@ -169,7 +172,7 @@ class InteractionBasedScorer(_ScorerBase):
                             ('--boundPdbs_to_score_pattern', dict(type=str, required=False, default = ".*-(\w+)_bound\.pdb$",
                                                                help='Pattern for the BOUND pdb associated to compounds file name')),
                             ('--ligand_resname', dict(type=str, required=False, default="LIG",
-                                                           help='Directory where atomic models for bound structures are located')),
+                                                           help='RESNAME for the ligand in bound pdb')),
 
                            ]
         return _ScorerBase.parseCmd(description, additional_args)
@@ -181,5 +184,12 @@ if __name__ == "__main__":
     print(results)
 
 '''
-python -m fragmenstein.scoring.interactionBasedScorer -i /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/compound_vs_fragments.csv -d /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned -f /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned  -o compound-set_interactPreserv.csv -s  compound-setinteractPreserv.sdf -p ".*-(\w+)_bound.pdb$" -w ~/tmp/test_dask -a /home/ruben/oxford/myProjects/diamondCovid/data/Mpro/aligned/ --boundPdbs_to_score_pattern ".*-(x12\w+)_bound\.pdb$"
+python -m fragmenstein.scoring.interactionBasedScorer -i ~/oxford/data/fragalysis/Mpro/compound_vs_fragments.csv -d ~/oxford/data/fragalysis/Mpro/aligned -f ~/oxford/data/fragalysis/Mpro/aligned  -o compound-set_interactPreserv.csv -s  compound-setinteractPreserv.sdf -p ".*-(\w+)_bound.pdb$" -w ~/tmp/test_dask -a ~/oxford/data/fragalysis/Mpro/aligned  --boundPdbs_to_score_pattern ".*-(x12\w+)_bound\.pdb$"
+
+###########~/oxford/data/fragalysis/Mpro/compound_vs_fragments.csv ###################
+mol_id,mol_fname,fragment_ids
+x10322_0A,%(input_dir)s/Mpro-x10322_0A/Mpro-x10322_0A.mol,nan
+x11810_0A,%(input_dir)s/Mpro-x11810_0A/Mpro-x11810_0A.mol,nan
+######################################################################################
+
 '''

@@ -210,7 +210,6 @@ class _ScorerBase(ABC):
 
             panda_rows = []
             for record in itertools.chain.from_iterable([[record], results_computed]):
-                input(record)
                 if record is None: continue
                 panda_rows.append( [record[_ScorerBase.MOL_NAME_ID]] + [ record[score_id] for score_id in scores_ids] + [  ",".join(record[_ScorerBase.FRAGMENTS_ID]) ] )
                 mol_name = record[_ScorerBase.MOL_NAME_ID]
@@ -234,7 +233,7 @@ class _ScorerBase(ABC):
                 df.sort_values(by=scores_ids[0], inplace=True)
                 df.to_csv(results_table_fname, index=False,quoting=csv.QUOTE_NONNUMERIC)
 
-        results_computed = { record[cls.MOL_NAME_ID]: record for record in results_computed }
+        results_computed = { record[cls.MOL_NAME_ID]: record for record in results_computed if record is not None }
         return results_computed
 
     def __init__(self, working_dir, verbose=False, *args, **kwargs):
@@ -245,7 +244,8 @@ class _ScorerBase(ABC):
         self.verbose = verbose
         # assert  hasattr(self, " fragments_id"), "Error,  fragments_id is a required attribute, but was not used"
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def fragments_id(self):
         raise NotImplementedError("Error, this is base clase")
 

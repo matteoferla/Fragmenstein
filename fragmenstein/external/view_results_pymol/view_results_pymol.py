@@ -1,5 +1,7 @@
 import os
 import re
+import zipfile
+
 import numpy as np
 from itertools import cycle
 
@@ -9,6 +11,7 @@ from rdkit.Chem import PandasTools
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
 from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, removeScoreTag, SCORE_NAME_TEMPLATE
+from fragmenstein.utils.io_utils import apply_func_to_files
 
 
 class InteractiveInterface():
@@ -23,7 +26,8 @@ class InteractiveInterface():
     SORT_BY_OPTION = 4
     COMBINE_SCORES = 5
 
-    def __init__(self, sdf_fname, fragments_dir, fragment_id_pattern=None, unboundPdb_id_pattern=None):
+    def __init__(self, sdf_fname, fragments_dir, results_dir, fragment_id_pattern=None, unboundPdb_id_pattern=None,
+                 predicted_boundPdb_id_pattern=None):
 
 
 
@@ -50,9 +54,21 @@ class InteractiveInterface():
             fragment_id_pattern = LoadInput_XchemDefault.fragment_id_pattern
         if not unboundPdb_id_pattern:
             unboundPdb_id_pattern = LoadInput_XchemDefault.unboundPdb_id_pattern
+        if not predicted_boundPdb_id_pattern:
+            predicted_boundPdb_id_pattern = LoadInput_XchemDefault.predicted_boundPdb_id_pattern
 
         self.data_loader = LoadInput_XchemDefault( fragments_dir, fragment_id_pattern=fragment_id_pattern,
                                                   unboundPdb_id_pattern=unboundPdb_id_pattern)
+
+        self.minmized_templates ={}
+        with zipfile.ZipFile(os.path.join(results_dir, "bound_minimized_pdbs.zip")) as zip_f:
+            with zip_f.open('bound_pdbs/compoundName_to_pdbName.tab') as text_f:
+                for line in text_f:
+                    line = line.decode("utf-8").split()
+                    if len(line)<2:
+                        continue
+                    prefix = line[1].replace(".holo_minimised.pdb", "")
+                    self.minmized_templates[line[0]] = os.path.join(results_dir, "merges", prefix, line[1])
 
         self.molecule_idx=0
         self.n_mols = len(self.df)
@@ -193,15 +209,22 @@ class PymolManager():
         self.pymol.finish_launching(['pymol', '-q'])
         self.active_molIds = []
 
-    def load_atomic_model(self, fname):
-        self.pymol.cmd.load(fname, PymolManager.templatePymolId)
-        self.pymol.cmd.show_as("cartoon", PymolManager.templatePymolId)
-        self.pymol.cmd.show("sticks", PymolManager.templatePymolId)
-
-    def __del__(self):
+    def __del__(self): #TODO: change it using atexit
 
         self.pymol.cmd.quit()
         del self.pymol
+
+    def load_atomic_model(self, fname, pymolTemplateId=None):
+        if pymolTemplateId is None:
+            pymolTemplateId = PymolManager.templatePymolId
+
+        self.pymol.cmd.delete( pymolTemplateId)
+
+        self.pymol.cmd.load(fname, pymolTemplateId)
+        self.pymol.cmd.select("LIG", "resname LIG")
+        self.pymol.cmd.delete("LIG")
+        self.pymol.cmd.show_as("cartoon", pymolTemplateId)
+        self.pymol.cmd.show("lines", pymolTemplateId)
 
 
     def draw_mol(self, name, mol, is_fragment=False):
@@ -217,6 +240,10 @@ class PymolManager():
         if is_fragment:
             self.pymol.cmd.set("stick_transparency", "0.5", name)
             self.pymol.cmd.set_bond("stick_radius", "0.2", name)
+            self.pymol.cmd.zoom(name, 5)
+        else:
+            self.pymol.cmd.select(name)
+            # self.pymol.cmd.do(" sele template") # contacts template, sele")
 
         self.active_molIds.append( name )
 
@@ -225,13 +252,13 @@ class PymolManager():
             self.pymol.cmd.delete(molId)
 
 
-def main(sdf_fname, template, fragments_dir, *args, **kwargs):
+def main(sdf_fname, template, fragments_dir, results_dir, *args, **kwargs):
 
     sdf_fname = os.path.expanduser(sdf_fname)
     fragments_dir = os.path.expanduser(fragments_dir)
     template = os.path.expanduser(template)
 
-    interactiv_sess = InteractiveInterface(sdf_fname, fragments_dir)
+    interactiv_sess = InteractiveInterface(sdf_fname, fragments_dir, results_dir)
     pm = PymolManager()
 
     pm.load_atomic_model(template)
@@ -241,6 +268,7 @@ def main(sdf_fname, template, fragments_dir, *args, **kwargs):
         name, mol = interactiv_sess.get_current_mol()
         print(interactiv_sess.get_mol_repr(mol))
         pm.draw_mol(name, mol)
+        pm.load_atomic_model( interactiv_sess.minmized_templates[name], "minimized_model")
         names_mols_list = interactiv_sess.get_fragments_current_mol()
         for name, mol in names_mols_list:
             pm.draw_mol( name, mol, is_fragment=True)
@@ -256,7 +284,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(prog="view_results_pymol", description="visualize molecules and scores using pymol")
     parser.add_argument("-i", "--sdf_fname", type=str, help="The file with annotated molecules ", required=True)
     parser.add_argument("-d", "--fragments_dir", type=str, help="The root dir where fragments are, typically target_name/aligned/ ", required=True)
-    parser.add_argument("-t", "--template", type=str, help="The path to a template pdb", required=False) #TODO: find template within minizmied.pdb
+    parser.add_argument("-t", "--template", type=str, help="The path to a template pdb", required=True) #TODO: find template within minizmied.pdb
+    parser.add_argument("-r", "--results_dir", type=str, help="The path to computed results", required=True) #TODO: find template within minizmied.pdb
 
     args =vars( parser.parse_args())
     print(args)
@@ -266,5 +295,11 @@ if __name__ == "__main__":
 '''
 
 python -m fragmenstein.external.view_results_pymol.view_results_pymol -i ~/oxford/myProjects/diamondCovid/data/nsp13/enumeration/Site_1/site_1_perm.sdf -d ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -t ~/oxford/myProjects/diamondCovid/data/nsp13/aligned/nsp13-x0020_0B/nsp13-x0020_0B_apo-desolv.pdb
+
+'''
+
+
+'''
+contacts template, sele
 
 '''

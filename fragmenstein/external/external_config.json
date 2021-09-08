@@ -38,6 +38,13 @@
       "%(ROOT_DIR)s"
     ],
     "POST_IMPORT":[]
-  }
+  },
 
+    "sucos": {
+    "ROOT_DIR": "~/oxford/tools/sucos",
+    "PYTHONPATH": [
+      "%(ROOT_DIR)s"
+    ],
+    "POST_IMPORT":[]
+  }
 }

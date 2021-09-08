@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pickle
 import shutil
@@ -47,7 +48,6 @@ class CombineMerge_Base(ABC, InputAdapter):
         self.templates_dir = templates_dir
         self.use_dask = use_dask
         self.verbose = verbose
-
     @staticmethod
     def get_examples_init_params():
         return dict(
@@ -99,7 +99,8 @@ class CombineMerge_Base(ABC, InputAdapter):
     def getMergeId(self, fragment_ids, smi=None):
         merge_id = "-".join(fragment_ids)  # The order of the frag_ids is important
         if smi:
-            merge_id = merge_id + "_" + smi  # It is important that smi goes after fragments for re.match in scoring
+            hash_ = hashlib.sha224(smi.encode("utf-8")).hexdigest()[:10]
+            merge_id = merge_id +"-"+hash_+ "_" + smi  # It is important that smi goes after fragments for re.match in scoring
 
         merge_id = Victor.slugify(merge_id) # Very important since victor behaviour with names is differnt for combine and merge
         return merge_id

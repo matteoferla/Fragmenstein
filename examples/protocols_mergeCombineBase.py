@@ -151,7 +151,7 @@ class Protocol_mergeCombineBase(ABC):
                                        **Score_CombinedDefault.default_params_xchem())
 
         scored_mols = scorer.compute_scores(proposed_mols)
-        # print(scored_mols)
+        print(scored_mols)
 
         def get_simplified_mol_name(mol_id):  # TODO: Move it within fragalysis??
             '''
@@ -235,6 +235,8 @@ class Protocol_mergeCombineBase(ABC):
 
         in_dir = os.path.abspath(os.path.expanduser(kwargs["data_root_dir"]))
         out_dir = os.path.abspath(os.path.expanduser(kwargs["output_dir"]))
+
+        scores = None
 
         existing_outdir = True
         if not os.path.exists(out_dir):
