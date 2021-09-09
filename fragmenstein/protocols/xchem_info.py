@@ -5,8 +5,8 @@ class Xchem_info():
 
     fragment_id_pattern = r".*?(x[\w-]+)\.mol$"
     boundPdb_id_pattern = r".*?(x[\w-]+)_bound\.pdb$"
-    unboundPdb_id_pattern = r".*?(x[\w-]+)_apo-desolv\.pdb$"
-    unboundPdb_id_and_solv = r".*?(x[\w-]+)_apo\.pdb$"
+    unboundPdb_id_pattern = r".*?(x[\w-]+)_apo\.pdb$" # r".*?(x[\w-]+)_apo-desolv\.pdb$"
+    # unboundPdb_id_and_solv = r".*?(x[\w-]+)_apo\.pdb$"
     predicted_boundPdb_id_pattern = r".*?(x[\w\-_]+)\.holo_minimised\.pdb$"
     fragment_no_chain_pattern = r"^.*(x\d+).*$"
 

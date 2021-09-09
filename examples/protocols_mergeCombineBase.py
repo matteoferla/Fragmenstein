@@ -31,7 +31,8 @@ class Protocol_mergeCombineBase(ABC):
 
     MERGES_SUBDIR="merges"
     SCORES_SUBDIR="scoring"
-    def __init__(self, data_root_dir, output_dir, merging_mode=None, filter_out_by_num_inspirational_frags=-1, verbose=True, *args, **kwargs):
+    def __init__(self, data_root_dir, output_dir, merging_mode=None, filter_out_by_num_inspirational_frags=-1,
+                 use_unminimized_for_ref_pdb_metadata=False, verbose=True, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
@@ -40,6 +41,7 @@ class Protocol_mergeCombineBase(ABC):
         self.wdir_scoring = os.path.join(self.output_dir, Protocol_mergeCombineBase.SCORES_SUBDIR)
         self.merging_mode = merging_mode
         self.filter_out_by_num_inspirational_frags = filter_out_by_num_inspirational_frags
+        self.use_unminimized_for_ref_pdb_metadata = use_unminimized_for_ref_pdb_metadata
         self.verbose = verbose
         self._loader = None
         self._fragments = None
@@ -186,7 +188,6 @@ class Protocol_mergeCombineBase(ABC):
             mol_id = mol_id.rstrip("-").rstrip("_")
             return mol_id
 
-        #TODO: skip this part to zip the ref_pdbs
         def get_xchem_template_name(ref_pdb):
             ref_pdb = os.path.basename(ref_pdb)
             ref_pdb = re.match(Xchem_info.fragment_no_chain_pattern, ref_pdb).group(1)
@@ -199,17 +200,22 @@ class Protocol_mergeCombineBase(ABC):
                 compound.SetProp("original_name", original_name )
                 simplified_name =  get_simplified_mol_name( compound.molId)
                 compound.SetProp("_Name",simplified_name)
-                unbound_pdb_fname = compound.ref_pdb
-                compound.SetProp("ref_pdb", get_xchem_template_name(unbound_pdb_fname))
                 minimized_pdb = os.path.join(self.wdir_enumeration, original_name, Xchem_info.predicted_boundPdb_template%original_name)
                 if not os.path.isfile(minimized_pdb):
                     subdir = "_".join(original_name.split("_")[:-1]) #for delinker
                     minimized_pdb = os.path.join(self.wdir_enumeration, subdir,
                                                     Xchem_info.predicted_boundPdb_template % original_name)
-                pdbBasename = os.path.basename(minimized_pdb)
-                f.write(minimized_pdb, os.path.join( "bound_pdbs",  "bound_pdbs", pdbBasename))
-                compoundName_to_pdbName.append( "%s\t%s"%( simplified_name, pdbBasename))
-            f.writestr("bound_pdbs/compoundName_to_pdbName.tab", "\n".join(compoundName_to_pdbName))
+
+                minimized_pdbBasename = simplified_name +".min.pdb"
+                f.write(minimized_pdb, minimized_pdbBasename)
+
+                if self.use_unminimized_for_ref_pdb_metadata:
+                    compound.SetProp("ref_pdb", get_xchem_template_name(compound.ref_pdb))
+                else:
+                    compound.SetProp("ref_pdb", minimized_pdbBasename)
+
+                compoundName_to_pdbName.append( "%s\t%s\t%s"%( simplified_name, minimized_pdbBasename, original_name))
+            f.writestr("info/compoundName_to_pdbName.tab", "\n".join(compoundName_to_pdbName))
 
         if hasattr(self, "template_xchemId"):
             template_xchemId = self.template_xchemId
@@ -344,5 +350,6 @@ class Protocol_mergeCombineBase(ABC):
         parser.add_argument( "--working_dir", type=str, default=None, help="Directory where results are computed before"
                                                                            " being synchronized to output_dir")
 
-
+        parser.add_argument( "--use_unminimized_for_ref_pdb_metadata",action="store_true",
+                            help="Use the pre-minimized pdb fname for the ref_pdb medtadata field. Default %(default)s")
         return parser
