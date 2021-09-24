@@ -31,7 +31,7 @@ class Protocol_placeFragmenstein(Protocol_mergeCombineBase):
         print("computing")
         fragmensteiner = CombineMerge_FragmensteinDefault(output_path=self.wdir_enumeration, template=None,
                                                           templates_dir=self.data_root_dir,
-                                                          template_pattern=Xchem_info.unboundPdb_id_pattern,
+                                                          template_pattern=self.template_pattern,
                                                           merging_mode=self.merging_mode,
                                                           use_dask=ConfigManager.N_CPUS > 1)
         def getFragments(fragIds):
@@ -51,8 +51,9 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--input_file", nargs=None, type=argparse.FileType('r'), default=sys.stdin, help="Tab separated file with two columns: smiles and fragment_ids."
                                                                    " Fragment_ids are commma separated. E.g.:\n"
                                                                   "CCCCO  x0020_0B,x0029_0A", required=True)
-    parser.add_argument( "--merging_mode", nargs=None, choices=["full", "partial", "none", "none_permissive", "off"], default="none_permissive",
-                         help="See 'https://github.com/matteoferla/Fragmenstein/blob/master/documentation/monster/monster.md'")
+    parser.add_argument( "--merging_mode", nargs=None, choices=["full", "partial", "none", "none_permissive", "off"], default="none",
+                         help="See 'https://github.com/matteoferla/Fragmenstein/blob/master/documentation/monster/monster.md' "
+                              "Recommended general case: none. If badly annotated fragments, then none_permissive ")
 
     args =vars( parser.parse_args())
     print(args)

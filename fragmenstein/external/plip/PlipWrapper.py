@@ -35,14 +35,16 @@ class PlipWrapper():
         '''
 
 
-        cur_wd = os.getcwd()
-        with tempfile.TemporaryDirectory() as tmp:
-            os.chdir(tmp)
-            my_mol = PlipWrapper.plip_preparation.PDBComplex()
-            my_mol.load_pdb( fname)
-            my_mol.analyze()
-            os.chdir(cur_wd)
+        # cur_wd = os.getcwd()
+        # print(cur_wd)
+        # with tempfile.TemporaryDirectory() as tmp:
+            # os.chdir(tmp)
+        my_mol = PlipWrapper.plip_preparation.PDBComplex() #TODO. PLIP DOES NOT RECOGNIZE SOME EXAMPLES, E.G. PGN_RS02895PGA-x0087_0A_bound.pdb
+        my_mol.load_pdb( fname)
+        my_mol.analyze()
+            # os.chdir(cur_wd)
         interactions = [ my_mol.interaction_sets[keyId] for keyId in my_mol.interaction_sets if keyId.startswith(self.ligand_resname) ] #TODO. Include distance and angle
+
         interactions_dict = defaultdict(list)
         for inters_list in interactions:
             for inter_type in PlipWrapper.AVALIABLE_INTERACTIONS:

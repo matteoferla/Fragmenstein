@@ -32,7 +32,7 @@ class Protocol_mergeCombineBase(ABC):
     MERGES_SUBDIR="merges"
     SCORES_SUBDIR="scoring"
     def __init__(self, data_root_dir, output_dir, merging_mode=None, filter_out_by_num_inspirational_frags=-1,
-                 use_unminimized_for_ref_pdb_metadata=False, verbose=True, *args, **kwargs):
+                 use_unminimized_for_ref_pdb_metadata=False, template_pattern=None, verbose=True, *args, **kwargs):
 
         self.data_root_dir = os.path.expanduser(data_root_dir)
 
@@ -42,6 +42,7 @@ class Protocol_mergeCombineBase(ABC):
         self.merging_mode = merging_mode
         self.filter_out_by_num_inspirational_frags = filter_out_by_num_inspirational_frags
         self.use_unminimized_for_ref_pdb_metadata = use_unminimized_for_ref_pdb_metadata
+        self.template_pattern = template_pattern
         self.verbose = verbose
         self._loader = None
         self._fragments = None
@@ -74,7 +75,10 @@ class Protocol_mergeCombineBase(ABC):
     @property
     def data_loader(self):
         if not self._loader:
-            self._loader = LoadInput_XchemDefault(self.data_root_dir, **LoadInput_XchemDefault.default_params_xchem() )
+            extra_params = LoadInput_XchemDefault.default_params_xchem()
+            if self.template_pattern is not None:
+                extra_params["unboundPdb_id_pattern"] = self.template_pattern
+            self._loader = LoadInput_XchemDefault(self.data_root_dir, **extra_params )
         return self._loader
 
     @property
@@ -206,7 +210,7 @@ class Protocol_mergeCombineBase(ABC):
                     minimized_pdb = os.path.join(self.wdir_enumeration, subdir,
                                                     Xchem_info.predicted_boundPdb_template % original_name)
 
-                minimized_pdbBasename = simplified_name +".min.pdb"
+                minimized_pdbBasename = Xchem_info.predicted_boundPdb_template%simplified_name
                 f.write(minimized_pdb, minimized_pdbBasename)
 
                 if self.use_unminimized_for_ref_pdb_metadata:
@@ -338,7 +342,6 @@ class Protocol_mergeCombineBase(ABC):
 
         parser.add_argument( "--skip_scoring", action="store_true",
                             help="Do not score enumerated molecules")
-
 
         parser.add_argument( "--skip_enumeration_and_score_available", action="store_true",
                             help="Do not propose more molecules and only score them ")

@@ -39,16 +39,18 @@ class MinimizePDBComplex_pyrosetta():
         self._pyrosetta = None
         self.igor = None
 
-    def _appendParametrizedMolToPdbBlock(self, params, unboudFname, ): #TODO: move it to pdb_utils and make it more rosbust
+    def _appendParametrizedMolToPdbBlock(self, params, unboundFname, ): #TODO: move it to pdb_utils and make it more rosbust
 
         '''
 
         TODO: https://sourceforge.net/p/rdkit/mailman/rdkit-discuss/thread/DAB4155708F8E046A9D670513900A98C23200EA2%40INHEXMB09.eu.boehringer.com/#msg36404236 shows how to create residue information
 
         :param mol:
-        :param unboudFname:
+        :param unboundFname:
         :return:
         '''
+
+        #TODO: DEAL WITH CL, MG and other ions.
 
         mol = params.mol
 
@@ -63,7 +65,7 @@ class MinimizePDBComplex_pyrosetta():
             info.SetOccupancy(1.)
             info.SetResidueName(lig_resname)
 
-        with open(unboudFname) as f:
+        with open(unboundFname) as f:
             pdbdata = MinimalPDBParser(f.read())
 
         mol = Chem.Mol( mol.ToBinary() )
@@ -79,7 +81,6 @@ class MinimizePDBComplex_pyrosetta():
         :param reference_chainId_redId_resname:
         :return:
         '''
-
         mol = params.mol
         if not reference_chainId_redId_resname:
             reference_chainId_redId_resname = PdbDistanceManager(self.templateFname).find_closest_residue(mol)

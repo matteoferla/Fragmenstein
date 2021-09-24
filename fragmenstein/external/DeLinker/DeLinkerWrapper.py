@@ -173,8 +173,6 @@ class DeLinkerWrapper():
         editedcombo = edcombo.GetMol()
 
         AllChem.Compute2DCoords(editedcombo)
-
-        AllChem.Compute2DCoords(editedcombo)
         Chem.SanitizeMol(editedcombo)
 
         if self.interactive:

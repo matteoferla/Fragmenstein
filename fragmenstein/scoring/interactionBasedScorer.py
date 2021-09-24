@@ -8,6 +8,7 @@ import re
 import numpy as np
 from itertools import chain
 
+from rdkit import Chem
 from rdkit.Chem.Descriptors import ExactMolWt
 
 from fragmenstein.external.plip.PlipWrapper import PlipWrapper
@@ -47,10 +48,10 @@ class InteractionBasedScorer(_ScorerBase):
         def load_fragments_interactions(bound_pdb_fname):
             return self._computeInteractionsOneComplex(bound_pdb_fname,
                                                        selected_fragment_ids=self.selected_fragment_ids)
+
         self.fragInteractions_dict = dict(map(lambda x: x[:2], filter(None.__ne__,
                                         apply_func_to_files(self.fragments_dir, self.fragment_id_pattern,
                                                             load_fragments_interactions))))
-
         journal.warning("Fragments interactions computed")
 
         def prepare_bound_pdbNames(fname):
@@ -80,7 +81,6 @@ class InteractionBasedScorer(_ScorerBase):
         frag_id = re.match(pattern, os.path.basename(bound_pdb_fname)).group(1)
         if selected_fragment_ids and frag_id not in selected_fragment_ids:
             return None
-
         inters = self.plipWorker.compute_interactions_boundPDB(bound_pdb_fname)
         num_interactions = sum(map(len, inters.values()))
         inters = set (chain.from_iterable( ( (inter_type.replace("_","-")+"_"+res_id for res_id in res_list)  for inter_type, res_list in inters.items() ) ) )
@@ -94,6 +94,7 @@ class InteractionBasedScorer(_ScorerBase):
         :param frag_ids: a list of fragment ids
         :return:
         '''
+        # print("Computing score for ", mol_id)
         try:
             pdb_fname = self.atomic_models_fnames[mol_id]
 
@@ -106,7 +107,6 @@ class InteractionBasedScorer(_ScorerBase):
             all_fragments_interactions = set([])
             for frag_id in frag_ids:
                 frag_inter_residues = self.fragInteractions_dict.get(frag_id, None)
-                # print(frag_id, frag_inter_residues)
                 if frag_inter_residues is None or len(
                     frag_inter_residues) < InteractionBasedScorer.MIN_NUM_CONTACTS_FOR_POSITIVE_FRAGMENT:
                     continue
@@ -177,9 +177,23 @@ class InteractionBasedScorer(_ScorerBase):
                            ]
         return _ScorerBase.parseCmd(description, additional_args)
 
+def test():
+
+    scorer = InteractionBasedScorer(
+                                     working_dir= os.path.expanduser("~/tmp/fragmenstein"),
+                                     fragments_dir=os.path.expanduser("~/oxford/data/fragalysis/dpp11/aligned/"),
+                                     fragment_id_pattern=r"(.+)_bound\.pdb$",
+                                     boundPdbs_to_score_dir=os.path.expanduser("~/oxford/myProjects/examples_for_janssen/dpp11/v2/allosteric/placed/"),
+                                     boundPdbs_to_score_pattern=r"(.+)\.holo_minimised\.pdb$",
+                                    fragment_match_threshold=0.5)
+
+    scores = scorer.computeScoreOneMolecule(mol_id="x0083-0A-x0087-0A-ad3310c091-COc1cc-CNC-C-c2ccccc2Cl-ccc1O",
+                                   mol = Chem.MolFromMolFile("/home/sanchezg/oxford/myProjects/examples_for_janssen/dpp11/v2/allosteric/placed/merges/x0083-0A-x0087-0A-ad3310c091-COc1cc-CNC-C-c2ccccc2Cl-ccc1O/x0083-0A-x0087-0A-ad3310c091-COc1cc-CNC-C-c2ccccc2Cl-ccc1O.minimised.mol"),
+                                   frag_ids=["x0083_0A", "x0087_0A"])
+    print(scores)
 
 if __name__ == "__main__":
-
+    test(); import sys; sys.exit()
     results = InteractionBasedScorer.evalPipeline(initiaze_parallel_execution=True)
     print(results)
 

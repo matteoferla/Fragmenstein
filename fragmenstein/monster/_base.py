@@ -58,13 +58,15 @@ class _MonsterBase:
 
     def __init__(self,
                  hits: List[Chem.Mol],
-                 average_position: bool=False):
+                 average_position: bool=False, joining_cutoff: int =5):
         """
         Initialisation starts Monster, but it does not do any mergers or placements.
         This is changed in revision 0.6 (previously `mol` was specified for the latter)
 
         :param hits:
         :param average_position:
+        :param joining_cutoff: the joining cutoff using for full mode join_neighboring
+
         """
         # ==== hits ===========================================
         # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
@@ -90,6 +92,7 @@ class _MonsterBase:
         # self.scaffold = None  # template which may have wrong elements in place, or
         # self.chimera = None  # merger of hits but with atoms made to match the to-be-aligned mol
 
+        self.joining_cutoff = joining_cutoff
     def fix_hits(self, hits: List[Chem.Mol]) -> List[Chem.Mol]:
         """
         Adds the ``_Name`` Prop if needed

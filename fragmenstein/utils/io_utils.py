@@ -69,7 +69,6 @@ def apply_func_to_files( folder, file_pattern, function, use_parallel_dask=None,
                     fname = os.path.join( root, fname)
                     result = function(fname)
                     results.append(result)
-
         if use_parallel_dask:
             return  dask.compute(results)[0]
         else:
