@@ -48,7 +48,7 @@ Monster:
     
 Victor:
 
-    from fragmenstein import Monster
+    from fragmenstein import Victor
     victor = Victor(hits=[hits_a, hit_b], 
                     pdb_filename='foo.pdb',
                     covalent_resi=1) # if not covalent, just put the first residue or something.
@@ -90,7 +90,7 @@ Monster:
     
 Victor:
 
-    from fragmenstein import Monster
+    from fragmenstein import Victor
     victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
     victor.place('CCO')
     victor.minimised_mol
