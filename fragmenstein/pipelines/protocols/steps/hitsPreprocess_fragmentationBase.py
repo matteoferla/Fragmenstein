@@ -4,8 +4,8 @@ from itertools import chain, product
 from rdkit import Chem
 from rdkit.Chem.Descriptors import HeavyAtomMolWt
 
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.utils.modify_molecules import change_atom_type
 
 

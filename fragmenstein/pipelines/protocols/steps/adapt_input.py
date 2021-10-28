@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from fragmenstein.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
 
 
 class InputAdapter():

@@ -1,6 +1,6 @@
 from rdkit import Chem
 
-from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
 from fragmenstein.utils.config_manager import ConfigManager
 
 

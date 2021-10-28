@@ -3,8 +3,8 @@ from abc import abstractmethod
 from itertools import chain, permutations
 from itertools import combinations
 
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.adapt_input import InputAdapter
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.adapt_input import InputAdapter
 
 
 class HitsPreprocess_base(InputAdapter):

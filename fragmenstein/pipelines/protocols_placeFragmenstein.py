@@ -2,9 +2,8 @@ import os
 import sys
 from itertools import chain as chainIterables
 
-from examples.protocols_mergeCombineBase import Protocol_mergeCombineBase
-from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols_mergeCombineBase import Protocol_mergeCombineBase
+from fragmenstein.pipelines.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
 from fragmenstein.utils.config_manager import ConfigManager
 
 
@@ -80,7 +79,7 @@ if __name__ == "__main__":
     '''
 
 echo -e "Cc1ccncc1NC(=O)C(C)c1cccc(Cl)c1  x0020_0B,x0029_0A
-CC(=O)N1CCN(Cc2cccs2)CC1 x0020_0B" | N_CPUS=1 python -m examples.protocols_placeFragmenstein -f - -i ~/oxford/data/fragalysis/nsp13/aligned -o ~/oxford/tools/Fragmenstein/outputPlace  --merging_mode full
+CC(=O)N1CCN(Cc2cccs2)CC1 x0020_0B" | N_CPUS=1 python -m fragmenstein.pipelines.protocols_placeFragmenstein -f - -i ~/oxford/data/fragalysis/nsp13/aligned -o ~/oxford/tools/Fragmenstein/outputPlace  --merging_mode full
 
 --template_pattern ".*?(x[\w-]+)_apo\.pdb$"
 

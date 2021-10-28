@@ -1,7 +1,7 @@
 from rdkit import Chem
 
 from fragmenstein.external.smarts_fragmentation.reaction_fragmentation import ReactionFragmentation
-from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBase import HitsPreprocess_fragmentationBase
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_fragmentationBase import HitsPreprocess_fragmentationBase
 
 
 

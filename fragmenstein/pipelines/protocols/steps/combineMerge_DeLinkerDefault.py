@@ -5,10 +5,10 @@ from typing import List
 from rdkit import Chem
 from rdkit import RDLogger
 
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
-from fragmenstein.protocols.steps.minimizePdbComplex_pyrosetta import MinimizePDBComplex_pyrosetta
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.combineMerge_abstract import CombineMerge_Base
+from fragmenstein.pipelines.protocols.steps.minimizePdbComplex_pyrosetta import MinimizePDBComplex_pyrosetta
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.config_manager import ConfigManager
 

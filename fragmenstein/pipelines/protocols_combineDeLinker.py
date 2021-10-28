@@ -8,11 +8,11 @@ from rdkit.Chem import Descriptors
 from rdkit.Chem.Descriptors import HeavyAtomMolWt
 from scipy.spatial import distance_matrix
 
-from examples.protocols_combineBase import Protocol_combineBase
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_DeLinkerDefault import CombineMerge_DeLinkerDefault
-from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
-from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
+from fragmenstein.pipelines.protocols_combineBase import Protocol_combineBase
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.combineMerge_DeLinkerDefault import CombineMerge_DeLinkerDefault
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
 
 
 class Protocol_combineDeLinker(Protocol_combineBase):
@@ -86,6 +86,7 @@ class Protocol_combineDeLinker(Protocol_combineBase):
                             seen_smis.add(pair_hash)
                             if self._check_compability(bit1, bit2, min_dist_thr=min_dist_thr_abort_deLinker):
                                 yield ( bit1, bit2 )
+                            else: print("Ruled out")
 
         # print( [ [Chem.MolToSmiles(mol) for mol in comb]  for comb in fragsCombin_iter() ] )
         # input( len( list(fragsCombin_iter() )))
@@ -112,9 +113,9 @@ if __name__ == "__main__":
     #TODO: modify fragalysis writer to accept method=DeLInker
 
     '''
+ 
+N_CPUS=1 python -m fragmenstein.pipelines.protocols_combineDeLinker -i  ~/oxford/data/fragalysis/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10 
 
-N_CPUS=1 python -m examples.protocols_combineDeLinker -i ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10 -p BRICS_decomposition
-
-python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json DASK_WORKER_MEMORY=4GB --ncpus 8 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m examples.protocols_combineDeLinker --n_cpus 8 -i /data/xchem-fragalysis/sanchezg/oxford/myProjects/diamondCovid/data/nsp13/aligned -o /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/output_nsp13_Site7_mixed -f x0116_0B x0309_0B x4094_0B" --nodename pulsar-exec-node-cuda-15.xchem.novalocal
+python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json DASK_WORKER_MEMORY=4GB --ncpus 8 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.pipelines.protocols_combineDeLinker --n_cpus 8 -i /data/xchem-fragalysis/sanchezg/oxford/myProjects/diamondCovid/data/nsp13/aligned -o /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/output_nsp13_Site7_mixed -f x0116_0B x0309_0B x4094_0B" --nodename pulsar-exec-node-cuda-15.xchem.novalocal
 
     '''

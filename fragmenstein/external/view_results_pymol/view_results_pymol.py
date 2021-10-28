@@ -13,10 +13,9 @@ from rdkit import Chem
 from rdkit.Chem import PandasTools
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
-from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.scoring.scorer_labels import checkIfNameIsScore, removeScoreTag, SCORE_NAME_TEMPLATE
-from fragmenstein.utils.io_utils import apply_func_to_files
 
 
 class InteractiveInterface():
@@ -80,7 +79,6 @@ class InteractiveInterface():
 
         self.minmized_templates ={}
         with zipfile.ZipFile(os.path.join(results_dir, "bound_minimized_pdbs.zip")) as zip_f:
-            # with zip_f.open('bound_pdbs/compoundName_to_pdbName.tab') as text_f:
             with zip_f.open('info/compoundName_to_pdbName.tab') as text_f:
                 for line in text_f:
                     line = line.decode("utf-8").split()
@@ -88,7 +86,6 @@ class InteractiveInterface():
                         continue
                     self.minmized_templates[line[0]] = os.path.join(results_dir, "merges", line[-1],
                                                                     Xchem_info.predicted_boundPdb_template%line[-1])
-
         self.molecule_idx=0
         self.n_mols = len(self.df)
 
@@ -175,7 +172,6 @@ class InteractiveInterface():
     def get_fragments_current_mol(self):
         frag_ids = self.get_current_mol()[-1].GetProp("ref_mols").split(",")
         return [(fragId, self.data_loader.fragments_dict[fragId]) for fragId in frag_ids]
-
 
     def get_mol_repr(self, mol):
 

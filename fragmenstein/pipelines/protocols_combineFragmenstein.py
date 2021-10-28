@@ -1,12 +1,12 @@
 from itertools import chain
 from typing import Tuple, List, Dict
 
-from examples.protocols_combineBase import Protocol_combineBase
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
-from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
-from fragmenstein.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
-from fragmenstein.protocols.steps.hitsPreprocess_permutations import HitsPreprocess_permutations
+from fragmenstein.pipelines.protocols_combineBase import Protocol_combineBase
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.combineMerge_fragmensteinDefault import CombineMerge_FragmensteinDefault
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_fragmentationBrics import HitsPreprocess_fragmentationBRICS
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_permutations import HitsPreprocess_permutations
 
 
 class Protocol_combineFragmenstein(Protocol_combineBase):
@@ -85,9 +85,9 @@ if __name__ == "__main__":
 
     '''
 
-N_CPUS=1 python -m examples.protocols_combineFragmenstein -i ~/oxford/myProjects/diamondCovid/data/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10 -p BRICS_decomposition
+N_CPUS=1 python -m fragmenstein.pipelines.protocols_combineFragmenstein -i ~/oxford/data/fragalysis/nsp13/aligned -f x0176_0B x0246_0B x0438_0B -o ~/oxford/tools/Fragmenstein/output -m 10 -p BRICS_decomposition
 
 
-python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json DASK_WORKER_MEMORY=4GB --ncpus 8 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m examples.protocols_combineFragmenstein --n_cpus 8 -d /data/xchem-fragalysis/sanchezg/oxford/myProjects/diamondCovid/data/nsp13/aligned -o /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/output_nsp13_Site7_mixed -f x0116_0B x0309_0B x4094_0B"
+python -m fragmenstein.external.condor_queue.send_to_condor --env_vars EXTERNAL_TOOLS_CONFIG_FILE=examples/external_config.json DASK_WORKER_MEMORY=4GB --ncpus 8 "/data/xchem-fragalysis/sanchezg/app/miniconda3_2/envs/Fragmenstein/bin/python -m fragmenstein.pipelines.protocols_combineFragmenstein --n_cpus 8 -d /data/xchem-fragalysis/sanchezg/oxford/myProjects/diamondCovid/data/nsp13/aligned -o /data/xchem-fragalysis/sanchezg/oxford/tools/Fragmenstein/output_nsp13_Site7_mixed -f x0116_0B x0309_0B x4094_0B"
 
     '''

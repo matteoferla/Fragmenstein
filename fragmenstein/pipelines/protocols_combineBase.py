@@ -2,9 +2,8 @@ import os
 from abc import abstractmethod
 from typing import Tuple, List, Dict
 
-from examples.protocols_mergeCombineBase import Protocol_mergeCombineBase
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols_mergeCombineBase import Protocol_mergeCombineBase
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
 from fragmenstein.utils.config_manager import ConfigManager
 
 

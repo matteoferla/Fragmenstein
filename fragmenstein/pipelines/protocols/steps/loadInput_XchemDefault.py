@@ -2,9 +2,9 @@ import os
 import re
 from collections import OrderedDict
 
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.loadInput_base import LoadInput_base
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.loadInput_base import LoadInput_base
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.io_utils import load_files_as_mols, apply_func_to_files
 
 
@@ -12,7 +12,7 @@ class LoadInput_XchemDefault(LoadInput_base, Xchem_info):
 
     @staticmethod
     def get_examples_init_params():
-        params = dict( data_dir= os.path.abspath( os.path.join(__file__, "../../mpro/data/xchem_examples/aligned") ) )
+        params = dict(data_dir= os.path.abspath(os.path.join(__file__, "../../../mpro/data/xchem_examples/aligned")))
         params.update( Xchem_info.default_params_xchem())
         return params
 

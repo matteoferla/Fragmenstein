@@ -14,9 +14,9 @@ from dask.distributed import progress
 from fragmenstein import Victor
 from fragmenstein.monster import GPM
 
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.adapt_input import InputAdapter
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.adapt_input import InputAdapter
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.io_utils import apply_func_to_files
 from fragmenstein.utils.parallel_utils import get_parallel_client
 

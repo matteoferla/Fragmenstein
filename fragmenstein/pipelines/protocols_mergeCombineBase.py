@@ -7,7 +7,6 @@ from abc import abstractmethod, ABC
 from collections import defaultdict
 from itertools import chain
 
-import shutil
 from zipfile import ZipFile
 
 import dirsync
@@ -17,12 +16,12 @@ import logging
 from rdkit import Chem
 
 from fragmenstein.external.uploadToFragalysis.fragalysisFormater import FragalysisFormater
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_abstract import CombineMerge_Base, ErrorInComputation
-from fragmenstein.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
-from fragmenstein.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
-from fragmenstein.protocols.steps.score_combinedDefault import Score_CombinedDefault
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.combineMerge_abstract import CombineMerge_Base, ErrorInComputation
+from fragmenstein.pipelines.protocols.steps.hitsPreprocess_base import HitsPreprocess_base
+from fragmenstein.pipelines.protocols.steps.loadInput_XchemDefault import LoadInput_XchemDefault
+from fragmenstein.pipelines.protocols.steps.score_combinedDefault import Score_CombinedDefault
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.utils.io_utils import apply_func_to_files
 
 RANDOM_SEED = 121

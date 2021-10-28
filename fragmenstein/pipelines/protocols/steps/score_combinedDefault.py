@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from fragmenstein.protocols.xchem_info import Xchem_info
+from fragmenstein.pipelines.protocols.xchem_info import Xchem_info
 from fragmenstein.scoring.combined_scorer import CombineScorer
 from fragmenstein.scoring.interactionBasedScorer import InteractionBasedScorer
 from fragmenstein.scoring.propertiesScorer import PropertiesScorer

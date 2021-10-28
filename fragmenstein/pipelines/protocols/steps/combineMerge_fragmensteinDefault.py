@@ -4,13 +4,12 @@ import os
 import copy
 from typing import List
 
-from collections import defaultdict
 from rdkit import Chem
 
 from fragmenstein import Victor
 from fragmenstein.external import ExternalToolImporter
-from fragmenstein.protocols.dataModel.compound import Compound
-from fragmenstein.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
+from fragmenstein.pipelines.protocols.dataModel.compound import Compound
+from fragmenstein.pipelines.protocols.steps.combineMerge_abstract import ErrorInComputation, CombineMerge_Base
 from fragmenstein.scoring._fragmenstein_scoring import _FragmensteinScorer
 from fragmenstein.utils.config_manager import ConfigManager
 from fragmenstein.utils.pdb_utils import PdbDistanceManager
