@@ -54,7 +54,11 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.keep_copy(self.positioned_mol, 'expanded')
         self._join_internally(self.positioned_mol)
         self.journal.debug(f'Expanded')
-        self.rectify()
+        try:
+            self.rectify()
+        except RecursionError:
+            self.journal.critical(f'Recursion limit in rectifier')
+            raise ConnectionError(f'Can not rectify {self.positioned_mol}')
         self.journal.debug(f'Rectified')
         return self
 

@@ -36,7 +36,7 @@ There are two module hosted elsewhere:
 
 ### Combine
 It can also merge and link fragment hits by itself and find the best scoring mergers.
-For details about linking see [linking notes](documentation/linking.md)
+For details about linking see [linking notes](documentation/linking.md).
 It uses the same overlapping position clustering, but also has a decent amount of impossible/uncommon chemistry prevention.
 
 Monster:
@@ -48,7 +48,10 @@ Monster:
     
 Victor:
 
-    from fragmenstein import Monster
+    from fragmenstein import Victor
+    import pyrosetta
+    pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
+
     victor = Victor(hits=[hits_a, hit_b], 
                     pdb_filename='foo.pdb',
                     covalent_resi=1) # if not covalent, just put the first residue or something.
@@ -90,7 +93,10 @@ Monster:
     
 Victor:
 
-    from fragmenstein import Monster
+    from fragmenstein import Victor
+    import pyrosetta
+    pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
+
     victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
     victor.place('CCO')
     victor.minimised_mol
