@@ -281,6 +281,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         :param mol: opt. mol. modified in place.
         :return: None
         """
+        success = True
         if mol is None and self.positioned_mol is None:
             raise ValueError('No valid molecule')
         elif mol is None:
@@ -300,7 +301,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
         if p is None:
             self.journal.error(f'MMFF cannot work on a molecule that has errors!')
-            return None
+            return False
         ff = AllChem.MMFFGetMoleculeForceField(mol, p)
         # restrain
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
@@ -321,6 +322,8 @@ class _MonsterUtil(_MonsterCommunal, GPM):
                 self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
         except RuntimeError as error:
             self.journal.error(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
+            success = False
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
+        return success
