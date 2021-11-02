@@ -16,7 +16,7 @@ import json
 
 try:
     from IPython.display import SVG, display
-except ImportError:
+except (KeyError, ImportError):
     warn('No Jupyter notebook installed. `.draw_nicely` will not work.')
     SVG = lambda *args, **kwargs: print('Install IPython...')
     display = lambda *args, **kwargs: print('Install IPython...')
