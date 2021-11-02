@@ -49,6 +49,9 @@ Monster:
 Victor:
 
     from fragmenstein import Victor
+    import pyrosetta
+    pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
+
     victor = Victor(hits=[hits_a, hit_b], 
                     pdb_filename='foo.pdb',
                     covalent_resi=1) # if not covalent, just put the first residue or something.
@@ -91,6 +94,9 @@ Monster:
 Victor:
 
     from fragmenstein import Victor
+    import pyrosetta
+    pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
+
     victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
     victor.place('CCO')
     victor.minimised_mol
