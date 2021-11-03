@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from warnings import warn
 from importlib import util
 import sys
@@ -24,8 +24,8 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.6',
-    packages=['fragmenstein'],
+    version='0.6.6',
+    packages=find_packages(),
     install_requires=['numpy', 'rdkit-to-params', 'molecular-rectifier'],
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',

@@ -2,7 +2,6 @@ from ._victor_common import _VictorCommon
 from ..monster import Monster
 from ..igor import Igor
 from ..m_rmsd import mRSMD
-from molecular_rectifier import Rectifier
 from typing import List, Optional, Dict, Union, Callable
 from rdkit import Chem
 from rdkit.Chem import AllChem

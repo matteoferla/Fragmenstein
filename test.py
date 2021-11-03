@@ -259,6 +259,22 @@ class Internals(unittest.TestCase):
         found = Chem.MolToSmiles(Monster([benzene, moved]).combine().positioned_mol)
         self.assertEqual(wanted, found, 'The joining differs')
 
+    def test_distance(self):
+        methane = Chem.MolFromSmiles('C')
+        AllChem.EmbedMolecule(methane)
+        ammonia = Chem.MolFromSmiles('N')
+        AllChem.EmbedMolecule(ammonia)
+        self.translate(ammonia, x=3)
+        monster = Monster([methane, ammonia])
+        monster.combine(keep_all=False, joining_cutoff=2)
+        self.assertEqual(1, len(monster.unmatched), 'discard error')
+        monster.combine(keep_all=True, joining_cutoff=5)
+        self.assertEqual(0, len(monster.unmatched), 'discard error')
+        try:
+            monster.combine(keep_all=True, joining_cutoff=2)
+            self.fail('should have raised a connection error')
+        except ConnectionError as error:
+            pass
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
     def test_recto_fail_A(self):

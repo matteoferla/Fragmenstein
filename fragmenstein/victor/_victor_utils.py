@@ -322,6 +322,7 @@ class _VictorUtils(_VictorCommon):
                      smilesdex: Dict[str, str],
                      ligand_resn: str = 'LIG',
                      regex_name: Optional[str]= None,
+                     proximityBonding: bool = False,
                      throw_on_error:bool=False) -> Dict[str, Chem.Mol]:
         """
          A key requirement for Monster is a separate mol file for the inspiration hits.
@@ -356,7 +357,8 @@ class _VictorUtils(_VictorCommon):
                     mol = cls.extract_mol(name=name,
                                           filepath=fullfile,
                                           smiles=smiles,
-                                          ligand_resn=ligand_resn)
+                                          ligand_resn=ligand_resn,
+                                          proximityBonding=proximityBonding)
                     if mol is not None:
                         mols[name] = mol
                 except Exception as error:
@@ -372,6 +374,7 @@ class _VictorUtils(_VictorCommon):
                      smiles: Optional[str] = None,
                      ligand_resn: str = 'LIG',
                      removeHs: bool = False,
+                     proximityBonding: bool = False,
                      throw_on_error : bool = False) -> Chem.Mol:
         """
         Extracts the ligand of 3-name ``ligand_resn`` from the PDB file ``filepath``.
@@ -395,7 +398,7 @@ class _VictorUtils(_VictorCommon):
         :return: rdkit Chem object
         :rtype: Chem.Mol
         """
-        holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=removeHs)
+        holo = Chem.MolFromPDBFile(filepath, proximityBonding=proximityBonding, removeHs=removeHs)
         if holo is None:
             cls.journal.warning(f'PDB {filepath} is problematic. Skipping sanitization.')
             holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=True, sanitize=False)

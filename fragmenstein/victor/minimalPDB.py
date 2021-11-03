@@ -26,7 +26,15 @@ class MinimalPDBParser:
     Importing the PDB into RDKit is inadvisable.
     """
 
-    def __init__(self, block: str):
+    def __init__(self, block: str, remove_water=False, remove_other_hetatms=False, ligname="LIG"):
+        self.ligname = ligname
+        self.remove_water = remove_water
+        self.remove_other_hetatms = remove_other_hetatms
+        self.to_preserve_heteroResname = ["LIG"]
+        self.water_resnames = ["HOH", "OH", "H"]
+        if not remove_water:
+            self.to_preserve_heteroResname +=  self.water_resnames
+
         self.step = 0
         # step = 0 header unfinished, 1 coordinates finished, 2 connections finished.
         self.headers = []
@@ -44,6 +52,14 @@ class MinimalPDBParser:
             if row == '':
                 continue
             elif starts_with(row, 'ATOM') or starts_with(row, 'HETATM'):
+                if starts_with(row, 'HETATM'):
+                    resType = row[17:21].strip()
+                    if self.remove_other_hetatms:
+                        if resType not in self.to_preserve_heteroResname:
+                            continue
+                    if self.remove_water:
+                        if resType in self.water_resnames:
+                            continue
                 self.step = 1
                 self.coordinates.append(row)
             elif starts_with(row, 'CONECT'):
@@ -65,9 +81,23 @@ class MinimalPDBParser:
     def __str__(self):
         return '\n'.join(self.headers + self.coordinates + self.connections + ['END'] + self.tails)
 
-    def get_serial(self, entry: str):
+    def get_serial(self, entry: str) -> int:
         # ATOM    588 11 - 14
         return int(entry[6:12].strip())
+
+    def get_residue_index(self, entry: str) -> int:
+        # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
+        # 23 - 26        Integer       resSeq       Residue sequence number.
+        return int(entry[22:26].strip())
+
+    def get_chain(self, entry: str) -> str:
+        # 22             Character     chainID      Chain identifier.
+        return entry[21].strip()
+
+    def get_residue_name(self, entry: str) -> int:
+        # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
+        # 18 - 20        Residue name  resName      Residue name.
+        return entry[17:20].strip()
 
     def get_max_serial(self) -> int:
         # assuming ordered
@@ -96,3 +126,22 @@ class MinimalPDBParser:
         other.offset_connections(offset)
         self.coordinates += other.coordinates
         self.connections += other.connections
+
+    def has_residue_index(self, index:int, chain: str):
+        for entry in self.coordinates:
+            if self.get_residue_index(entry) == index and self.get_chain(entry) == chain:
+                return True
+        else:
+            return False
+
+    def has_residue_name(self, name: str):
+        """
+        residue name, resn 3-letters
+        """
+        for entry in self.coordinates:
+            if self.get_residue_name(entry) == name:
+                return True
+        else:
+            return False
+
+

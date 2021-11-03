@@ -116,6 +116,8 @@ class _IgorInit:
                 parsed.append(r)
         else:
             raise ValueError(f'No idea what {residue} is.')
+        parsed = [p for p in parsed if p != 0]
+        assert len(parsed), f'There is no {residue} in pose'
         return parsed
 
     def _parse_key_residues(self,

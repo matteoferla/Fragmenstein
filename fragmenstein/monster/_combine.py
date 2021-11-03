@@ -29,6 +29,9 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         :param joining_cutoff:
         :return:
         """
+        # blanking
+        self.unmatched = []
+        self.modifications = {}
         # The following override class declared attributes.
         self.joining_cutoff = joining_cutoff
         self.throw_on_discard = keep_all
@@ -41,7 +44,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.positioned_mol = self.simply_merge_hits(col_hits, linked=False)
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
-        if keep_all and len(self.unmatched):
+        if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'Could not combine with {self.unmatched} (>{self.joining_cutoff}')
         # expand and fix
         self.journal.debug(f'Merged')
@@ -51,7 +54,11 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.keep_copy(self.positioned_mol, 'expanded')
         self._join_internally(self.positioned_mol)
         self.journal.debug(f'Expanded')
-        self.rectify()
+        try:
+            self.rectify()
+        except RecursionError:
+            self.journal.critical(f'Recursion limit in rectifier')
+            raise ConnectionError(f'Can not rectify {self.positioned_mol}')
         self.journal.debug(f'Rectified')
         return self
 

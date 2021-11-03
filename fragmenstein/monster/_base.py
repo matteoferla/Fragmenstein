@@ -58,13 +58,15 @@ class _MonsterBase:
 
     def __init__(self,
                  hits: List[Chem.Mol],
-                 average_position: bool=False):
+                 average_position: bool=False,
+                 joining_cutoff: float =5):
         """
         Initialisation starts Monster, but it does not do any mergers or placements.
         This is changed in revision 0.6 (previously `mol` was specified for the latter)
 
         :param hits:
         :param average_position:
+        :param joining_cutoff: joining cutoff used in "full" mode
         """
         # ==== hits ===========================================
         # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
@@ -84,6 +86,7 @@ class _MonsterBase:
         # # ivars of type Chem.Mol or List[Chem.Mol] or Dict[Chem.Mol]
         self.modifications = {}
         self.positioned_mol = None  # final molecule
+        self.joining_cutoff = joining_cutoff  # over-ridden
         self.mol_options = []  # equally valid alternatives to self.positioned_mol
         self._collapsed_ring_offset = 0  # variable to keep track of how much to offset in ring collapse.
         # formerly:
