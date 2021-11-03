@@ -5,8 +5,8 @@ These are extras for the Monster step
     """
 
 ########################################################################################################################
-
-from typing import List, Optional, Tuple, Dict
+from itertools import combinations
+from typing import List, Optional, Tuple, Dict, Union
 from warnings import warn
 
 from rdkit import Chem
@@ -273,12 +273,14 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
-    def mmff_minimise(self, mol: Optional[Chem.Mol] = None) -> None:
+    def mmff_minimise(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> None:
         """
-        Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to 2 Å.
+        Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_dist_thr Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
 
         :param mol: opt. mol. modified in place.
+        :param ff_dist_thr: Distance threshold (Å) for atomic positions mapped to hits for  MMFF constrains
+
         :return: None
         """
         success = True
@@ -306,7 +308,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         # restrain
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
             i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, 2, 10)
+            ff.MMFFAddPositionConstraint(i, ff_dist_thr, 10)
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             i = atom.GetIdx()
             ff.MMFFAddPositionConstraint(i, 0.1, 10)
@@ -327,3 +329,24 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
         return success
+
+    def _get_substructure_from_idxs(self, mol:Chem.Mol, atomIdx_list: List[int]) -> \
+                                    Tuple[Union[Chem.Mol, Chem.Mol],Dict[int,int] ]:
+        '''
+        Given a molecule, extract the substructure molecule given selected atom idxs.
+        :param mol:
+        :param atomIdx_list:
+        :return:
+        '''
+        bonds = []
+        atommap = {}
+
+        for i, j in combinations(atomIdx_list, 2):
+            b = mol.GetBondBetweenAtoms(i, j)
+            if b:
+                bonds.append(b.GetIdx())
+
+        newMol = Chem.PathToSubmol(mol, bonds, atomMap=atommap)
+        if len(atommap) == 0:
+            newMol = None
+        return newMol, atommap

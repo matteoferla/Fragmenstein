@@ -65,13 +65,14 @@ class _VictorPlace(_VictorCommon):
         self.monster.place(mol=self.mol,
                            attachment=attachment,
                            merging_mode=self.merging_mode)
+        self.post_monster_step()  # empty overridable
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
         self.unminimised_pdbblock = self._plonk_monster_in_structure()
         self.constraint.custom_constraint += self.make_coordinate_constraints()
         self._checkpoint_bravo()
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.post_monster_step()  # empty overridable
+        self.pre_igor_step()  # empty overridable
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         # ***** EGOR *******
