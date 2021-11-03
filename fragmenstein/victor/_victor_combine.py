@@ -114,7 +114,6 @@ class _VictorCombine(_VictorCommon):
         # self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()  # empty overridable
-        self.mmerging_mode = 'full'
         self.unminimised_pdbblock = self._plonk_monster_in_structure()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()

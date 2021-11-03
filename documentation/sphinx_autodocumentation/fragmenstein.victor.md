@@ -123,7 +123,6 @@ For now can only be ‘CYS’ (or anything else if not covalent)
 * **merging_mode** (*str*) – 
 * **minimised_mol** (*Mol*) – 
 * **minimised_pdbblock** (*str*) – 
-* **mmerging_mode** (*str*) – 
 * **modifications** (*dict*) – 
 * **mol** (*Mol*) – 
 * **monster** (*Monster*) – 
