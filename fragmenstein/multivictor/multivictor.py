@@ -1,5 +1,8 @@
+import copy
 import random
 from typing import Optional, Dict, Union
+
+from rdkit import Chem
 
 from fragmenstein import Victor
 
@@ -27,7 +30,7 @@ class MultiVictorPlacement():
             current_randomState = random.getstate()
             random.seed(self.randomSeed)
         rseeds = [random.randint(0, int(1e6)) for i in range(number_trials)]
-        if  current_randomState is not None:
+        if current_randomState is not None:
             random.setstate(current_randomState)
 
         def placeFunction(i):

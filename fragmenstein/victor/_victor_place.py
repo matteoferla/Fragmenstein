@@ -24,21 +24,41 @@ class _VictorPlace(_VictorCommon):
         :return:
         """
         # ## Store
+        self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, extra_ligand_constraint)
+        # ## Analyse
+        self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
+        return self
+
+    def _prepare_args_for_placement(self,
+              smiles: str,
+              long_name: str = 'ligand',
+              merging_mode='none_permissive',
+              atomnames: Optional[Dict[int, str]] = None,
+              extra_ligand_constraint: Union[str] = None):
+        """
+        Set instance attributes before calling placement
+
+        :param smiles: smiles of followup, optionally covalent (_e.g._ ``*CC(=O)CCC``)
+        :param long_name: gets used for filenames so will get corrected
+        :param merging_mode:
+        :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
+        :param extra_ligand_constraint:
+        :return
+        """
         self.long_name = self.slugify(long_name)
         self.smiles = smiles
         self.atomnames = atomnames
         self.merging_mode = merging_mode
         self.add_extra_constraint(extra_ligand_constraint)
-        # ## Analyse
-        self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
-        return self
 
-    def _calculate_placement(self):
-        """
-        This does all the work
 
+    def _calculate_placement_prepareMonster(self):
+        '''
+        First part of the placement pipeline.
+          1) Check parameters
+          2) Creates a monster
         :return:
-        """
+        '''
         # check they are okay
         self._assert_placement_inputs()
         # ***** PARAMS & CONSTRAINT *******
@@ -57,7 +77,6 @@ class _VictorPlace(_VictorCommon):
         self.constraint = self._get_constraint(self.extra_constraint)
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self._log_warnings()
-        self.post_params_step()  # empty overridable
         # ***** FRAGMENSTEIN Monster *******
         # make monster
         self.journal.debug(f'{self.long_name} - Starting fragmenstein')
@@ -67,6 +86,14 @@ class _VictorPlace(_VictorCommon):
                            merging_mode=self.merging_mode)
         self.post_monster_step()  # empty overridable
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
+
+    def _calculate_placement_minimizeMonster(self):
+        '''
+        Second and last part of the placement pipeline.
+          1) Plonks the monster in the structure
+          2) Energy minimization ligand-protein
+        :return:
+        '''
         self.unminimised_pdbblock = self._plonk_monster_in_structure()
         self.constraint.custom_constraint += self.make_coordinate_constraints()
         self._checkpoint_bravo()
@@ -97,6 +124,15 @@ class _VictorPlace(_VictorCommon):
             ddG = self.reanimate()
         self.ddG = ddG
         self._store_after_reanimation()
+
+    def _calculate_placement(self):
+        """
+        This does all the work
+
+        :return:
+        """
+        self._calculate_placement_prepareMonster()
+        self._calculate_placement_minimizeMonster()
 
     def _assert_placement_inputs(self):
         if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):

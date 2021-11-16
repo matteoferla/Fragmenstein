@@ -28,7 +28,9 @@ from .unmerge_mapper import Unmerge
 
 
 class _MonsterBlend(_MonsterMerge):
-    # placement dependent methdos
+    # placement dependent methods
+
+
 
     # @classmethod #why was this a classmethod
     def full_blending(self) -> None:
@@ -38,12 +40,13 @@ class _MonsterBlend(_MonsterMerge):
         self.mol_options = [self.simply_merge_hits()]
         scaffold = self.posthoc_refine(self.mol_options[0])
         chimera = self.make_chimera(scaffold)
-        self.keep_copy(scaffold, 'scaffold')
-        self.keep_copy(chimera, 'chimera')
+
         self.positioned_mol = self.place_from_map(target_mol=self.initial_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
                                                   randomSeed=self.randomSeed)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
 
     def partial_blending(self) -> None:
         """
@@ -55,12 +58,13 @@ class _MonsterBlend(_MonsterMerge):
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
         scaffold = self.posthoc_refine(unrefined_scaffold)
         chimera = self.make_chimera(scaffold, mode_index)
-        self.keep_copy(scaffold, 'scaffold')
-        self.keep_copy(chimera, 'chimera')
+
         self.positioned_mol = self.place_from_map(target_mol=self.positioned_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
                                                   randomSeed=self.randomSeed)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
 
     def no_blending(self, broad=False) -> None:
         """
@@ -84,8 +88,7 @@ class _MonsterBlend(_MonsterMerge):
                      mols=self.hits,
                      maps=maps,
                      no_discard=self.throw_on_discard)
-        self.keep_copy(um.combined, 'scaffold')
-        self.keep_copy(um.combined_bonded, 'chimera')
+
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
@@ -95,6 +98,10 @@ class _MonsterBlend(_MonsterMerge):
                                      template_mol=um.combined_bonded,
                                      atom_map=um.combined_map,
                                      randomSeed=self.randomSeed)
+
+        self.keep_copy(um.combined, 'scaffold')
+        self.keep_copy(um.combined_bonded, 'chimera')
+
         alts = zip(um.combined_bonded_alternatives, um.combined_map_alternatives)
         placed_options = [self.place_from_map(target_mol=self.initial_mol,
                                              template_mol=mol,
@@ -352,6 +359,7 @@ class _MonsterBlend(_MonsterMerge):
             atom_map, mode = self.get_mcs_mapping(target_mol, template_mol)
             msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
             self.journal.debug(f"followup-chimera' = {msg}")
+        self._add_atom_map_asProp(template_mol, atom_map)
         rdMolAlign.AlignMol(sextant, template_mol, atomMap=list(atom_map.items()), maxIters=500)
         # place atoms that have a known location
         putty = Chem.Mol(sextant)

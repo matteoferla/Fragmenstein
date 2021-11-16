@@ -6,6 +6,7 @@ Keep a copy of the mol.
     """
 
 ########################################################################################################################
+import json
 
 from rdkit import Chem
 from ._base import _MonsterBase
@@ -36,3 +37,14 @@ class _MonsterTracker(_MonsterBase):
             else:
                 this_label = f'{label}#{i}'
             self.keep_copy(mol, this_label)
+
+    def _add_atom_map_asProp(self, mol, atom_map):
+        mol.SetProp("atom_map", json.dumps(atom_map))
+
+    def get_atom_map_fromProp(self, mol):
+        if mol.HasProp("atom_map"):
+            atom_map = json.loads(mol.GetProp("atom_map"))
+            atom_map = { int(key):int(val) for key,val in atom_map.items()}
+            return atom_map
+        else:
+            return None
