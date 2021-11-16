@@ -79,6 +79,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype is_covalent: bool/None
     :ivar joining_cutoff: max distance between joining mol
     :vartype joining_cutoff: float
+    :ivar randomSeed: random seed for rdkit embedding
+    :vartype randomSeed: int
     :cvar journal: log
     :vartype journal: Logger
     :ivar ligand_resi:  the residue index (PDB) for the ligand.

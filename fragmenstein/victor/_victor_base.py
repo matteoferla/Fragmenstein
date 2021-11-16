@@ -103,7 +103,7 @@ class _VictorBase:
                  covalent_resi: Optional[Union[int, str]] = None,
                  extra_protein_constraint: Union[str] = None,
                  pose_fx: Optional[Callable] = None,
-#                 remove_other_hetatms: bool = True,
+                 randomSeed: Optional[int] = None
                  ):
         """
         Initialise Victor in order to allow either combinations (merging/linking without a given aimed for molecule)
@@ -117,7 +117,7 @@ class _VictorBase:
         :param covalent_resi: Rosetta-style pose(int) or pdb(str)
         :param extra_protein_constraint: multiline string of constraints relevant to the protein
         :param pose_fx: a function to call with pose to tweak or change something before minimising.
-
+        :param randomSeed: a random seed for rdkit Embedding
         """
         # ## Store
         # entry attributes
@@ -131,6 +131,7 @@ class _VictorBase:
         self._correct_covalent_resi()  # in plonk
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
+        self.randomSeed = randomSeed
         # ## Fill by place and combine differently
         self.long_name = 'ligand'
         self.smiles = None
@@ -146,7 +147,8 @@ class _VictorBase:
         self.modifications = {}
         self.unminimised_pdbblock = None
         self.monster = Monster(hits,
-                               average_position=self.monster_average_position)
+                               average_position=self.monster_average_position,
+                               randomSeed=self.randomSeed)
         self.igor = None
         self.unbound_pose = None
         self.minimised_pdbblock = None
