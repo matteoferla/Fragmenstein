@@ -151,7 +151,7 @@ class _MonsterBlend(_MonsterMerge):
         for h1, h2 in itertools.combinations(hits, 2):
             inter_mapping[(h1.GetProp('_Name'), h2.GetProp('_Name'))] = self.get_positional_mapping(h1, h2)
         dodgy_names = get_dodgies([])
-        self.warning(f'These combiend badly: {dodgy_names}')
+        warn(f'These combiend badly: {dodgy_names}')
         dodgies = [hit for hit in hits if hit.GetProp('_Name') in dodgy_names]
         mergituri = [hit for hit in hits if hit.GetProp('_Name') not in dodgy_names]
         merged = self.simply_merge_hits(mergituri)
