@@ -26,7 +26,15 @@ class MinimalPDBParser:
     Importing the PDB into RDKit is inadvisable.
     """
 
-    def __init__(self, block: str):
+    def __init__(self, block: str, remove_water=False, remove_other_hetatms=False, ligname="LIG"):
+        self.ligname = ligname
+        self.remove_water = remove_water
+        self.remove_other_hetatms = remove_other_hetatms
+        self.to_preserve_heteroResname = ["LIG"]
+        self.water_resnames = ["HOH", "OH", "H"]
+        if not remove_water:
+            self.to_preserve_heteroResname +=  self.water_resnames
+
         self.step = 0
         # step = 0 header unfinished, 1 coordinates finished, 2 connections finished.
         self.headers = []
@@ -44,6 +52,14 @@ class MinimalPDBParser:
             if row == '':
                 continue
             elif starts_with(row, 'ATOM') or starts_with(row, 'HETATM'):
+                if starts_with(row, 'HETATM'):
+                    resType = row[17:21].strip()
+                    if self.remove_other_hetatms:
+                        if resType not in self.to_preserve_heteroResname:
+                            continue
+                    if self.remove_water:
+                        if resType in self.water_resnames:
+                            continue
                 self.step = 1
                 self.coordinates.append(row)
             elif starts_with(row, 'CONECT'):
