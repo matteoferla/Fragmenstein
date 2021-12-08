@@ -217,6 +217,8 @@ class _IgorMin:
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.cartesian(True)
+        relax.minimize_bond_angles(True)
+        relax.minimize_bond_lengths(True)
         # this appears to do nothing.
         if default_coord_constraint:
             relax.constrain_relax_to_start_coords(True)  # set native causes a segfault.
