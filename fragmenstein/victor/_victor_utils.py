@@ -370,14 +370,16 @@ class _VictorUtils(_VictorCommon):
     @classmethod
     def extract_mol(cls,
                      name: str,
-                     filepath: str,
+                     filepath: Optional[str] = None,
+                     block: Optional[str] = None,
                      smiles: Optional[str] = None,
                      ligand_resn: str = 'LIG',
                      removeHs: bool = False,
                      proximityBonding: bool = False,
                      throw_on_error : bool = False) -> Chem.Mol:
         """
-        Extracts the ligand of 3-name ``ligand_resn`` from the PDB file ``filepath``.
+        Extracts the ligand of 3-name ``ligand_resn``
+        from the PDB file ``filepath`` or from the PDB block ``block``.
         Corrects the bond order with SMILES if given.
         If there is a covalent bond with another residue the bond is kept as a ``*``/R.
         If the SMILES provided lacks the ``*`` element, the SMILES will be converted (if a warhead is matched),
@@ -398,10 +400,18 @@ class _VictorUtils(_VictorCommon):
         :return: rdkit Chem object
         :rtype: Chem.Mol
         """
-        holo = Chem.MolFromPDBFile(filepath, proximityBonding=proximityBonding, removeHs=removeHs)
+        if filepath:
+            readfun = Chem.MolFromPDBFile
+            data = filepath
+        elif block:
+            readfun = Chem.MolFromPDBBlock
+            data = block
+        else:
+            raise ValueError(f'Provide either a filepath or a block not neither')
+        holo = readfun(data, proximityBonding=proximityBonding, removeHs=removeHs)
         if holo is None:
             cls.journal.warning(f'PDB {filepath} is problematic. Skipping sanitization.')
-            holo = Chem.MolFromPDBFile(filepath, proximityBonding=False, removeHs=True, sanitize=False)
+            holo = readfun(data, proximityBonding=False, removeHs=True, sanitize=False)
         mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
         attachment, attachee = cls.find_attachment(holo, ligand_resn)
         if attachment is not None:  # covalent
