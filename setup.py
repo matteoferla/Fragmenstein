@@ -10,8 +10,9 @@ if sys.version_info.major != 3 or sys.version_info.minor < 6:
 # ---------- Non pip modules  ------------------------------------------------------------------------------------------
 
 if not util.find_spec('rdkit'):
-    warn('This 3.6+ script **requires** rdkit which cannot be pip installed.' +
+    warn('This 3.6+ script **requires** rdkit which ~cannot~ [could not] be pip installed.' +
                               ' To install try either ' +
+                              'pip install rdkit-pypi' +
                               'conda install -c conda-forge rdkit or ' +
                               'sudo apt-get/brew install python3-rdkit or visit rdkit documentation.')
 
@@ -24,7 +25,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.6.6',
+    version='0.6.7',
     packages=find_packages(),
     install_requires=['numpy', 'rdkit-to-params', 'molecular-rectifier'],
     extras_require={'jupyter': ['jupyter']},
