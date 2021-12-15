@@ -96,7 +96,8 @@ class _VictorBase:
 
     def __init__(self,
                  hits: List[Chem.Mol],
-                 pdb_filename: str,
+                 pdb_filename: Union[None, str] = None,
+                 pdb_block: Union[None, str] = None,
                  ligand_resn: str = 'LIG',
                  ligand_resi: Union[int, str] = '1B',
                  covalent_resn: str = 'CYS',  # no other option is accepted.
@@ -111,6 +112,7 @@ class _VictorBase:
 
         :param hits: list of rdkit molecules
         :param pdb_filename: file of apo structure
+        :param pdb_block: alternative for above: a string of apo structure
         :param ligand_resn: 3 letter code or your choice
         :param ligand_resi: Rosetta-style pose(int) or pdb(str)
         :param covalent_resn: only CYS accepted. if smiles has no * it is ignored
@@ -121,8 +123,13 @@ class _VictorBase:
         """
         # ## Store
         # entry attributes
-        with open(pdb_filename) as fh:
-            self.apo_pdbblock = fh.read()
+        if pdb_filename:
+            with open(pdb_filename) as fh:
+                self.apo_pdbblock = fh.read()
+        elif pdb_block:
+            self.apo_pdbblock = pdb_block
+        else:
+            raise ValueError('Provide a pdb_filename or pdb_block of the template')
         self.hits = hits
         self.ligand_resn = ligand_resn.upper()
         self.ligand_resi = ligand_resi
