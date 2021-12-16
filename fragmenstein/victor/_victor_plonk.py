@@ -102,7 +102,9 @@ class _VictorPlonk(_VictorJournal):
         An unresolved issue is that covalent_resi acts both as a covalent residue and the reference residue.
         This corrects for the case there is no covalent_resi
         """
-        pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms, ligname=self.ligand_resn)
+        pdbdata = MinimalPDBParser(self.apo_pdbblock,
+                                   remove_other_hetatms=self.remove_other_hetatms,
+                                   ligname=self.ligand_resn)
         entry = pdbdata.coordinates[0]
         if self.covalent_resi is None:
             self.covalent_resi = f'{pdbdata.get_residue_index(entry)}{pdbdata.get_chain(entry)}'
