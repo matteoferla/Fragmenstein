@@ -52,7 +52,7 @@ class _VictorUtils(_VictorCommon):
         return lig_chem
         # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
 
-    def summarise(self):
+    def summarize(self):
         if self.error_msg:
             if self.monster is None:
                 N_constrained_atoms = float('nan')

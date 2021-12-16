@@ -38,7 +38,7 @@ def process(data: Dict[str, Union[str, dict]]):
     try:
         v = MProVictor.combine(hits=hits)
         results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)
-        results[v.long_name] = v.summarise()
+        results[v.long_name] = v.summarize()
         if not v.error_msg:
             v.make_pse()
         print('DONE', [hit.GetProp('_Name') for hit in hits])

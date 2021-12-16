@@ -21,7 +21,7 @@ def process(x):
     v = MProVictor.from_hit_codes(**x)
     v.make_pse()
     results = SqliteDict(f'MPro.sqlite', encode=json.dumps, decode=json.loads, autocommit=True)
-    results[x['long_name']] = v.summarise()
+    results[x['long_name']] = v.summarize()
 
 def get_compounds_to_be_done(postera: pd.DataFrame):
     # parse
