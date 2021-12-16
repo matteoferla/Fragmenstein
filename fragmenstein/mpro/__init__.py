@@ -9,6 +9,7 @@ This is a variant of Victor for MPro that uses data from PostEra
 
 
 from ..victor import Victor
+from . import data
 
 import os, pyrosetta
 from rdkit import Chem
@@ -17,6 +18,44 @@ from typing import List, Optional
 import pandas as pd
 import io
 import requests
+import random
+import importlib.resources as pkg_resources
+
+def get_mpro_template():
+    return pkg_resources.read_text(data, 'template.pdb')
+
+def _clean_hitname(hit_name: Optional[str]=None) -> str:
+    if hit_name is None:
+        hit_name = random.choice(get_mpro_hit_list())
+        'Mpro-6y2g.mol'
+    hit_name = hit_name.replace('.mol', '').replace('Mpro-', '').strip()
+    if not pkg_resources.is_resource(data.hit_mols, f'Mpro-{hit_name}.mol'):
+        raise FileNotFoundError(f'There is no hit {hit_name} in the cache. Choices are {get_mpro_hit_list()}')
+    return hit_name
+
+def get_mpro_molblock(hit_name: Optional[str]=None) -> str:
+    """
+    returns the mol block for the given hit. Chosen randomly if unspecified.
+    See ``get_mpro_hit_list()`` for options.
+    """
+    hit_name = _clean_hitname(hit_name)
+    return pkg_resources.read_text(data.hit_mols, f'Mpro-{hit_name}.mol')
+
+def get_mpro_mol(hit_name: Optional[str]=None) -> Chem.Mol:
+    """
+    returns the Chem.Mol instance for the given hit. Chosen randomly if unspecified.
+    See ``get_mpro_hit_list()`` for options.
+    """
+    hit_name = _clean_hitname(hit_name)
+    mol = Chem.MolFromMolBlock(get_mpro_molblock(hit_name))
+    mol.SetProp('_Name', hit_name)
+    return mol
+
+def get_mpro_hit_list():
+    """
+    List of XChem hits of MPro from Fragalysis in Feb 2021.
+    """
+    return [fn.replace('.mol', '').replace('Mpro-', '') for fn in pkg_resources.contents(data.hit_mols) if '.mol' in fn]
 
 
 def pose_fx(pose: pyrosetta.Pose):
@@ -44,52 +83,9 @@ class MProVictor(Victor):
     constraint_function_type = 'FLAT_HARMONIC'
 
     @classmethod
-    def get_mpro_path(cls):
-        if os.path.islink(__file__):
-            path = os.readlink(__file__)
-        else:
-            path = __file__
-        return os.path.join(os.path.dirname(path), 'data')
-
-    @classmethod
-    def get_mol(cls, xnumber):
-        mpro_folder = cls.get_mpro_path()
-        xnumber = xnumber.strip()
-        mol = Chem.MolFromMolFile(os.path.join(mpro_folder, 'hit_mols', f'Mpro-{xnumber}.mol'))
-        mol.SetProp('_Name', xnumber)
-        return mol
-
-    @classmethod
     def from_hit_codes(cls, hit_codes: List[str], **options):
-        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
+        hits = [get_mpro_mol(xnumber) for xnumber in hit_codes]
         return cls(hits=hits, **options)
-
-    @classmethod
-    def from_postera_row(cls, row: pd.Series, results:Optional=None):
-        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
-            # these are not hit inspired.
-            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
-            return None
-        elif results and row.CID in results:
-            cls.journal.info(f'{row.CID} has already been done.')
-            return None
-        elif row.covalent_warhead in (False, 'False', 'false'):
-            # parse
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category='noncolavent')\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
-        elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
-            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category='noncolavent')\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
-        else:
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category=row.category)\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
 
     def __init__(self, category:Optional[str]=None, **options):
         # this category flag is solely for Mpro?
@@ -101,7 +97,7 @@ class MProVictor(Victor):
             fx = pose_fx
         # --------------------
         defaults = dict(
-            pdb_filename=os.path.join(self.get_mpro_path(), 'template.pdb'),
+            pdb_block=get_mpro_template(),
             ligand_resn='LIG',
             ligand_resi='1B',
             covalent_resn='CYS', covalent_resi='145A',
@@ -169,6 +165,33 @@ class MProVictor(Victor):
     @classmethod
     def analyse_postera(cls):
         pass
+
+    @classmethod
+    def from_postera_row(cls, row: pd.Series, results:Optional=None):
+        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
+            # these are not hit inspired.
+            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
+            return None
+        elif results and row.CID in results:
+            cls.journal.info(f'{row.CID} has already been done.')
+            return None
+        elif row.covalent_warhead in (False, 'False', 'false'):
+            # parse
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
+        elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
+        else:
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category=row.category)\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
 
 #### Update the dataset with constraints specific for MPro
 

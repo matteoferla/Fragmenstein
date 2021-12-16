@@ -27,6 +27,7 @@ setup(
     name='Fragmenstein',
     version='0.6.7',
     packages=find_packages(),
+    include_package_data=True,
     package_data={'fragmenstein': ['mpro/data/template.pdb', 'mpro/data/hit_mols/*.mol']},
     install_requires=['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests'],
     extras_require={'jupyter': ['jupyter']},

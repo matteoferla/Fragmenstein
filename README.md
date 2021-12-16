@@ -18,7 +18,7 @@ This monstrosity is therefore then energy minimised with strong constraints with
 
 There are three main classes, named after characters from the Fragmenstein book and movies:
 
-* ``Monster`` makes the stitched together molecules indepent of the protein — [documentation](documentation/monster/monster.md)
+* ``Monster`` makes the stitched together molecules indepent of the protein — [documentation](documentation/monster/monster.md)
 * ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup — [documentation](documentation/igor.md)
 * ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
 
@@ -53,7 +53,7 @@ Victor:
     pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 
     victor = Victor(hits=[hits_a, hit_b], 
-                    pdb_filename='foo.pdb',
+                    pdb_filename='foo.pdb',  # or pdb_block='ATOM 1 MET ...'
                     covalent_resi=1) # if not covalent, just put the first residue or something.
     victor.combine()
     victor.minimised_mol
@@ -102,6 +102,14 @@ Victor:
     victor.minimised_mol
     
 For a lengthier example see [example notes](documentation/example.md).
+
+### MPro example
+To use SAR-COV-2 MPro as a test bed, the following may be helpful:
+
+* `fragmenstein.MProVictor`, a derived class (of `Victor`), with various presents specific for MPro.
+* `fragemenstein.get_mpro_template()`, returns the PDB block (str) of MPro
+* `fragemenstein.get_mpro_molblock(xnumber)`, returns the mol block (str) of a MPro hit from Fragalysis
+* `fragemenstein.get_mpro_mol(xnumber)`, as above but returns a `Chem.Mol` instance.
 
 ## Other features
 

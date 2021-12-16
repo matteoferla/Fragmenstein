@@ -19,13 +19,14 @@ from warnings import warn
 try:
     from .igor import Igor
 except ImportError as err:
-    warn(f'Igor (minimiser) unavailable — {err}.', category=ImportWarning)
+    warn(f'Igor (minimiser) unavailable —{err}.', category=ImportWarning)
 
 try:
     from .victor import Victor
 except ZeroDivisionError as err:
-    warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
+    warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 from .monster import Monster
 from molecular_rectifier import Rectifier
 from .m_rmsd import mRSMD
+from .mpro import MProVictor, get_mpro_template, get_mpro_mol, get_mpro_molblock, get_mpro_hit_list
