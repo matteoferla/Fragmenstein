@@ -100,7 +100,8 @@ class MProVictor(Victor):
             pdb_block=get_mpro_template(),
             ligand_resn='LIG',
             ligand_resi='1B',
-            covalent_resn='CYS', covalent_resi='145A',
+            covalent_resn='CYS',
+            covalent_resi='145A',
             extra_protein_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
             pose_fx=fx  # from the above.
         )
