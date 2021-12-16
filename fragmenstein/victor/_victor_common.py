@@ -84,13 +84,13 @@ class _VictorCommon(_VictorIgor):
             self.extra_constraint = new_constraint
         self.extra_constraint = self.extra_constraint.strip() + '\n' + new_constraint.strip()
 
-    def make_coordinate_constraints(self,
+    def make_coordinate_constraints_for_placement(self,
                                     mol: Optional[Chem.Mol] = None,
                                     origins: Optional[List[List[str]]] = None,
                                     std: Optional[List[float]] = None,
                                     mx: Optional[List[float]] = None) -> str:
         """
-        See also ``make_coordinate_constraints_for_unnovels`` in automerge.
+        See also ``make_coordinate_constraints_for_combination`` in combine.
         This is the normal function and uses the origin data,
         while the other constrains based on lack of novel attribute.
 
@@ -113,6 +113,7 @@ class _VictorCommon(_VictorIgor):
         if mx is None:
             mx = self.monster.max_from_mol(mol)
         conf = self.monster.positioned_mol.GetConformer()
+        raise RuntimeError
         # Calculate
         for i in range(mol.GetNumAtoms()):
             if len(origins[i]) > 0:
@@ -140,9 +141,9 @@ class _VictorCommon(_VictorIgor):
                              f'{pos.x} {pos.y} {pos.z} {fxn}\n')
         return ''.join(lines)
 
-    def make_coordinate_constraints_for_unnovels(self):
+    def make_coordinate_constraints_for_combination(self):
         """
-        See also ``cls.make_coordinate_constraints``.
+        See also ``cls.make_coordinate_constraints_for_placement``.
         This operates based on ``atom.HasProp('_Novel')``, not origins!
         :return:
         """

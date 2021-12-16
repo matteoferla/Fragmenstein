@@ -101,9 +101,9 @@ class _VictorCombine(_VictorCommon):
         self.params.polish_mol()
         # get constraint
         self.constraint = self._get_constraint(self.extra_constraint)
-        self.constraint.custom_constraint += self.make_coordinate_constraints_for_unnovels()
+        self.constraint.custom_constraint += self.make_coordinate_constraints_for_combination()
         # _get_constraint will have changed the names in params.mol so the others need changing too!
-        # namely  self.params.rename_by_substructure happend.
+        # namely  self.params.rename_by_substructure happened.
         self.mol = Chem.Mol(self.params.mol)
         self.monster.positioned_mol = Chem.Mol(self.mol)
         # those Hs lack correct names and charge!!

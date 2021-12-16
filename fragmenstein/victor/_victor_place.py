@@ -67,7 +67,7 @@ class _VictorPlace(_VictorCommon):
                            merging_mode=self.merging_mode)
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
         self.unminimised_pdbblock = self._plonk_monster_in_structure()
-        self.constraint.custom_constraint += self.make_coordinate_constraints()
+        self.constraint.custom_constraint += self.make_coordinate_constraints_for_placement()
         self._checkpoint_bravo()  # saving
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
