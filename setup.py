@@ -27,6 +27,7 @@ setup(
     name='Fragmenstein',
     version='0.6.7',
     packages=find_packages(),
+    package_data={'fragmenstein.mpro.data': ['*', '*/*']},
     install_requires=['numpy', 'rdkit-to-params', 'molecular-rectifier'],
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
