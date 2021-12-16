@@ -27,7 +27,7 @@ setup(
     name='Fragmenstein',
     version='0.6.7',
     packages=find_packages(),
-    package_data={'fragmenstein.data': ['mpro/data/template.pdb', 'mpro/data/hit_mols/*.mol']},
+    package_data={'fragmenstein': ['mpro/data/template.pdb', 'mpro/data/hit_mols/*.mol']},
     install_requires=['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests'],
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
