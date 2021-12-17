@@ -29,4 +29,5 @@ except ZeroDivisionError as err:
 from .monster import Monster
 from molecular_rectifier import Rectifier
 from .m_rmsd import mRSMD
-from .mpro import MProVictor, get_mpro_template, get_mpro_mol, get_mpro_molblock, get_mpro_hit_list
+from .mpro import MProVictor
+from .mpro import data as mpro_data

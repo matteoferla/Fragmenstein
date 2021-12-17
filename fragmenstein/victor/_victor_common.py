@@ -113,7 +113,6 @@ class _VictorCommon(_VictorIgor):
         if mx is None:
             mx = self.monster.max_from_mol(mol)
         conf = self.monster.positioned_mol.GetConformer()
-        raise RuntimeError
         # Calculate
         for i in range(mol.GetNumAtoms()):
             if len(origins[i]) > 0:

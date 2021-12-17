@@ -9,10 +9,11 @@ This is a variant of Victor for MPro that uses data from PostEra
 
 
 from ..victor import Victor
-from . import data
+from . import data  # in fragmenstein.__init__ this is imported as mpro_data
 
 import os, pyrosetta
 from rdkit import Chem
+from rdkit.Chem import Descriptors
 from typing import List, Optional
 
 import pandas as pd
@@ -21,83 +22,49 @@ import requests
 import random
 import importlib.resources as pkg_resources
 
-def get_mpro_template():
-    return pkg_resources.read_text(data, 'template.pdb')
 
-def _clean_hitname(hit_name: Optional[str]=None) -> str:
-    if hit_name is None:
-        hit_name = random.choice(get_mpro_hit_list())
-        'Mpro-6y2g.mol'
-    hit_name = hit_name.replace('.mol', '').replace('Mpro-', '').strip()
-    if not pkg_resources.is_resource(data.hit_mols, f'Mpro-{hit_name}.mol'):
-        raise FileNotFoundError(f'There is no hit {hit_name} in the cache. Choices are {get_mpro_hit_list()}')
-    return hit_name
-
-def get_mpro_molblock(hit_name: Optional[str]=None) -> str:
-    """
-    returns the mol block for the given hit. Chosen randomly if unspecified.
-    See ``get_mpro_hit_list()`` for options.
-    """
-    hit_name = _clean_hitname(hit_name)
-    return pkg_resources.read_text(data.hit_mols, f'Mpro-{hit_name}.mol')
-
-def get_mpro_mol(hit_name: Optional[str]=None) -> Chem.Mol:
-    """
-    returns the Chem.Mol instance for the given hit. Chosen randomly if unspecified.
-    See ``get_mpro_hit_list()`` for options.
-    """
-    hit_name = _clean_hitname(hit_name)
-    mol = Chem.MolFromMolBlock(get_mpro_molblock(hit_name))
-    mol.SetProp('_Name', hit_name)
-    return mol
-
-def get_mpro_hit_list():
-    """
-    List of XChem hits of MPro from Fragalysis in Feb 2021.
-    """
-    return [fn.replace('.mol', '').replace('Mpro-', '') for fn in pkg_resources.contents(data.hit_mols) if '.mol' in fn]
-
-
-def pose_fx(pose: pyrosetta.Pose):
-    """
-    Histidine in delta.
-    """
-    pdb2pose = pose.pdb_info().pdb2pose
-    r = pdb2pose(res=41, chain='A')
-    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-    MutateResidue(target=r, new_res='HIS').apply(pose)
-
-
-def poised_pose_fx(pose: pyrosetta.Pose):
-    """
-    Histidine in delta and cysteine in thiolate.
-    """
-    pdb2pose = pose.pdb_info().pdb2pose
-    r = pdb2pose(res=41, chain='A')
-    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-    MutateResidue(target=r, new_res='HIS_D').apply(pose)
-    r = pdb2pose(res=145, chain='A')
-    MutateResidue(target=r, new_res='CYZ').apply(pose)
 
 class MProVictor(Victor):
     constraint_function_type = 'FLAT_HARMONIC'
 
     @classmethod
     def from_hit_codes(cls, hit_codes: List[str], **options):
-        hits = [get_mpro_mol(xnumber) for xnumber in hit_codes]
+        hits = [data.get_mol(xnumber) for xnumber in hit_codes]
         return cls(hits=hits, **options)
+
+    @staticmethod
+    def pose_fx(pose: pyrosetta.Pose):
+        """
+        Histidine in delta.
+        """
+        pdb2pose = pose.pdb_info().pdb2pose
+        r = pdb2pose(res=41, chain='A')
+        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+        MutateResidue(target=r, new_res='HIS').apply(pose)
+
+    @staticmethod
+    def poised_pose_fx(pose: pyrosetta.Pose):
+        """
+        Histidine in delta and cysteine in thiolate.
+        """
+        pdb2pose = pose.pdb_info().pdb2pose
+        r = pdb2pose(res=41, chain='A')
+        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+        MutateResidue(target=r, new_res='HIS_D').apply(pose)
+        r = pdb2pose(res=145, chain='A')
+        MutateResidue(target=r, new_res='CYZ').apply(pose)
 
     def __init__(self, category:Optional[str]=None, **options):
         # this category flag is solely for Mpro?
         # it stems from the Moonshot file.
         self.category = category
         if category == 'noncolavent':
-            fx = poised_pose_fx
+            fx = self.__class__.poised_pose_fx
         else:
-            fx = pose_fx
+            fx = self.__class__.pose_fx
         # --------------------
         defaults = dict(
-            pdb_block=get_mpro_template(),
+            pdb_block=data.get_template(),
             ligand_resn='LIG',
             ligand_resi='1B',
             covalent_resn='CYS',
