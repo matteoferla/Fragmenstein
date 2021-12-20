@@ -115,8 +115,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype pose_fx: function
     :cvar possible_definitions:
     :vartype possible_definitions: list
-    :cvar quick_renanimation:
-    :vartype quick_renanimation: bool
+    :cvar quick_reanimation:
+    :vartype quick_reanimation: bool
     :ivar reference_mol:
     :vartype reference_mol: NoneType
     :ivar smiles:

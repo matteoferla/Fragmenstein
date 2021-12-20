@@ -29,7 +29,7 @@ def process(data: Dict[str, Union[str, dict]]):
     MProVictor.work_path = f'{project}'  # db_name
     MProVictor.monster_throw_on_discard = True
     MProVictor.joining_cutoff = 5  # 10
-    MProVictor.quick_renanimation = False
+    MProVictor.quick_reanimation = False
     MProVictor.error_to_catch = Exception
     MProVictor.enable_stdout(logging.ERROR)
     MProVictor.enable_logfile(f'{project}.log', logging.INFO)

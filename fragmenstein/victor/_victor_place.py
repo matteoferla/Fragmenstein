@@ -90,7 +90,7 @@ class _VictorPlace(_VictorCommon):
         # storing a roundtrip
         self.unminimised_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
-        if self.quick_renanimation:
+        if self.quick_reanimation:
             ddG = self.quick_reanimate()
         else:
             ddG = self.reanimate()

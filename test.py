@@ -27,7 +27,7 @@ class MProPlaceTester(unittest.TestCase):
         :return:
         """
         # PAU-UNI-52c0427f-1
-        MProVictor.quick_renanimation = True
+        MProVictor.quick_reanimation = True
         victor = MProVictor.from_hit_codes(hit_codes=['x0692', 'x0305', 'x1249'])
         victor.place(smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1', long_name='2_ACL')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
@@ -46,7 +46,7 @@ class MProPlaceTester(unittest.TestCase):
 
         :return:
         """
-        MProVictor.quick_renanimation = True
+        MProVictor.quick_reanimation = True
         victor = MProVictor.from_hit_codes(hit_codes=['x0434', 'x0540'])
         victor.place(smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
                      long_name='AGN-NEW-5f0-1_ACR1')
@@ -63,7 +63,7 @@ class MProPlaceTester(unittest.TestCase):
 
         :return:
         """
-        MProVictor.quick_renanimation = True
+        MProVictor.quick_reanimation = True
         victor = MProVictor.from_hit_codes(hit_codes='x0692,x0770,x0995'.split(','))
         victor.place(smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
                      long_name='BEN-VAN-c98-4')
@@ -86,7 +86,7 @@ class MProPlaceTester(unittest.TestCase):
 
         :return:
         """
-        MProVictor.quick_renanimation = True
+        MProVictor.quick_reanimation = True
         # ,'x2646'
         Victor.monster_throw_on_discard = True
         victor = MProVictor.from_hit_codes(# hit_codes=['x0107','x0434','x0678','x0995','x1382'],
@@ -107,14 +107,14 @@ class MProPlaceTester(unittest.TestCase):
 
 class VictorCombineTests(unittest.TestCase):
     def test_noncovalent(self):
-        MProVictor.quick_renanimation = False
+        MProVictor.quick_reanimation = False
         victor = MProVictor.from_hit_codes(hit_codes=['x0305', 'x1249'])
         victor.combine()
         self.assertLess(victor.mrmsd.mrmsd, 1, f'RMSD great that one ({victor.mrmsd.mrmsd})')
         self.assertLess(victor.ddG, -1, f'ddG {victor.ddG}')
 
     def test_covalent(self):
-        MProVictor.quick_renanimation = False
+        MProVictor.quick_reanimation = False
         victor = MProVictor.from_hit_codes(hit_codes=['x0692', 'x0305', 'x1249'])
         victor.combine()
         self.assertLess(victor.mrmsd.mrmsd, 1, f'RMSD great that one ({victor.mrmsd.mrmsd})')

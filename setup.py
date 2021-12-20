@@ -25,7 +25,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.6.7',
+    version='0.6.8',
     packages=find_packages(),
     include_package_data=True,
     package_data={'fragmenstein': ['mpro/data/template.pdb', 'mpro/data/hit_mols/*.mol']},

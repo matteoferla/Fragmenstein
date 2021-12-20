@@ -26,7 +26,7 @@ from ..monster import Monster
 
 
 class _VictorBase:
-    quick_renanimation = False  # thorugh reanimation?
+    quick_reanimation = False  # thorugh reanimation?
     monster_average_position = False
     monster_throw_on_discard = False
     monster_mmff_minisation = True
