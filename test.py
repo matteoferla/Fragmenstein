@@ -31,7 +31,7 @@ class MProPlaceTester(unittest.TestCase):
         victor = MProVictor.from_hit_codes(hit_codes=['x0692', 'x0305', 'x1249'])
         victor.place(smiles='CCNc1ncc(C#N)cc1CN1CCN(C(=O)C*)CC1', long_name='2_ACL')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
-        self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
+        self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         msg = f'x1249 is the red herring, prediction: {victor.monster.unmatched}, ' + \
               f'while x0305 and x0692 the true inspirations {victor.monster.matched}'
         self.assertIn('x1249', victor.monster.unmatched, msg)
@@ -51,7 +51,7 @@ class MProPlaceTester(unittest.TestCase):
         victor.place(smiles='*CCC(=O)N1CC(CCN(C(=O)Nc2c(C)ncc(C)c2CCN2CCOCC2)c2cc(C)ccn2)C1',
                      long_name='AGN-NEW-5f0-1_ACR1')
         self.assertEqual(str(victor.error_msg), '', str(victor.error_msg))
-        self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
+        self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         self.assertEqual(len(victor.monster.unmatched), 0,
                          f'Both were correct but {victor.monster.unmatched} was discarded')
         victor.make_pse()
@@ -68,7 +68,7 @@ class MProPlaceTester(unittest.TestCase):
         victor.place(smiles='*C(=N)CN1CCN(Cc2ccc(-c3cc(CC)ncn3)c(F)c2)CC1',
                      long_name='BEN-VAN-c98-4')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
-        self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
+        self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         victor.make_pse()
         self.assertIn('x0995', victor.monster.unmatched)
 
@@ -94,7 +94,7 @@ class MProPlaceTester(unittest.TestCase):
         victor.place(smiles='Cc1ccncc1NC(=O)Cc1cccc(Cl)c1',
                      long_name='TRY-UNI-714a760b-6')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
-        self.assertIsNotNone(victor.minimised_mol, 'Failed minimisation')
+        self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         actual = MProVictor.get_mol('x2646')
         victor.make_pse(extra_mols=[actual])
         rmsd = victor.validate(reference_mol=actual)

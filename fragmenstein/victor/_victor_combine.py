@@ -59,15 +59,15 @@ class _VictorCombine(_VictorCommon):
         self._safely_do(execute=self._calculate_combination, resolve=self._resolve, reject=self._reject)
         return self
 
-    def _harmonise_warhead_combine(self):
+    def _harmonize_warhead_combine(self):
         """
-        Runs self.harmonise_warheads on the hits, but also determines covalency
+        Runs self.harmonize_warheads on the hits, but also determines covalency
 
         :return:
         """
         self.journal.debug(f'{self.long_name} - harmonising warheads on hits in "{self.warhead_harmonisation}" mode')
         with warnings.catch_warnings(record=True) as self._warned:
-            self.hits = self.harmonise_warheads(self.hits, self.warhead_harmonisation, covalent_form=True)
+            self.hits = self.harmonize_warheads(self.hits, self.warhead_harmonisation, covalent_form=True)
             self._log_warnings()
         # these are calculated
         starhits = any(['*' in Chem.MolToSmiles(h) for h in self.hits])
@@ -83,7 +83,7 @@ class _VictorCombine(_VictorCommon):
 
     def _calculate_combination(self):
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
-        self._harmonise_warhead_combine()
+        self._harmonize_warhead_combine()
         # TODO Does combine not need attachment??
         self.monster.modifications = self.modifications
         self.monster.combine(keep_all=self.monster_throw_on_discard,
@@ -114,12 +114,12 @@ class _VictorCombine(_VictorCommon):
         self._log_warnings()
         self.post_params_step()  # empty overridable
         self.mmerging_mode = 'full'
-        self.unminimised_pdbblock = self._plonk_monster_in_structure()
+        self.unminimized_pdbblock = self._plonk_monster_in_structure()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         self._checkpoint_bravo()
-        self.igor = Igor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+        self.igor = Igor.from_pdbblock(pdbblock=self.unminimized_pdbblock,
                                        params_file=params_file,
                                        constraint_file=constraint_file,
                                        ligand_residue=self.ligand_resi,
@@ -131,7 +131,7 @@ class _VictorCombine(_VictorCommon):
         else:
             self.pose_mod_step()  # empty overridable
         # storing a roundtrip
-        self.unminimised_pdbblock = self.igor.pose2str()
+        self.unminimized_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
         self.reanimate_n_store()
         self.journal.debug(f'{self.long_name} - Completed')

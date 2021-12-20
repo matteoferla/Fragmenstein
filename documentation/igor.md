@@ -15,7 +15,7 @@ Igor has three minimisers that I tried:
 Igor gets run as follows:
 
     e = Igor(pose, constraint_filename)
-    e.minimise(10)
+    e.minimize(10)
 
 Where pose is a `pyrosetta.Pose` instance.
 But Igor can be initialised with `Igor.from_pdbfile(..)` or `Igor.from_pdbblock(..)`.

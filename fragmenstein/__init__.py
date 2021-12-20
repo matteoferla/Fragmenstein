@@ -19,7 +19,7 @@ from warnings import warn
 try:
     from .igor import Igor
 except ImportError as err:
-    warn(f'Igor (minimiser) unavailable —{err}.', category=ImportWarning)
+    warn(f'Igor (minimizer) unavailable —{err}.', category=ImportWarning)
 
 try:
     from .victor import Victor

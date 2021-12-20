@@ -151,13 +151,13 @@ class _VictorBase:
         self.mol = None
         self.constraint = None
         self.modifications = {}
-        self.unminimised_pdbblock = None
+        self.unminimized_pdbblock = None
         self.monster = Monster(hits,
                                average_position=self.monster_average_position)
         self.igor = None
         self.unbound_pose = None
-        self.minimised_pdbblock = None
-        self.minimised_mol = None
+        self.minimized_pdbblock = None
+        self.minimized_mol = None
         self.reference_mol = None  # filled only for validate
         # buffers etc.
         self._warned = []

@@ -56,7 +56,7 @@ Victor:
                     pdb_filename='foo.pdb',  # or pdb_block='ATOM 1 MET ...'
                     covalent_resi=1) # if not covalent, just put the first residue or something.
     victor.combine()
-    victor.minimised_mol
+    victor.minimized_mol
     
 The two seem similar, but Victor places with Monster and minimises with Igor.
 As a result it has energy scores

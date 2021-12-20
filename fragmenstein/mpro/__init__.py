@@ -47,6 +47,7 @@ class MProVictor(Victor):
         """
         Histidine in delta and cysteine in thiolate.
         """
+        # Americans spell poise as poise not poize.
         pdb2pose = pose.pdb_info().pdb2pose
         r = pdb2pose(res=41, chain='A')
         MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue

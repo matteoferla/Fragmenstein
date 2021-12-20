@@ -89,10 +89,10 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype long_name: str
     :ivar merging_mode:
     :vartype merging_mode: str
-    :ivar minimised_mol:
-    :vartype minimised_mol: Mol
-    :ivar minimised_pdbblock:
-    :vartype minimised_pdbblock: str
+    :ivar minimized_mol:
+    :vartype minimized_mol: Mol
+    :ivar minimized_pdbblock:
+    :vartype minimized_pdbblock: str
     :ivar mmerging_mode:
     :vartype mmerging_mode: str
     :ivar modifications:
@@ -129,8 +129,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype unbound_pose: Pose
     :cvar unconstrained_heavy_atoms:
     :vartype unconstrained_heavy_atoms: int
-    :ivar unminimised_pdbblock:
-    :vartype unminimised_pdbblock: str
+    :ivar unminimized_pdbblock:
+    :vartype unminimized_pdbblock: str
     :cvar warhead_definitions:
     :vartype warhead_definitions: list
     :ivar warhead_harmonisation:

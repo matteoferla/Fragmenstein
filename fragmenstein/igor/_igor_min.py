@@ -350,7 +350,7 @@ class _IgorMin:
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
 
-    def minimise(self, cycles: int = 15, default_coord_constraint=True):
+    def minimize(self, cycles: int = 15, default_coord_constraint=True):
         self.repack_neighbors()
         mover = self.get_mod_FastRelax(cycles, default_coord_constraint=default_coord_constraint)
         # mover = self.get_PertMinMover()

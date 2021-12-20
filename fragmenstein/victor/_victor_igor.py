@@ -5,7 +5,7 @@ from ..m_rmsd import mRSMD
 
 class _VictorIgor(_VictorStore):
 
-    def _fix_minimised(self) -> Chem.Mol:
+    def _fix_minimized(self) -> Chem.Mol:
         """
         PDBs are terrible for bond order etc. and Rosetta addes these based on atom types
         :return:
@@ -23,7 +23,7 @@ class _VictorIgor(_VictorStore):
         :return:
         """
         self.igor.coordinate_constraint = 10.
-        self.igor.minimise(cycles=5, default_coord_constraint=False)
+        self.igor.minimize(cycles=5, default_coord_constraint=False)
         self.energy_score = self.calculate_score()
         dG_bound = self.energy_score['ligand_ref2015']['total_score']
         dG_unbound = self.energy_score['unbound_ref2015']['total_score']
@@ -33,7 +33,7 @@ class _VictorIgor(_VictorStore):
     def reanimate(self) -> float:
         """
         Calls Igor recursively until the ddG is negative or zero.
-        igor.minimise does a good job. this is just to get everything as a normal molecule
+        igor.minimize does a good job. this is just to get everything as a normal molecule
 
         :return: ddG (kcal/mol)
         """
@@ -41,13 +41,13 @@ class _VictorIgor(_VictorStore):
         self.igor.coordinate_constraint = 0.
         # self.igor.fa_intra_rep = 0.02 # 4x
         # quick unconstrained minimisation to wiggle it out of nasty local minima
-        self.igor.minimise(cycles=15, default_coord_constraint=False)
+        self.igor.minimize(cycles=15, default_coord_constraint=False)
         self.igor.coordinate_constraint = 2
-        self.igor.minimise(cycles=5, default_coord_constraint=False)
+        self.igor.minimize(cycles=5, default_coord_constraint=False)
         self.igor.coordinate_constraint = 1
         while ddG > 0:
             self.journal.debug(f'{self.long_name} - Igor minimising')
-            self.igor.minimise(default_coord_constraint=False)
+            self.igor.minimize(default_coord_constraint=False)
             self.energy_score = self.calculate_score()
             dG_bound = self.energy_score['ligand_ref2015']['total_score']
             dG_unbound = self.energy_score['unbound_ref2015']['total_score']
@@ -69,9 +69,9 @@ class _VictorIgor(_VictorStore):
         self._store_after_reanimation()
 
     def _store_after_reanimation(self):
-        self.minimised_pdbblock = self.igor.pose2str()
+        self.minimized_pdbblock = self.igor.pose2str()
         self.post_igor_step()  # empty overridable
-        self.minimised_mol = self._fix_minimised()
+        self.minimized_mol = self._fix_minimized()
         self.mrmsd = self._calculate_rmsd()
         self.journal.info(f'{self.long_name} - final score: {self.ddG} kcal/mol, RMSD: {self.mrmsd.mrmsd}.')
         self._checkpoint_charlie()
@@ -79,7 +79,7 @@ class _VictorIgor(_VictorStore):
 
     def _calculate_rmsd(self):
         self.journal.debug(f'{self.long_name} - calculating mRMSD')
-        return mRSMD.from_other_annotated_mols(self.minimised_mol, self.hits, self.monster.positioned_mol)
+        return mRSMD.from_other_annotated_mols(self.minimized_mol, self.hits, self.monster.positioned_mol)
 
     def calculate_score(self):
         return {**self.igor.ligand_score(),

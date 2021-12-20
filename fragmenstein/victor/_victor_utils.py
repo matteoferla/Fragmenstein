@@ -244,15 +244,15 @@ class _VictorUtils(_VictorCommon):
                 pymol.cmd.color('magenta', f'element C and placed')
                 pymol.cmd.zoom('byres (placed expand 4)')
                 pymol.cmd.show('line', 'byres (placed around 4)')
-            if self.minimised_mol is not None:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimised_mol), 'minimised')
+            if self.minimized_mol is not None:
+                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimized_mol), 'minimised')
                 pymol.cmd.color('green', f'element C and minimised')
-            if self.minimised_pdbblock is not None:
-                pymol.cmd.read_pdbstr(self.minimised_pdbblock, 'min_protein')
+            if self.minimized_pdbblock is not None:
+                pymol.cmd.read_pdbstr(self.minimized_pdbblock, 'min_protein')
                 pymol.cmd.color('gray50', f'element C and min_protein')
                 pymol.cmd.hide('sticks', 'min_protein')
-            if self.unminimised_pdbblock is not None:
-                pymol.cmd.read_pdbstr(self.unminimised_pdbblock, 'unmin_protein')
+            if self.unminimized_pdbblock is not None:
+                pymol.cmd.read_pdbstr(self.unminimized_pdbblock, 'unmin_protein')
                 pymol.cmd.color('gray20', f'element C and unmin_protein')
                 pymol.cmd.hide('sticks', 'unmin_protein')
                 pymol.cmd.disable('unmin_protein')
@@ -327,7 +327,7 @@ class _VictorUtils(_VictorCommon):
         """
          A key requirement for Monster is a separate mol file for the inspiration hits.
         This is however often a pdb. This converts.
-        `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimised()` calls mol_from_pose.
+        `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimized()` calls mol_from_pose.
 
         See ``extract_mol`` for single.
 
@@ -522,9 +522,9 @@ class _VictorUtils(_VictorCommon):
         self.pose_fx = None
         # these are calculated
         self.constraint = None
-        self.unminimised_pdbblock = None
+        self.unminimized_pdbblock = None
         self.igor = None
-        self.minimised_pdbblock = None
+        self.minimized_pdbblock = None
         # buffers etc.
         self._warned = []
         minjson = os.path.join(folder, f'{self.long_name}.minimised.json')
@@ -545,9 +545,9 @@ class _VictorUtils(_VictorCommon):
             self.journal.info(f'{self.long_name} - no min json')
         minmol = os.path.join(folder, f'{self.long_name}.minimised.mol')
         if os.path.exists(minmol):
-            self.minimised_mol = Chem.MolFromMolFile(minmol, sanitize=False, removeHs=False)
+            self.minimized_mol = Chem.MolFromMolFile(minmol, sanitize=False, removeHs=False)
         else:
-            self.minimised_mol = None
+            self.minimized_mol = None
         return self
 
     # =================== Laboratory ===================================================================================

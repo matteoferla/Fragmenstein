@@ -58,7 +58,7 @@ Now lets feed it the janky xylene
 from fragmenstein import Victor
 import nglview as nv
 
-victor = Victor(hits=[xylene,],
+victor = Victor(hits=[xylene, ],
                 pdb_filename='ref.pdb',
                 ligand_resn='XYL',
                 covalent_resi=1)
@@ -67,8 +67,8 @@ victor.combine()
 # show it!
 view = nv.show_file(StringIO(victor.unminimised_pdbblock), ext='pdb')
 view.update_ball_and_stick(colorValue='#00B4C4', smoothSheet=True)  # mid-dark cyan
-c2 = view.add_component(StringIO(victor.minimised_pdbblock), ext='pdb')
-c2.update_ball_and_stick(colorValue='#F8766D', smoothSheet=True)   # salmon
+c2 = view.add_component(StringIO(victor.minimized_pdbblock), ext='pdb')
+c2.update_ball_and_stick(colorValue='#F8766D', smoothSheet=True)  # salmon
 view
 ```
 Whereas `place` stretches into place a provided idealised molecule,

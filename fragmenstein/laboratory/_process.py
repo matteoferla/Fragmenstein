@@ -42,7 +42,7 @@ def process(data: Dict[str, Union[str, dict]]):
         if not v.error_msg:
             v.make_pse()
         print('DONE', [hit.GetProp('_Name') for hit in hits])
-        return v.minimised_mol
+        return v.minimized_mol
     except Exception as error:
         error_msg = f'{error.__class__.__name__} {error}'
         results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)

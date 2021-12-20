@@ -29,7 +29,7 @@ class _VictorCommon(_VictorIgor):
         self.journal.debug(f'{self.long_name} - saving holo (unmimised)')
         holo_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_unminimised.pdb')
         with open(holo_file, 'w') as w:
-            w.write(self.unminimised_pdbblock)
+            w.write(self.unminimized_pdbblock)
         # saving constraint
         if self.constraint is not None:
             self.journal.debug(f'{self.long_name} - saving constraint')
@@ -217,7 +217,7 @@ class _VictorCommon(_VictorIgor):
                 raise ValueError(f'{self.long_name} - Unsure what the warhead is {self.smiles}.')
 
     @classmethod
-    def inventorise_warheads(cls, hits: List[Chem.Mol], covalent_form: bool = True) -> List[str]:
+    def inventorize_warheads(cls, hits: List[Chem.Mol], covalent_form: bool = True) -> List[str]:
         """
         Get the warhead types of the list of hits
 
@@ -298,7 +298,7 @@ class _VictorCommon(_VictorIgor):
         else:
             return None
 
-    def harmonise_warheads(self, hits, warhead_harmonisation, covalent_form=True):
+    def harmonize_warheads(self, hits, warhead_harmonisation, covalent_form=True):
         """
         Harmonises and marks the atoms with `_Warhead` Prop.
 
@@ -307,7 +307,7 @@ class _VictorCommon(_VictorIgor):
         :param covalent_form:
         :return:
         """
-        inventory = self.inventorise_warheads(hits, covalent_form)
+        inventory = self.inventorize_warheads(hits, covalent_form)
         # mark warhead atoms.
         for hit, warhead_name in zip(hits, inventory):
             if warhead_name != 'noncovalent':
