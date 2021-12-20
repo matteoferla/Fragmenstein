@@ -59,7 +59,7 @@ def get_n_filtered_mols(amount: int, **cutoffs) -> List[Chem.Mol]:
     for i in range(len(get_hit_list())):
         mol = get_filtered_mol(**cutoffs)
         mol_name = mol.GetProp('_Name')
-        if mol_name not in mol_names:
+        if mol_name in mol_names:
             continue
         mol_names.add(mol_name)
         mols.append(mol)
