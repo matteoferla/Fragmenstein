@@ -52,6 +52,22 @@ def get_filtered_mol(mw_cutoff: float=float('inf')) -> Chem.Mol:
     else:
         raise ValueError('No hit matches the specified values')
 
+def get_n_filtered_mols(amount: int, **cutoffs) -> List[Chem.Mol]:
+    mols = []
+    mol_names = set()
+    assert amount > 0, 'A zero amount does nothing.'
+    for i in range(len(get_hit_list())):
+        mol = get_filtered_mol(**cutoffs)
+        mol_name = mol.GetProp('_Name')
+        if mol_name not in mol_names:
+            continue
+        mol_names.add(mol_name)
+        mols.append(mol)
+        if len(mols) == int(amount):
+            return mols
+    else:
+        raise ValueError(f'There are only {len(mols)} molecules ({mol_names}) that match the criteria {cutoffs}')
+
 def get_hit_list():
     """
     List of XChem hits of MPro from Fragalysis in Feb 2021.
