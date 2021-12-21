@@ -17,7 +17,8 @@ class _VictorIgor(_VictorStore):
 
     def quick_reanimate(self) -> float:
         """
-        Correct small deviations from what the forcefield likes. Generally flattens buckled rings and that is it.
+        Correct small deviations from what the forcefield likes.
+        Generally flattens buckled rings and that is it.
         Reanimate is normal.
 
         :return:
