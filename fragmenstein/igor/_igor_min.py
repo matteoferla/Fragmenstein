@@ -189,8 +189,10 @@ class _IgorMin:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
 
-        `default_coord_constraint` turns on the restrict to starting position, which is mostly redundant/ineffectual
-        with fragmenstein constraint set. Actually, epirically I cannot see a difference.
+        `default_coord_constraint` turns on the restrict to starting position,
+        which is mostly redundant/ineffectual
+        with fragmenstein constraint set.
+        Actually, epirically I cannot see a difference.
         No repacking.
 
         :param cycles: number of cycles
