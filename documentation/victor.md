@@ -3,6 +3,12 @@
 Victor is the overarching class. This has many features and can be rather complicated in its setup: but then a point and click
 solution that works universally without customisation is a bad solution for molecular modelling.
 
+## Combine vs. Place
+
+Like Monster Victor has two main calculation methods: `combine` and `place`.
+Whereas in Monster these are independent of protein neighbourhood,
+in Victor they are not thanks to Igor. 
+
 Victor does the following steps:
 
 * Is given a followup to test and the mol objects of its inspiration and the pdb template file.
@@ -12,35 +18,37 @@ Victor does the following steps:
 * Calls Igor
 * Can do some extras
 
-Whereas each instance call of Victor can be customised with various arguments, such as `smiles` and `hits` etc.
-Core settings controlling its behaviour can be set via class attributes:
-
-The following control fragmenstein and are described in [Fragmenstein class documentation](monster/monster.md).
-
-* `fragmenstein_merging_mode`
-* `fragmenstein_debug_draw`
-* `fragmenstein_average_position`
-
-The following control the warhead conversion methods:
+## Class attributes
+Core settings controlling its behaviour can be set via class attribute. For example,
+the warhead conversion methods can be controlled via:
 
 * `covalent_definitions` (currently defined only for cysteine)
 * `warhead_definitions`
 
-Others:
+While other include:
 
 * `error_to_catch`
 * `constraint_function_type`
 * `work_path`
     
+## Class methods
+
+Two key class methods are `Victor.extract_mols` and `Victor.extract_mol`.
+Also several methods for covalent operations — see [covalent notes](covalents.md)
+
+Note that Igor has pyrosetta specific class methods, e.g. downloading electron density for template prep etc.
 
 ## Example
+
+> The following code may have changed. And several of these methods are
+
 Here is a real world usage that uses multiple features:
 
 Import pyrosetta and initialised before everything (applies to Igor too):
 
     import pyrosetta
     pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false')
-    from fragmenstein import Igor, Fragmenstein, Victor
+    from fragmenstein import Igor, Monster, Victor
     import logging, csv, json
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -50,13 +58,8 @@ configure whither to save and whence to load:
     Victor.work_path = '../Mpro_fragmenstein'
     Victor.enable_stdout(logging.WARNING)
     mpro_folder = '/Users/matteo/Coding/rosettaOps/Mpro'  
-    
-    def get_mol(xnumber):
-        mol = Chem.MolFromMolFile(f'{mpro_folder}/Mpro-{xnumber}_0/Mpro-{xnumber}_0.mol')
-        mol.SetProp('_Name', xnumber)
-        return mol
-    
-alternatively `Victor.enable_logfile('reanimate.log',logging.DEBUG)`
+        
+alternatively `Victor.enable_logfile('reanimate.log',logging.DEBUG)` (see [logging notes](logging_and_debugging.md)).
     
 add extra constraints that are warhead & protein specific.
 note that the warhead definitions contain preferred names for the connecting atoms and their neighbours
@@ -106,20 +109,21 @@ Define all the steps
         Victor.journal.debug(f'{name} - best hit as starting is {best_hit}')
         apo = best_hit.replace('_bound', '_apo-desolv')
         print(f'reanimate(smiles="{smiles}", name="{name}", hit_codes={hit_codes})')
-        reanimator = Victor(smiles=smiles,
-                            hits=hits,
+        reanimator = Victor(hits=hits,
                             pdb_filename=apo,
-                            long_name=name,
                             ligand_resn='LIG',
                             ligand_resi='1B',
                             covalent_resn='CYS', covalent_resi='145A',
-                            extra_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
                             pose_fx = pose_fx
                             )
+        reanimator.place(smiles=smiles,
+                         extra_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
+                         long_name=name)
         return reanimator
      
 Read the data and do all warhead combinations if covalent. This data is actually from
 [github.com/postera-ai/COVID_moonshot_submissions](https://github.com/postera-ai/COVID_moonshot_submissions).
+For which there is a method in `fragmenstein.mpro`.
        
     data = csv.DictReader(open('../COVID_moonshot_submissions/covid_submissions_all_info.csv'))
     

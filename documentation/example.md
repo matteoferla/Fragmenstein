@@ -190,6 +190,13 @@ victor.ddG
 
 ## Troubleshooting
 
+### Too many results
+
+The ∆∆G (kcal/mol) is not that you would get if the compound were in the spot in with the energy minimum (as in docking).
+It is nearby there, hopefully. But can be used for reducing the list of results.
+Given that linking two indole-sized compounds is already in the 250-300 dalton range, 
+sorting by ligand efficiency (ratio of ∆∆G over number of heavy atoms) is best (good: 0.4 kcal/mol/HA upwards)
+
 ### Inspect
 To see the Pyrosetta pose
 ```jupyterpython
@@ -215,6 +222,17 @@ with pymol2.PyMOL() as pymol:
     pymol.cmd.save('moved.pdb', 'mini')
 ```
 
+### Protonation
+
+The SMILES provided needs to be given formal charges to match the protonation at pH 7.
+Namely,
+
+* `*C(=O)O` will yield a carboxylic acid, while `*C(=O)[O-]` a carboxylate (conjugate base).
+* `*N` will yield a base (`*[NH2]`), while `*[N+]` or `*[NH3+]`, will yield the conjugate acid.
+* `*OP(=O)(O)O` will yield phosphoric acid `*OP(=O)([OH])[OH]`, while `*OP(=O)([O-])[O-]` will yield a phosphate.
+
+There are modules and tools to correct the protonation at pH 7. Also, there are several paper suggesting isosteres.
+
 ### Hydrogen in hits
 Another issue may arise when hydrogens are present in the hits somehow.
 
@@ -222,7 +240,7 @@ If the calculations fail along a step the compounds can be inspected, but these 
 
 If an error happens polishing up the minimised molecule from pyrosetta:
 
-```jupyterpython
+```python
 ligand = victor.igor.mol_from_pose()
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -234,7 +252,7 @@ ligand
 If the error happens during Igor, but Monster worked fine, the ligand is in `victor.monster.positioned_mol`.
 Additionally if the issue is with one of the atoms and the indices are required there is a debug focused method in Monster:
 
-```jupyterpython
+```python
 mol = victor.monster.positioned_mol
 victor.monster.draw_nicely(mol)
 ```
@@ -250,7 +268,7 @@ file has the residue number as a PDB number (`1B`), which gets converted interna
 and pose number 0 means it does not exist.
 Therefore make sure to there are no shared names or specify a free name/index.
 
-```jupyterpython
+```python
 victor = Victor(hits=[atp], pdb_filename='1ATP_apo.pdb',
                 ligand_resi='1Z', ligand_resn='ATP'
                )
@@ -275,7 +293,7 @@ A problem is that the combined molecules may not be enamine purchasable.
 So the placed molecule could be a purchaseable.
 So getting a positioned mol
 
-```jupyterpython
+```python
 from fragmenstein import Monster
 from rdkit import Chem
 
@@ -286,14 +304,14 @@ smiles = Chem.MolToSmiles(monster.positioned_mol)
 
 Using [enamine-real-search API](https://github.com/xchem/enamine-real-search)
 
-```jupyterpython
+```python
 from search import EnamineSession
 
 session = EnamineSession()
 similarity_results = session.similarity_search(smiles=smiles, threshold=0.1)
 ```
 
-```jupyterpython
+```python
 
 victor = Victor(hits=[hits_a, hit_b], pdb_filename='template.pdb')
 victor.place(similarity_results.smiles) # to place.
@@ -306,7 +324,7 @@ The data is stored in a github repo. For a detailed example see [pipeline](pipel
 
 First, make sure to keep the results of the operations
 
-```jupyterpython
+```python
 
 data = []
 
@@ -314,7 +332,7 @@ data.append({**victor.summarise(), 'mol': victor.minimised_mol})
 ```
 
 Then make a table of the results
-```jupyterpython
+```python
 from rdkit.Chem import PandasTools
 import pandas as pd
 
@@ -322,7 +340,7 @@ scores = pd.DataFrame(data)
 ```
 
 then make or get a Michelanglo page
-```jupyterpython
+```python
 from michelanglo_api import MikeAPI
 mike = MikeAPI('username', 'password')
 page = mike.convert_pdb('6WOJ') # make new
@@ -332,14 +350,14 @@ page.retrieve()
 page.show_link()
 ```
 Fix up... etc.
-```jupyterpython
+```python
 page.description = 'Hello world. '
 page.loadfun = ''
 page.columns_viewport = 6
 page.columns_text = 6
 ```
 Add the data to the page and GitHub:
-```jupyterpython
+```python
 gitfolder='/Users/you/path_to_your_github_repo_on_your_machine'
 folder = 'folder_name_within_repo'
 targetfolder=f'{gitfolder}/{folder}'
@@ -365,7 +383,7 @@ page.commit()
 ### Waters
 In addition to extracting a hit, the extract_mol code can work with waters.
 
-```jupyterpython
+```python
 hit = Victor.extract_mol(name='x1234',
                          smiles='CCCC',
                          filepath='path/filename.pdb',
@@ -378,7 +396,7 @@ waters = Victor.extract_mol(name='water',
 This waters molecule will have disconnected waters.
 These can be combined as a single object (`hits=[hit, waters]`) or split up (`hits=[hit, *waters]`) with
 
-```jupyterpython
+```python
 waters = Chem.GetMolFrags(waters, asMols=True, sanitizeFrags=False)
 ```
 One thing to note is that it may be best to use `joining_cutoff=3` and the `keep_all=False`

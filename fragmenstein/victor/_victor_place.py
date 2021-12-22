@@ -66,17 +66,17 @@ class _VictorPlace(_VictorCommon):
                            attachment=attachment,
                            merging_mode=self.merging_mode)
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
-        self.unminimised_pdbblock = self._plonk_monster_in_structure()
-        self.constraint.custom_constraint += self.make_coordinate_constraints()
-        self._checkpoint_bravo()
+        self.unminimized_pdbblock = self._plonk_monster_in_structure()
+        self.constraint.custom_constraint += self.make_coordinate_constraints_for_placement()
+        self._checkpoint_bravo()  # saving
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.post_monster_step()  # empty overridable
         self.unbound_pose = self.params.test()
-        self._checkpoint_alpha()
+        self._checkpoint_alpha()  # saving
         # ***** EGOR *******
         self.journal.debug(f'{self.long_name} - setting up Igor')
-        self.igor = Igor.from_pdbblock(pdbblock=self.unminimised_pdbblock,
+        self.igor = Igor.from_pdbblock(pdbblock=self.unminimized_pdbblock,
                                        params_file=params_file,
                                        constraint_file=constraint_file,
                                        ligand_residue=self.ligand_resi,
@@ -88,9 +88,9 @@ class _VictorPlace(_VictorCommon):
         else:
             self.pose_mod_step()  # empty overridable
         # storing a roundtrip
-        self.unminimised_pdbblock = self.igor.pose2str()
+        self.unminimized_pdbblock = self.igor.pose2str()
         # minimise until the ddG is negative.
-        if self.quick_renanimation:
+        if self.quick_reanimation:
             ddG = self.quick_reanimate()
         else:
             ddG = self.reanimate()

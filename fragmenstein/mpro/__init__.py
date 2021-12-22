@@ -9,102 +9,67 @@ This is a variant of Victor for MPro that uses data from PostEra
 
 
 from ..victor import Victor
+from . import data  # in fragmenstein.__init__ this is imported as mpro_data
 
 import os, pyrosetta
 from rdkit import Chem
+from rdkit.Chem import Descriptors
 from typing import List, Optional
 
 import pandas as pd
 import io
 import requests
+import random
+import importlib.resources as pkg_resources
 
 
-def pose_fx(pose: pyrosetta.Pose):
-    """
-    Histidine in delta.
-    """
-    pdb2pose = pose.pdb_info().pdb2pose
-    r = pdb2pose(res=41, chain='A')
-    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-    MutateResidue(target=r, new_res='HIS').apply(pose)
-
-
-def poised_pose_fx(pose: pyrosetta.Pose):
-    """
-    Histidine in delta and cysteine in thiolate.
-    """
-    pdb2pose = pose.pdb_info().pdb2pose
-    r = pdb2pose(res=41, chain='A')
-    MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
-    MutateResidue(target=r, new_res='HIS_D').apply(pose)
-    r = pdb2pose(res=145, chain='A')
-    MutateResidue(target=r, new_res='CYZ').apply(pose)
 
 class MProVictor(Victor):
     constraint_function_type = 'FLAT_HARMONIC'
 
     @classmethod
-    def get_mpro_path(cls):
-        if os.path.islink(__file__):
-            path = os.readlink(__file__)
-        else:
-            path = __file__
-        return os.path.join(os.path.dirname(path), 'data')
-
-    @classmethod
-    def get_mol(cls, xnumber):
-        mpro_folder = cls.get_mpro_path()
-        xnumber = xnumber.strip()
-        mol = Chem.MolFromMolFile(os.path.join(mpro_folder, 'hit_mols', f'Mpro-{xnumber}.mol'))
-        mol.SetProp('_Name', xnumber)
-        return mol
-
-    @classmethod
     def from_hit_codes(cls, hit_codes: List[str], **options):
-        hits = [cls.get_mol(xnumber) for xnumber in hit_codes]
+        hits = [data.get_mol(xnumber) for xnumber in hit_codes]
         return cls(hits=hits, **options)
 
-    @classmethod
-    def from_postera_row(cls, row: pd.Series, results:Optional=None):
-        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
-            # these are not hit inspired.
-            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
-            return None
-        elif results and row.CID in results:
-            cls.journal.info(f'{row.CID} has already been done.')
-            return None
-        elif row.covalent_warhead in (False, 'False', 'false'):
-            # parse
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category='noncolavent')\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
-        elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
-            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category='noncolavent')\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
-        else:
-            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
-                                      category=row.category)\
-                      .place(long_name=row.CID,
-                             smiles=row.SMILES)
+    @staticmethod
+    def pose_fx(pose: pyrosetta.Pose):
+        """
+        Histidine in delta.
+        """
+        pdb2pose = pose.pdb_info().pdb2pose
+        r = pdb2pose(res=41, chain='A')
+        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+        MutateResidue(target=r, new_res='HIS').apply(pose)
+
+    @staticmethod
+    def poised_pose_fx(pose: pyrosetta.Pose):
+        """
+        Histidine in delta and cysteine in thiolate.
+        """
+        # Americans spell poise as poise not poize.
+        pdb2pose = pose.pdb_info().pdb2pose
+        r = pdb2pose(res=41, chain='A')
+        MutateResidue = pyrosetta.rosetta.protocols.simple_moves.MutateResidue
+        MutateResidue(target=r, new_res='HIS_D').apply(pose)
+        r = pdb2pose(res=145, chain='A')
+        MutateResidue(target=r, new_res='CYZ').apply(pose)
 
     def __init__(self, category:Optional[str]=None, **options):
         # this category flag is solely for Mpro?
         # it stems from the Moonshot file.
         self.category = category
         if category == 'noncolavent':
-            fx = poised_pose_fx
+            fx = self.__class__.poised_pose_fx
         else:
-            fx = pose_fx
+            fx = self.__class__.pose_fx
         # --------------------
         defaults = dict(
-            pdb_filename=os.path.join(self.get_mpro_path(), 'template.pdb'),
+            pdb_block=data.get_template(),
             ligand_resn='LIG',
             ligand_resi='1B',
-            covalent_resn='CYS', covalent_resi='145A',
+            covalent_resn='CYS',
+            covalent_resi='145A',
             extra_protein_constraint='AtomPair  SG  145A  NE2  41A HARMONIC 3.5 0.2\n',
             pose_fx=fx  # from the above.
         )
@@ -169,6 +134,33 @@ class MProVictor(Victor):
     @classmethod
     def analyse_postera(cls):
         pass
+
+    @classmethod
+    def from_postera_row(cls, row: pd.Series, results:Optional=None):
+        if row.fragments == 'x0072' or str(row.fragments) == 'nan':
+            # these are not hit inspired.
+            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
+            return None
+        elif results and row.CID in results:
+            cls.journal.info(f'{row.CID} has already been done.')
+            return None
+        elif row.covalent_warhead in (False, 'False', 'false'):
+            # parse
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
+        elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category='noncolavent')\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
+        else:
+            return cls.from_hit_codes(hit_codes=row.fragments.split(','),
+                                      category=row.category)\
+                      .place(long_name=row.CID,
+                             smiles=row.SMILES)
 
 #### Update the dataset with constraints specific for MPro
 

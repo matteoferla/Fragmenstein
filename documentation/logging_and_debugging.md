@@ -18,7 +18,7 @@ To change the level quickly just run it again.
 If an error occurs, it will be caught and logged and the user will just get a log error.
 If instead one wants to have the error be left uncaught:
 
-    Victor.error_to_catch = NotImplementedError
+    Victor.error_to_catch = ()
     
 The error `ConnectionError` gets used internally (for bond problems, not internet ones) 
 and is caught regardless of this.

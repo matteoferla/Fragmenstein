@@ -58,7 +58,9 @@ class _IgorUtils:
         if pose is None:
             pose = self.pose
         if scorefxn is None:
-            scorefxn = pyrosetta.get_fa_scorefxn() # unconstrained!
+            # The minimisation is done under cartesian setting though.
+            # and constrained!
+            scorefxn = pyrosetta.get_fa_scorefxn()
         # Prep
         score_types = ['lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']
         residue = pose.residue(target_res)

@@ -1,3 +1,5 @@
+> This code has not been updated. So usage may differ.
+
 Here is an example of a pipeline to iterate across all the compounds in a list, merge them, score then and upload them.
 For MPro, see the MPro.
 
@@ -74,7 +76,7 @@ by using the */R atom as the attachment. Say `CC[Cl]` reacted with `[S-]CC`, the
 It runs on a node on N processes and save the data as it goes along to a sqlite file to prevent and issues.
 
     project = 'mergers'
-    input_foldername = 'input'
+    nput_foldername = 'input'
     ##############################################
     cores = 20
     out_path = f'{project}'

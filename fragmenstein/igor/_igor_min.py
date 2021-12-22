@@ -189,8 +189,10 @@ class _IgorMin:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
 
-        `default_coord_constraint` turns on the restrict to starting position, which is mostly redundant/ineffectual
-        with fragmenstein constraint set. Actually, epirically I cannot see a difference.
+        `default_coord_constraint` turns on the restrict to starting position,
+        which is mostly redundant/ineffectual
+        with fragmenstein constraint set.
+        Actually, epirically I cannot see a difference.
         No repacking.
 
         :param cycles: number of cycles
@@ -217,6 +219,8 @@ class _IgorMin:
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.cartesian(True)
+        relax.minimize_bond_angles(True)
+        relax.minimize_bond_lengths(True)
         # this appears to do nothing.
         if default_coord_constraint:
             relax.constrain_relax_to_start_coords(True)  # set native causes a segfault.
@@ -348,7 +352,7 @@ class _IgorMin:
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
 
-    def minimise(self, cycles: int = 15, default_coord_constraint=True):
+    def minimize(self, cycles: int = 15, default_coord_constraint=True):
         self.repack_neighbors()
         mover = self.get_mod_FastRelax(cycles, default_coord_constraint=default_coord_constraint)
         # mover = self.get_PertMinMover()
