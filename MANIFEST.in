@@ -1,0 +1,2 @@
+include fragmenstein/mpro/data/hit_mols/*.mol
+include fragmenstein/mpro/data/template.pdb
