@@ -37,16 +37,18 @@ Fragmenstein can perform two different tasks.
 * **Combine** hits
 * **Place** a given followup molecule (SMILES) based on series of hits
 
+![overview](images/overview.png)
+
 Like Frankenstein's creation it may violate the laws of chemistry.
 Trigonal planar topologies may be tetrahedral, bonds unnaturally long _etc._
 This monstrosity is therefore then energy minimised with strong constraints within the protein.
 
 ## Classes
 
-There are three main classes, named after characters from the Fragmenstein book and movies:
+There are three main classes —named after characters from the Fragmenstein book and movies:
 
 * ``Monster`` makes the stitched together molecules indepent of the protein — [documentation](documentation/monster/monster.md)
-* ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein followup — [documentation](documentation/igor.md)
+* ``Igor`` uses PyRosetta to minimise in the protein the fragmenstein monster followup — [documentation](documentation/igor.md)
 * ``Victor`` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
 
 NB. In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work.
