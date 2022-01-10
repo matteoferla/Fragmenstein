@@ -28,7 +28,7 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 
 ![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
 
-For authors see [Authors](## Authors)
+For authors see [Authors](#authors)
 
 ## Stitched molecules
 
