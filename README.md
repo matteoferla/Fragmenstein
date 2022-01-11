@@ -128,7 +128,7 @@ Victor:
 
     victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
     victor.place('CCO')
-    victor.minimised_mol
+    victor.minimized_mol
     
 For a lengthier example see [example notes](documentation/example.md).
 
