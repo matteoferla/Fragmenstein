@@ -26,7 +26,7 @@ from ..monster import Monster
 
 
 class _VictorBase:
-    quick_renanimation = False  # thorugh reanimation?
+    quick_reanimation = False  # thorugh reanimation?
     monster_average_position = False
     monster_throw_on_discard = False
     monster_mmff_minisation = True
@@ -96,7 +96,8 @@ class _VictorBase:
 
     def __init__(self,
                  hits: List[Chem.Mol],
-                 pdb_filename: str,
+                 pdb_filename: Union[None, str] = None,
+                 pdb_block: Union[None, str] = None,
                  ligand_resn: str = 'LIG',
                  ligand_resi: Union[int, str] = '1B',
                  covalent_resn: str = 'CYS',  # no other option is accepted.
@@ -111,6 +112,7 @@ class _VictorBase:
 
         :param hits: list of rdkit molecules
         :param pdb_filename: file of apo structure
+        :param pdb_block: alternative for above: a string of apo structure
         :param ligand_resn: 3 letter code or your choice
         :param ligand_resi: Rosetta-style pose(int) or pdb(str)
         :param covalent_resn: only CYS accepted. if smiles has no * it is ignored
@@ -121,14 +123,19 @@ class _VictorBase:
         """
         # ## Store
         # entry attributes
-        with open(pdb_filename) as fh:
-            self.apo_pdbblock = fh.read()
+        if pdb_filename:
+            with open(pdb_filename) as fh:
+                self.apo_pdbblock = fh.read()
+        elif pdb_block:
+            self.apo_pdbblock = pdb_block
+        else:
+            raise ValueError('Provide a pdb_filename or pdb_block of the template')
         self.hits = hits
         self.ligand_resn = ligand_resn.upper()
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
-        self._correct_covalent_resi()  # in plonk
+        self._correct_covalent_resi()  # defined in plonk. todo: split into covalent and anchor residue.
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
         self.randomSeed = randomSeed
@@ -145,14 +152,14 @@ class _VictorBase:
         self.mol = None
         self.constraint = None
         self.modifications = {}
-        self.unminimised_pdbblock = None
+        self.unminimized_pdbblock = None
         self.monster = Monster(hits,
                                average_position=self.monster_average_position,
                                randomSeed=self.randomSeed)
         self.igor = None
         self.unbound_pose = None
-        self.minimised_pdbblock = None
-        self.minimised_mol = None
+        self.minimized_pdbblock = None
+        self.minimized_mol = None
         self.reference_mol = None  # filled only for validate
         # buffers etc.
         self._warned = []

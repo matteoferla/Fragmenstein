@@ -384,7 +384,7 @@ class _MonsterBlend(_MonsterMerge):
         ######################################################
         # I be using a sextant for dead reckoning!
         # variables: sextant unique team
-        categories = self._categorise(sextant, uniques)
+        categories = self._categorize(sextant, uniques)
         done_already = []  # multi-attachment issue.
         for unique_idx in categories['pairs']:  # attachment unique indices
             # check the index was not done already (by virtue of a second attachment)

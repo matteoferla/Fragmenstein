@@ -1,10 +1,10 @@
 ## Linking
 
-The linking of two unconnected compounds happens in Fragmenstein class's `_join_neighboring.py` methods.
+The linking of two unconnected compounds happens in Monster class's `_join_neighboring.py` methods.
 
 The method `join_neighboring_mols` does the joining.
 
-    fragmenstein.join_neighboring_mols(mol_A, mol_B) # -> mol_combined
+    monster.join_neighboring_mols(mol_A, mol_B) # -> mol_combined
 
 ### Choosing
 

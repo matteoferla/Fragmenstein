@@ -29,7 +29,7 @@ def process(data: Dict[str, Union[str, dict]]):
     MProVictor.work_path = f'{project}'  # db_name
     MProVictor.monster_throw_on_discard = True
     MProVictor.joining_cutoff = 5  # 10
-    MProVictor.quick_renanimation = False
+    MProVictor.quick_reanimation = False
     MProVictor.error_to_catch = Exception
     MProVictor.enable_stdout(logging.ERROR)
     MProVictor.enable_logfile(f'{project}.log', logging.INFO)
@@ -38,11 +38,11 @@ def process(data: Dict[str, Union[str, dict]]):
     try:
         v = MProVictor.combine(hits=hits)
         results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)
-        results[v.long_name] = v.summarise()
+        results[v.long_name] = v.summarize()
         if not v.error_msg:
             v.make_pse()
         print('DONE', [hit.GetProp('_Name') for hit in hits])
-        return v.minimised_mol
+        return v.minimized_mol
     except Exception as error:
         error_msg = f'{error.__class__.__name__} {error}'
         results = SqliteDict(db_name, encode=json.dumps, decode=json.loads, autocommit=True)

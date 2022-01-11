@@ -81,7 +81,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
     def merge_pair(self, scaffold: Chem.Mol, fragmentanda: Chem.Mol, mapping: Optional = None) -> Chem.Mol:
         """
         To specify attachments use ``.merge``.
-        To understand what is going on see ``.categorise``
+        To understand what is going on see ``.categorize``
 
         :param scaffold: mol to be added to.
         :param fragmentanda: mol to be fragmented
@@ -139,7 +139,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
 
         required for self.merge, the key is the index of anchoring atom.
 
-        Calls get_positional_mapping and _categorise.
+        Calls get_positional_mapping and _categorize.
 
         :param scaffold: mol to be added to.
         :param fragmentanda: mol to be fragmented
@@ -161,7 +161,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
                 sa.SetProp('_AltSymbol', fn)
         # prepare.
         uniques = set(range(fragmentanda.GetNumAtoms())) - set(A2B_mapping.values())
-        categories = self._categorise(fragmentanda, uniques)
+        categories = self._categorize(fragmentanda, uniques)
         pairs = categories['pairs']
         for p in pairs:  # pairs:Dict[List[Dict]]
             for pp in pairs[p]:
@@ -179,7 +179,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
                 team = self._recruit_team(mol, i, uniques, team)
         return team
 
-    def _categorise(self, mol: Chem.Mol, uniques: set) -> Dict[str, Union[set, Dict]]:
+    def _categorize(self, mol: Chem.Mol, uniques: set) -> Dict[str, Union[set, Dict]]:
         """
         What do the novel atoms do in terms of connectivity.
         Complicated dict output (called ``categories`` in the methods). Really ought to be SetProp of the atoms.

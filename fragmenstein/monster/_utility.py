@@ -133,12 +133,17 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             return json.loads(mol.GetProp('_Origins'))
         origin = []
         for atom in mol.GetAtoms():
+            # {'__computedProps': <rdkit.rdBase....>,
+            # '_ori_i': 100, '_ori_name': 'x10976', '_x': 13.792, '_y': -1.785, '_z': 21.231,
+            # '_GasteigerCharge': 0.0, '_GasteigerHCharge': 0.0, '_rType': 'Cl'}
             if atom.HasProp('_Origin'):
                 x = atom.GetProp('_Origin')
                 if x == 'none':
                     origin.append([])
                 else:
                     origin.append(json.loads(x))
+            elif atom.HasProp('_ori_name'): # single name.
+                origin.append([atom.GetProp('_ori_name')])
             else:
                 origin.append([])
         return origin
@@ -273,7 +278,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
-    def mmff_minimise(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> None:
+    def mmff_minimize(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> None:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_dist_thr Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.

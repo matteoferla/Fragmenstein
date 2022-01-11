@@ -61,7 +61,7 @@ class _VictorPlonk(_VictorJournal):
             # _plonk_monster_in_structure_raw does no corrections.
             return self._plonk_monster_in_structure_minimal()
 
-    def _get_preminimised_undummied_monster(self):
+    def _get_preminimized_undummied_monster(self):
         """
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.
@@ -70,7 +70,7 @@ class _VictorPlonk(_VictorJournal):
         mol = AllChem.DeleteSubstructs(self.monster.positioned_mol, Chem.MolFromSmiles('*'))
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
-            self.monster.mmff_minimise(mol)
+            self.monster.mmff_minimize(mol)
         return mol
 
     def _plonk_monster_in_structure_minimal(self):
@@ -81,7 +81,7 @@ class _VictorPlonk(_VictorJournal):
         :return:
         """
         # ----- load
-        mol = self._get_preminimised_undummied_monster()
+        mol = self._get_preminimized_undummied_monster()
         pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms, ligname=self.ligand_resn)
         moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
         # ------- covalent fix
@@ -102,7 +102,9 @@ class _VictorPlonk(_VictorJournal):
         An unresolved issue is that covalent_resi acts both as a covalent residue and the reference residue.
         This corrects for the case there is no covalent_resi
         """
-        pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms, ligname=self.ligand_resn)
+        pdbdata = MinimalPDBParser(self.apo_pdbblock,
+                                   remove_other_hetatms=self.remove_other_hetatms,
+                                   ligname=self.ligand_resn)
         entry = pdbdata.coordinates[0]
         if self.covalent_resi is None:
             self.covalent_resi = f'{pdbdata.get_residue_index(entry)}{pdbdata.get_chain(entry)}'
@@ -120,7 +122,7 @@ class _VictorPlonk(_VictorJournal):
 
         :return:
         """
-        mol = self._get_preminimised_undummied_monster()
+        mol = self._get_preminimized_undummied_monster()
         mol_block = Chem.MolToPDBBlock(mol)
         return '\n'.join([self._get_LINK_record().strip(),
                           self.apo_pdbblock.strip(),
@@ -135,7 +137,7 @@ class _VictorPlonk(_VictorJournal):
         :return:
         """
         import pymol2
-        mol = self._get_preminimised_undummied_monster()
+        mol = self._get_preminimized_undummied_monster()
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             pos_mol = Chem.MolToPDBBlock(mol)

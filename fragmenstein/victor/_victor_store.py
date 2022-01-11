@@ -74,7 +74,7 @@ class _VictorStore(_VictorOverridables):
         with open(frag_file, 'w') as w:
             json.dump(data, w)
         self._log_warnings()
-        # unminimised_pdbblock will be saved by igor (round trip via pose)
+        # unminimized_pdbblock will be saved by igor (round trip via pose)
 
     def _checkpoint_charlie(self):
         self._log_warnings()
@@ -84,7 +84,7 @@ class _VictorStore(_VictorOverridables):
         self.journal.debug(f'{self.long_name} - calculating Gibbs')
         # recover bonds
         lig_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol')
-        Chem.MolToMolFile(self.minimised_mol, lig_file)
+        Chem.MolToMolFile(self.minimized_mol, lig_file)
         score_file = os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json')
         with open(score_file, 'w') as w:
             json.dump({'Energy': self.energy_score,

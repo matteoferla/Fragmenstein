@@ -91,10 +91,12 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype long_name: str
     :ivar merging_mode:
     :vartype merging_mode: str
-    :ivar minimised_mol:
-    :vartype minimised_mol: Mol
-    :ivar minimised_pdbblock:
-    :vartype minimised_pdbblock: str
+    :ivar minimized_mol:
+    :vartype minimized_mol: Mol
+    :ivar minimized_pdbblock:
+    :vartype minimized_pdbblock: str
+    :ivar mmerging_mode:
+    :vartype mmerging_mode: str
     :ivar modifications:
     :vartype modifications: dict
     :ivar mol:
@@ -115,8 +117,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype pose_fx: function
     :cvar possible_definitions:
     :vartype possible_definitions: list
-    :cvar quick_renanimation:
-    :vartype quick_renanimation: bool
+    :cvar quick_reanimation:
+    :vartype quick_reanimation: bool
     :ivar reference_mol:
     :vartype reference_mol: NoneType
     :ivar smiles:
@@ -129,8 +131,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype unbound_pose: Pose
     :cvar unconstrained_heavy_atoms:
     :vartype unconstrained_heavy_atoms: int
-    :ivar unminimised_pdbblock:
-    :vartype unminimised_pdbblock: str
+    :ivar unminimized_pdbblock:
+    :vartype unminimized_pdbblock: str
     :cvar warhead_definitions:
     :vartype warhead_definitions: list
     :ivar warhead_harmonisation:
