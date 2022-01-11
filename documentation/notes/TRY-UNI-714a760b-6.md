@@ -15,10 +15,10 @@ The human chose
 * the methylpyridine off x0107
 * the benzene-pyridine off x0434, but wanted an amide not a ureido
 * the link between the rings as amide x0678
-* x0995 is a red herring (this is a big problem with the postera dataset see [covid.md](covid.md))
+* x0995 is a red herring (this is a big problem with the postera dataset see [covid.md](../covid.md))
 * benzene with a chroride from x1382
 
-![TRY-UNI-714a760b-6.png](../images/TRY-UNI-714a760b-6.png)
+![TRY-UNI-714a760b-6.png](../../images/TRY-UNI-714a760b-6.png)
 
 The only way to resolve it is to run it strict on the discard (which increases the strikes of `Unmerge` to 20).
 
