@@ -15,6 +15,7 @@ import os, pyrosetta
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from typing import List, Optional
+from warnings import warn
 
 import pandas as pd
 import io
@@ -35,7 +36,7 @@ class MProVictor(Victor):
     @staticmethod
     def pose_fx(pose: pyrosetta.Pose):
         """
-        Histidine in delta.
+        Histidine protonated on epsilon — HIE.
         """
         pdb2pose = pose.pdb_info().pdb2pose
         r = pdb2pose(res=41, chain='A')
@@ -45,7 +46,7 @@ class MProVictor(Victor):
     @staticmethod
     def poised_pose_fx(pose: pyrosetta.Pose):
         """
-        Histidine in delta and cysteine in thiolate.
+        Histidine protonated on delta (HID) and cysteine in thiolate.
         """
         # Americans spell poise as poise not poize.
         pdb2pose = pose.pdb_info().pdb2pose
@@ -100,40 +101,13 @@ class MProVictor(Victor):
 
     @classmethod
     def fetch_postera(cls):
-        """
-        Reads the submission file off Github.
-        For a local version, just ``postera = pd.read_csv(file)`` and ``MProVictor.add_category(postera)``.
-        :return:
-        """
-        url = "https://raw.githubusercontent.com/postera-ai/" + \
-              "COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
-        s = requests.get(url).content
-        postera = pd.read_csv(io.StringIO(s.decode('utf-8')))
-        cls.add_category(postera)
-        return postera
-
-    @classmethod
-    def add_category(cls, postera: pd.DataFrame) -> None:
-        """
-        Postera table has categories as True/False. But it is unlikely that there are multiple.
-        Turns out these categories are **not** user submitted.
-        However, for consistency with other analysis by other people these are used.
-
-        :param postera: pandas table modified in place
-        :return:
-        """
-        def get_category(row):
-            for category in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
-                if row[category] in ('True', 'true', True):
-                    return category
-            else:
-                return 'non-covalent'
-
-        postera['category'] = postera.apply(get_category, axis=1)
+        __doc__ = data.fetch_postera.__doc__
+        warn('method moved to mpro_data (as function)', DeprecationWarning)
+        return data.fetch_postera()
 
     @classmethod
     def analyse_postera(cls):
-        pass
+        raise NotImplementedError('Incomplete functionality')
 
     @classmethod
     def from_postera_row(cls, row: pd.Series, results:Optional=None):

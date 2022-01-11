@@ -1,3 +1,6 @@
+__all__ = ['get_template', 'get_molblock', 'get_mol', 'get_filtered_mol', 'get_n_filtered_mols', 'get_hit_list',
+           'fetch_postera', 'read_postera']
+
 from . import hit_mols
 
 import os, pyrosetta
@@ -11,7 +14,7 @@ import requests
 import random
 import importlib.resources as pkg_resources
 
-def get_template():
+def get_template() -> str:
     return pkg_resources.read_text(__package__, 'template.pdb')
 
 def _clean_hitname(hit_name: Optional[str]=None) -> str:
@@ -68,8 +71,46 @@ def get_n_filtered_mols(amount: int, **cutoffs) -> List[Chem.Mol]:
     else:
         raise ValueError(f'There are only {len(mols)} molecules ({mol_names}) that match the criteria {cutoffs}')
 
-def get_hit_list():
+def get_hit_list() -> List[str]:
     """
     List of XChem hits of MPro from Fragalysis in Feb 2021.
     """
     return [fn.replace('.mol', '').replace('Mpro-', '') for fn in pkg_resources.contents(hit_mols) if '.mol' in fn]
+
+def fetch_postera() -> pd.DataFrame:
+    """
+    Reads the submission file off Github.
+    For a local version, just ``postera = read_postera(file)``.
+    :return:
+    """
+    url = "https://raw.githubusercontent.com/postera-ai/" + \
+          "COVID_moonshot_submissions/master/covid_submissions_all_info.csv"
+    s = requests.get(url).content
+    postera = pd.read_csv(io.StringIO(s.decode('utf-8')))
+    _add_category(postera)
+    return postera
+
+def read_postera(filename: str) -> pd.DataFrame:
+    postera = pd.read_csv(filename)
+    _add_category(postera)
+    return postera
+
+# not exported
+def _get_category(row: pd.Series) -> str:
+    """
+    Postera table has categories as True/False. But it is unlikely that there are multiple.
+    Turns out these categories are **not** user submitted.
+    However, for consistency with other analysis by other people these are used.
+
+    :param postera: pandas table modified in place
+    :return:
+    """
+    for category in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
+        if row[category] in ('True', 'true', True):
+            return category
+    else:
+        return 'non-covalent'
+
+def _add_category(postera: pd.DataFrame) -> None:
+    postera['category'] = postera.apply(_get_category, axis=1)
+
