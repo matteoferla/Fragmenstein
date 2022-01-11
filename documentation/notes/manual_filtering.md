@@ -211,11 +211,14 @@ Unfortunately, I cannot see a column that acts as a submission timestamp.
 
 User submitted compounds crystalise, but not as intended.
 
+
 ![ops](../../images/crystallised_opsie.png)
+_White is crystallised submission, others are the "inspirations"_
 
 Generally this is more subtle, i.e. a group crystallises incorrectly.
 
 ![wrong](../../images/crystallised_wrong.png)
+_White is crystallised submission, others are the "inspirations"_
 
 ### Cartesian naïveté
 
@@ -224,6 +227,7 @@ This method is useful for fragmenting the hits and merging with Fragmenstein.
 In this case however, different parts were merged by not in the way intended.
 
 ![brics](../../images/crystallised_brics.png)
+_White is crystallised submission, others are the "inspirations"_
 
 ## Data
 
