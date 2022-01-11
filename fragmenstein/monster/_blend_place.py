@@ -44,7 +44,7 @@ class _MonsterBlend(_MonsterMerge):
         self.positioned_mol = self.place_from_map(target_mol=self.initial_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
-                                                  randomSeed=self.randomSeed)
+                                                  random_seed=self.random_seed)
         self.keep_copy(scaffold, 'scaffold')
         self.keep_copy(chimera, 'chimera')
 
@@ -62,7 +62,7 @@ class _MonsterBlend(_MonsterMerge):
         self.positioned_mol = self.place_from_map(target_mol=self.positioned_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
-                                                  randomSeed=self.randomSeed)
+                                                  random_seed=self.random_seed)
         self.keep_copy(scaffold, 'scaffold')
         self.keep_copy(chimera, 'chimera')
 
@@ -97,7 +97,7 @@ class _MonsterBlend(_MonsterMerge):
         placed = self.place_from_map(target_mol=self.initial_mol,
                                      template_mol=um.combined_bonded,
                                      atom_map=um.combined_map,
-                                     randomSeed=self.randomSeed)
+                                     random_seed=self.random_seed)
 
         self.keep_copy(um.combined, 'scaffold')
         self.keep_copy(um.combined_bonded, 'chimera')
@@ -106,7 +106,7 @@ class _MonsterBlend(_MonsterMerge):
         placed_options = [self.place_from_map(target_mol=self.initial_mol,
                                              template_mol=mol,
                                              atom_map=mappa,
-                                             randomSeed=self.randomSeed) for mol, mappa in alts]
+                                             random_seed=self.random_seed) for mol, mappa in alts]
         # ------------------ Averages the overlapping atoms ------------------
         self.positioned_mol = self.posthoc_refine(placed)
         self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
@@ -328,7 +328,7 @@ class _MonsterBlend(_MonsterMerge):
         return chimera
 
     def place_from_map(self, target_mol: Chem.Mol, template_mol: Chem.Mol, atom_map: Optional[Dict] = None,
-                       randomSeed=None) -> Chem.Mol:
+                       random_seed=None) -> Chem.Mol:
         """
         This method places the atoms with known mapping
         and places the 'uniques' (novel) via an aligned mol (the 'sextant')
@@ -346,8 +346,8 @@ class _MonsterBlend(_MonsterMerge):
             target_mol = self.initial_mol
         sextant = Chem.Mol(target_mol)
         Chem.SanitizeMol(sextant)
-        if randomSeed:
-            kwargs= dict(randomSeed=randomSeed)
+        if random_seed:
+            kwargs= dict(randomSeed=random_seed)
         else:
             kwargs= {}
         AllChem.EmbedMolecule(sextant, **kwargs)

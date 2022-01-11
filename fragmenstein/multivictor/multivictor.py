@@ -14,8 +14,8 @@ class MultiVictorPlacement():
     explain an important part of the molecule
     """
 
-    def __init__(self, randomSeed=None, **victor_init_args):
-        self.randomSeed = randomSeed
+    def __init__(self, random_seed=None, **victor_init_args):
+        self.random_seed = random_seed
         self.victor_init_args = victor_init_args
 
         self.placed_victors = []
@@ -26,15 +26,15 @@ class MultiVictorPlacement():
               atomnames: Optional[Dict[int, str]] = None,
               extra_ligand_constraint: Union[str] = None):
         current_randomState = None
-        if self.randomSeed:
+        if self.random_seed:
             current_randomState = random.getstate()
-            random.seed(self.randomSeed)
+            random.seed(self.random_seed)
         rseeds = [random.randint(0, int(1e6)) for i in range(number_trials)]
         if current_randomState is not None:
             random.setstate(current_randomState)
 
         def placeFunction(i):
-            victor = Victor(randomSeed=rseeds[i], **self.victor_init_args)
+            victor = Victor(random_seed=rseeds[i], **self.victor_init_args)
             victor.place(smiles=smiles, long_name = long_name+str(i), merging_mode= merging_mode, atomnames=atomnames,
                          extra_ligand_constraint=extra_ligand_constraint)
             victor.runNumber = i
