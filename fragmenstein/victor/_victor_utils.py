@@ -27,7 +27,7 @@ from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem
 
 from ._victor_common import _VictorCommon
-from ..m_rmsd import mRSMD
+from ..m_rmsd import mRMSD
 from ..monster import Monster
 from rdkit_to_params import Params
 from ..igor import Igor
@@ -528,7 +528,7 @@ class _VictorUtils(_VictorCommon):
         # buffers etc.
         self._warned = []
         minjson = os.path.join(folder, f'{self.long_name}.minimised.json')
-        self.mrmsd = mRSMD.mock()
+        self.mrmsd = mRMSD.mock()
         if os.path.exists(minjson):
             md = json.load(open(minjson))
             self.energy_score = md["Energy"]

@@ -24,8 +24,9 @@ from typing import Sequence, List, Optional, Tuple
 import json, re
 
 from .monster import Monster
+from typing import *
 
-class mRSMD:
+class mRMSD:
     """RMSD are unaligned and in Å.
 
     The RMSD has been calculated differently.
@@ -42,6 +43,10 @@ class mRSMD:
 
 
     """
+    # faux enum:
+    HIT_BASED = 0  # regularly instantiated
+    XYZ_BASED = 1  # from_internal_xyz
+    IDENTITY_BASED = 2  # identity
 
     def __init__(self,
                  followup: Chem.Mol,
@@ -62,6 +67,7 @@ class mRSMD:
         self.followup = followup
         self.hits = hits
         self.mappings = mappings
+        self.mode = self.HIT_BASED
         # calculate
         mds = []
         self.rmsds = []
@@ -79,38 +85,69 @@ class mRSMD:
         else:
             self.mrmsd = None
 
+    @staticmethod
+    def generate_overlap_mapping(mol_a: Chem.Mol, mol_b: Chem.Mol) -> List[Tuple[int, int]]:
+        # Monster.get_positional_mapping : Dict[int, int]
+        map_dict : Dict[int, int] = Monster.get_positional_mapping(mol_a, mol_b)
+        return list(map_dict.items())
 
     @classmethod
     def from_unannotated_mols(cls,
                             moved_followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
                             placed_followup: Chem.Mol
-                            ) -> mRSMD:
+                            ) -> mRMSD:
         """
         Mapping is done by positional overlap between placed_followup and hits
         This mapping is the applied to moved_followup.
+        The mapping is not between placed and moved. But the former acts as a go between.
 
         :param moved_followup: The mol to be scored
         :param hits: the hits to score against
         :param placed_followup: the mol to determine how to score
         :return:
         """
+        placed2moved : Dict[int, int] = dict(cls.from_unannotated_same_mols(placed_followup=placed_followup,
+                                                                            moved_followup=moved_followup
+                                                                            ).mappings[0]
+                                             )
         mappings = []
-        moved_followup = AllChem.DeleteSubstructs(moved_followup, Chem.MolFromSmiles('*'))
-        placed_followup = AllChem.DeleteSubstructs(placed_followup, Chem.MolFromSmiles('*'))
-        if moved_followup.GetNumAtoms() != placed_followup.GetNumAtoms():
-            # they may differ just because protons
-            placed_followup = Chem.AddHs(placed_followup)
-            assert moved_followup.GetNumAtoms() == placed_followup.GetNumAtoms(), 'moved and placed are different!'
         for h, hit in enumerate(hits):
-            mappings.append(list(Monster.get_positional_mapping(hit, placed_followup).items()))
-        return cls(moved_followup, hits, mappings)
+            placed2hit : List[Tuple[int, int]] = cls.generate_overlap_mapping(placed_followup, hit)
+            mappings.append([(placed2moved[pi], hi) for pi, hi in placed2hit if pi in placed2moved])
+        return cls(followup=moved_followup, hits=hits, mappings=mappings)
+
+    @classmethod
+    def from_unannotated_same_mols(cls,
+                            moved_followup: Chem.Mol,
+                            placed_followup: Chem.Mol
+                            ) -> mRMSD:
+        """
+        Mapping is not done by positional overlap between placed_followup and moved_followup
+        But by shape overlap that yields the lowest RMSD
+        This means that every atom matches reguardless of hits.
+
+        :param moved_followup: The mol to be scored
+        :param placed_followup: the mol to determine how to score
+        :return:
+        """
+        # placed idx -> moved idx
+        munge_mapping = lambda match: list(zip(range(placed_followup.GetNumAtoms()), match))
+        candidate_mappings = [munge_mapping(match) for match in moved_followup.GetSubstructMatches(placed_followup)]
+        assert candidate_mappings, 'No matches?!'
+        # mappings is places to moved hence the order
+        candidate_mrmsds = [cls(followup=placed_followup, hits=[moved_followup], mappings=[mapping])
+                            for mapping in candidate_mappings]
+        self = sorted(candidate_mrmsds, key=lambda m: m.mrmsd)[0]
+        # self.hits is placed_followup not hits
+        self.mode = self.IDENTITY_BASED
+        return self
 
     @classmethod
     def from_annotated_mols(cls,
                   annotated_followup: Chem.Mol,
                   hits: Optional[Sequence[Chem.Mol]]=None
-                  ) -> mRSMD:
+                  ) -> mRMSD:
         """
         Monster leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         This classmethod accepts a followup with has this.
@@ -120,7 +157,9 @@ class mRSMD:
         :return:
         """
         if cls.is_xyz_annotated(annotated_followup):
-            return cls.from_internal_xyz(annotated_followup)
+            self = cls.from_internal_xyz(annotated_followup)
+            self.hits = hits
+            return self
         mappings = cls._mapping_from_annotated_and_hits(annotated_followup, hits)
         return cls(annotated_followup, hits, mappings)
 
@@ -167,18 +206,20 @@ class mRSMD:
                             followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
                             annotated: Chem.Mol
-                            ) -> mRSMD:
+                            ) -> mRMSD:
+        # has become nearly redundant with from_unannotated_mols except this expect annotated to have: from_unannotated_mols
         # the former way has issues with isomorphisms
         # cls.copy_origins(annotated, followup)
         # return cls.from_annotated_mols(followup, hits)
-        targets, _ = cls.copy_all_possible_origins(annotated, followup)
+        posibilities : Tuple[List[Chem.Mol], List[List[int]]]= cls.copy_all_possible_origins(annotated, followup)
+        targets: List[Chem.Mol] = posibilities[0]
         assert targets, 'Molecule could not be mapped.'
         results = [(target, cls.from_annotated_mols(target, hits)) for target in targets]
         return list(sorted(results, key=lambda x: x[1].mrmsd))[0][1]
 
 
 
-    def calculate_msd(self, molA, molB, mapping):
+    def calculate_msd(self, molA, molB, mapping) -> float:
         """
         A nonroot rmsd.
 
@@ -193,7 +234,7 @@ class mRSMD:
                     (confA.GetAtomPosition(a).y - confB.GetAtomPosition(b).y) ** 2 +
                     (confA.GetAtomPosition(a).z - confB.GetAtomPosition(b).z) ** 2 for a, b in mapping])
 
-    def calculate_rmsd(self, molA, molB, mapping):
+    def calculate_rmsd(self, molA, molB, mapping) -> float:
         return (self.calculate_msd(molA, molB, mapping) / len(mapping)) ** 0.5
 
     @classmethod
@@ -325,6 +366,7 @@ class mRSMD:
         self.mappings = []
         self.rmsds = []
         self.mrmsd = float('nan')
+        self.mode = self.XYZ_BASED
         conf = annotated_followup.GetConformer()
         n = 0
         tatoms = 0

@@ -21,7 +21,7 @@ import time
 from typing import List, Union, Optional, Callable, Dict
 
 from rdkit import Chem
-from ..m_rmsd import mRSMD
+from ..m_rmsd import mRMSD
 from ..monster import Monster
 
 
@@ -163,7 +163,7 @@ class _VictorBase:
         self._warned = []
         self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                              'unbound_ref2015': {'total_score': float('nan')}}
-        self.mrmsd = mRSMD.mock()
+        self.mrmsd = mRMSD.mock()
         self.ddG = float('nan')
         # for debug purposes
         self.tick = time.time()

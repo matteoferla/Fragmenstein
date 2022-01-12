@@ -1,7 +1,7 @@
 from ._victor_store import _VictorStore
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from ..m_rmsd import mRSMD
+from ..m_rmsd import mRMSD
 
 class _VictorIgor(_VictorStore):
 
@@ -80,7 +80,7 @@ class _VictorIgor(_VictorStore):
 
     def _calculate_rmsd(self):
         self.journal.debug(f'{self.long_name} - calculating mRMSD')
-        return mRSMD.from_other_annotated_mols(self.minimized_mol, self.hits, self.monster.positioned_mol)
+        return mRMSD.from_other_annotated_mols(self.minimized_mol, self.hits, self.monster.positioned_mol)
 
     def calculate_score(self):
         return {**self.igor.ligand_score(),
