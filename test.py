@@ -1,3 +1,5 @@
+import logging
+import tempfile
 import unittest, os
 # ======================================================================================================================
 import pyrosetta
@@ -182,8 +184,90 @@ class MonsterCombineTests(unittest.TestCase):
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+class MonsterPlaceTests(unittest.TestCase):
 
+    def test_sample_new_conformation(self):
+        smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
+        mol = Chem.MolFromSmiles(smiles)
+        AllChem.EmbedMolecule(mol, randomSeed=131)
+        frag_mol = Chem.FragmentOnBonds(mol, [5, 11], addDummies=False)
+        hits = Chem.GetMolFrags(frag_mol, asMols=True)[:2]
+        # from matplotlib import pyplot as plt
+        # from rdkit.Chem import Draw
+        # plt.imshow(Draw.MolsToGridImage(hits)); plt.show()
+        ori_monster =  Monster(hits=hits, random_seed=131)
+        ori_monster.place_smiles(smiles)
+        # sample_new_conformation
+        seeds = [121, 23421, 1]
+        for se1 in seeds:
+            mol = ori_monster.sample_new_conformation(random_seed=se1)
+            coords1 = mol.GetConformer().GetPositions()
+            for se2 in seeds:
+                mol = ori_monster.sample_new_conformation(random_seed=se2)
+                coords2 = mol.GetConformer().GetPositions()
+                if se1==se2:
+                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                else:
+                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+
+    def test_random_seed(self):
+        smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
+        mol = Chem.MolFromSmiles(smiles)
+        AllChem.EmbedMolecule(mol, randomSeed=131)
+        frag_mol = Chem.FragmentOnBonds(mol, [5, 11], addDummies=False)
+        hits = Chem.GetMolFrags(frag_mol, asMols=True)[:2]
+        # from matplotlib import pyplot as plt
+        # from rdkit.Chem import Draw
+        # plt.imshow(Draw.MolsToGridImage(hits)); plt.show()
+        seeds = [121, 23421, 1]
+        for se1 in seeds:
+            mol = Monster(hits=hits, random_seed=se1).place_smiles(smiles).positioned_mol
+            coords1 = mol.GetConformer().GetPositions()
+            for se2 in seeds:
+                mol = Monster(hits=hits, random_seed=se2).place_smiles(smiles).positioned_mol
+                coords2 = mol.GetConformer().GetPositions()
+                if se1==se2:
+                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                else:
+                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+
+class VictorPlaceTests(unittest.TestCase):
+    def test_random_seed(self):
+
+        to_place = Chem.MolFromMolFile('test_mols/placed_example1.mol')
+        pdb_filename = 'test_mols/apo_example1.pdb'
+        smiles = Chem.MolToSmiles(to_place)
+        hits = [ Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in ["x0032_0A.mol"]] #, "x0103_0A.mol"]]
+        seeds = [121, 23421, 1]
+        # Victor.enable_stdout(level=logging.ERROR)
+        Victor.monster_mmff_minisation = False
+        import random
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir= "/home/sanchezg/tmp/pruebaFragmenstein"
+            for se1 in seeds:
+                from pyrosetta.rosetta.basic.random import determine_random_number_seed, init_random_generators
+                init_random_generators(se1, "mt19937")
+                random.seed(se1)
+                np.random.seed(se1)
+                Victor.work_path = os.path.join(tmpdir, "out_1_%d" % (se1))
+                mol = Victor(hits=hits, pdb_filename=pdb_filename, random_seed=se1).place(smiles).minimized_mol
+                coords1 = mol.GetConformer().GetPositions()
+                for se2 in seeds:
+                    Victor.work_path = os.path.join(tmpdir, "out_2_%d" % (se2))
+                    # pyrosetta.init(extra_options=f'-constant_seed true -jran 987')
+                    init_random_generators(se2, "mt19937")
+                    random.seed(se2)
+                    np.random.seed(se2)
+                    mol = Victor(hits=hits, pdb_filename=pdb_filename, random_seed=se2).place(smiles).minimized_mol
+                    coords2 = mol.GetConformer().GetPositions()
+                    if se1==se2:
+                        self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                    else:
+                        print(se1, se2, np.sum(np.abs(coords1-coords2)))
+                        self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+
+# ----------------------------------------------------------------------------------------------------------------------
 
 class Internals(unittest.TestCase):
     def test_triangle(self):

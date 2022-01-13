@@ -572,3 +572,30 @@ class _MonsterBlend(_MonsterMerge):
         """
         return [h.GetProp('_Name') for h in self.hits if
                 h.GetProp('_Name') not in self.unmatched]
+
+
+    def sample_new_conformation(self, random_seed=None):
+        scaffold = self.modifications["chimera"]
+        atom_map = self.get_atom_map_fromProp(scaffold)
+        if random_seed is None:
+            random_seed = self.random_seed
+        new_mol = self.place_from_map(target_mol=Chem.Mol(self.initial_mol), template_mol=scaffold, atom_map=atom_map,
+                       random_seed=random_seed)
+
+        merging_mode = getattr(self, "merging_mode", "off")
+        if merging_mode == 'off':
+            pass
+        elif merging_mode == 'full':
+            pass
+        elif merging_mode == 'partial':
+            self.partial_blending()
+        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none' or \
+            merging_mode == 'none':
+            new_mol = self.posthoc_refine(new_mol)
+        else:
+            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')
+            raise ValueError(
+                f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
+
+        self.positioned_mol = new_mol
+        return new_mol

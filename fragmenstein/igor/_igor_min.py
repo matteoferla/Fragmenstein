@@ -106,8 +106,8 @@ class _IgorMin:
         if mol is None:
             mol = self.mol_from_pose()
         try:
-            AllChem.UFFGetMoleculeForceField(mol)
-            ff = AllChem.UFFGetMoleculeForceField(mol)
+            # AllChem.UFFGetMoleculeForceField(mol)
+            ff = AllChem.UFFGetMoleculeForceField(Chem.Mol(mol))
             ff.Initialize()
             # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
             if delta:
