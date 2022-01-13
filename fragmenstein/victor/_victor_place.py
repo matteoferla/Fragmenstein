@@ -24,7 +24,10 @@ class _VictorPlace(_VictorCommon):
         :return:
         """
         # ## Store
-        self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, extra_ligand_constraint)
+        # self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, extra_ligand_constraint)
+        def prepare_args_for_placement():
+            self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, extra_ligand_constraint)
+        self._safely_do(execute=prepare_args_for_placement, resolve=self._resolve, reject=self._reject)
         # ## Analyse
         self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
         return self
@@ -50,7 +53,14 @@ class _VictorPlace(_VictorCommon):
         self.atomnames = atomnames
         self.merging_mode = merging_mode
         self.add_extra_constraint(extra_ligand_constraint)
-
+        self.constraint = self._get_constraint(self.extra_constraint)
+        # making output folder.
+        self.make_output_folder()
+        # make params
+        self.journal.debug(f'{self.long_name} - Starting parameterisation')
+        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
+        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+        # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
 
     def _calculate_placement_prepareMonster(self):
         '''
@@ -64,17 +74,11 @@ class _VictorPlace(_VictorCommon):
         # ***** PARAMS & CONSTRAINT *******
         self.journal.info(f'{self.long_name} - Starting work')
         self._log_warnings()
-        # making folder.
-        self.make_output_folder()
-        # make params
-        self.journal.debug(f'{self.long_name} - Starting parameterisation')
-        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
-        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
+
         self.mol = self.params.mol
         self._log_warnings()
         # get constraint
-        self.constraint = self._get_constraint(self.extra_constraint)
+
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self._log_warnings()
         # ***** FRAGMENSTEIN Monster *******

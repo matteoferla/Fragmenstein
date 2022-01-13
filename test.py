@@ -2,6 +2,8 @@ import logging
 import tempfile
 import unittest, os
 # ======================================================================================================================
+from multiprocessing import Process
+
 import pyrosetta
 
 pyrosetta.init(
@@ -231,41 +233,21 @@ class MonsterPlaceTests(unittest.TestCase):
                 else:
                     self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
 
-class VictorPlaceTests(unittest.TestCase):
-    def test_random_seed(self):
-
+class MultivictorPlaceTests(unittest.TestCase):
+    def test_multivictor(self):
+        from fragmenstein import MultiVictorPlacement
         to_place = Chem.MolFromMolFile('test_mols/placed_example1.mol')
         pdb_filename = 'test_mols/apo_example1.pdb'
         smiles = Chem.MolToSmiles(to_place)
         hits = [ Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in ["x0032_0A.mol"]] #, "x0103_0A.mol"]]
-        seeds = [121, 23421, 1]
         # Victor.enable_stdout(level=logging.ERROR)
-        Victor.monster_mmff_minisation = False
-        import random
-
         with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir= "/home/sanchezg/tmp/pruebaFragmenstein"
-            for se1 in seeds:
-                from pyrosetta.rosetta.basic.random import determine_random_number_seed, init_random_generators
-                init_random_generators(se1, "mt19937")
-                random.seed(se1)
-                np.random.seed(se1)
-                Victor.work_path = os.path.join(tmpdir, "out_1_%d" % (se1))
-                mol = Victor(hits=hits, pdb_filename=pdb_filename, random_seed=se1).place(smiles).minimized_mol
-                coords1 = mol.GetConformer().GetPositions()
-                for se2 in seeds:
-                    Victor.work_path = os.path.join(tmpdir, "out_2_%d" % (se2))
-                    # pyrosetta.init(extra_options=f'-constant_seed true -jran 987')
-                    init_random_generators(se2, "mt19937")
-                    random.seed(se2)
-                    np.random.seed(se2)
-                    mol = Victor(hits=hits, pdb_filename=pdb_filename, random_seed=se2).place(smiles).minimized_mol
-                    coords2 = mol.GetConformer().GetPositions()
-                    if se1==se2:
-                        self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
-                    else:
-                        print(se1, se2, np.sum(np.abs(coords1-coords2)))
-                        self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+            Victor.work_path = os.path.join(tmpdir, "multivictor_out")
+            mv = MultiVictorPlacement(hits=hits, pdb_filename=pdb_filename)
+            mv.place(smiles, number_runs=4)
+            # print(mv.retrieve_best_victor())
+            # print(mv.retrieve_scores())
+            self.assertLess(mv.retrieve_scores()[0], -7)
 
 # ----------------------------------------------------------------------------------------------------------------------
 
