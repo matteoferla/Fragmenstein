@@ -7,14 +7,12 @@ if sys.version_info.major != 3 or sys.version_info.minor < 6:
     print(sys.version_info)
     raise SystemError('Module written for Python 3.6+.')
 
-# ---------- Non pip modules  ------------------------------------------------------------------------------------------
+# ---------- Pip and Non pip modules  ----------------------------------------------------------------------------------
+requirements = ['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests']
 
 if not util.find_spec('rdkit'):
-    warn('This 3.6+ script **requires** rdkit which ~cannot~ [could not] be pip installed.' +
-                              ' To install try either ' +
-                              'pip install rdkit-pypi' +
-                              'conda install -c conda-forge rdkit or ' +
-                              'sudo apt-get/brew install python3-rdkit or visit rdkit documentation.')
+    # pypi overwrites the conda version
+    requirements.append('rdkit-pypi')
 
 if not util.find_spec('pyrosetta'):
     warn('The minimisation part of this code uses pyrosetta, which has to be downloaded from ' +
@@ -42,7 +40,7 @@ setup(
     include_package_data=True,
     package_data={'fragmenstein.mpro.data': ['template.pdb'],
                   'fragmenstein.mpro.data.hit_mols': ['*.mol']},
-    install_requires=['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests'],
+    install_requires=requirements,
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
     license='MIT',
