@@ -1,3 +1,4 @@
+from __future__ import annotations
 ########################################################################################################################
 
 __doc__ = \
@@ -455,7 +456,7 @@ class _VictorUtils(_VictorCommon):
     # =================== From Files ===================================================================================
 
     @classmethod
-    def from_files(cls, folder: str) -> 'self':
+    def from_files(cls, folder: str) -> _VictorUtils:  # future.annotation is active, so no cyclical.
         """
         This creates an instance form the output files. Likely to be unstable.
         Assumes the checkpoints were not altered.
