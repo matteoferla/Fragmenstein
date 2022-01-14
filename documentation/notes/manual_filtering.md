@@ -333,3 +333,144 @@ _White is crystallised submission, others are the "inspirations"_
 | MIC-UNK-66895286-1  | x11532    | x0678              |
 | MIC-UNK-66895286-3  | x11540    | x0678              |
 | MIC-UNK-deda7a44-5  | x11186    | x0434              |
+
+## Distribution
+
+These were scored with Fragmenstein.
+
+```python3
+# import Safeguard (see gist)
+import requests
+raw_gist_url = 'https://gist.githubusercontent.com/matteoferla/24d9a319d05773ae219dd678a3aa11be/raw/983a0cfdbc410e30ea1325368eb700f6166493a5/safeguard.py'
+response : requests.Response = requests.get(raw_gist_url)
+response.raise_for_status()
+exec(response.text)
+
+# validate
+@Safeguard
+def get_victor_validation(row: pd.Series) -> Victor:
+    # cid	crystal	inspiration_hits
+    victor = MProVictor.from_hit_codes(row.inspiration_hits.split(','), category=row.category)
+    smiles = mpro_data.get_mol(row.crystal)
+    victor.place(smiles=row.SMILES, long_name=row.cid)
+    return victor.validate(mpro_data.get_mol(row.crystal))
+
+from fragmenstein import MProVictor, Victor, mpro_data, mRMSD
+get_victor_validation.error_value = {}
+calcs = results.apply(get_victor_validation, axis=1)
+# done sequentially as there are few of them:
+results = pd.concat([results, pd.DataFrame(calcs.to_list())], axis=1)
+
+# read ddG
+from fragmenstein import MProVictor
+import json, os
+
+def get_folder(cid: str) -> str:
+    path = os.path.join(MProVictor.work_path, cid)
+    if os.path.exists(path):
+        return path
+    else:
+        raise FileNotFoundError(cid)
+
+def get_data(row: pd.DataFrame) -> Dict[str, Any]:
+    path = os.path.join(get_folder(row.cid), f'{row.cid}.minimised.json')
+    with open(path) as fh:
+        return json.load(fh)
+ 
+@Safeguard
+def get_ddG(row: pd.DataFrame) -> float:
+    return get_data(row)['Energy']['xyz_∆∆G']
+
+results['ddG'] = results.apply(get_ddG, axis='columns')
+
+def get_heavy_count(smiles: str) -> int:
+    return Chem.MolFromSmiles(smiles).GetNumHeavyAtoms()
+
+results['num_heavy_atoms'] = results.SMILES.apply(get_heavy_count)
+results['LE'] = results.ddG / results.num_heavy_atoms
+
+# make categorical the lazy way.
+import inflect
+ie = inflect.engine()
+
+results['n_inspiration_str'] = results.n_inspirations.apply(ie.number_to_words)
+```
+Now how do the references (crystals) compare:
+```python3
+import plotly.express as px
+import numpy as np
+from fragmenstein.branding import divergent_colors
+
+n_colors :int = results['n_inspirations'].max()
+
+fig = px.histogram(results.sort_values('n_inspirations'), x="reference2hits_rmsd", 
+                   marginal="rug",
+                   hover_data=['cid'],
+                   nbins=50,
+                   color='n_inspirations',
+                  title='Combined RMSD of hits against crystallised',
+                  color_discrete_sequence=divergent_colors[n_colors],
+                  )
+fig.write_image("rmsd_crystallised_distribution.png")
+fig.show()
+```
+![distro](../../images/mpro_rmsd_crystallised_distribution.png)
+
+## How about against the minimised?
+
+```python3
+import plotly.express as px
+
+results['sanitised_minimized2hits_rmsd'] = results.minimized2hits_rmsd.fillna(5)
+
+n_colors :int = results['n_inspirations'].max()
+fig = px.scatter(results.sort_values('n_inspirations'), 
+                 x="reference2hits_rmsd",
+                 y="minimized2hits_rmsd",
+                 hover_data=['cid', 'ddG', 'LE'],
+                 color='n_inspiration_str',
+                 title='Combined RMSD of crystallised & fragmenstein placed vs. hits',
+                 #size='LE_shifted',
+                 color_discrete_sequence=divergent_colors[n_colors],)
+fig.add_shape(type="line",
+    x0=0, y0=0, x1=20, y1=20,
+    line=dict(
+        color='grey',
+        width=1,
+        dash="dot",
+    )
+)
+fig.update_layout(xaxis=dict(range=[0,2], title='reference vs. hits'),
+                  yaxis=dict(range=[0,2], title='minimized vs. hits'))
+
+fig.write_image("rmsd_vs_hits.png")
+fig
+```
+![rmsd_vs_hits](../../images/mpro_rmsd_vs_hits.png)
+Basically, the Fragmenstein minimised molecule is more faithful to the inspirations than the crystal.
+
+```python3
+n_colors :int = results['n_inspirations'].max()
+fig = px.scatter(results.sort_values('n_inspirations'), 
+                 x="reference2hits_rmsd",
+                 y="reference2minimized_rmsd",
+                 hover_data=['cid', 'ddG', 'LE'],
+                 color='n_inspiration_str',
+                 title='Combined RMSD of hits & fragmenstein placed vs. reference',
+                 #size='LE_shifted',
+                 color_discrete_sequence=divergent_colors[n_colors],)
+fig.add_shape(type="line",
+    x0=0, y0=0, x1=20, y1=20,
+    line=dict(
+        color='grey',
+        width=1,
+        dash="dot",
+    )
+)
+fig.update_layout(xaxis=dict(range=[0,2], title='reference vs. hits'),
+                  yaxis=dict(range=[0,2], title='reference vs. minimized'))
+
+fig.write_image("rmsd_vs_reference.png")
+fig
+```
+![vs reference](../../images/mpro_rmsd_vs_reference.png)
