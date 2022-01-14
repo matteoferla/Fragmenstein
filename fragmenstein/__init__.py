@@ -23,12 +23,12 @@ except ImportError as err:
 
 try:
     from .victor import Victor
-except ZeroDivisionError as err:
+except ImportError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 try:
     from .multivictor import MultiVictorPlacement
-except ZeroDivisionError as err:
+except ImportError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 from .monster import Monster
