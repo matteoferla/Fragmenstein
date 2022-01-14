@@ -93,15 +93,15 @@ class MProPlaceTester(unittest.TestCase):
         MProVictor.quick_reanimation = True
         # ,'x2646'
         Victor.monster_throw_on_discard = True
-        victor = MProVictor.from_hit_codes(# hit_codes=['x0107','x0434','x0678','x0995','x1382'],
-                                           hit_codes=['x0107', 'x0434', 'x1382'])
+        victor = MProVictor.from_hit_codes(  # hit_codes=['x0107','x0434','x0678','x0995','x1382'],
+            hit_codes=['x0107', 'x0434', 'x1382'])
         victor.place(smiles='Cc1ccncc1NC(=O)Cc1cccc(Cl)c1',
                      long_name='TRY-UNI-714a760b-6')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         actual = mpro_data.get_mol('x2646')
         victor.make_pse(extra_mols=[actual])
-        validation : Dict[str, float] = victor.validate(reference_mol=actual)
+        validation: Dict[str, float] = victor.validate(reference_mol=actual)
         rmsd = validation['reference2minimized_rmsd']
         self.assertLess(rmsd, 2, f'The RMSD is large...')
         # self.assertIn('x1382', victor.monster.matched)
@@ -125,11 +125,12 @@ class VictorCombineTests(unittest.TestCase):
         self.assertLess(victor.mrmsd.mrmsd, 1.2, f'RMSD great that one ({victor.mrmsd.mrmsd})')
         self.assertLess(victor.ddG, -1, f'ddG {victor.ddG}')
 
+
 class MonsterCombineTests(unittest.TestCase):
     def test_phenylene(self):
         # make carboxy and amide benzenes that overlap so that the end result is a phenylene where one ring is oxazine
         conjoined = Chem.MolFromSmiles('c3c1cccc2\C(=O)O/C(-N)c(c12)cc3')
-        before = Chem.MolToSmiles(conjoined) # structure from wiki is not canonical
+        before = Chem.MolToSmiles(conjoined)  # structure from wiki is not canonical
         AllChem.EmbedMolecule(conjoined)
         bonds = [conjoined.GetBondBetweenAtoms(0, 1).GetIdx(),
                  conjoined.GetBondBetweenAtoms(12, 11).GetIdx(),
@@ -166,7 +167,7 @@ class MonsterCombineTests(unittest.TestCase):
         toluene.SetProp('_Name', 'toluene')
         transtolueneF = Chem.MolFromMolFile('test_mols/transtoluene.mol')
         transtolueneF.SetProp('_Name', 'transtoluene-fuse')
-        mol=Monster(hits=[toluene, transtolueneF]).combine(keep_all=True).positioned_mol
+        mol = Monster(hits=[toluene, transtolueneF]).combine(keep_all=True).positioned_mol
         gotten = Chem.MolToSmiles(Chem.RemoveHs(mol))
         self.assertEqual(gotten, after, f'{name} failed {gotten} (expected {after})')
 
@@ -182,7 +183,7 @@ class MonsterCombineTests(unittest.TestCase):
         transtolueneS = Chem.MolFromMolFile('test_mols/transtoluene2.mol')
         transtolueneS.SetProp('_Name', 'transtoluene-spiro')
         # cmd.rotate('z', -90, 'rototoluene', camera=0)
-        mol=Monster(hits=[toluene, transtolueneS]).combine(keep_all=True).positioned_mol
+        mol = Monster(hits=[toluene, transtolueneS]).combine(keep_all=True).positioned_mol
         gotten = Chem.MolToSmiles(Chem.RemoveHs(mol))
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
@@ -198,7 +199,7 @@ class MonsterPlaceTests(unittest.TestCase):
         # from matplotlib import pyplot as plt
         # from rdkit.Chem import Draw
         # plt.imshow(Draw.MolsToGridImage(hits)); plt.show()
-        ori_monster =  Monster(hits=hits, random_seed=131)
+        ori_monster = Monster(hits=hits, random_seed=131)
         ori_monster.place_smiles(smiles)
         # sample_new_conformation
         seeds = [121, 23421, 1]
@@ -208,10 +209,10 @@ class MonsterPlaceTests(unittest.TestCase):
             for se2 in seeds:
                 mol = ori_monster.sample_new_conformation(random_seed=se2)
                 coords2 = mol.GetConformer().GetPositions()
-                if se1==se2:
-                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                if se1 == se2:
+                    self.assertAlmostEqual(np.sum(np.abs(coords1 - coords2)), 0)
                 else:
-                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+                    self.assertTrue(np.sum(np.abs(coords1 - coords2)) > 3)
 
     def test_random_seed(self):
         smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
@@ -229,10 +230,11 @@ class MonsterPlaceTests(unittest.TestCase):
             for se2 in seeds:
                 mol = Monster(hits=hits, random_seed=se2).place_smiles(smiles).positioned_mol
                 coords2 = mol.GetConformer().GetPositions()
-                if se1==se2:
-                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                if se1 == se2:
+                    self.assertAlmostEqual(np.sum(np.abs(coords1 - coords2)), 0)
                 else:
-                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+                    self.assertTrue(np.sum(np.abs(coords1 - coords2)) > 3)
+
 
 class MultivictorPlaceTests(unittest.TestCase):
     def test_multivictor(self):
@@ -240,7 +242,8 @@ class MultivictorPlaceTests(unittest.TestCase):
         to_place = Chem.MolFromMolFile('test_mols/placed_example1.mol')
         pdb_filename = 'test_mols/apo_example1.pdb'
         smiles = Chem.MolToSmiles(to_place)
-        hits = [ Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in ["x0032_0A.mol"]] #, "x0103_0A.mol"]]
+        hits = [Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in
+                ["x0032_0A.mol"]]  # , "x0103_0A.mol"]]
         # Victor.enable_stdout(level=logging.ERROR)
         with tempfile.TemporaryDirectory() as tmpdir:
             Victor.work_path = os.path.join(tmpdir, "multivictor_out")
@@ -249,6 +252,7 @@ class MultivictorPlaceTests(unittest.TestCase):
             # print(mv.retrieve_best_victor())
             # print(mv.retrieve_scores())
             self.assertLess(mv.retrieve_scores()[0], -7)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -277,7 +281,7 @@ class Internals(unittest.TestCase):
             dummy.SetAtomicNum(0)
         return mol
 
-    def make_pair_by_split(self, conjoined: Chem.Mol, atom_idx: int) -> Tuple[Chem.Mol,Chem.Mol]:
+    def make_pair_by_split(self, conjoined: Chem.Mol, atom_idx: int) -> Tuple[Chem.Mol, Chem.Mol]:
         # make overlapping mols by getting a single molecule, and split it
         # this gives more control over Chem.rdMolAlign.AlignMol as this may overlap other atoms.
         # negative weights does not work...
@@ -342,6 +346,8 @@ class Internals(unittest.TestCase):
             self.fail('should have raised a connection error')
         except ConnectionError as error:
             pass
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
     def test_recto_fail_A(self):
