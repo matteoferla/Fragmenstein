@@ -29,7 +29,7 @@ except ZeroDivisionError as err:
 try:
     from .multivictor import MultiVictorPlacement
 except ZeroDivisionError as err:
-    warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
+    warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 from .monster import Monster
 from molecular_rectifier import Rectifier
