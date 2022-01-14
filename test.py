@@ -101,8 +101,9 @@ class MProPlaceTester(unittest.TestCase):
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         actual = mpro_data.get_mol('x2646')
         victor.make_pse(extra_mols=[actual])
-        rmsd = victor.validate(reference_mol=actual)
-        self.assertLess(rmsd, 1.2, f'The RMSD is large...')
+        validation : Dict[str, float] = victor.validate(reference_mol=actual)
+        rmsd = validation['reference2minimized_rmsd']
+        self.assertLess(rmsd, 2, f'The RMSD is large...')
         # self.assertIn('x1382', victor.monster.matched)
         # self.assertIn('x0995', victor.monster.unmatched) # red herring
 
