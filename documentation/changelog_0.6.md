@@ -53,9 +53,6 @@ The placement of the (distorted) 3D final monster compound Victor is called "plo
 * combine and merge are used synonymously
 
 
-## Future
-Victor however still has the merger as a side route.
-
 ## Overlapping rings
 
 There was a bug in the code for `Monster` that meant that if two rings from different origins that were not bonded
@@ -70,6 +67,13 @@ The test case was the merger of a phenylacetic acid and phenylacetamide which ov
 in a phenylene-like ring (where one ring is an oxazine). See tests.
 
 ![phenylene](../images/phenylene.png)
+
+## Other
+
+* "Corrected" British spelling to American spelling in code
+* Adds random_seed to monster.
+* Class Multivictor, a wrapper to execute several Victor(s) with different monster_random_seed
+* Tests for Multivictor and Monster's random_seed
 
 
     
