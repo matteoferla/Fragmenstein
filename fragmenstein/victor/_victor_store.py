@@ -1,7 +1,6 @@
 import json
 import os
 
-import pyrosetta
 from rdkit import Chem
 
 from ._victor_overridables import _VictorOverridables
@@ -16,6 +15,7 @@ class _VictorStore(_VictorOverridables):
         self._checkpoint_charlie()
 
     def _checkpoint_alpha(self):
+        from ..igor.pyrosetta_import import pyrosetta
         self._log_warnings()
         # saving hits (without copying)
         for h, hit in enumerate(self.hits):

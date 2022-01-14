@@ -15,7 +15,8 @@ __citation__ = ""
 
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
-from ._igor_init import _IgorInit, pyrosetta
+from ._igor_init import _IgorInit
+from .pyrosetta_import import pyrosetta
 from ._igor_min import _IgorMin
 from ._igor_utils import _IgorUtils
 

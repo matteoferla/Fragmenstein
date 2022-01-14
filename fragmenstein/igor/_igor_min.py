@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from warnings import warn
 
-import pyrosetta
+from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 
 from rdkit import Chem
 from rdkit.Chem import AllChem

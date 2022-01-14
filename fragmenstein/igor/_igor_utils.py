@@ -7,10 +7,9 @@ These are extra functionality for Igor
 
 ########################################################################################################################
 
-import requests, shutil, pyrosetta
+import requests, shutil
 from typing import Optional, Dict
-
-import pyrosetta
+from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 
 
 class _IgorUtils:

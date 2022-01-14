@@ -7,7 +7,7 @@ base methods
 
 ########################################################################################################################
 
-import pyrosetta
+from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
