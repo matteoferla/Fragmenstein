@@ -23,6 +23,13 @@ class _VictorOverridables(_VictorPlonk):
         """
         pass
 
+    def pre_igor_step(self):
+        """
+        This method is intended for make inherited mods easier.
+        :return:
+        """
+        pass
+
     def post_igor_step(self):
         """
         This method is intended for make inherited mods easier.

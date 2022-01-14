@@ -7,7 +7,7 @@ This is contains the class _MonsterBase to be inherited by _MonsterCommunal, the
 ########################################################################################################################
 
 import logging
-from typing import List
+from typing import List, Optional
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 
@@ -59,7 +59,8 @@ class _MonsterBase:
     def __init__(self,
                  hits: List[Chem.Mol],
                  average_position: bool=False,
-                 joining_cutoff: float =5):
+                 joining_cutoff: float =5,
+                 random_seed: Optional[int] = None):
         """
         Initialisation starts Monster, but it does not do any mergers or placements.
         This is changed in revision 0.6 (previously `mol` was specified for the latter)
@@ -67,6 +68,8 @@ class _MonsterBase:
         :param hits:
         :param average_position:
         :param joining_cutoff: joining cutoff used in "full" mode
+        :param random_seed: A random seed for rdkit embedding calculations during placement
+
         """
         # ==== hits ===========================================
         # fix_hits: assert Chem.Mol, fix name if needed and store positions (see ``store_positions``)
@@ -87,6 +90,7 @@ class _MonsterBase:
         self.modifications = {}
         self.positioned_mol = None  # final molecule
         self.joining_cutoff = joining_cutoff  # over-ridden
+        self.random_seed = random_seed
         self.mol_options = []  # equally valid alternatives to self.positioned_mol
         self._collapsed_ring_offset = 0  # variable to keep track of how much to offset in ring collapse.
         # formerly:

@@ -41,6 +41,7 @@ class _MonsterPlace(_MonsterBlend):
         self.unmatched = []
         self.mol_options = []
         # do calculations
+        self.merging_mode = merging_mode
         if merging_mode == 'off':
             pass
         elif merging_mode == 'full':

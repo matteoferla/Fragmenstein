@@ -1,5 +1,9 @@
+import logging
+import tempfile
 import unittest, os
 # ======================================================================================================================
+from multiprocessing import Process
+
 import pyrosetta
 
 pyrosetta.init(
@@ -182,8 +186,70 @@ class MonsterCombineTests(unittest.TestCase):
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
 
-# ----------------------------------------------------------------------------------------------------------------------
+class MonsterPlaceTests(unittest.TestCase):
 
+    def test_sample_new_conformation(self):
+        smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
+        mol = Chem.MolFromSmiles(smiles)
+        AllChem.EmbedMolecule(mol, randomSeed=131)
+        frag_mol = Chem.FragmentOnBonds(mol, [5, 11], addDummies=False)
+        hits = Chem.GetMolFrags(frag_mol, asMols=True)[:2]
+        # from matplotlib import pyplot as plt
+        # from rdkit.Chem import Draw
+        # plt.imshow(Draw.MolsToGridImage(hits)); plt.show()
+        ori_monster =  Monster(hits=hits, random_seed=131)
+        ori_monster.place_smiles(smiles)
+        # sample_new_conformation
+        seeds = [121, 23421, 1]
+        for se1 in seeds:
+            mol = ori_monster.sample_new_conformation(random_seed=se1)
+            coords1 = mol.GetConformer().GetPositions()
+            for se2 in seeds:
+                mol = ori_monster.sample_new_conformation(random_seed=se2)
+                coords2 = mol.GetConformer().GetPositions()
+                if se1==se2:
+                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                else:
+                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+
+    def test_random_seed(self):
+        smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
+        mol = Chem.MolFromSmiles(smiles)
+        AllChem.EmbedMolecule(mol, randomSeed=131)
+        frag_mol = Chem.FragmentOnBonds(mol, [5, 11], addDummies=False)
+        hits = Chem.GetMolFrags(frag_mol, asMols=True)[:2]
+        # from matplotlib import pyplot as plt
+        # from rdkit.Chem import Draw
+        # plt.imshow(Draw.MolsToGridImage(hits)); plt.show()
+        seeds = [121, 23421, 1]
+        for se1 in seeds:
+            mol = Monster(hits=hits, random_seed=se1).place_smiles(smiles).positioned_mol
+            coords1 = mol.GetConformer().GetPositions()
+            for se2 in seeds:
+                mol = Monster(hits=hits, random_seed=se2).place_smiles(smiles).positioned_mol
+                coords2 = mol.GetConformer().GetPositions()
+                if se1==se2:
+                    self.assertAlmostEqual( np.sum(np.abs(coords1-coords2)), 0)
+                else:
+                    self.assertTrue( np.sum(np.abs(coords1-coords2)) > 3 )
+
+class MultivictorPlaceTests(unittest.TestCase):
+    def test_multivictor(self):
+        from fragmenstein import MultiVictorPlacement
+        to_place = Chem.MolFromMolFile('test_mols/placed_example1.mol')
+        pdb_filename = 'test_mols/apo_example1.pdb'
+        smiles = Chem.MolToSmiles(to_place)
+        hits = [ Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in ["x0032_0A.mol"]] #, "x0103_0A.mol"]]
+        # Victor.enable_stdout(level=logging.ERROR)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Victor.work_path = os.path.join(tmpdir, "multivictor_out")
+            mv = MultiVictorPlacement(hits=hits, pdb_filename=pdb_filename)
+            mv.place(smiles, number_runs=4)
+            # print(mv.retrieve_best_victor())
+            # print(mv.retrieve_scores())
+            self.assertLess(mv.retrieve_scores()[0], -7)
+
+# ----------------------------------------------------------------------------------------------------------------------
 
 class Internals(unittest.TestCase):
     def test_triangle(self):

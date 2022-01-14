@@ -28,7 +28,9 @@ from .unmerge_mapper import Unmerge
 
 
 class _MonsterBlend(_MonsterMerge):
-    # placement dependent methdos
+    # placement dependent methods
+
+
 
     # @classmethod #why was this a classmethod
     def full_blending(self) -> None:
@@ -38,11 +40,13 @@ class _MonsterBlend(_MonsterMerge):
         self.mol_options = [self.simply_merge_hits()]
         scaffold = self.posthoc_refine(self.mol_options[0])
         chimera = self.make_chimera(scaffold)
-        self.keep_copy(scaffold, 'scaffold')
-        self.keep_copy(chimera, 'chimera')
+
         self.positioned_mol = self.place_from_map(target_mol=self.initial_mol,
                                                   template_mol=chimera,
-                                                  atom_map=None)
+                                                  atom_map=None,
+                                                  random_seed=self.random_seed)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
 
     def partial_blending(self) -> None:
         """
@@ -54,11 +58,13 @@ class _MonsterBlend(_MonsterMerge):
         self.unmatched = [h.GetProp('_Name') for h in self.hits if h.GetProp('_Name') not in used]
         scaffold = self.posthoc_refine(unrefined_scaffold)
         chimera = self.make_chimera(scaffold, mode_index)
-        self.keep_copy(scaffold, 'scaffold')
-        self.keep_copy(chimera, 'chimera')
+
         self.positioned_mol = self.place_from_map(target_mol=self.positioned_mol,
                                                   template_mol=chimera,
-                                                  atom_map=None)
+                                                  atom_map=None,
+                                                  random_seed=self.random_seed)
+        self.keep_copy(scaffold, 'scaffold')
+        self.keep_copy(chimera, 'chimera')
 
     def no_blending(self, broad=False) -> None:
         """
@@ -82,8 +88,7 @@ class _MonsterBlend(_MonsterMerge):
                      mols=self.hits,
                      maps=maps,
                      no_discard=self.throw_on_discard)
-        self.keep_copy(um.combined, 'scaffold')
-        self.keep_copy(um.combined_bonded, 'chimera')
+
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
@@ -91,11 +96,17 @@ class _MonsterBlend(_MonsterMerge):
         # ------------------ places the atoms with known mapping ------------------
         placed = self.place_from_map(target_mol=self.initial_mol,
                                      template_mol=um.combined_bonded,
-                                     atom_map=um.combined_map)
+                                     atom_map=um.combined_map,
+                                     random_seed=self.random_seed)
+
+        self.keep_copy(um.combined, 'scaffold')
+        self.keep_copy(um.combined_bonded, 'chimera')
+
         alts = zip(um.combined_bonded_alternatives, um.combined_map_alternatives)
         placed_options = [self.place_from_map(target_mol=self.initial_mol,
                                              template_mol=mol,
-                                             atom_map=mappa) for mol, mappa in alts]
+                                             atom_map=mappa,
+                                             random_seed=self.random_seed) for mol, mappa in alts]
         # ------------------ Averages the overlapping atoms ------------------
         self.positioned_mol = self.posthoc_refine(placed)
         self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
@@ -316,7 +327,8 @@ class _MonsterBlend(_MonsterMerge):
             warn('Valance issue' + str(err))
         return chimera
 
-    def place_from_map(self, target_mol: Chem.Mol, template_mol: Chem.Mol, atom_map: Optional[Dict] = None) -> Chem.Mol:
+    def place_from_map(self, target_mol: Chem.Mol, template_mol: Chem.Mol, atom_map: Optional[Dict] = None,
+                       random_seed=None) -> Chem.Mol:
         """
         This method places the atoms with known mapping
         and places the 'uniques' (novel) via an aligned mol (the 'sextant')
@@ -334,7 +346,11 @@ class _MonsterBlend(_MonsterMerge):
             target_mol = self.initial_mol
         sextant = Chem.Mol(target_mol)
         Chem.SanitizeMol(sextant)
-        AllChem.EmbedMolecule(sextant)
+        if random_seed:
+            kwargs= dict(randomSeed=random_seed)
+        else:
+            kwargs= {}
+        AllChem.EmbedMolecule(sextant, **kwargs)
         AllChem.MMFFOptimizeMolecule(sextant)
         ######################################################
         # mapping retrieval and sextant alignment
@@ -343,6 +359,7 @@ class _MonsterBlend(_MonsterMerge):
             atom_map, mode = self.get_mcs_mapping(target_mol, template_mol)
             msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
             self.journal.debug(f"followup-chimera' = {msg}")
+        self._add_atom_map_asProp(template_mol, atom_map)
         rdMolAlign.AlignMol(sextant, template_mol, atomMap=list(atom_map.items()), maxIters=500)
         # place atoms that have a known location
         putty = Chem.Mol(sextant)
@@ -555,3 +572,30 @@ class _MonsterBlend(_MonsterMerge):
         """
         return [h.GetProp('_Name') for h in self.hits if
                 h.GetProp('_Name') not in self.unmatched]
+
+
+    def sample_new_conformation(self, random_seed=None):
+        scaffold = self.modifications["chimera"]
+        atom_map = self.get_atom_map_fromProp(scaffold)
+        if random_seed is None:
+            random_seed = self.random_seed
+        new_mol = self.place_from_map(target_mol=Chem.Mol(self.initial_mol), template_mol=scaffold, atom_map=atom_map,
+                       random_seed=random_seed)
+
+        merging_mode = getattr(self, "merging_mode", "off")
+        if merging_mode == 'off':
+            pass
+        elif merging_mode == 'full':
+            pass
+        elif merging_mode == 'partial':
+            self.partial_blending()
+        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none' or \
+            merging_mode == 'none':
+            new_mol = self.posthoc_refine(new_mol)
+        else:
+            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')
+            raise ValueError(
+                f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
+
+        self.positioned_mol = new_mol
+        return new_mol

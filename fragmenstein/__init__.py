@@ -26,6 +26,11 @@ try:
 except ZeroDivisionError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
+try:
+    from .multivictor import MultiVictorPlacement
+except ZeroDivisionError as err:
+    warn(f'Victor (pipeline) unavailable — {err}.', category=ImportWarning)
+
 from .monster import Monster
 from molecular_rectifier import Rectifier
 from .m_rmsd import mRMSD
