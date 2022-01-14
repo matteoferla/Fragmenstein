@@ -10,6 +10,10 @@ if sys.version_info.major != 3 or sys.version_info.minor < 6:
 # ---------- Pip and Non pip modules  ----------------------------------------------------------------------------------
 requirements = ['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests']
 
+# `pip install xxx` from wheels (the pre-compiled packages), does not run setup.py.
+# While sdist does.
+# Therefore these warnings will not be shown for pip installations from wheels...
+
 if not util.find_spec('rdkit'):
     # pypi overwrites the conda version
     requirements.append('rdkit-pypi')
