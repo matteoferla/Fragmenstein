@@ -162,7 +162,7 @@ Nope:
 
     ERROR: Error in core::scoring::methods::RamaPreProEnergy::residue_pair_energy(): The RamaPrePro term is incompatible with cyclic dipeptides (as is most of the rest of Rosetta).
 
-Note that if the crosslink is not there, it minimises fine most of the time with pyrrolysine.
+Note that if the covalent bond is not there, it minimises fine most of the time with pyrrolysine.
 Also, reading from file does not work:
 
 ```python
@@ -170,7 +170,7 @@ pose = ph.pose_from_file('test2.pdb', ['PYR.gp.params', 'XMS.gp.params'])
 ```
     [ WARNING ] Patch SidechainConjugation implies it can apply to residue type CYZ, but actually applying it fails.
 
-This non-crosslinked pose will give the error:
+This non–S-conjugated pose will give the error:
 
     ERROR: No structure mods allowed during scoring!
 
