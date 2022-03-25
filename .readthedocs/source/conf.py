@@ -70,6 +70,7 @@ def convert_write(markdown_filename, srt_filename):
     with open(markdown_filename) as fh:
         markdown_block = fh.read()
     markdown_block = re.sub(r"""href=(['"])[./]*images/""", r'href=\1', markdown_block)
+    markdown_block = re.sub(r"""src=(['"])[./]*images/""", r'href=\1', markdown_block)
 
     def fix_md_link(match: re.Match) -> str:
         link = match['link']
