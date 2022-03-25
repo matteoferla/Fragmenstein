@@ -94,7 +94,7 @@ def convert_write(markdown_filename, srt_filename):
 
 convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.rst')
 
-new_files = {'documentation': [], 'documentation/notes': []}
+new_files = {'discussion': [], 'notes': []}
 definitions = (('documentation', 'doc_', 'discussion'),
                ('documentation/notes', 'note_', 'notes'),
                ('documentation/monster', 'doc_', 'discussion'))
