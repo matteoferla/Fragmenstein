@@ -95,19 +95,21 @@ def convert_write(markdown_filename, srt_filename):
 convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.rst')
 
 new_files = {'documentation': [], 'documentation/notes': []}
-for folder, prefix in (('documentation', 'doc_'), ('documentation/notes', 'note_')):
+definitions = (('documentation', 'doc_', 'discussion'),
+               ('documentation/notes', 'note_', 'notes'),
+               ('documentation/monster', 'doc_', 'discussion'))
+for folder, prefix, pagename in definitions:
     for filename in os.listdir(os.path.join(repo_base_path, folder)):
         path = os.path.join(repo_base_path, folder, filename)
-        if os.path.isdir(path) or '.md' not in path:
+        if os.path.isdir(path) or '.md' not in path or 'sphinx' in path:
             continue
         convert_write(path, prefix+filename.replace('.md', '.rst'))
-        new_files[folder].append(prefix+filename.replace('.md', ''))
+        new_files[pagename].append(prefix+filename.replace('.md', ''))
 
-for pagename, linked_pagenames in [('discussion', new_files['documentation']),
-                                   ('notes', new_files['documentation/notes'])]:
+for pagename in definitions:
     with open(pagename+'.rst', 'w') as fh:
         fh.write(pagename.capitalize()+'\n' +
                  '='*42 +
                  '\n\n.. toctree::\n   :maxdepth: 4\n   :caption: Contents:\n\n' +
-                 '\n'.join(['   '+p for p in linked_pagenames])
+                 '\n'.join(['   '+p for p in new_files[pagename]])
                  )
