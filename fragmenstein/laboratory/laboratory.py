@@ -1,8 +1,5 @@
 ## INCOMPLETE
 
-raise NotImplementedError
-
-
 from sqlitedict import SqliteDict
 from rdkit.Chem import PandasTools
 import json
@@ -19,8 +16,12 @@ from typing import Dict, List, Union
 from ._process import process
 
 class Laboratory:
+    """
+    This class was never finished.
+    """
 
     def __init__(self, project, hits: list[Chem.Mol]):
+        raise NotImplementedError
         self.project = project
         self.hits = {hit.GetProp('_Name'): hit for hit in hits}
         if None in self.hits:

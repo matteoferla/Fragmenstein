@@ -27,7 +27,7 @@ class Igor(_IgorInit, _IgorMin, _IgorUtils):
     """
     Regular Igor(..) accepts pyrosetta pose.
     ``Igor.from_pdbblock(..)`` accepts pdb block as str,
-    while ``Igorfrom_pdbfile(..)`` accepts filename as str.
+    while ``Igor.from_pdbfile(..)`` accepts filename as str.
 
 
     ``ligand`` can be one of many things. default is 'LIG'. But it can be
@@ -43,6 +43,8 @@ class Igor(_IgorInit, _IgorMin, _IgorUtils):
     If it is a pyrosetta.Vector1 it is assumed that 1 mean select this residue (as a result of a ``selector.apply(pose)`` operation)
     If it is a list or tuple, the elements are interpreted similarly to ligand.
 
+    This class inherits the base classes ``_IgorInit``, ``_IgorMin``, ``_IgorUtils``, which contain the initialisation  methods,
+    minimisation  methods and extra methods respectively.
     """
 
     def residues_in_selector(self, pose: pyrosetta.Pose, selector) -> List[str]:
