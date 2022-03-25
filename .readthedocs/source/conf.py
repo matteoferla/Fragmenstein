@@ -106,7 +106,7 @@ for folder, prefix, pagename in definitions:
         convert_write(path, prefix+filename.replace('.md', '.rst'))
         new_files[pagename].append(prefix+filename.replace('.md', ''))
 
-for pagename in definitions:
+for _, _, pagename in definitions:
     with open(pagename+'.rst', 'w') as fh:
         fh.write(pagename.capitalize()+'\n' +
                  '='*42 +
