@@ -1,6 +1,6 @@
 __all__ = ['pyrosetta']
 
-from importlib import util
+from importlib import util, machinery
 import sys
 from warnings import warn
 
@@ -17,6 +17,7 @@ class AttributeFilledMock:
     warning_msg = 'PyRosetta is not installed! Yet it has been called. '+\
                   'The mock object taking its place does nothing.'+\
                   'This is bound to raise an error'
+    __spec__ = machinery.ModuleSpec('pyrosetta', '')
 
     def __getattr__(self, attr: str):
         return self
