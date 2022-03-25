@@ -71,8 +71,8 @@ class Monster(_MonsterUtil, _MonsterPlace, _MonsterCombine):
     * ``.positioned_mol`` is the desired output (rdkit.Chem.Mol object)
     * ``.initial_mol`` is the input (rdkit.Chem.Mol object), this is `None` in a `.combine` call.
     * ``.modifications['scaffold']`` is the combined version of the hits (rdkit.Chem.Mol object).
-    * ``.modifications['chimera']`` is the combined version of the hits, but with differing atoms made
-      to match the followup (rdkit.Chem.Mol object).
+    * ``.modifications['chimera']`` is the combined version of the hits, but with differing atoms made \
+                    to match the followup (rdkit.Chem.Mol object).
 
     ``.get_positional_mapping``, which works also as a class method,
     creates a dictionary of mol_A atom index to mol_B atom index
