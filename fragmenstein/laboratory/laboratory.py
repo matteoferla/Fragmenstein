@@ -20,7 +20,7 @@ class Laboratory:
     This class was never finished.
     """
 
-    def __init__(self, project, hits: list[Chem.Mol]):
+    def __init__(self, project, hits: List[Chem.Mol]):
         raise NotImplementedError
         self.project = project
         self.hits = {hit.GetProp('_Name'): hit for hit in hits}
