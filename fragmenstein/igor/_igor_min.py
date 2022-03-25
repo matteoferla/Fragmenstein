@@ -325,8 +325,6 @@ class _IgorMin:
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
         relax.apply(self.pose)
 
-
-
     def ligand_score(self):
         lig_pos = self.ligand_residue[0]
         # no constraints here
@@ -350,7 +348,6 @@ class _IgorMin:
         assert data.shape[0] >= lig_pos - 1, f'Ligand {lig_pos} was lost from the pose? size={data.shape}'
         i = lig_pos - 1  ##pose numbering is fortran style. while python is C++
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
-
 
     def minimize(self, cycles: int = 15, default_coord_constraint=True):
         self.repack_neighbors()
