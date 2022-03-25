@@ -92,7 +92,7 @@ class _IgorInit:
             ## assuming it is LIG then.
             ligand_selector = pyrosetta.rosetta.core.select.residue_selector.ResidueNameSelector()
             ligand_selector.set_residue_name3('LIG')
-            m = self._vector2residues(ligand_selector.apply(self.pose))
+            m = self._vector2residues(ligand_selector.apply(self.pose))  # noqa its in Igor_min
             if len(m) == 1:
                 warn('There are many residues called LIG!. Please specify the name3/resn/resi yourself!')
             for r in m:
