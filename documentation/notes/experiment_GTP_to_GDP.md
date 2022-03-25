@@ -30,7 +30,7 @@ I'll clean up the structure in PyRosetta.
 The first step has the caveat that toolbox rcsb strips ligands and stuff,
 so it needs to be done differently.
 
-```jupyterpython
+```python
 import pyrosetta_help as ph
 pdb_filename = ph.download_pdb('1QRA')
 pose = pyrosetta.pose_from_pdb(pdb_filename) 
@@ -38,14 +38,14 @@ pose = pyrosetta.pose_from_pdb(pdb_filename)
 
 ## Save the apo structure
 In a first pass I did:
-```jupyterpython
+```python
 pyrosetta.rosetta.core.pose.remove_nonprotein_residues(pose)
 apo_filename = 'apo.pdb'
 pose.dump_pdb(apo_filename) 
 ```
 The `remove_nonprotein_residues` removes the magnesium, which is bad.
 So a more convoluted way is required, _i.e._ select and delete the GTP:
-```jupyterpython
+```python
 pr_rs = pyrosetta.rosetta.core.select.residue_selector
 gtp_sele = pr_rs.ResidueNameSelector()
 gtp_sele.set_residue_name3('GTP')
@@ -54,7 +54,7 @@ pose.delete_residue_slow(gtp_idx)
 assert len(pr_rs.ResidueVector(  gtp_sele.apply(pose)  )) == 0
 ```
 and the waters:
-```jupyterpython
+```python
 hoh_sele = pr_rs.ResidueNameSelector()
 hoh_sele.set_residue_name3('HOH')
 for hoh_idx in reversed(list(pr_rs.ResidueVector(  hoh_sele.apply(pose)  ))):
@@ -62,12 +62,12 @@ for hoh_idx in reversed(list(pr_rs.ResidueVector(  hoh_sele.apply(pose)  ))):
 assert len(pr_rs.ResidueVector(  hoh_sele.apply(pose)  )) == 0
 ```
 before saving:
-```jupyterpython
+```python
 apo_filename = 'apo.pdb'
 pose.dump_pdb(apo_filename) 
 ```
 Just to make sure it worked, let's have a gander:
-```jupyterpython
+```python
 import nglview as nv
 
 view = nv.show_rosetta(pose)

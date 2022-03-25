@@ -3,19 +3,19 @@
 ## Config
 Victor is the main entrypoint to the module.
 
-```jupyterpython
+```python
 from fragmenstein import Victor
 ```
 
 ### Logging
 set logging to stdout
-```jupyterpython
+```python
 import logging
 Victor.enable_stdout(logging.INFO)
 ```
 
 or to file
-```jupyterpython
+```python
 import logging
 Victor.enable_logfile('test.log', logging.INFO)
 ```
@@ -28,7 +28,7 @@ or the method `capture_logs` is called directly.
 
 Pyrosetta needs to be initialised as normal
 
-```jupyterpython
+```python
 import pyrosetta
 pyrosetta.init(extra_options='-no_optH false -mute all -ignore_unrecognized_res false -load_PDB_components false')
 ```
@@ -38,7 +38,7 @@ which is handy as it prevents weird errors (e.g. there is a [PDB ligand called `
 
 Alternatively, a cleaner way can be using a helper function in laboratory
 
-```jupyterpython
+```python
 import pyrosetta
 from fragmenstein.laboratory import make_option_string
 extras = make_option_string(no_optH=False,
@@ -51,13 +51,13 @@ pyrosetta.init(extra_options=extras)
 If you want to just use `Monster` and do not have `pyrosetta` installed for licencing reasons,
 the following works fine.
 
-```jupyterpython
+```python
 from fragmenstein import Monster
 ```
 
 If you have pyrosetta installed, but want to mimic this behaviour (??)
 
-```jupyterpython
+```python
 import sys
 sys.modules['pyrosetta'] = None
 # this raises on `import pyrosetta` a ModuleNotFoundError
@@ -65,7 +65,7 @@ sys.modules['pyrosetta'] = None
 ### Output path
 
 set working path
-```jupyterpython
+```python
 Victor.work_path = 'test'
 ```
 ### Hits
@@ -73,7 +73,7 @@ Victor.work_path = 'test'
 Create mol files of reference hits
 given a single PDB file return the RDKit Chem.Mol molecule with covalent as `*`
 
-```jupyterpython
+```python
 mol = Victor.extract_mol(name='x01234',
                          filepath='here.pdb',
                          smiles='CCO',
@@ -82,7 +82,7 @@ mol = Victor.extract_mol(name='x01234',
 ```
 
 To parse a whole folder (flat) of PDBs and get a dictionary of names -> Chem.Mol
-```jupyterpython
+```python
 mols = Victor.extract_mols(folder='PDBs',
                            smilesdex={'x01234': 'CCO'}, # optional
                            ligand_resn= 'LIG',
@@ -92,7 +92,7 @@ mols = Victor.extract_mols(folder='PDBs',
 ```
 
 To have a gander
-```jupyterpython
+```python
 from rdkit import Chem
 Chem.Draw.MolsToGridImage(mols.values())
 ```
@@ -113,7 +113,7 @@ afterwards.
 The ligand needs to be parameterised first. Example
 (for more see [rdkit_to_params](https://github.com/matteoferla/rdkit_to_params))
 
-```jupyterpython
+```python
 from rdkit_to_params import Params
 
 params = Params.from_smiles_w_pdbfile(pdb_file='5BV6_clean.pdb',
@@ -122,12 +122,12 @@ params = Params.from_smiles_w_pdbfile(pdb_file='5BV6_clean.pdb',
 params.dump('35G.params')
 ```
 Have a gander to see all is good
-```jupyterpython
+```python
 import nglview
 nglview.show_rosetta(params.test())
 ```
 Load pose:
-```jupyterpython
+```python
 from typing import *
 
 
@@ -152,7 +152,7 @@ pose = get_pose(pdb_filename='5BV6_clean.pdb',
 ```
 Igor has a function to relax against ED (taken from [here](http://blog.matteoferla.com/2020/04/how-to-set-up-electron-density.html))
 
-```jupyterpython
+```python
 from fragmenstein import Igor
 Igor.relax_with_ED(pose, 'map.ccp4')
 pose.dump_pdb('relaxed.pdb')
@@ -164,7 +164,7 @@ pose.dump_pdb('template.pdb')
 Victor has two modes, merge and place.
 Say we extracted `hit_a` and `hit_b` as `Chem.Mol` instances:
 
-```jupyterpython
+```python
 victor = Victor(hits=[hits_a, hit_b], pdb_filename='template.pdb')
 # victor.place('CCO') # to place.
 victor.combine()
@@ -174,17 +174,17 @@ Using code from [here](http://blog.matteoferla.com/2021/02/multiple-poses-in-ngl
 one could inspect the starting hits in NGLView in the notebook etc.
 
 Alternatively,
-```jupyterpython
+```python
 victor.make_pse()
 ```
 One could see the numbers with:
-```jupyterpython
+```python
 victor.summarize()
 ```
 
 Or individual values
 
-```jupyterpython
+```python
 victor.ddG
 ```
 
@@ -199,7 +199,7 @@ sorting by ligand efficiency (ratio of ∆∆G over number of heavy atoms) is be
 
 ### Inspect
 To see the Pyrosetta pose
-```jupyterpython
+```python
 import nglview as nv
 
 view = nv.show_rosetta(victor.igor.pose)
@@ -212,7 +212,7 @@ To fix, before extracting or before using a template align them in say PyMOL (`a
 Just remember than PyMOL strips LINK entries making covalents non-covalent
 (unless `proximityBonding=True` is used in the extraction, which is not recommended).
 Doing it within python:
-```jupyterpython
+```python
 import pymol2
 
 with pymol2.PyMOL() as pymol:
