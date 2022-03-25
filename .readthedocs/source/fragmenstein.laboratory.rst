@@ -2,7 +2,7 @@ fragmenstein.laboratory package
 ===============================
 
 
-.. autoclass:: fragmenstein.Laboratory
+.. autoclass:: fragmenstein.laboratory.Laboratory
    :members:
    :undoc-members:
    :show-inheritance:
