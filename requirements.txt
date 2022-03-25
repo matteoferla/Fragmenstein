@@ -1,0 +1,13 @@
+# this is not read by setup. It is here solely for RTD and user interest
+requests
+ipython
+numpy
+pandas
+
+rdkit-pypi
+rdkit-to-params
+molecular-rectifier
+smallworld_api  # optional
+
+# `pymol2` is conda only and optional
+# `pyrosetta` has non-standard installation, see docs and `fragmenstein.igor.pyrosetta_import` for mock for RTD

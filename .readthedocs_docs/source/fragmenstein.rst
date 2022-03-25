@@ -1,0 +1,27 @@
+fragmenstein package
+====================
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+
+   fragmenstein.monster
+   fragmenstein.igor
+   fragmenstein.victor
+   fragmenstein.multivictor
+   fragmenstein.laboratory
+   fragmenstein.mpro
+   fragmenstein.cli
+   fragmenstein.branding
+   fragmenstein.m_rmsd
+
+Module contents
+---------------
+
+.. automodule:: fragmenstein
+   :members:
+   :undoc-members:
+   :show-inheritance:
