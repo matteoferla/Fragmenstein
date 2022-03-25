@@ -16,19 +16,10 @@ from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
+from ._igor_base import _IgorBase
 
-class _IgorMin:
 
-    def __init__(self):
-        warn('THIS METHOD SHOULD NOT BE RUN. INHERIT _init_')
-        self.pose = pyrosetta.Pose()
-        self.constraint_file = ''
-        self.ligand_residue = []
-        self.key_residues = []
-        self.atom_pair_constraint = 10
-        self.angle_constraint = 10
-        self.coordinate_constraint = 1
-        self.fa_intra_rep = 0.005 # default
+class _IgorMin(_IgorBase):
 
     def pose2str(self, pose: Optional[pyrosetta.Pose] = None) -> str:
         """
@@ -43,12 +34,6 @@ class _IgorMin:
         buffer = pyrosetta.rosetta.std.stringbuf()
         pose.dump_pdb(pyrosetta.rosetta.std.ostream(buffer))
         return buffer.str()
-
-    def _vector2residues(self, vector: pyrosetta.Vector1) -> List[int]:
-        """
-        This method is for machines. See ``residues_in_vector`` instead.
-        """
-        return [i + 1 for i, v in enumerate(vector) if v == 1]
 
     def mol_from_pose(self, pose:Optional[pyrosetta.Pose]=None) -> Chem.Mol:
         """
@@ -337,7 +322,7 @@ class _IgorMin:
                 **self.score_split()}
 
     @classmethod
-    def detailed_scores(cls, pose, lig_pos:int) -> Dict:
+    def detailed_scores(cls, pose: pyrosetta.Pose, lig_pos:int) -> Dict:
         """
         Gets called by Victor too, hence the classmethod
         :param pose:

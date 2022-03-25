@@ -17,7 +17,8 @@ class AttributeFilledMock:
     warning_msg = 'PyRosetta is not installed! Yet it has been called. '+\
                   'The mock object taking its place does nothing.'+\
                   'This is bound to raise an error'
-    __spec__ = machinery.ModuleSpec('pyrosetta', '')
+    __spec__ = machinery.ModuleSpec('pyrosetta', None)
+    __signature__ = None
 
     def __getattr__(self, attr: str):
         return self

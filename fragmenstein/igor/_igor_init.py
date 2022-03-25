@@ -8,13 +8,14 @@ base methods
 ########################################################################################################################
 
 from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
+from ._igor_base import _IgorBase
 
 from typing import Dict, List, Optional, Tuple, Union, Sequence
 
 from warnings import warn
 
 
-class _IgorInit:
+class _IgorInit(_IgorBase):
     atom_pair_constraint = 10
     angle_constraint = 10
     coordinate_constraint = 1
@@ -35,12 +36,12 @@ class _IgorInit:
         :param ligand_residue: ligand -see class docstring
         :param key_residues: multiple entries -see class docstring
         """
-        self.pose = pose
+        self.pose = pose #: pyrosetta.Pose
         # virtualroot
         if pose.residue(self.pose.total_residue()).name3() != 'XXX':
             pyrosetta.rosetta.core.pose.addVirtualResAsRoot(self.pose)
         pyrosetta.create_score_function('ref2015')(self.pose)
-        self.constraint_file = constraint_file
+        self.constraint_file = constraint_file  #: str
         self.ligand_residue = self._parse_residue(ligand_residue)
         self.key_residues = self._parse_key_residues(key_residues)
 
@@ -136,3 +137,4 @@ class _IgorInit:
             for k in key_residues:
                 parsed.extend(self._parse_residue(k))
         return parsed
+
