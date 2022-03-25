@@ -25,7 +25,7 @@ extensions = [
     'readthedocs_ext.readthedocs',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
-    'sphinx_toolbox.more_autodoc',
+    #'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     #'sphinx.ext.imgconverter',
 ]
@@ -113,3 +113,8 @@ for _, _, pagename in definitions:
                  '\n\n.. toctree::\n   :maxdepth: 4\n   :caption: Contents:\n\n' +
                  '\n'.join(['   '+p for p in new_files[pagename]])
                  )
+
+# code to circumvent issue library issue with certain installs.
+# from collections import namedtuple
+# import sys
+# sys.modules['rdkit.Chem.Draw'] = namedtuple('Draw', ['MolDraw2DSVG'])
