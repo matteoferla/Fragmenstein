@@ -8,7 +8,7 @@ Combine = merge/join
 ########################################################################################################################
 
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, rdmolops
 
 from ._collapse_ring import _MonsterRing
 from ._base import _MonsterBase
@@ -76,6 +76,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         if len(frags) == 1:
             # all good
             self.positioned_mol = recto.mol
+            Chem.rdmolops.AssignStereochemistryFrom3D(self.positioned_mol)
         else: # the molecule is still nasty. Getting largest.
             self.positioned_mol = sorted(frags, key=lambda mol: mol.GetNumAtoms(), reverse=True)[0]
         self.keep_copies(recto.modifications, 'fixed')
