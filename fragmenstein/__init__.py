@@ -32,7 +32,9 @@ except ImportError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 from .monster import Monster
+from .walton import Walton
 from molecular_rectifier import Rectifier
 from .m_rmsd import mRMSD
 from .mpro import MProVictor
 from .mpro import data as mpro_data
+from . import branding

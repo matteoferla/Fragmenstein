@@ -59,6 +59,9 @@ Additionally, there are a few minor classes.
 One of these is ``mRMSD``, a multiple RMSD variant which does not align and bases which atoms 
 to use on coordinates —[documentation](documentation/mrmsd.md)
 
+The class `Walton` performs geometric manipulations of compounds, to set them up to demonstrate
+features of Fragmenstein (like captain Walton, it does not partake in the plot, but is key to the narration)
+
 There are two module hosted elsewhere:
 
 * ``Rectifier`` from [molecular_rectifier](https://github.com/matteoferla/molecular_rectifier) is a class that corrects mistakes in the molecule automatically merged by ``Monster``.
