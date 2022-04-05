@@ -11,6 +11,7 @@ Subpackages
    fragmenstein.monster
    fragmenstein.igor
    fragmenstein.victor
+   fragmenstein.walton
    fragmenstein.multivictor
    fragmenstein.laboratory
    fragmenstein.mpro
