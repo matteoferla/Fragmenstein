@@ -1,4 +1,4 @@
-from typing import (Optional, Union)
+from typing import (Optional, Union, Tuple)
 
 import numpy as np
 from rdkit import Geometry
@@ -25,6 +25,7 @@ class WaltonAdvMove(WaltonMove):
         the ratio of the opposite over the adjencent.
         """
         coords: Geometry.Point3D = self.get_point(atom_idx, mol_idx)
+        plane = plane.lower()
         assert plane in ['xy', 'xz', 'yx', 'yz', 'zx', 'zy']
         axis = plane[1]
         annulled = (set('xyz') - set(plane)).pop()
@@ -87,3 +88,67 @@ class WaltonAdvMove(WaltonMove):
         direction: Geometry.Point3D = from_coord.DirectionVector(to_coord)
         self.translate_by_point(mol_idx=mol_idx, point=direction, scale=distance)
 
+    def ring_on_plane(self, mol_idx: int, ring_idx:int=0, plane:str='yx', centroid_to_origin:bool=True):
+        """
+        Place the ring flat on a plane.
+        The maths is shoddy and as a result there may be a bit of offset.
+
+        centroid_to_origin=False may not fully keep the centroid in place.
+        """
+        # move to centroid for easy maths
+        original_centroid = self.get_centroid_of_ring(ring_idx=ring_idx, mol_idx=mol_idx)
+        self.atom_to_origin(mol_idx=mol_idx, atom_idx=original_centroid)  # first atom to origin
+        for i in self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx]:
+            self.atom_on_plane(mol_idx=mol_idx,
+                               atom_idx=i,
+                               plane=[plane, plane[::-1]][i % 2]  # I am not sure this is needed.
+                               )
+            centroid = self.get_centroid_of_ring(ring_idx=ring_idx, mol_idx=mol_idx)
+            self.atom_to_origin(mol_idx=mol_idx, atom_idx=centroid)  # first atom to origin
+        if not centroid_to_origin:
+            self.translate_by_point(mol_idx=mol_idx, point=original_centroid, scale=1)
+
+    def flatten_trio(self, mol_idx:int, atom_idcs: Tuple[int, int, int],
+                     primary_axis:str='x',
+                     secondary_axis:str='y',
+                     first_to_origin:bool=True,
+                     ):
+        """
+        Give three atom indices place the first and third on the primary axis and
+        the second on the plane with a second axis.
+
+        Say there's a propane and the axes are 1ary=x and 2ary=y then this method
+        will place the triangle along the x axis, flat on the xy plane, with no z elevation.
+        """
+        original_origin = self.get_point(mol_idx=mol_idx, atom_idx=atom_idcs[0])
+        self.atom_to_origin(mol_idx=mol_idx, atom_idx=atom_idcs[0])  # first atom to origin
+        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[2], plane=primary_axis+secondary_axis)  # atom 2 flat (z=0)
+        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[1], plane=secondary_axis+primary_axis)  # atom 1 flat (z=0)
+        self.atom_on_axis(mol_idx=mol_idx, atom_idx=atom_idcs[2], axis=primary_axis)  # atom 2 on x axis
+        if not first_to_origin:
+            self.translate_by_point(mol_idx=mol_idx, point=original_origin, scale=1)
+
+    # ----- quicker coord getters --------------------------------------------------
+
+    def print_coords(self, mol_idx: int = 0, no_hydrogens:bool=True):
+        for atom in self.get_mol(mol_idx).GetAtoms():  #: Chem.Atom  # noqa
+            if atom.GetAtomicNum() == 1 and no_hydrogens:
+                continue  # no hydrogens
+            atom_idx: int = atom.GetIdx()
+            coords = self.get_point(atom_idx, mol_idx)
+            print(f'atom {atom_idx: >2}: x={coords.x:.1f} y={coords.y:.1f} z={coords.z:.1f}')
+
+    def get_centroid_of_atoms(self,
+                              *idx_or_points: Union[int, Geometry.Point3D],
+                              mol_idx: int = -1) -> Geometry.Point3D:
+        points = [self.get_point(ip, mol_idx) for ip in idx_or_points]
+        mean_coord: Callable[[int], float] = lambda ai: float(np.mean([p[ai] for p in points]))  # noqa
+        return Geometry.Point3D(mean_coord(0), mean_coord(1), mean_coord(2))
+
+    def get_centroid_of_ring(self, mol_idx: int, ring_idx:int=0) -> Geometry.Point3D:
+        return self.get_centroid_of_atoms(*self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx], mol_idx=mol_idx)
+
+    def get_ring_radius(self, mol_idx: int, ring_idx:int=0) -> float:
+        atoms = self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx]
+        centroid = self.get_centroid_of_atoms(*atoms, mol_idx=mol_idx)
+        return atoms[0].Distance(centroid)

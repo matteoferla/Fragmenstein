@@ -22,6 +22,7 @@ from ._base import WaltonBase
 
 class WaltonMove(WaltonBase):
 
+    # get coordinates
     def get_point(self, atom_idx: Union[int, Geometry.Point3D], mol_idx: int = -1) -> Geometry.Point3D:
         """
         Given atom index and mol index return a point.
@@ -29,23 +30,12 @@ class WaltonMove(WaltonBase):
         """
         if isinstance(atom_idx, Geometry.Point3D):
             return atom_idx
+        elif mol_idx == -1:
+            raise ValueError('If providing an atom index as a number please provide a mol_idx')
         elif isinstance(atom_idx, int):
-            return self.mols[mol_idx].GetConformer(0).GetAtomPosition(atom_idx)
+            return self.get_mol(mol_idx).GetConformer(0).GetAtomPosition(atom_idx)
         else:
             raise TypeError(atom_idx)
-
-    def print_coords(self, mol_idx: int = 0, no_hydrogens:bool=True):
-        for atom in self.mols[mol_idx].GetAtoms():  #: Chem.Atom  # noqa
-            if atom.GetAtomicNum() == 1 and no_hydrogens:
-                continue  # no hydrogens
-            atom_idx: int = atom.GetIdx()
-            coords = self.get_point(atom_idx, mol_idx)
-            print(f'atom {atom_idx: >2}: x={coords.x:.1f} y={coords.y:.1f} z={coords.z:.1f}')
-
-    def centroid_of_atoms(self, *idx_or_points: Union[int, Geometry.Point3D], mol_idx: int = -1):
-        points = [self.get_point(ip, mol_idx) for ip in idx_or_points]
-        mean_coord: Callable[[int], float] = lambda ai: float(np.mean([p[ai] for p in points]))  # noqa
-        return Geometry.Point3D(mean_coord(0), mean_coord(1), mean_coord(2))
 
     # ----------- align ------------------------------------------------------------------
 
@@ -64,9 +54,9 @@ class WaltonMove(WaltonBase):
         """
         Aligns by MCS
         """
-        fixed = self.mols[0]
+        fixed = self.mols[-1]
         commons = []
-        for moved in self.mols[1:]:
+        for moved in self.mols[:1]:
             res: rdFMCS.MCSResult = rdFMCS.FindMCS([moved, fixed], **mcs_settings)
             common = Chem.MolFromSmarts(res.smartsString)
             Chem.SanitizeMol(common)
@@ -86,7 +76,7 @@ class WaltonMove(WaltonBase):
         Applies an affine transform 4x4 matrix to mol_idx.
         Use ``translate`` or ``rotate``.
         """
-        AllChem.TransformConformer(self.mols[mol_idx].GetConformer(0),
+        AllChem.TransformConformer(self.get_mol(mol_idx).GetConformer(0),
                                    transform_matrix.astype(np.double)
                                    )
 

@@ -5,6 +5,7 @@ from rdkit.Chem import AllChem
 
 from ..monster import Monster
 from ..branding import divergent_colors
+from functools import singledispatchmethod
 
 
 class WaltonBase:
@@ -83,5 +84,24 @@ class WaltonBase:
         Duplicate the molecule at a given index.
         And fix colours.
         """
-        self.mols.append(Chem.Mol(self.mols[mol_idx]))
+        self.mols.append(Chem.Mol(self.get_mol(mol_idx)))
         self.color_in()
+
+    @singledispatchmethod
+    def get_mol(self, mol_idx: int) -> Chem.Mol:
+        """
+        Type dispatched method:
+
+        * Gets the molecule in ``.mols`` with index ``mol_idx``
+        * returns the molecule provided as ``mol``
+
+        The latter route is not used within the module
+        but does mean one could pass a mol instead of a mol_idx...
+        """
+        assert isinstance(mol_idx, int)
+        assert len(self.mols) > mol_idx, f'The instance of Walton has only {len(self.mols)}, so cannot get {mol_idx}.'
+        return self.mols[mol_idx]
+
+    @get_mol.register
+    def _(self, mol: Chem.Mol) -> Chem.Mol:
+        return mol
