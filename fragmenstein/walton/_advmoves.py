@@ -88,7 +88,7 @@ class WaltonAdvMove(WaltonMove):
         direction: Geometry.Point3D = from_coord.DirectionVector(to_coord)
         self.translate_by_point(mol_idx=mol_idx, point=direction, scale=distance)
 
-    def ring_on_plane(self, mol_idx: int, ring_idx:int=0, plane:str='yx', centroid_to_origin:bool=True):
+    def ring_on_plane(self, mol_idx: int, ring_idx: int = 0, plane: str = 'yx', centroid_to_origin: bool = True):
         """
         Place the ring flat on a plane.
         The maths is shoddy and as a result there may be a bit of offset.
@@ -108,10 +108,10 @@ class WaltonAdvMove(WaltonMove):
         if not centroid_to_origin:
             self.translate_by_point(mol_idx=mol_idx, point=original_centroid, scale=1)
 
-    def flatten_trio(self, mol_idx:int, atom_idcs: Tuple[int, int, int],
-                     primary_axis:str='x',
-                     secondary_axis:str='y',
-                     first_to_origin:bool=True,
+    def flatten_trio(self, mol_idx: int, atom_idcs: Tuple[int, int, int],
+                     primary_axis: str = 'x',
+                     secondary_axis: str = 'y',
+                     first_to_origin: bool = True,
                      ):
         """
         Give three atom indices place the first and third on the primary axis and
@@ -122,15 +122,17 @@ class WaltonAdvMove(WaltonMove):
         """
         original_origin = self.get_point(mol_idx=mol_idx, atom_idx=atom_idcs[0])
         self.atom_to_origin(mol_idx=mol_idx, atom_idx=atom_idcs[0])  # first atom to origin
-        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[2], plane=primary_axis+secondary_axis)  # atom 2 flat (z=0)
-        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[1], plane=secondary_axis+primary_axis)  # atom 1 flat (z=0)
+        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[2],
+                           plane=primary_axis + secondary_axis)  # atom 2 flat (z=0)
+        self.atom_on_plane(mol_idx=mol_idx, atom_idx=atom_idcs[1],
+                           plane=secondary_axis + primary_axis)  # atom 1 flat (z=0)
         self.atom_on_axis(mol_idx=mol_idx, atom_idx=atom_idcs[2], axis=primary_axis)  # atom 2 on x axis
         if not first_to_origin:
             self.translate_by_point(mol_idx=mol_idx, point=original_origin, scale=1)
 
     # ----- quicker coord getters --------------------------------------------------
 
-    def print_coords(self, mol_idx: int = 0, no_hydrogens:bool=True):
+    def print_coords(self, mol_idx: int = 0, no_hydrogens: bool = True):
         for atom in self.get_mol(mol_idx).GetAtoms():  #: Chem.Atom  # noqa
             if atom.GetAtomicNum() == 1 and no_hydrogens:
                 continue  # no hydrogens
@@ -145,10 +147,10 @@ class WaltonAdvMove(WaltonMove):
         mean_coord: Callable[[int], float] = lambda ai: float(np.mean([p[ai] for p in points]))  # noqa
         return Geometry.Point3D(mean_coord(0), mean_coord(1), mean_coord(2))
 
-    def get_centroid_of_ring(self, mol_idx: int, ring_idx:int=0) -> Geometry.Point3D:
+    def get_centroid_of_ring(self, mol_idx: int, ring_idx: int = 0) -> Geometry.Point3D:
         return self.get_centroid_of_atoms(*self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx], mol_idx=mol_idx)
 
-    def get_ring_radius(self, mol_idx: int, ring_idx:int=0) -> float:
+    def get_ring_radius(self, mol_idx: int, ring_idx: int = 0) -> float:
         atoms = self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx]
         centroid = self.get_centroid_of_atoms(*atoms, mol_idx=mol_idx)
         return atoms[0].Distance(centroid)

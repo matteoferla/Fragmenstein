@@ -56,4 +56,3 @@ class Walton(WaltonAdvMove, WaltonArt):
                      atom_idx=demo.get_centroid_of_atoms(1, 2, mol_idx=0),
                     axis='x')
     """
-

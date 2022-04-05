@@ -9,7 +9,6 @@ from functools import singledispatchmethod
 
 
 class WaltonBase:
-
     color_scales = divergent_colors
 
     def __init__(self,
@@ -49,7 +48,7 @@ class WaltonBase:
     @classmethod
     def from_smiles(cls,
                     aligned: bool = False,
-                    add_Hs:bool=False,
+                    add_Hs: bool = False,
                     **name2smiles: Dict[str, str]):
         """
         Load from SMILES.
@@ -65,7 +64,7 @@ class WaltonBase:
             mols.append(mol)
         return cls(mols=mols, aligned=aligned)
 
-    def __call__(self, color='#a9a9a9', minimize:bool=False) -> Chem.Mol:  # darkgrey
+    def __call__(self, color='#a9a9a9', minimize: bool = False) -> Chem.Mol:  # darkgrey
         """
         Calls Monster to do the merger.
         Filling the attribute ``merged`` w/ a Chem.Mol.
