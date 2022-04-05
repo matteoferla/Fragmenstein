@@ -38,7 +38,10 @@ class mRMSD:
     Here the average is done across all the atom pairs between each hit and the followup.
     Therefore, atoms in followup that derive in the blended molecule by multiple atom are scored multiple times.
 
-    $\sqrt{\frac{\sum_{i}^{N_{\rm{hits}}} (\sum_{i}^{n} (q_{i,\rm{x}} - h_{i,\rm{x}})^2 + (q_{i,\rm{y}} - h_{i,\rm{y}})^2 + (q_{i,\rm{z}} - h_{i,\rm{z}})^2 }{n\cdot m}}$
+    .. math::
+
+        \sqrt{\frac{\sum_{i}^{N_{\rm{hits}}} (\sum_{i}^{n} (q_{i,\rm{x}} - h_{i,\rm{x}})^2 +  \\
+        (q_{i,\rm{y}} - h_{i,\rm{y}})^2 + (q_{i,\rm{z}} - h_{i,\rm{z}})^2 }{n\cdot m}}
 
 
 
