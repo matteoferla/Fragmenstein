@@ -37,4 +37,4 @@ from molecular_rectifier import Rectifier
 from .m_rmsd import mRMSD
 from .mpro import MProVictor
 from .mpro import data as mpro_data
-import branding
+from . import branding
