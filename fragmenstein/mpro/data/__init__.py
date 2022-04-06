@@ -45,6 +45,12 @@ def get_mol(hit_name: Optional[str]=None) -> Chem.Mol:
     return mol
 
 def get_filtered_mol(mw_cutoff: float=float('inf')) -> Chem.Mol:
+    """
+    Return a random Chem.Mol from the MPro dataset,
+    with one of the following filtering criteria:
+
+    * ``mw_cutoff``: molWt cutoff
+    """
     # For now only MolWt
     choices = get_hit_list()
     random.shuffle(choices)
@@ -56,6 +62,9 @@ def get_filtered_mol(mw_cutoff: float=float('inf')) -> Chem.Mol:
         raise ValueError('No hit matches the specified values')
 
 def get_n_filtered_mols(amount: int, **cutoffs) -> List[Chem.Mol]:
+    """Get ``amount`` of the mols (Chem.Mol) randomly
+     that match a cutoff criterion.
+    As listed in ``get_filtered_mol``"""
     mols = []
     mol_names = set()
     assert amount > 0, 'A zero amount does nothing.'
