@@ -75,15 +75,17 @@ class LabBench:
                 print(f'{error.__class__.__name__}: {error}')
                 results.append({'error': error.__class__.__name__, 'name': ''})
         # list of dict to dataframe
-        combinations = pd.DataFrame(results)
-        combinations['LE'] = combinations.apply(
+        df = pd.DataFrame(results)
+        df['LE'] = df.apply(
             lambda row: row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)
         nan_to_list = lambda value: value if isinstance(value, list) else []
-        combinations['disregarded'] = combinations.disregarded.apply(nan_to_list)
-        combinations['regarded'] = combinations.regarded.apply(nan_to_list)
-        combinations['unminimized_mol'] = combinations.unmin_binary.apply(unbinarize)
-        combinations['minimized_mol'] = combinations.min_binary.apply(unbinarize)
+        df['disregarded'] = df.disregarded.apply(nan_to_list)
+        df['regarded'] = df.regarded.apply(nan_to_list)
+        df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
+        df['minimized_mol'] = df.min_binary.apply(unbinarize)
+        df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l])
+
 
         def categorize(row: pd.Series) -> str:
             # see category_labels for list of values.

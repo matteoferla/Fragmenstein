@@ -29,6 +29,7 @@ class LabCombine(LabBench):
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
             result['min_binary'] = binarize(v.minimized_mol)
+            result['hit_binaries'] = [binarize(h) for h in v.hits]
             return result
             # v.make_pse()
         except Exception as error:

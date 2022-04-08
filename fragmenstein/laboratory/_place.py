@@ -56,6 +56,7 @@ class LabPlace(LabBench):
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
             result['min_binary'] = binarize(v.minimized_mol)
+            result['hit_binaries'] = [binarize(h) for h in v.hits]
             return result
         except Exception as error:
             error_msg = f'{error.__class__.__name__} {error}'
