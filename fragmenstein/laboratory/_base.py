@@ -1,11 +1,10 @@
-import itertools
-import logging, pebble
+import pebble
+from typing import (Any, Callable, Union, Iterator)
+
 import pandas as pd
+import pebble
 from rdkit import Chem
-from fragmenstein import Victor
-from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
-import pyrosetta_help as ph
-from typing import (Any, Callable, ClassVar, Final, ForwardRef, Generic, Literal, Optional, Protocol, Tuple, Type, TypeVar, Union, AbstractSet, ByteString, Container, ContextManager, Hashable, ItemsView, Iterable, Iterator, KeysView, Mapping, MappingView, MutableMapping, MutableSequence, MutableSet, Sequence, Sized, ValuesView, Awaitable, AsyncIterator, AsyncIterable, Coroutine, Collection, AsyncGenerator, AsyncContextManager, Reversible, SupportsAbs, SupportsBytes, SupportsComplex, SupportsFloat, SupportsIndex, SupportsInt, SupportsRound, ChainMap, Counter, Deque, Dict, DefaultDict, List, OrderedDict, Set, FrozenSet, NamedTuple, TypedDict, Generator, AnyStr, cast, final, get_args, get_origin, get_type_hints, NewType, no_type_check, no_type_check_decorator, NoReturn, overload, runtime_checkable, Text, TYPE_CHECKING)
+
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
     # this is convoluted as None is a common error outcome with RDKit
