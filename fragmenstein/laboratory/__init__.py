@@ -14,6 +14,6 @@ class Laboratory(LabCombine, LabPlace):
         results: pd.DataFrame = lab.combine(hits)
         px.histogram(results,
                      x='outcome',
-                     category_orders={'outcome': lab.cotegory_labels},
+                     category_orders={'outcome': lab.category_labels},
             title='Distribution of outcome')
     """
