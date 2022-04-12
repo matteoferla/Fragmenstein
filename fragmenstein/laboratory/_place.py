@@ -65,6 +65,7 @@ class LabPlace(LabBench):
 
     def place(self,
               queries: Union[pd.DataFrame, Sequence[MolPlacementInput]],
+              expand_isomers:bool=False,
               **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
         """
         Due to the way Monster works merging A with B may yield a different result to B with A.
@@ -77,10 +78,19 @@ class LabPlace(LabBench):
             pre_iterator = queries.iterrows()
         elif isinstance(queries, Sequence):
             pre_iterator = enumerate(queries)
+        else:   # it may crash...
+            pre_iterator = queries
         iterator: Iterator[BinPlacementInput] = iter([{'smiles': d['smiles'],
                                                       'name': d['name'],
                                                       'binary_hits': [binarize(m) for m in d['hits']]}
                                                      for _, d in pre_iterator])
+        if expand_isomers:
+            iterator = [{'binary_hits': data['binary_hits'],
+                         'name': data['name']+f'-isomer_{i}',
+                         'smiles': sub_smiles}
+                                for data in iterator
+                                for i, sub_smiles in enumerate(Victor.get_isomers_smiles(data['smiles']))
+                        ]
         return self(iterator=iterator, fun=self.place_subprocess, **kwargs)
 
 # prepend docstring to combine

@@ -25,7 +25,8 @@ import numpy as np
 from typing import List, Union, Optional, Dict, Tuple
 
 from rdkit import Chem
-from rdkit.Chem import rdFMCS, AllChem
+from rdkit.Chem import rdFMCS, AllChem, EnumerateStereoisomers
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from ._victor_common import _VictorCommon
 from ..m_rmsd import mRMSD
@@ -552,6 +553,24 @@ class _VictorUtils(_VictorCommon):
         return self
 
     # =================== Guess ===================================================================================
+
+    @classmethod
+    def get_isomers(cls, mol: Chem.Mol) -> List[Chem.Mol]:
+        """
+        For placement operations in particular it is important to differentiate the
+        isomers. Therefore requiring multiple victor calls.
+        """
+        enumerate_tautomers = rdMolStandardize.TautomerEnumerator().Enumerate
+        enumerate_stereoisomers = EnumerateStereoisomers.EnumerateStereoisomers
+        return [tauto for stereo in enumerate_stereoisomers(mol)
+                for tauto in enumerate_tautomers(stereo)
+                ]
+
+    def get_isomers_smiles(cls, smiles: str) -> List[str]:
+        """
+        Same as `get_isomers`, but with smiles.
+        """
+        return list(map(Chem.MolToSmiles, cls.get_isomers(Chem.MolFromSmiles(smiles))))
 
     @classmethod
     def guess_warhead(cls, smiles: str) -> Tuple[str, str]:
