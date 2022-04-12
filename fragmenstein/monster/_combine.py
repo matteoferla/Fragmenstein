@@ -57,6 +57,13 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.journal.debug(f'Expanded')
         try:
             self.rectify()
+        except Chem.AtomValenceException:
+            self.journal.info('Ring expansion while trying to appease the bonding caused an issue. Rolling back.')
+            mol = Chem.RWMol(self.modifications['Rings expanded and original bonding restored.'])  # not the novel bonding
+            self._delete_collapsed(mol)
+            self._detriangulate(mol)
+            self.positioned_mol = self._emergency_joining(mol)
+            self.rectify()
         except RecursionError:
             self.journal.critical(f'Recursion limit in rectifier')
             raise ConnectionError(f'Can not rectify {self.positioned_mol}')

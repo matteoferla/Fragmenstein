@@ -89,6 +89,7 @@ class _MonsterRing( _MonsterJoinNeigh):
             central.SetProp('_zs', json.dumps(zs))
             central.SetProp('_elements', json.dumps(elements))
             central.SetProp('_bonds', json.dumps(bonds))
+            central.SetIsotope(len(atomset))
             conf.SetAtomPosition(c, Point3D(*[sum(axis) / len(axis) for axis in (xs, ys, zs)]))
         # Store complex info
         for atomset, center_i in zip(mol.GetRingInfo().AtomRings(), center_idxs):
@@ -134,7 +135,9 @@ class _MonsterRing( _MonsterJoinNeigh):
         self._restore_original_bonding(mol, rings)
         self.keep_copy(mol, 'Rings expanded and original bonding restored.')
         self._add_novel_bonding(mol, rings)  # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
+        self.keep_copy(mol, 'Rings expanded and original+novel bonding restored.')
         self._delete_collapsed(mol)
+        self.keep_copy(mol, 'Rings expanded and ring-core deleted')
         self._detriangulate(mol)
         try:
             mol = self._emergency_joining(mol)  # does not modify in place!
@@ -515,7 +518,7 @@ class _MonsterRing( _MonsterJoinNeigh):
                             nonunique_pairs: List[Tuple[Chem.Atom, Chem.Atom]],
                             ringcore_first=True) \
             -> List[Tuple[Chem.Atom, Chem.Atom]]:
-        # complicate because mol.GetAtomWithIdx(2) == mol.GetAtomWithIdx(2) is False
+        # complicated because mol.GetAtomWithIdx(2) == mol.GetAtomWithIdx(2) is False
         seen = []
         pairs = []
         for atom_a, atom_b in nonunique_pairs:
@@ -523,7 +526,8 @@ class _MonsterRing( _MonsterJoinNeigh):
             ai = atom_a.GetIdx()
             bi = atom_b.GetIdx()
             if ai == bi:
-                self.journal.debug(f'Bond to self incident with {ai} (ring? {atom_a.HasProp("_current_is") == 1})')
+                self.journal.debug(f'Merging: Bond to self incident with {ai} '+
+                                   f'(ring? {atom_a.HasProp("_current_is") == 1})')
                 continue
             if ringcore_first and atom_a.HasProp('_current_is') and not atom_b.HasProp('_current_is'):
                 ringcore = ai
@@ -583,7 +587,7 @@ class _MonsterRing( _MonsterJoinNeigh):
     def _get_close_novel_ring_atoms_indices(self,
                                             mol: Chem.Mol,
                                             rings: List[Dict[str, List[Any]]],
-                                            cutoff: int) -> List[Tuple[int, int]]:
+                                            cutoff: float) -> List[Tuple[int, int]]:
         """
         Get the list of pairs of indices derived from a ring that are closer that ``cutoff`` to another ring atom.
         Note, the operations are between real ring atoms not ring core markers.
@@ -604,8 +608,8 @@ class _MonsterRing( _MonsterJoinNeigh):
         self._nan_fill_others(mol, distance_matrix, [idx for idcs in atomdex.values() for idx in idcs])
         return self._get_closest_from_matrix(distance_matrix, cutoff)
 
-    def _get_closest_from_matrix(self, matrix: np.ndarray, cutoff: int) -> List[Tuple[int, int]]:
-        # get the pair of atom indices that are less thna cutoff.
+    def _get_closest_from_matrix(self, matrix: np.ndarray, cutoff: float) -> List[Tuple[int, int]]:
+        # get the pair of atom indices that are less than cutoff.
         # where returns a tuple of np.arrays of dtype=np.int64
         with np.errstate(invalid='ignore'):
             return list(zip(*[w.astype(int) for w in np.where(matrix < cutoff)]))
@@ -745,12 +749,15 @@ class _MonsterRing( _MonsterJoinNeigh):
         :param cutoff:
         :return:
         """
+        stringify_pairs = lambda pairs: str([(p[0].GetIdx(), p[1].GetIdx()) for p in pairs])
         # ----------------------------------------------------------
         # scenario where they are closer than the cutoff
         close_pairs = self._get_close_novel_others(mol, rings, cutoff)  # 2.7889 ring diameter + 1.45 C-C bond
+        self.journal.debug(f'_get_novel_other_pairs - close_pairs @ {cutoff}: {stringify_pairs(close_pairs)}')
         # ----------------------------------------------------------
         # scenario where they are bonded...
         bonded_pairs = self._get_novel_other_bonded_pairs(rings)
+        self.journal.debug(f'_get_novel_other_pairs - bonded_pairs @ {cutoff}: {stringify_pairs(bonded_pairs)}')
         # ------------ merge lists -----------
         return self.merge_pairing_lists(close_pairs + bonded_pairs)
 
@@ -759,6 +766,8 @@ class _MonsterRing( _MonsterJoinNeigh):
                                 rings,
                                 cutoff):
         idx_pairs = self._get_close_novel_ring_other_indices(mol, rings, cutoff)
+        # filter out identities
+        idx_pairs = [(ai, bi) for (ai, bi) in idx_pairs if ai != bi]
         # filter out those that are bonded already to core atom.
         return self._indices_to_atoms_n_cores(mol, idx_pairs)
 
