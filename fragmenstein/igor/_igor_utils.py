@@ -124,3 +124,12 @@ class _IgorUtils(_IgorBase):
             scorefxnED.set_weight(elec_dens_fast, w)
             relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxnED, 5)
             relax.apply(pose)
+
+    @staticmethod
+    def init_pyrosetta():
+        """
+        Common options for pyrosetta. Does not use `pyrosetta_help` atm
+        """
+        pyrosetta.init(extra_options='-no_optH false -ex1 -ex2 -mute all -ignore_unrecognized_res false ' +\
+                                     '-load_PDB_components false -ignore_waters true')
+
