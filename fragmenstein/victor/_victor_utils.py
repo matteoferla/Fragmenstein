@@ -551,9 +551,30 @@ class _VictorUtils(_VictorCommon):
             self.minimized_mol = None
         return self
 
-    # =================== Laboratory ===================================================================================
+    # =================== Guess ===================================================================================
 
     @classmethod
-    def laboratory(cls, entries: List[dict], cores: int = 1):
-        raise NotImplementedError('Not yet written.')
-        pass
+    def guess_warhead(cls, smiles: str) -> Tuple[str, str]:
+        """
+        Going backwards by guessing what the warhead is.
+        Normally there'd be better data handling so no guessing
+        """
+        if not smiles or not isinstance(smiles, str):
+            return '', 'noncovalent'
+        if '*' not in smiles:
+            return smiles, 'noncovalent'
+        mol = Chem.MolFromSmiles(smiles)
+        warhead_defs = []
+        for warhead_def in cls.warhead_definitions:
+            if mol.HasSubstructMatch(Chem.MolFromSmiles(warhead_def['covalent'])):
+                warhead_defs.append(warhead_def)
+        if not warhead_defs:
+            cls.journal.warning(f'Could not match {smiles} to a warhead definition in `Victor.warhead_definitions`')
+            return smiles.replace('*', 'O'), 'noncovalent'
+        # most complex one first!
+        warhead_def = sorted(warhead_defs, key=lambda d: -len(d['covalent_atomnames']))[0]
+        unrxn_mols = AllChem.ReplaceSubstructs(mol=mol,
+                                               query=Chem.MolFromSmiles(warhead_def['covalent']),
+                                               replacement=Chem.MolFromSmiles(warhead_def['noncovalent'])
+                                               )  # noqa it is filled.
+        return Chem.MolToSmiles(unrxn_mols[0]), warhead_def['name']
