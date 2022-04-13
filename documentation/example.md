@@ -36,11 +36,12 @@ The `ignore_unrecognized_res` controls whether to raise an error if a residue ca
 While `load_PDB_components` stop the PDB defined database from being loaded,
 which is handy as it prevents weird errors (e.g. there is a [PDB ligand called `LIG`](https://www.rcsb.org/ligand/LIG))
 
-Alternatively, a cleaner way can be using a helper function in laboratory
+Alternatively, a cleaner way can be using a helper function in
+the [pyrosetta-help module](https://github.com/matteoferla/pyrosetta_help)
 
 ```python
 import pyrosetta
-from fragmenstein.laboratory import make_option_string
+from pyrosetta_help import make_option_string
 extras = make_option_string(no_optH=False,
                             mute='all',
                             ignore_unrecognized_res=False,

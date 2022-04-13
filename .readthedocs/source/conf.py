@@ -25,6 +25,7 @@ extensions = [
     'readthedocs_ext.readthedocs',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
+    'sphinx.ext.mathjax',
     #'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     #'sphinx.ext.imgconverter',

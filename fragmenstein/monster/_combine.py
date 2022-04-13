@@ -8,7 +8,7 @@ Combine = merge/join
 ########################################################################################################################
 
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, rdmolops
 
 from ._collapse_ring import _MonsterRing
 from ._base import _MonsterBase
@@ -57,6 +57,13 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.journal.debug(f'Expanded')
         try:
             self.rectify()
+        except Chem.AtomValenceException:
+            self.journal.info('Ring expansion while trying to appease the bonding caused an issue. Rolling back.')
+            mol = Chem.RWMol(self.modifications['Rings expanded and original bonding restored.'])  # not the novel bonding
+            self._delete_collapsed(mol)
+            self._detriangulate(mol)
+            self.positioned_mol = self._emergency_joining(mol)
+            self.rectify()
         except RecursionError:
             self.journal.critical(f'Recursion limit in rectifier')
             raise ConnectionError(f'Can not rectify {self.positioned_mol}')
@@ -78,4 +85,5 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
             self.positioned_mol = recto.mol
         else: # the molecule is still nasty. Getting largest.
             self.positioned_mol = sorted(frags, key=lambda mol: mol.GetNumAtoms(), reverse=True)[0]
+        Chem.rdmolops.AssignStereochemistryFrom3D(self.positioned_mol)
         self.keep_copies(recto.modifications, 'fixed')

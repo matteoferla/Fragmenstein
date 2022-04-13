@@ -5,8 +5,14 @@ from rdkit.Chem import AllChem
 
 from ..monster import Monster
 from ..branding import divergent_colors
-from functools import singledispatchmethod
 
+import sys
+if sys.version_info.major != 3 or sys.version_info.minor < 8:
+    # hack to enable the backport. !pip install singledispatchmethod
+    import functools
+    from singledispatchmethod import singledispatchmethod
+    functools.singledispatchmethod = singledispatchmethod
+from functools import singledispatchmethod
 
 class WaltonBase:
     color_scales = divergent_colors

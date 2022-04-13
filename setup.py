@@ -8,7 +8,18 @@ if sys.version_info.major != 3 or sys.version_info.minor < 6:
     raise SystemError('Module written for Python 3.6+.')
 
 # ---------- Pip and Non pip modules  ----------------------------------------------------------------------------------
-requirements = ['pandas', 'numpy', 'rdkit-to-params', 'molecular-rectifier', 'requests']
+requirements = ['pandas',
+                'numpy',
+                'requests',
+                'ipython',
+                'scipy',
+                'pebble',
+                'rdkit-to-params',
+                'molecular-rectifier',
+                'smallworld-api',
+                'nglview',
+                'sqlitedict ']
+  # optional
 
 # `pip install xxx` from wheels (the pre-compiled packages), does not run setup.py.
 # While sdist does.
@@ -38,7 +49,7 @@ Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
 
 setup(
     name='Fragmenstein',
-    version='0.7.0',
+    version='0.7.3',
     python_requires='>=3.7',
     packages=find_packages(),
     include_package_data=True,

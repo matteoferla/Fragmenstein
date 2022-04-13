@@ -4,13 +4,12 @@ ipython
 numpy
 scipy
 pandas
-
+pebble
 rdkit-pypi
 rdkit-to-params
 molecular-rectifier
 smallworld-api  # optional
 sqlitedict  # optional
-Pebble  # optional
 nglview  # optional
 
 # `pymol2` is conda only and optional

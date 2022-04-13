@@ -25,7 +25,8 @@ import numpy as np
 from typing import List, Union, Optional, Dict, Tuple
 
 from rdkit import Chem
-from rdkit.Chem import rdFMCS, AllChem
+from rdkit.Chem import rdFMCS, AllChem, EnumerateStereoisomers
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from ._victor_common import _VictorCommon
 from ..m_rmsd import mRMSD
@@ -551,9 +552,48 @@ class _VictorUtils(_VictorCommon):
             self.minimized_mol = None
         return self
 
-    # =================== Laboratory ===================================================================================
+    # =================== Guess ===================================================================================
 
     @classmethod
-    def laboratory(cls, entries: List[dict], cores: int = 1):
-        raise NotImplementedError('Not yet written.')
-        pass
+    def get_isomers(cls, mol: Chem.Mol) -> List[Chem.Mol]:
+        """
+        For placement operations in particular it is important to differentiate the
+        isomers. Therefore requiring multiple victor calls.
+        """
+        enumerate_tautomers = rdMolStandardize.TautomerEnumerator().Enumerate
+        enumerate_stereoisomers = EnumerateStereoisomers.EnumerateStereoisomers
+        return [tauto for stereo in enumerate_stereoisomers(mol)
+                for tauto in enumerate_tautomers(stereo)
+                ]
+
+    def get_isomers_smiles(cls, smiles: str) -> List[str]:
+        """
+        Same as `get_isomers`, but with smiles.
+        """
+        return list(map(Chem.MolToSmiles, cls.get_isomers(Chem.MolFromSmiles(smiles))))
+
+    @classmethod
+    def guess_warhead(cls, smiles: str) -> Tuple[str, str]:
+        """
+        Going backwards by guessing what the warhead is.
+        Normally there'd be better data handling so no guessing
+        """
+        if not smiles or not isinstance(smiles, str):
+            return '', 'noncovalent'
+        if '*' not in smiles:
+            return smiles, 'noncovalent'
+        mol = Chem.MolFromSmiles(smiles)
+        warhead_defs = []
+        for warhead_def in cls.warhead_definitions:
+            if mol.HasSubstructMatch(Chem.MolFromSmiles(warhead_def['covalent'])):
+                warhead_defs.append(warhead_def)
+        if not warhead_defs:
+            cls.journal.warning(f'Could not match {smiles} to a warhead definition in `Victor.warhead_definitions`')
+            return smiles.replace('*', 'O'), 'noncovalent'
+        # most complex one first!
+        warhead_def = sorted(warhead_defs, key=lambda d: -len(d['covalent_atomnames']))[0]
+        unrxn_mols = AllChem.ReplaceSubstructs(mol=mol,
+                                               query=Chem.MolFromSmiles(warhead_def['covalent']),
+                                               replacement=Chem.MolFromSmiles(warhead_def['noncovalent'])
+                                               )  # noqa it is filled.
+        return Chem.MolToSmiles(unrxn_mols[0]), warhead_def['name']

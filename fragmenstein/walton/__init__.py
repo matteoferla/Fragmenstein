@@ -2,9 +2,10 @@ from ._advmoves import WaltonAdvMove
 from ._art import WaltonArt
 from ._base import WaltonBase
 from ._movements import WaltonMove
+from ._polygon import WaltonPolygon
 
 
-class Walton(WaltonAdvMove, WaltonArt):
+class Walton(WaltonAdvMove, WaltonArt, WaltonPolygon):
     """
     This is a diagnostic/demo class.
     It aligns molecules for merging to test a hypothesis.
