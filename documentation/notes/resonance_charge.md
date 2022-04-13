@@ -35,3 +35,62 @@ These are quite extreme, but they could be stabilised by bonding for example.
 In fact, tryptophan has two fluorescent lifetimes, which are affected by the polarity of the solvent.
 
 These alteranate forms are not considered by Fragmenstein.
+
+## Pipe dream
+One option to do so **would** be to score the hits
+and try every resonance form until the best is found.
+Then once the follow-up conformer is ready find the resonance form
+with atomic charges most similar to those they map to.
+
+This problem has two parts.
+This requires the ability to change atom charge in PyRosetta
+(other than remaking a pose each time, which is insane).
+
+To do this it seems one has to generate a new residuetype,
+create a residue and swap it:
+
+So given a pose with indole (as an example):
+
+```python
+params = Params.from_smiles('c12c(cc[nH]2)cccc1')
+pose = params.to_pose()
+```
+Get the residue type:
+```python
+residue = pose.residue(1)
+print(residue.atomic_charge(1), residue.atom_name(1))
+rt:pyrosetta.rosetta.core.chemical.ResidueType = residue.type()
+```
+modify it (randomly in this case):
+```python
+mrt = pyrosetta.rosetta.core.chemical.MutableResidueType(rt)
+sac = pyrosetta.rosetta.core.chemical.SetAtomicCharge(residue.atom_name(1), 0.8)
+sac.apply(mrt)
+```
+Get a regular residue type:
+```python
+nrt = pyrosetta.rosetta.core.chemical.ResidueType.make(mrt)
+```
+Create the replacement:
+```python
+new = pyrosetta.rosetta.core.conformation.ResidueFactory.create_residue(nrt)
+v = pyrosetta.rosetta.utility.vector1_std_pair_std_string_std_string_t(residue.natoms())
+for i in range(1, residue.natoms()+1):
+    v[i] = (residue.atom_name(i),residue.atom_name(i))
+    new.set_xyz(i,residue.xyz(i))
+```
+Replace the old with the new:
+```python
+pose.replace_residue(1, new, False)
+residue = pose.residue(1)
+print(residue.atomic_charge(1), residue.atom_name(1))
+```
+This works, but would require correction for external bonding,
+which may be a nuisance.
+
+A partial charge is a value that goes between -1 and 1,
+so finding the resonance form that best matches
+would probably be a simple least squares.
+
+The gozdillion dollar question is
+how to test this is a good idea.
