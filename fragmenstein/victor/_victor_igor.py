@@ -12,8 +12,21 @@ class _VictorIgor(_VictorStore):
         """
         self.journal.debug(f'{self.long_name} - making ligand only')
         ligand = self.igor.mol_from_pose()
+        # PDBResidueInfo is lost by AllChem.AssignBondOrdersFromTemplate
+        # but not prop
+        pdb_infos: Dict[Chem.AtomPDBResidueInfo] = {}
+        for atom in ligand.GetAtoms():
+            info: Chem.AtomPDBResidueInfo = atom.GetPDBResidueInfo()
+            pdb_infos[info.GetName()] = info
+            atom.SetProp('atom_name', info.GetName())
+        # copy bond order:
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
-        return AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        bonded = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        # fix residue info
+        for atom in bonded.GetAtoms():
+            name = atom.GetProp('atom_name')
+            atom.SetPDBResidueInfo(pdb_infos[name])
+        return bonded
 
     def quick_reanimate(self) -> float:
         """
