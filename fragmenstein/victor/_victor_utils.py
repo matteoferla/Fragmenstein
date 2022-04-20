@@ -502,12 +502,12 @@ class _VictorUtils(_VictorCommon):
             fd = json.load(open(fragjson))
             self.smiles = fd['smiles']
             self.is_covalent = True if '*' in self.smiles else False
-            self.monster.place(mol=self.mol,
-                               attachment=None,
-                               merging_mode='off')
+            self.monster = Monster(self.hits)
+            # self.monster.place(mol=self.mol,
+            #                    attachment=None,
+            #                    merging_mode='off')
             self.monster.positioned_mol = self.mol
             self.monster.positioned_mol.SetProp('_Origins', json.dumps(fd['origin']))
-
         else:
             self.is_covalent = None
             self.smiles = ''
@@ -537,9 +537,10 @@ class _VictorUtils(_VictorCommon):
             self.mrmsd.mrmsd = md["mRMSD"]
             self.mrmsd.rmsds = md["RMSDs"]
             self.igor = Igor.from_pdbfile(
-                pdbfile=os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb'),
-                params_file=os.path.join(self.work_path, self.long_name, self.long_name + '.params'),
-                constraint_file=os.path.join(self.work_path, self.long_name, self.long_name + '.con'))
+                pdbfile=os.path.join(folder, self.long_name + '.holo_minimised.pdb'),
+                params_file=os.path.join(folder, self.long_name + '.params'),
+                constraint_file=os.path.join(folder, self.long_name + '.con'))
+            self.minimized_mol = victor._fix_minimized()  # otherwise it lacks PDBInfo, such as names
         else:
             self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                                  'unbound_ref2015': {'total_score': float('nan')}}
