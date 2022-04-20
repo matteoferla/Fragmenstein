@@ -8,7 +8,7 @@ These are extra functionality for Igor
 ########################################################################################################################
 
 import requests, shutil
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 from ._igor_base import _IgorBase
 from rdkit import Chem
