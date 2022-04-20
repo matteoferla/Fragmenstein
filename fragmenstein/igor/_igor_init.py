@@ -6,6 +6,7 @@ base methods
     """
 
 ########################################################################################################################
+import os.path
 
 from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 from ._igor_base import _IgorBase
@@ -78,6 +79,11 @@ class _IgorInit(_IgorBase):
         :param key_residues: multiple entries -see class docstring
         :return:
         """
+        for filename in (pdbfile, constraint_file, params_file):
+            if not os.path.exists(filename):
+                raise FileNotFoundError(f'{filename} does not exist')
+            if os.stat(filename).st_size < 10:
+                raise ValueError(f'{filename} is only {os.stat(filename).st_size} bytes long')
         pose = pyrosetta.Pose()
         params_paths = pyrosetta.rosetta.utility.vector1_string()
         params_paths.extend([params_file])
@@ -127,12 +133,12 @@ class _IgorInit(_IgorBase):
     def _parse_key_residues(self,
                             key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]],
                                                 pyrosetta.Vector1]):
-        parsed = []
-        if key_residues is None:
-            try:
-                parsed = [self.pose.residue(self.ligand_residue[0]).connect_map(1).resid()]
-            except RuntimeError:
-                warn('No covalent bond with the ligand.')
+        parsed: List[int] = []
+        residue = self.pose.residue(self.ligand_residue[0])
+        if key_residues is None and residue.n_current_residue_connections():
+            parsed = [residue.connect_map(1).resid()]
+        elif key_residues is None:
+            parsed = [1]
         else:
             for k in key_residues:
                 parsed.extend(self._parse_residue(k))
