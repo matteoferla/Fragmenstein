@@ -11,6 +11,10 @@ import requests, shutil
 from typing import Optional, Dict
 from .pyrosetta_import import pyrosetta  # the real mcCoy or a mock.
 from ._igor_base import _IgorBase
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from rdkit.Chem.Draw import SimilarityMaps
+from enum import Enum
 
 
 class _IgorUtils(_IgorBase):
@@ -80,6 +84,63 @@ class _IgorUtils(_IgorBase):
                         scores[iname][st] += s
         return scores
 
+    def display_energy(self,
+                       minimized_mol: Union[Chem.Mol, None],
+                       term: Union[str, Enum]='all',
+                       colorMap:str='coolwarm') -> Dict[str, float]:
+        """
+        Given the ``minimized_mol`` display the energy contributions.
+        As Victor has this while Igor is naive of bond orders, if None is passed it will made due with no bond order.
+
+        ``term`` is the term to use:
+
+        * ``all`` will be ``['lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']``
+        * ``lenard-jones`` will ``['lj_atr', 'lj_rep']``
+        * while ``['lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']`` will be the individual ones.
+
+        As this is rather obscure, there is an enum as an attribute of ``display_energy`` method called ``Term``,
+        with the values ``.display.Term.ALL``, ``.display.Term.ATTRACTION``, ``.display.Term.REPULSION``,
+        ``.display.Term.LENARDJONES``, ``.display.Term.SOLVATATION``, ``.display.Term.ELECTROSTATIC``
+        which is possibly more sane (e.g. ``igor.display_energy(minimized_mol, term=igor.display.Term.ELECTROSTATIC)``).
+        """
+        if minimized_mol is None:
+            minimized_mol = self.mol_from_pose()
+
+        # ['all', 'lenard-jones', 'lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']
+        # deal with choices of terms:
+        if isinstance(term, Enum):
+            term = term.value
+        weights = {'lj_atr': scorefxn.get_weight(pyrosetta.rosetta.core.scoring.ScoreType.fa_atr),
+                   'lj_rep': scorefxn.get_weight(pyrosetta.rosetta.core.scoring.ScoreType.fa_rep),
+                   'fa_solv': scorefxn.get_weight(pyrosetta.rosetta.core.scoring.ScoreType.fa_sol),
+                   'fa_elec': scorefxn.get_weight(pyrosetta.rosetta.core.scoring.ScoreType.fa_elec)}
+        if term == 'all':
+            pass
+        elif term == 'lenard-jones':
+            weights['fa_solv'] = 0
+            weights['fa_elec'] = 0
+        elif term in weights:
+            for other in set(weights.keys()) - {term}:
+                weights[other] = 0
+        else:
+            raise ValueError(f'Term {term} is not `all`,`lj_atr`,`lj_rep`,`fa_solv`,`fa_elec`')
+
+        # get scores
+        scores = self.per_atom_scores()
+
+        def get_combined(atom: Chem.Atom):
+            # combine the scores
+            scored = scores[atom.GetPDBResidueInfo().GetName()]
+            return sum([scored[k] * weights[k] for k in scored])
+
+        contribs = [get_combined(atom) for atom in minimized_mol.GetAtoms()]
+        # make into a 2D mol
+        mol = Chem.Mol(minimized_mol)
+        AllChem.Compute2DCoords(mol)
+        # displays automatically:
+        SimilarityMaps.GetSimilarityMapFromWeights(mol, contribs, colorMap=colorMap, contourLines=10)
+        return {atom.GetProp('atom_name'): round(get_combined(atom), 1) for atom in minimized_mol.GetAtoms()}
+
     @classmethod
     def download_map(cls, pdbcode: str, filename: str):
         """
@@ -133,3 +194,13 @@ class _IgorUtils(_IgorBase):
         pyrosetta.init(extra_options='-no_optH false -ex1 -ex2 -mute all -ignore_unrecognized_res false ' +\
                                      '-load_PDB_components false -ignore_waters true')
 
+
+class Term(Enum):
+    ALL = 'all'
+    ATTRACTION = 'lj_atr'
+    REPULSION = 'lj_rep'
+    LENARDJONES = 'lenard-jones'
+    SOLVATATION = 'fa_solv'
+    ELECTROSTATIC = 'fa_elec'
+
+setattr(_IgorUtils.display_energy, 'Term', Term)
