@@ -44,8 +44,8 @@ class Unmerge(GPM):
     """
     max_strikes = 3  #: number of discrepancies tollerated.
     rotational_approach = True
-    pick = 0 # override to pick not the first(0) best match.
-    distance_cutoff = 3 #: how distance is too distant in Å
+    pick = -1  # override to pick not the lowest energy match.
+    distance_cutoff = 3  #: how distance is too distant in Å
 
     def __init__(self,
                  followup: Chem.Mol,
@@ -111,9 +111,14 @@ class Unmerge(GPM):
         indices = sorted(valids,
                          key=goodness_sorter,
                          reverse=True)
-        if self.pick >= len(indices): # override N/A
-            i = indices[0]
-        else: # override applicable. self.pick = 0 generally
+        i = indices[0]  # pick first for now
+        if self.pick == -1:
+            pass
+        elif self.pick is None:  # bad option, correct it.
+            self.pick = -1
+        elif self.pick >= len(indices):  # override `pick` as not available
+            self.pick = -1
+        else:  # override applicable!
             i = indices[self.pick]
         ref = goodness_sorter(i)
         equals = [j for j in indices if goodness_sorter(j) == ref]

@@ -8,7 +8,7 @@ This is inherited by MonsterPlace
 
 from rdkit.Chem import rdmolops
 
-import itertools
+import itertools, operator
 import json
 from collections import Counter
 from collections import defaultdict
@@ -108,8 +108,13 @@ class _MonsterBlend(_MonsterMerge):
                                              atom_map=mappa,
                                              random_seed=self.random_seed) for mol, mappa in alts]
         # ------------------ Averages the overlapping atoms ------------------
-        self.positioned_mol = self.posthoc_refine(placed)
-        self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
+        if um.pick != -1:  # override present!
+            self.positioned_mol = self.posthoc_refine(placed)
+            self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
+        else:
+            mols: List[Chem.Mol] = [self.posthoc_refine(mol) for mol in [placed] + placed_options]
+            self.positioned_mol: Chem.Mol = self.get_best_scoring(mols)
+            self.mol_options: List[Chem.Mol] = mols.remove(self.positioned_mol)
 
     # ================= Blend hits ===================================================================================
 
@@ -132,7 +137,7 @@ class _MonsterBlend(_MonsterMerge):
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
 
-        ## a dodgy hit is a hit with inconsistent mapping bwteen three.
+        ## a dodgy hit is a hit with inconsistent mapping between three.
         def get_dodgies(skippers):
             dodgy = []
             for hit0, hit1, hit2 in itertools.combinations(hits, 3):
@@ -599,3 +604,33 @@ class _MonsterBlend(_MonsterMerge):
 
         self.positioned_mol = new_mol
         return new_mol
+
+    @classmethod
+    def get_best_scoring(cls, mols: List[Chem.Mol]) -> Chem.Mol:
+        """
+        Sorts molecules by how well they score w/ Merch FF
+        """
+        if len(mols) == 0:
+            raise ValueError(f'No molecules')
+        elif len(mols) == 1:
+            return mols[0]
+        scores = *map(cls.score_mol, mols),
+        mol_scores = sorted(list(zip(mols, scores)), key=operator.itemgetter(1))
+        return mol_scores[0][0]
+
+    @staticmethod
+    def score_mol(mol: Chem.Mol) -> float:
+        """
+        Scores a mol without minimising
+        """
+        if isinstance(mol, Chem.RWMol):
+            mol = mol.GetMol()
+        else:
+            mol = Chem.Mol(mol)
+        mol.UpdatePropertyCache()  # noqa
+        Chem.SanitizeMol(mol)
+        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
+        if p is None:
+            return float('nan')
+        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
+        return ff.CalcEnergy()
