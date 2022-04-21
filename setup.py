@@ -49,7 +49,7 @@ Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
 
 setup(
     name='Fragmenstein',
-    version='0.7.3',
+    version='0.8.0',
     python_requires='>=3.7',
     packages=find_packages(),
     include_package_data=True,
