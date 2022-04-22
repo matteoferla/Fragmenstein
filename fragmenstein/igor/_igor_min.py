@@ -106,23 +106,29 @@ class _IgorMin(_IgorBase):
             warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
             return float('nan')
 
-    def _get_scorefxn(self, name: str = "ref2015"):
-        scorefxn = pyrosetta.create_score_function(name)
-        # ref2015_cart_cst.wts
+    def _add_constraints(self, add_pose_constraints=True):
         # constrain
         if self.constraint_file:
-            #self.pose.dump_pdb('test.pdb')
+            # self.pose.dump_pdb('test.pdb')
             setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
             setup.constraint_file(self.constraint_file)
             setup.apply(self.pose)
-        coord = pyrosetta.rosetta.protocols.relax.AtomCoordinateCstMover()
-        coord.set_native_pose(self.pose.clone())
-        coord.apply(self.pose)
+        if add_pose_constraints:
+            coord = pyrosetta.rosetta.protocols.relax.AtomCoordinateCstMover()
+            coord.set_native_pose(self.pose.clone())
+            coord.apply(self.pose)
+
+    def _get_scorefxn(self, name: str = "ref2015", **overrides):
+        """
+        Sets constraint for ('atom_pair_constraint', "angle_constraint", "coordinate_constraint", "fa_intra_rep")
+        to either the value passed or if not the attribute of self
+        """
+        scorefxn = pyrosetta.create_score_function(name)
+        # ref2015_cart_cst.wts
         stm = pyrosetta.rosetta.core.scoring.ScoreTypeManager()
-        scorefxn.set_weight(stm.score_type_from_name("atom_pair_constraint"), self.atom_pair_constraint)
-        scorefxn.set_weight(stm.score_type_from_name("angle_constraint"), self.angle_constraint)
-        scorefxn.set_weight(stm.score_type_from_name("coordinate_constraint"), self.coordinate_constraint)
-        scorefxn.set_weight(stm.score_type_from_name("fa_intra_rep"), self.fa_intra_rep)
+        for key in ('atom_pair_constraint', "angle_constraint", "coordinate_constraint", "fa_intra_rep"):
+            value = overrides[key] if key in overrides else getattr(self, key)
+            scorefxn.set_weight(stm.score_type_from_name(key), value)
         return scorefxn
 
     def _get_selector(self,
@@ -170,7 +176,12 @@ class _IgorMin(_IgorBase):
         mmf.add_jump_action(true, pyrosetta.rosetta.core.select.jump_selector.InterchainJumpSelector())
         return mmf
 
-    def get_mod_FastRelax(self, cycles: int = 1, weight: float = 1.0, default_coord_constraint=True) -> pyrosetta.rosetta.protocols.moves.Mover:
+    def get_mod_FastRelax(self,
+                          cycles: int = 1,
+                          weight: float = 1.0,
+                          default_coord_constraint=True,
+                          cartesian=True,
+                          use_mod_script=False) -> pyrosetta.rosetta.protocols.moves.Mover:
         """
         This is not the usual fastRelax. It uses a modded minimiser protocol!
 
@@ -185,29 +196,32 @@ class _IgorMin(_IgorBase):
         :param default_coord_constraint: whether to constrain to the start position
         :return:
         """
-        scorefxn = self._get_scorefxn("ref2015_cart")
+        scorefxn = self._get_scorefxn("ref2015_cart") if cartesian else self._get_scorefxn("ref2015")
         movemap = self._get_movemap()
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, cycles)
-        v = pyrosetta.rosetta.std.vector_std_string(['repeat %%nrepeats%%',
-                                                     f'coord_cst_weight {weight}',
-                                                     'scale:fa_rep 0.092',
-                                                     'min 0.01',
-                                                     'scale:fa_rep 0.323',
-                                                     'min 0.01',
-                                                     'scale:fa_rep 0.633',
-                                                     'min 0.01',
-                                                     'scale:fa_rep 1',
-                                                     'min 0.00001',
-                                                     'accept_to_best',
-                                                     'endrepeat'])
-        relax.set_script_from_lines(v)
+        if use_mod_script:
+            # this is insanely slow with cartesian settings on...
+            v = pyrosetta.rosetta.std.vector_std_string(['repeat %%nrepeats%%',
+                                                         f'coord_cst_weight {weight}',
+                                                         'scale:fa_rep 0.092',
+                                                         'min 0.01',
+                                                         'scale:fa_rep 0.323',
+                                                         'min 0.01',
+                                                         'scale:fa_rep 0.633',
+                                                         'min 0.01',
+                                                         'scale:fa_rep 1',
+                                                         'min 0.00001',
+                                                         'accept_to_best',
+                                                         'endrepeat'])
+            relax.set_script_from_lines(v)
         relax.set_movemap(movemap)
         relax.set_movemap_disables_packing_of_fixed_chi_positions(True)
-        relax.cartesian(True)
-        relax.minimize_bond_angles(True)
-        relax.minimize_bond_lengths(True)
+        if cartesian:
+            relax.cartesian(True)
+            relax.minimize_bond_angles(True)
+            relax.minimize_bond_lengths(True)
         # this appears to do nothing.
-        if default_coord_constraint:
+        if default_coord_constraint and False:
             relax.constrain_relax_to_start_coords(True)  # set native causes a segfault.
         return relax
 
@@ -261,11 +275,8 @@ class _IgorMin(_IgorBase):
 
     def Xrepack_neighbors(self) -> None:
         # THIS IS WEIRD. IT DESIGNS.
-        # get score function. but relax the coordinate constraint.
-        cc = self.coordinate_constraint
-        self.coordinate_constraint = 0
-        scorefxn = self._get_scorefxn("ref2015")
-        self.coordinate_constraint = cc
+        # get score function. but drop the coordinate constraint.
+        scorefxn = self._get_scorefxn("ref2015", coordinate_constraint=0)
         # get neighbourhood
         self._get_selector(ligand_only=True)
         NeighborhoodResidueSelector = pyrosetta.rosetta.core.select.residue_selector.NeighborhoodResidueSelector
@@ -335,8 +346,13 @@ class _IgorMin(_IgorBase):
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
     def minimize(self, cycles: int = 15, default_coord_constraint=True):
+        self._add_constraints(add_pose_constraints=True)
         self.repack_neighbors()
-        mover = self.get_mod_FastRelax(cycles, default_coord_constraint=default_coord_constraint)
+        mover = self.get_mod_FastRelax(cycles,
+                                       default_coord_constraint=default_coord_constraint,
+                                       cartesian=True,
+                                       use_mod_script=True
+                                       )
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
         self.repack_neighbors()
