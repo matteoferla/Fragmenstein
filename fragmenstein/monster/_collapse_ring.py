@@ -326,6 +326,11 @@ class _MonsterRing( _MonsterJoinNeigh):
             ring['current_is'] = indices
 
     def _restore_original_bonding(self, mol: Chem.RWMol, rings: List[Dict[str, List[Any]]]) -> None:
+        """
+        Restore the bonding stored in the ringcore.
+
+        The data of each collapsed atom is given by ``self._get_expansion_for_atom(ring, i)``
+        """
         self.journal.debug('Restoring original bonding if any.')
         to_be_waited_for = []
         for ring in rings:
@@ -339,6 +344,7 @@ class _MonsterRing( _MonsterJoinNeigh):
                     new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
                     info = f'new_i={new_i}, new_neig={new_neigh}, old_i={old_i}, old_neigh={old_neigh}'
                     present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
+                    # The bond has not yet been restored (generally the case)
                     if present_bond is None:
                         assert new_i != new_neigh, f'Cannot bond to self. {info}'
                         mol.AddBond(new_i, new_neigh, bt)
@@ -347,12 +353,15 @@ class _MonsterRing( _MonsterJoinNeigh):
                         BondProvenance.set_bond(present_bond, 'original')
                         distance = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), new_i, new_neigh)
                         assert distance < 4, f'Bond length too long ({distance}. {info}'
+                    # The bond has been restored by the bond type is wrong
                     elif present_bond.GetBondType().name != bond:
                         self.journal.warning(f'bond between {new_i} {new_neigh} exists already ' +
                                              f'(has {present_bond.GetBondType().name} expected {bt})')
                         present_bond.SetBondType(bt)
                         present_bond.SetBoolProp('_IsRingBond', True)
                         BondProvenance.set_bond(present_bond, 'original')
+                    # The bond has already been restored
+                    # why would this happen? Is it an index error?
                     else:
                         self.journal.debug(f'bond between {new_i} {new_neigh} exists already ' +
                                            f'(has {present_bond.GetBondType().name} expected {bt})')
