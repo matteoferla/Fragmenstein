@@ -114,7 +114,8 @@ class _MonsterBlend(_MonsterMerge):
         else:
             mols: List[Chem.Mol] = [self.posthoc_refine(mol) for mol in [placed] + placed_options]
             self.positioned_mol: Chem.Mol = self.get_best_scoring(mols)
-            self.mol_options: List[Chem.Mol] = mols.remove(self.positioned_mol)
+            mols.remove(self.positioned_mol)
+            self.mol_options: List[Chem.Mol] = mols
 
     # ================= Blend hits ===================================================================================
 
