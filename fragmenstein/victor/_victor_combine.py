@@ -106,8 +106,8 @@ class _VictorCombine(_VictorCommon):
         # namely  self.params.rename_by_substructure happened.
         self.mol = Chem.Mol(self.params.mol)
         self.monster.positioned_mol = Chem.Mol(self.mol)
-        # those Hs lack correct names and charge!!
-        self.params.add_Hs()
+        # those lack correct Hs and names and charge!!
+        self.params.add_Hs()  # this re-embeds it.
         self.params.convert_mol()
         # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         # self.params.CHI.data = []  # TODO check if chi fix is okay
