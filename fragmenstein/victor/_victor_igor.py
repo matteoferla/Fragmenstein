@@ -2,16 +2,18 @@ from ._victor_store import _VictorStore
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from ..m_rmsd import mRMSD
+from typing import Dict, Optional
 
 class _VictorIgor(_VictorStore):
 
-    def _fix_minimized(self) -> Chem.Mol:
+    def _fix_minimized(self, ligand: Optional[Chem.Mol]=None) -> Chem.Mol:
         """
         PDBs are terrible for bond order etc. and Rosetta addes these based on atom types
         :return:
         """
         self.journal.debug(f'{self.long_name} - making ligand only')
-        ligand = self.igor.mol_from_pose()
+        if ligand is None: # normal route
+            ligand = self.igor.mol_from_pose()
         # PDBResidueInfo is lost by AllChem.AssignBondOrdersFromTemplate
         # but not prop
         pdb_infos: Dict[Chem.AtomPDBResidueInfo] = {}
@@ -21,11 +23,21 @@ class _VictorIgor(_VictorStore):
             atom.SetProp('atom_name', info.GetName())
         # copy bond order:
         template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
-        bonded = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        try:
+            bonded = AllChem.AssignBondOrdersFromTemplate(template, ligand)
+        except ValueError:
+            try:
+                Chem.SanitizeMol(ligand)
+                bonded = AllChem.AssignBondOrdersFromTemplate(template,  ligand)
+            except ValueError:
+                self.journal.critical(
+                    f'Bond order restoration: {Chem.MolToSmiles(ligand)} != {Chem.MolToSmiles(template)}')
+                return ligand
         # fix residue info
         for atom in bonded.GetAtoms():
             name = atom.GetProp('atom_name')
             atom.SetPDBResidueInfo(pdb_infos[name])
+        Chem.SanitizeMol(bonded)
         return bonded
 
     def quick_reanimate(self) -> float:
