@@ -67,7 +67,7 @@ class WaltonArt(WaltonBase):
                 continue
             fh = StringIO(Chem.MolToPDBBlock(mol))
             comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
-            comp.update_ball_and_stick(colorValue=self._get_mol_color(mol))
+            comp.update_ball_and_stick(colorValue=self._get_mol_color(mol), multipleBond=True)
         return view
 
     def show3d(self) -> None:
