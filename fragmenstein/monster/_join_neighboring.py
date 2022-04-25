@@ -10,12 +10,11 @@ from rdkit import Chem
 from rdkit.Geometry.rdGeometry import Point3D
 from typing import Tuple, List, Dict, Optional, Union
 import numpy as np
-from warnings import warn
 from .bond_provenance import BondProvenance
 from ._communal import _MonsterCommunal
 
 class _MonsterJoinNeigh(_MonsterCommunal):
-    def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol):
+    def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol): # noqa uppercase is fine.
         """
         Joins two molecules by first calling _find_closest to find closest.
         That method does all the thinking.
@@ -42,17 +41,17 @@ class _MonsterJoinNeigh(_MonsterCommunal):
                     distance: float,
                     linking: bool=True):
         """
-        extrapolate positions between. by adding linkers if needed.
+        extrapolate positions between. by adding linkers if needed (`linking` argument).
         """
-        conf = combo.GetConformer()
-        pos_A = conf.GetAtomPosition(anchor_A)
-        pos_B = conf.GetAtomPosition(anchor_B)
-        n_new = int(round(distance / 1.22) - 1)
+        conf = combo.GetConformer() # noqa
+        pos_A:Point3D = conf.GetAtomPosition(anchor_A)
+        pos_B:Point3D = conf.GetAtomPosition(anchor_B)
+        n_new:int = int(round(distance / 1.22) - 1)
         xs = np.linspace(pos_A.x, pos_B.x, n_new + 2)[1:-1]
         ys = np.linspace(pos_A.y, pos_B.y, n_new + 2)[1:-1]
         zs = np.linspace(pos_A.z, pos_B.z, n_new + 2)[1:-1]
 
-        # correcting for ring marker atoms
+        # ----------- correcting for ring marker atoms ---------------------------------------------------------
         def is_ring_atom(anchor: int) -> bool:
             atom = combo.GetAtomWithIdx(anchor)
             if atom.HasProp('_ori_i') and atom.GetIntProp('_ori_i') == -1:
@@ -61,7 +60,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
                 return False
 
         if is_ring_atom(anchor_A):
-            distance -= 1.35 + 0.2 # Arbitrary + 0.2 to compensate for the ring not reaching (out of plane).
+            distance -= 1.35 + 0.2  # Arbitrary + 0.2 to compensate for the ring not reaching (out of plane).
             n_new -= 1
             xs = xs[1:]
             ys = ys[1:]
@@ -73,6 +72,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
             xs = xs[:-1]
             ys = ys[:-1]
             zs = zs[:-1]
+        # -------------------------------------------------------------------------------------
 
         # notify that things could be leary.
         if distance < 0:

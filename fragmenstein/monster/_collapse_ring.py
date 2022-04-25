@@ -28,7 +28,7 @@ from .bond_provenance import BondProvenance
 
 ########################################################################################################################
 
-class _MonsterRing( _MonsterJoinNeigh):
+class _MonsterRing(_MonsterJoinNeigh):
 
     def collapse_mols(self, mols: List[Chem.Mol]):
         mols = [self.collapse_ring(mol) for mol in mols]
@@ -47,7 +47,7 @@ class _MonsterRing( _MonsterJoinNeigh):
         """
         self.store_positions(mol)
         mol = Chem.RWMol(mol)
-        conf = mol.GetConformer()
+        conf = mol.GetConformer()  # noqa
         center_idxs = []
         morituri = []
         old2center = defaultdict(list)
@@ -118,6 +118,7 @@ class _MonsterRing( _MonsterJoinNeigh):
         # Remove atoms
         for i in sorted(set(morituri), reverse=True):
             mol.RemoveAtom(self._get_new_index(mol, i))
+        # mol.UpdatePropertyCache()
         return mol.GetMol()
 
     def expand_ring(self, mol: Chem.Mol) -> Chem.Mol:
@@ -133,13 +134,17 @@ class _MonsterRing( _MonsterJoinNeigh):
         self._place_ring_atoms(mol, rings)
         # bonded_as_original. Rectifier will fix.
         self._restore_original_bonding(mol, rings)
-        self.keep_copy(mol, 'Rings expanded and original bonding restored.')
+        self.keep_copy(mol, 'Rings expanded and original bonding restored')
         self._add_novel_bonding(mol, rings)  # formerly `_ring_overlap_scenario` and `_infer_bonding_by_proximity`.
-        self.keep_copy(mol, 'Rings expanded and original+novel bonding restored.')
+        self.keep_copy(mol, 'Rings expanded and original+novel bonding restored')
+        mol.UpdatePropertyCache(strict=False)
         self._delete_collapsed(mol)
         self.keep_copy(mol, 'Rings expanded and ring-core deleted')
+        mol.UpdatePropertyCache(strict=False)
         self._detriangulate(mol)
+        # mol.UpdatePropertyCache()
         try:
+            mol.UpdatePropertyCache(strict=False)
             mol = self._emergency_joining(mol)  # does not modify in place!
         except ConnectionError as error:
             if self.throw_on_discard:
@@ -155,8 +160,6 @@ class _MonsterRing( _MonsterJoinNeigh):
             return mol
 
     # =========== Offset ===============================================================================================
-
-
 
     def offset(self, mol: Chem.Mol):
         """
@@ -272,15 +275,17 @@ class _MonsterRing( _MonsterJoinNeigh):
         :return:
         """
         try:
-            return {k.replace('s', ''): ring[k][i] if isinstance(ring[k], list) else ring[k] for k in ring}
-        except IndexError:
+            # ori_is and current_is
+            # {'atom', 'ori_name', 'element', 'neighbor', 'ori_i', 'x', 'y', 'z', 'bond'
+            return {k.replace('s',''): ring[k][i] if isinstance(ring[k], list) else ring[k] for k in ring}
+        except IndexError as error:
             troublesome = [k for k in ring if isinstance(ring[k], list) and len(ring[k]) <= i]
             if len(troublesome) == 0:
-                raise IndexError(f'There is a major issue with ring data for index {i}: {ring}')
+                raise IndexError(f'There is a major issue with ring data for index {i} ({error}): {ring}')
             elif troublesome[0] == 'current_is':
-                self.journal.warning(f'One atom lacks a current index!' + \
-                                     'This is a fallback that should not happen')
-                mol = ring['atom'].GetOwningMol()
+                self.journal.warning(f'One atom {i} lacks a current index! ' + \
+                                     f'This is a fallback that should not happen')
+                mol:Chem.Mol = ring['atom'].GetOwningMol()  # noqa
                 ring['current_is'] = [self._get_new_index(mol, old_i, search_collapsed=False) for old_i in
                                       ring['ori_is']]
                 return self._get_expansion_for_atom(ring, i)
@@ -302,12 +307,12 @@ class _MonsterRing( _MonsterJoinNeigh):
             ringcore = ring['atom']
             indices = []  # will store current indices
             for i in range(len(ring['elements'])):  # atom addition
-                collapsed_atom_data = self._get_expansion_for_atom(ring, i)
+                collapsed_atom_data:Dict[str, Any] = self._get_expansion_for_atom(ring, i)
                 # atom will be added if it is not already present!
                 if self._is_present(mol, collapsed_atom_data['ori_i']):
                     natom = self._get_new_index(mol, collapsed_atom_data['ori_i'], search_collapsed=False)
-                    self.journal.debug(f"{natom} (formerly {collapsed_atom_data['ori_i']} existed already." +
-                                       "Fused ring or similar.")
+                    self.journal.debug(f"{natom} (formerly {collapsed_atom_data['ori_i']} existed already: " +
+                                       "fused ring or similar.")
                 else:
                     n = mol.AddAtom(Chem.Atom(collapsed_atom_data['element']))
                     natom = mol.GetAtomWithIdx(n)
@@ -334,53 +339,56 @@ class _MonsterRing( _MonsterJoinNeigh):
         self.journal.debug('Restoring original bonding if any.')
         to_be_waited_for = []
         for ring in rings:
-            for i in range(len(ring['elements'])):
+            self.journal.debug(f'Restoring ring {ring}')
+            for ring_idx in range(len(ring['ori_is'])):
                 # iteration per atom:
-                collapsed_atom_data = self._get_expansion_for_atom(ring, i)
-                old_i = collapsed_atom_data['ori_i']
-                new_i = self._get_new_index(mol, old_i, search_collapsed=False)
-                for old_neigh, bond in zip(collapsed_atom_data['neighbor'], collapsed_atom_data['bond']):
-                    bt = getattr(Chem.BondType, bond)
-                    new_neigh = self._get_new_index(mol, old_neigh, search_collapsed=False)
-                    info = f'new_i={new_i}, new_neig={new_neigh}, old_i={old_i}, old_neigh={old_neigh}'
-                    present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
-                    # The bond has not yet been restored (generally the case)
-                    if present_bond is None:
-                        assert new_i != new_neigh, f'Cannot bond to self. {info}'
-                        mol.AddBond(new_i, new_neigh, bt)
-                        present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
-                        present_bond.SetBoolProp('_IsRingBond', True)
-                        BondProvenance.set_bond(present_bond, 'original')
-                        distance = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), new_i, new_neigh)
-                        assert distance < 4, f'Bond length too long ({distance}. {info}'
-                    # The bond has been restored by the bond type is wrong
-                    elif present_bond.GetBondType().name != bond:
-                        self.journal.warning(f'bond between {new_i} {new_neigh} exists already ' +
-                                             f'(has {present_bond.GetBondType().name} expected {bt})')
-                        present_bond.SetBondType(bt)
-                        present_bond.SetBoolProp('_IsRingBond', True)
-                        BondProvenance.set_bond(present_bond, 'original')
-                    # The bond has already been restored
-                    # why would this happen? Is it an index error?
-                    else:
-                        self.journal.debug(f'bond between {new_i} {new_neigh} exists already ' +
-                                           f'(has {present_bond.GetBondType().name} expected {bt})')
-                        pass
-        #             try:
-        #
-        #             except ValueError:
-        #                 log.warning(f"The neighbour {old_neigh} of {collapsed_atom_data['ori_i']} with {bt} " +
-        #                             "does not yet exist")
-        #                 to_be_waited_for.append((new_i, old_neigh, bt))
-        # for new_i, old_neigh, bt in to_be_waited_for:
-        #     try:
-        #         new_neigh = self._get_new_index(mol, old_neigh,
-        #                                         name_restriction=mol.GetAtomWithIdx(new_i).GetProp('_ori_name'))
-        #         print(f'{old_neigh} was missing, but has appeared since as {new_neigh}')
-        #         if not mol.GetBondBetweenAtoms(new_i, new_neigh):
-        #             add_bond(mol, new_i, new_neigh, bt)
-        #     except (KeyError, ValueError) as err:
-        #         warn(str(err))
+                collapsed_atom_data: Dict[str, Any] = self._get_expansion_for_atom(ring, ring_idx)
+                old_i: int = collapsed_atom_data['ori_i']
+                new_i: int = self._get_new_index(mol, old_i, search_collapsed=False)
+                for old_neigh, bond_name in zip(collapsed_atom_data['neighbor'], collapsed_atom_data['bond']):
+                    new_neigh: int = self._get_new_index(mol, old_neigh, search_collapsed=False)
+                    info: str = f'ring bond #{ring_idx} between {new_i} {new_neigh}(<={old_i},{old_neigh}) '
+                    self._restore_bond(mol, new_i, new_neigh, bond_name, info)
+
+    def _restore_bond(self, mol: Chem.RWMol,
+                      new_i, new_neigh, bond_name,info:str):
+        """
+        Called by ``_restore_original_bonding``.
+        """
+        # bond is string of Enum BondType.name
+        bt:Chem.BondType = getattr(Chem.BondType, bond_name)
+        present_bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
+        # The bond has not yet been restored (generally the case)
+        if present_bond is None:
+            assert new_i != new_neigh, f'Cannot bond to self. {info}'
+            mol.AddBond(new_i, new_neigh, bt)
+            present_bond: Chem.Bond = mol.GetBondBetweenAtoms(new_i, new_neigh)
+            present_bond.SetBoolProp('_IsRingBond', True)
+            BondProvenance.set_bond(present_bond, 'original')
+            distance:float = Chem.rdMolTransforms.GetBondLength(mol.GetConformer(), new_i, new_neigh) # noqa
+            assert distance < 4, f'Bond length too long ({distance}. {info}'
+            self.journal.debug(f'{info} added as {bt}')
+            return
+        # The bond has been restored by the bond type is wrong
+        present_bond_name: str = present_bond.GetBondType().name  # noqa
+        if present_bond_name == bond_name:
+            self.journal.debug(f'{info} exists already ' +
+                               f'(has {present_bond.GetBondType().name} as expected {bt})')  # noqa
+            return
+        # GetBondTypeAsDouble works on bonds... not bond types
+        # but there's a logic at play here:
+        # aromatic trumps double, which trumps single
+        preference = ['SINGLE', 'DOUBLE', 'AROMATIC']
+        if preference.index(present_bond_name) > preference.index(bond_name):
+            self.journal.debug(f'{info} exists already ' +
+                               f'but has {present_bond.GetBondType().name} as is better than' +  # noqa
+                               f'the expected {bt})')
+            return
+        self.journal.info(f'{info} exists already ' +
+                          f'but has {present_bond.GetBondType().name} while expected {bt})')   # noqa
+        present_bond.SetBondType(bt)
+        present_bond.SetBoolProp('_IsRingBond', True)
+        BondProvenance.set_bond(present_bond, 'original')
 
     def _delete_collapsed(self, mol: Chem.RWMol):
         for a in reversed(range(mol.GetNumAtoms())):
@@ -535,7 +543,7 @@ class _MonsterRing( _MonsterJoinNeigh):
             ai = atom_a.GetIdx()
             bi = atom_b.GetIdx()
             if ai == bi:
-                self.journal.debug(f'Merging: Bond to self incident with {ai} '+
+                self.journal.debug(f'Merging: Bond to self incident with {ai} ' +
                                    f'(ring? {atom_a.HasProp("_current_is") == 1})')
                 continue
             if ringcore_first and atom_a.HasProp('_current_is') and not atom_b.HasProp('_current_is'):
@@ -822,7 +830,6 @@ class _MonsterRing( _MonsterJoinNeigh):
         get_pos = lambda atom: np.array(conf.GetAtomPosition(atom.GetIdx()))
         return np.linalg.norm(get_pos(atom_a) - get_pos(atom_b))
 
-
     def _determine_mergers_novel_other_pair(self,
                                             mol: Chem.RWMol,
                                             ringcore: Chem.Atom,
@@ -850,7 +857,8 @@ class _MonsterRing( _MonsterJoinNeigh):
         core_other_distance = self._get_distance(ringcore, other)
         if core_other_distance < core_absorption_distance:
             # ------ Within ring must go. No penalties.
-            self.journal.debug(f'(DetMergeNovOther *{index_core}, {index_other}). Other is within ring. Forcing absoption')
+            self.journal.debug(
+                f'(DetMergeNovOther *{index_core}, {index_other}). Other is within ring. Forcing absoption')
             absorption_distance = 9999
             pendist_matrix = distance_matrix
         else:
@@ -921,7 +929,7 @@ class _MonsterRing( _MonsterJoinNeigh):
     def _emergency_joining(self, mol: Chem.Mol) -> Chem.Mol:
         return self._join_internally(mol, severe=True)
 
-    def _join_internally(self, mol: Chem.Mol, severe: bool=False) -> Chem.Mol:
+    def _join_internally(self, mol: Chem.Mol, severe: bool = False) -> Chem.Mol:
         """
         The last check to see if the mol is connected.
         This differs (and calls) ``join_neighboring_mols``

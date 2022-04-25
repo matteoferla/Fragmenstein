@@ -300,7 +300,6 @@ class _MonsterUtil(_MonsterCommunal, GPM):
             atom.SetBoolProp('_IsDummy', True)
             atom.SetAtomicNum(16)
         #
-        mol.UpdatePropertyCache()
         # Chem.GetSymmSSSR(mol)
         # Chem.MolToMolFile(mol, 'test.mol')
         Chem.SanitizeMol(mol)
