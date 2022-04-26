@@ -38,6 +38,7 @@ class _VictorIgor(_VictorStore):
             name = atom.GetProp('atom_name')
             atom.SetPDBResidueInfo(pdb_infos[name])
         Chem.SanitizeMol(bonded)
+        bonded.SetProp('_Name', self.long_name)
         return bonded
 
     def quick_reanimate(self) -> float:
