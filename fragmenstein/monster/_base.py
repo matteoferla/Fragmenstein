@@ -28,6 +28,11 @@ class _MonsterBase:
     # atoms_in_bridge_cutoff is how many bridge atoms can be deleted?
     # (0 = preserves norbornane, 1 = preserves adamantane)
     throw_on_discard = False
+    strict_matching_mode = dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                 bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                 ringMatchesRingOnly=True,
+                                 ringCompare=rdFMCS.RingCompare.StrictRingFusion,
+                                 matchChiralTag=True)
     matching_modes = [
         dict(atomCompare=rdFMCS.AtomCompare.CompareAny,
              bondCompare=rdFMCS.BondCompare.CompareAny,

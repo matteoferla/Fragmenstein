@@ -147,7 +147,7 @@ class MonsterCombineTests(unittest.TestCase):
         Chem.SanitizeMol(aft)
         # merge them
         mol = Monster([fore, aft]).combine().positioned_mol
-        after = Chem.MolToSmiles(mol)
+        after = Chem.MolToSmiles(Chem.RemoveHs(mol))
         self.assertEqual(before, after)
 
     def test_orthomethyltoluene(self):
@@ -185,7 +185,7 @@ class MonsterCombineTests(unittest.TestCase):
         transtolueneS.SetProp('_Name', 'transtoluene-spiro')
         # cmd.rotate('z', -90, 'rototoluene', camera=0)
         mol = Monster(hits=[toluene, transtolueneS]).combine(keep_all=True).positioned_mol
-        gotten = Chem.MolToSmiles(Chem.RemoveHs(mol))
+        gotten = Chem.MolToSmiles(mol)
         self.assertIn(gotten, after, f'{name} failed {gotten} (expected {after})')
 
 
@@ -235,6 +235,16 @@ class MonsterPlaceTests(unittest.TestCase):
                     self.assertAlmostEqual(np.sum(np.abs(coords1 - coords2)), 0)
                 else:
                     self.assertTrue(np.sum(np.abs(coords1 - coords2)) > 3)
+
+    def test_flipped_lactam(self):
+        mol = Chem.MolFromMolFile('test_mols/F584.mol')
+        flipped_F584 = 'COc1cccc2C(=O)NCCCc12'
+        monster = Monster(hits=[hit_F584, ])
+        flipped_F584 = 'COc1cccc2C(=O)NCCCc12'
+        monster.place(Chem.MolFromSmiles(flipped_F584))
+        # monster.show_comparison()
+        # the problem is that a hydrogen gets mapped to a oxygen and this is unxpected (c.f. `_get_atom_maps`)
+        self.assertEqual(len(monster.get_mcs_mappings(monster.initial_mol, monster.hits[0])[0][0]), 13)
 
 
 class MultivictorPlaceTests(unittest.TestCase):
@@ -328,7 +338,8 @@ class Internals(unittest.TestCase):
         AllChem.EmbedMolecule(benzene)
         moved = Chem.Mol(benzene)
         self.translate(moved, x=5)
-        found = Chem.MolToSmiles(Monster([benzene, moved]).combine().positioned_mol)
+        mol = Monster([benzene, moved]).combine().positioned_mol
+        found = Chem.MolToSmiles(Chem.RemoveHs(mol))
         self.assertEqual(wanted, found, 'The joining differs')
 
     def test_distance(self):

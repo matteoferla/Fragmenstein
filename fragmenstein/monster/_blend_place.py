@@ -75,15 +75,13 @@ class _MonsterBlend(_MonsterMerge):
         maps = {}
         for template in self.hits:
             if broad:
+                self.journal.debug('Merge ligands: False. Broad search: True')
                 pair_atom_maps, _ = self.get_mcs_mappings(self.initial_mol, template)
                 maps[template.GetProp('_Name')] = pair_atom_maps
             else:
+                self.journal.debug('Merge ligands: False. Broad search: False')
                 pair_atom_maps_t = self._get_atom_maps(self.initial_mol, template,
-                                                       atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                                       bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                                       ringMatchesRingOnly=True,
-                                                       ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                                       matchChiralTag=True)
+                                                       **self.strict_matching_mode)
                 pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
         um = Unmerge(followup=self.initial_mol,
@@ -514,14 +512,12 @@ class _MonsterBlend(_MonsterMerge):
         :param min_mode_index: the lowest index to try (opt. speed reasons)
         :return: mappings and mode
         """
-        strict_settings = dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
-                               bondCompare=rdFMCS.BondCompare.CompareOrder,
-                               ringMatchesRingOnly=True,
-                               ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                               matchChiralTag=True)
-        strict = self._get_atom_maps(molA, molB, **strict_settings)
+        strict = self._get_atom_maps(molA, molB, **self.strict_matching_mode)
         for i, mode in enumerate(self.matching_modes):
             if i < min_mode_index:
+                continue
+            # heme is 70 or so atoms & Any-Any matching gets stuck. So guestimate to avoid that:
+            if molA.GetNumAtoms() > (50 + i * 10) or molB.GetNumAtoms() > (50 + i * 10):
                 continue
             lax = self._get_atom_maps(molA, molB, **mode)
             # remove the lax matches that disobey
