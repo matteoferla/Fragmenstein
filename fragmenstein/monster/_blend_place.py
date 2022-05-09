@@ -12,7 +12,7 @@ import itertools, operator
 import json
 from collections import Counter
 from collections import defaultdict
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Set
 from warnings import warn
 
 import numpy as np
@@ -41,6 +41,7 @@ class _MonsterBlend(_MonsterMerge):
         scaffold = self.posthoc_refine(self.mol_options[0])
         chimera = self.make_chimera(scaffold)
 
+        # atom_map is filled via `self.get_mcs_mapping(target_mol, template_mol)`:
         self.positioned_mol = self.place_from_map(target_mol=self.initial_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
@@ -59,6 +60,7 @@ class _MonsterBlend(_MonsterMerge):
         scaffold = self.posthoc_refine(unrefined_scaffold)
         chimera = self.make_chimera(scaffold, mode_index)
 
+        # atom_map is filled via `self.get_mcs_mapping(target_mol, template_mol)`:
         self.positioned_mol = self.place_from_map(target_mol=self.positioned_mol,
                                                   template_mol=chimera,
                                                   atom_map=None,
@@ -109,6 +111,7 @@ class _MonsterBlend(_MonsterMerge):
                                              random_seed=self.random_seed) for mol, mappa in alts]
         # ------------------ Averages the overlapping atoms ------------------
         if um.pick != -1:  # override present!
+            self.journal.debug(f'override present: {um.pick}')
             self.positioned_mol = self.posthoc_refine(placed)
             self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
         else:
@@ -217,8 +220,9 @@ class _MonsterBlend(_MonsterMerge):
 
             def template_sorter(t: List[Chem.Mol]) -> float:
                 # key for sorting. requires outer scope ``maps``.
-                n_atoms = len(mapx[t.GetProp('_Name')][0])
-                mode = mapx[t.GetProp('_Name')][1]
+                self.journal.debug(f'pick_best (partial merging): Sorting {len(t)} templates: {t}')
+                n_atoms = len(mapx[t[0].GetProp('_Name')])
+                mode = mapx[t[1].GetProp('_Name')]
                 mode_i = self.matching_modes.index(mode)
                 return - n_atoms - mode_i / 10
 
@@ -297,6 +301,8 @@ class _MonsterBlend(_MonsterMerge):
         E.g. here the MCS is ringMatchesRingOnly=True and AtomCompare.CompareAny,
         while for the positioning this is not the case.
 
+        Called by full and partial blending modes.
+
         :return:
         """
         # get the matches
@@ -328,7 +334,7 @@ class _MonsterBlend(_MonsterMerge):
                     if diff_valance > 0:
                         chimera.GetAtomWithIdx(scaff_ai).SetFormalCharge(diff_valance)
         try:
-            chimera.UpdatePropertyCache()
+            chimera.UpdatePropertyCache()  # noqa
         except Chem.AtomValenceException as err:
             warn('Valance issue' + str(err))
         return chimera
@@ -341,6 +347,10 @@ class _MonsterBlend(_MonsterMerge):
         This sextant business is a workaround for the fact that only minimised molecules can use the partial
         embedding function of RDKit.
 
+        The template molecule may be actually two or more fragments,
+        as happens for the no blending mode.
+        In RDKit, the fragments within a "molecule" are not connected, but have sequential atom indices.
+
         :param target_mol: target mol
         :param template_mol: the template/scaffold to place the mol
         :param atom_map: something that get_mcs_mapping would return.
@@ -351,11 +361,13 @@ class _MonsterBlend(_MonsterMerge):
         if target_mol is None:
             target_mol = self.initial_mol
         sextant = Chem.Mol(target_mol)
-        Chem.SanitizeMol(sextant)
+        # the target (initial) mol ought to be already sanitised.
+        # TODO Check if this is necessary
+        # Chem.SanitizeMol(sextant)
         if random_seed:
-            kwargs= dict(randomSeed=random_seed)
+            kwargs = dict(randomSeed=random_seed)
         else:
-            kwargs= {}
+            kwargs = {}
         AllChem.EmbedMolecule(sextant, **kwargs)
         AllChem.MMFFOptimizeMolecule(sextant)
         ######################################################
@@ -365,10 +377,12 @@ class _MonsterBlend(_MonsterMerge):
             atom_map, mode = self.get_mcs_mapping(target_mol, template_mol)
             msg = {**{k: str(v) for k, v in mode.items()}, 'N_atoms': len(atom_map)}
             self.journal.debug(f"followup-chimera' = {msg}")
+        else:
+            self.journal.debug(f'Place from map: using provided atom_map {atom_map}')
         self._add_atom_map_asProp(template_mol, atom_map)
         rdMolAlign.AlignMol(sextant, template_mol, atomMap=list(atom_map.items()), maxIters=500)
         # place atoms that have a known location
-        putty = Chem.Mol(sextant)
+        putty = Chem.Mol(sextant)  # this is the molecule returned
         pconf = putty.GetConformer()
         chimera_conf = template_mol.GetConformer()
         uniques = set()  # unique atoms in followup
@@ -424,7 +438,8 @@ class _MonsterBlend(_MonsterMerge):
             for other in other_attachments:
                 done_already.append(other)
         # complete
-        AllChem.SanitizeMol(putty)
+        # Why is this performed: TODO Check if this is necessary
+        # AllChem.SanitizeMol(putty)
         return putty  # positioned_mol
 
 
@@ -534,18 +549,26 @@ class _MonsterBlend(_MonsterMerge):
         ms, mode = self.get_mcs_mappings(molA, molB, min_mode_index)
         return ms[0], mode
 
-    def _get_atom_maps(self, molA, molB, **mode) -> List[List[Tuple[int, int]]]:
+    def _get_atom_maps(self, molA, molB, **mode) -> Set[Tuple[Tuple[int, int]]]:
         mcs = rdFMCS.FindMCS([molA, molB], **mode)
         common = Chem.MolFromSmarts(mcs.smartsString)
         matches = []
         # prevent a dummy to match a non-dummy, which can happen when the mode is super lax.
         is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
-        all_bar_dummy = lambda Aat, Bat: (is_dummy(molA, Aat) and is_dummy(molB, Bat)) or not (
-                is_dummy(molA, Aat) or is_dummy(molB, Bat))
+        def all_bar_dummy(Aat, Bat) -> bool:
+            """it is okay to match a dummy with dummy only"""
+            a_dummy:bool = is_dummy(molA, Aat)
+            b_dummy:bool = is_dummy(molB, Bat)
+            # xor
+            return (a_dummy and b_dummy) or not (a_dummy or b_dummy)
+        # prevent matching hydrogens
+        is_hydrogen = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == 'H'
         for molA_match in molA.GetSubstructMatches(common, uniquify=False):
             for molB_match in molB.GetSubstructMatches(common, uniquify=False):
-                matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
-                                all_bar_dummy(molA_at, molB_at)])
+                matches.append([(int(molA_at), int(molB_at)) for molA_at, molB_at in zip(molA_match, molB_match) if
+                                all_bar_dummy(molA_at, molB_at) and
+                                not is_hydrogen(molA, molA_at) and
+                                not is_hydrogen(molB, molB_at)])
         # you can map two toluenes 4 ways, but two are repeats.
         matches = set([tuple(sorted(m, key=lambda i: i[0])) for m in matches])
         return matches
@@ -607,7 +630,7 @@ class _MonsterBlend(_MonsterMerge):
         return new_mol
 
     @classmethod
-    def get_best_scoring(cls, mols: List[Chem.Mol]) -> Chem.Mol:
+    def get_best_scoring(cls, mols: List[Chem.RWMol]) -> Chem.Mol:
         """
         Sorts molecules by how well they score w/ Merch FF
         """
@@ -615,7 +638,14 @@ class _MonsterBlend(_MonsterMerge):
             raise ValueError(f'No molecules')
         elif len(mols) == 1:
             return mols[0]
+        # This is not expected to happen, but just in case
+        mols = [m for m in mols if m is not None]
         scores = *map(cls.score_mol, mols),
+        cls.journal.debug(f'`.get_best_scoring (unmerge)` Scores: {scores}')
+        # proof that the mol has/lacks origins data:
+        # for mol in mols:
+        #     print('DEBUG OF LAST RESORT', mol)
+        #     print(cls.origin_from_mol(cls, mol.GetMol())) # called from instance
         mol_scores = sorted(list(zip(mols, scores)), key=operator.itemgetter(1))
         return mol_scores[0][0]
 

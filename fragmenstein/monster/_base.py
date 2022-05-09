@@ -105,6 +105,7 @@ class _MonsterBase:
         :param hits:
         :return:
         """
+        dejavu = set()
         for hi, hit in enumerate(hits):
             if isinstance(hit, str):
                 self.journal.warning(f'Hit {hi} is a string ({hit}).' +
@@ -122,6 +123,10 @@ class _MonsterBase:
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
                 hit.SetProp('_Name', f'hit{hi}')
+            elif hit.GetProp('_Name') in dejavu:
+                hit.SetProp('_Name', hit.GetProp('_Name') + f'_{hi}')
+            dejavu.add(hit.GetProp('_Name'))
+
             # ====== IMPORTANT ==========
             self.store_positions(hit)
         return hits

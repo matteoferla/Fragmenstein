@@ -37,7 +37,7 @@ class _IgorInit(_IgorBase):
         :param ligand_residue: ligand -see class docstring
         :param key_residues: multiple entries -see class docstring
         """
-        self.pose = pose #: pyrosetta.Pose
+        self.pose = pose  #: pyrosetta.Pose
         # virtualroot
         if pose.residue(self.pose.total_residue()).name3() != 'XXX':
             pyrosetta.rosetta.core.pose.addVirtualResAsRoot(self.pose)

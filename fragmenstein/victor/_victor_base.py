@@ -135,7 +135,7 @@ class _VictorBase:
         self.ligand_resi = ligand_resi
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
-        self._correct_covalent_resi()  # defined in plonk. todo: split into covalent and anchor residue.
+        self._correct_covalent_resi()  # noqa defined in plonk. todo: split into covalent and anchor residue.
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
         self.random_seed = monster_random_seed

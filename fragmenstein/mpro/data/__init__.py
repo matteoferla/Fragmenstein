@@ -20,7 +20,7 @@ def get_template() -> str:
 def _clean_hitname(hit_name: Optional[str]=None) -> str:
     if hit_name is None:
         hit_name = random.choice(get_hit_list())
-        'Mpro-6y2g.mol'
+        # 'Mpro-6y2g.mol'
     hit_name = hit_name.replace('.mol', '').replace('Mpro-', '').strip()
     if not pkg_resources.is_resource(hit_mols, f'Mpro-{hit_name}.mol'):
         raise FileNotFoundError(f'There is no hit {hit_name} in the cache. Choices are {get_hit_list()}')
@@ -85,6 +85,10 @@ def get_hit_list() -> List[str]:
     List of XChem hits of MPro from Fragalysis in Feb 2021.
     """
     return [fn.replace('.mol', '').replace('Mpro-', '') for fn in pkg_resources.contents(hit_mols) if '.mol' in fn]
+
+# ---------------------------------------------------------------------------------------------
+# The chemist at Postera were in charge of the data management
+# this should probably called something different
 
 def fetch_postera() -> pd.DataFrame:
     """

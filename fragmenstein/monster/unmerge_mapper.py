@@ -71,10 +71,11 @@ class Unmerge(GPM):
         if self.no_discard:
             self.max_strikes = 100
         # ---- to be filled ------------
+        # see `.store`
         accounted_for = set()
-        self.c_map_options = []
-        self.c_options = []
-        self.c_disregarded_options = []
+        self.c_map_options: List[Dict[int, int]] = []
+        self.c_options: List[Chem.Mol] = []
+        self.c_disregarded_options: List[List[Chem.Mol]] = []
         self.combined = None
         self.combined_alternatives = []
         self.combined_map = {}
@@ -83,7 +84,11 @@ class Unmerge(GPM):
         self.combined_bonded_alternatives = []
         self.combined_map_alternatives = []
         #  ---- sorters  --------------------
-        goodness_sorter = lambda i: len(self.c_map_options[i]) - self.offness(self.c_options[i], self.c_map_options[i])
+        def goodness_sorter(i:int) -> int:
+            # offness: How many bonds are too long?
+            n_off_atoms:int = self.offness(self.c_options[i], self.c_map_options[i])
+            return len(self.c_map_options[i]) - 3 * n_off_atoms
+
         accounted_sorter = self.template_sorter_factory(accounted_for)
         # ---- rotate ----------------------------
         if self.rotational_approach:
@@ -207,6 +212,9 @@ class Unmerge(GPM):
 
 
     def store(self, combined: Chem.Mol, combined_map: Dict[int, int], disregarded: List[Chem.Mol]):
+        """
+        Stores combined molecule and its map into the instance.
+        """
         combined.SetProp('parts', json.dumps([m.GetProp('_Name') for m in disregarded]))
         self.c_map_options.append(combined_map)
         self.c_options.append(combined)
@@ -398,27 +406,33 @@ class Unmerge(GPM):
 
     def measure_map(self, mol: Chem.Mol, mapping: Dict[int, int]) -> np.array:
         """
+        Returns a vector with the distances but not of length len(mapping)
+        This used by offness to score how bad the mapping is
 
         :param mol:
         :param mapping: followup to comined
         :return:
         """
         conf = mol.GetConformer()
-        d = np.array([])
-        for fi, ci in mapping.items():
-            fatom = self.followup.GetAtomWithIdx(fi)
-            for neigh in fatom.GetNeighbors():
-                ni = neigh.GetIdx()
-                if ni not in mapping:
+        atomic_distances = np.array([])
+        for followup_atom_idx, template_atom_idx in mapping.items():
+            # followup mol is `victor.monster.initial_mol`
+            followup_atom = self.followup.GetAtomWithIdx(followup_atom_idx)
+            for followup_neigh_atom in followup_atom.GetNeighbors():
+                followup_neigh_idx = followup_neigh_atom.GetIdx()
+                if followup_neigh_idx not in mapping:
                     continue
-                nci = mapping[ni]
-                a = np.array(conf.GetAtomPosition(ci))
-                b = np.array(conf.GetAtomPosition(nci))
-                d = np.append(d, np.linalg.norm(a - b))
-        return d
+                template_neigh_idx = mapping[followup_neigh_idx]
+                # calculate euclidean distance between the two atoms in the followup mol
+                a = np.array(conf.GetAtomPosition(template_atom_idx))
+                b = np.array(conf.GetAtomPosition(template_neigh_idx))
+                atomic_distances = np.append(atomic_distances, np.linalg.norm(a - b))
+        return atomic_distances
 
 
-    def offness(self, mol: Chem.Mol, mapping: Dict[int, int]) -> float:
+    def offness(self, mol: Chem.Mol,
+                mapping: Dict[int, int],
+                cutoff_distance:float=2.5) -> int:
         """
         How many bonds are too long?
 
@@ -428,4 +442,4 @@ class Unmerge(GPM):
         """
         d = self.measure_map(mol, mapping)
         # return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
-        return sum(d > 2.5) * 3
+        return sum(d > cutoff_distance)

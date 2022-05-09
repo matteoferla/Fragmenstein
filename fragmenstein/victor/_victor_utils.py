@@ -29,13 +29,14 @@ from rdkit.Chem import rdFMCS, AllChem, EnumerateStereoisomers
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from ._victor_common import _VictorCommon
+from ._victor_show import _VictorShow
 from ..m_rmsd import mRMSD
 from ..monster import Monster
 from rdkit_to_params import Params
 from ..igor import Igor
 
 
-class _VictorUtils(_VictorCommon):
+class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
 
     def dock(self) -> Chem.Mol:
         """
@@ -95,8 +96,6 @@ class _VictorUtils(_VictorCommon):
                     'regarded': self.monster.matched,
                     'disregarded': self.monster.unmatched
                     }
-
-
 
     # =================== Other ========================================================================================
 
@@ -218,61 +217,6 @@ class _VictorUtils(_VictorCommon):
                 return Chem.MolToSmiles(x)
         else:
             return None
-
-    # =================== save  ========================================================================================
-
-    def make_pse(self, filename: str = 'combo.pse',
-                 extra_mols:Optional[Chem.Mol]=None):
-        """
-        Save a pse in the relevant folder. This is the Victor one.
-        """
-        assert '.pse' in filename, f'{filename} not .pse file'
-        if extra_mols is None:
-            extra_mols = []
-        # ------------------------
-        import pymol2
-        with pymol2.PyMOL() as pymol:
-            for hit in self.hits:
-                hit_name = hit.GetProp('_Name')
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(hit), hit_name)
-                if self.monster is None:
-                    pymol.cmd.color('grey50', f'element C and {hit_name}')
-                elif hit_name in self.monster.unmatched:
-                    pymol.cmd.color('black', f'element C and {hit_name}')
-                else:
-                    pymol.cmd.color('white', f'element C and {hit_name}')
-            if self.monster is not None and self.monster.positioned_mol is not None:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.monster.positioned_mol), 'placed')
-                pymol.cmd.color('magenta', f'element C and placed')
-                pymol.cmd.zoom('byres (placed expand 4)')
-                pymol.cmd.show('line', 'byres (placed around 4)')
-            if self.minimized_mol is not None:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(self.minimized_mol), 'minimised')
-                pymol.cmd.color('green', f'element C and minimised')
-            if self.minimized_pdbblock is not None:
-                pymol.cmd.read_pdbstr(self.minimized_pdbblock, 'min_protein')
-                pymol.cmd.color('gray50', f'element C and min_protein')
-                pymol.cmd.hide('sticks', 'min_protein')
-            if self.unminimized_pdbblock is not None:
-                pymol.cmd.read_pdbstr(self.unminimized_pdbblock, 'unmin_protein')
-                pymol.cmd.color('gray20', f'element C and unmin_protein')
-                pymol.cmd.hide('sticks', 'unmin_protein')
-                pymol.cmd.disable('unmin_protein')
-            for mol in extra_mols:
-                name = mol.GetProp('_Name')
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
-                pymol.cmd.color('magenta', f'{name} and name C*')
-            pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
-
-    def make_steps_pse(self, filename: str='step.pse'):
-        import pymol2
-        assert '.pse' in filename, f'{filename} not .pse file'
-        with pymol2.PyMOL() as pymol:
-            for hit in self.hits:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(hit, kekulize=False), hit.GetProp('_Name'))
-            for label, mod in self.modifications:
-                pymol.cmd.read_molstr(Chem.MolToMolBlock(mod, kekulize=False), re.sub('[^\w_]', '_', label))
-            pymol.cmd.save(os.path.join(self.work_path, self.long_name, filename))
 
     # =================== extract_mols =================================================================================
 
@@ -540,7 +484,7 @@ class _VictorUtils(_VictorCommon):
                 pdbfile=os.path.join(folder, self.long_name + '.holo_minimised.pdb'),
                 params_file=os.path.join(folder, self.long_name + '.params'),
                 constraint_file=os.path.join(folder, self.long_name + '.con'))
-            self.minimized_mol = victor._fix_minimized()  # otherwise it lacks PDBInfo, such as names
+            self.minimized_mol = self._fix_minimized()  # otherwise it lacks PDBInfo, such as names
         else:
             self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                                  'unbound_ref2015': {'total_score': float('nan')}}

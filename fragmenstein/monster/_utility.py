@@ -23,12 +23,13 @@ except (KeyError, ImportError):
 
 from ._communal import _MonsterCommunal
 from .positional_mapping import GPM
+from ._util_compare import _MonsterUtilCompare
 
 
 ########################################################################################################################
 
 
-class _MonsterUtil(_MonsterCommunal, GPM):
+class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
 
     @classmethod
     def get_combined_rmsd(cls, followup_moved: Chem.Mol, followup_placed: Optional[Chem.Mol] = None,
@@ -123,6 +124,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
     def origin_from_mol(self, mol: Chem.Mol = None):
         """
         these values are stored from Monster for scaffold, chimera and positioned_mol
+        See `make_chimera` or `place_from_map` for more info on _Origin
 
         :param mol: Chem.Mol
         :return: stdev list for each atom
@@ -155,7 +157,7 @@ class _MonsterUtil(_MonsterCommunal, GPM):
         :param mol:
         :return:
         """
-
+        self.journal.debug('Guess origins called')
         if hits is None:
             hits = self.hits
         mappings = []
