@@ -70,14 +70,15 @@ class WaltonBase:
             mols.append(mol)
         return cls(mols=mols, aligned=aligned)
 
-    def __call__(self, color='#a9a9a9', minimize: bool = False) -> Chem.Mol:  # darkgrey
+    def __call__(self, color='#a9a9a9', minimize: bool = False, **combine_kwargs) -> Chem.Mol:  # darkgrey
         """
         Calls Monster to do the merger.
         Filling the attribute ``merged`` w/ a Chem.Mol.
         Also returns it.
         """
         # neogreen '#39ff14'
-        monster = Monster(list(map(AllChem.RemoveHs, self.mols))).combine()
+        # joining_cutoff= 5
+        monster = Monster(list(map(AllChem.RemoveHs, self.mols))).combine(**combine_kwargs)
         if minimize:
             monster.mmff_minimize()
         self.merged = monster.positioned_mol

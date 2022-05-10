@@ -143,14 +143,27 @@ class WaltonAdvMove(WaltonMove):
     def get_centroid_of_atoms(self,
                               *idx_or_points: Union[int, Geometry.Point3D],
                               mol_idx: int = -1) -> Geometry.Point3D:
+        """
+        centroid of atoms is the euclidean mean of the atoms
+
+        if a whole ring is wanted see ``get_centroid_of_ring``
+        """
         points = [self.get_point(ip, mol_idx) for ip in idx_or_points]
         mean_coord: Callable[[int], float] = lambda ai: float(np.mean([p[ai] for p in points]))  # noqa
         return Geometry.Point3D(mean_coord(0), mean_coord(1), mean_coord(2))
 
     def get_centroid_of_ring(self, mol_idx: int, ring_idx: int = 0) -> Geometry.Point3D:
+        """
+        centroid of ring is the euclidean mean of the ring's atoms
+
+        if only some atoms are wanted see ``get_centroid_of_atoms``
+        """
         return self.get_centroid_of_atoms(*self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx], mol_idx=mol_idx)
 
     def get_ring_radius(self, mol_idx: int, ring_idx: int = 0) -> float:
+        """
+        Get the distance to the centroid to the first atom in the ring.
+        """
         atoms = self.get_mol(mol_idx).GetRingInfo().AtomRings()[ring_idx]
         centroid = self.get_centroid_of_atoms(*atoms, mol_idx=mol_idx)
         return atoms[0].Distance(centroid)

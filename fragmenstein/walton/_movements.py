@@ -50,11 +50,11 @@ class WaltonMove(WaltonBase):
                                      atomMap=list(atom_map.items()))
         self.aligned = True
 
-    def align_by_mcs(self, **mcs_settings):
+    def align_by_mcs(self, fixed_mol_idx=-1, **mcs_settings):
         """
-        Aligns by MCS
+        Aligns by MCS. The fix molecule is the last molecule unless specified.
         """
-        fixed = self.mols[-1]
+        fixed = self.get_mol(fixed_mol_idx)
         commons = []
         for moved in self.mols[:1]:
             res: rdFMCS.MCSResult = rdFMCS.FindMCS([moved, fixed], **mcs_settings)
