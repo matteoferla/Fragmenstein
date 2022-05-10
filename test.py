@@ -305,7 +305,7 @@ class WaltonTests(unittest.TestCase):
                           atom_idx=demo.get_centroid_of_atoms(1, 2, mol_idx=0),
                           axis='x')
         for i in range(demo.mols[0].GetNumAtoms()):
-            self.assertAlmostEqual(demo.get_point(i, 0).z, 0, 0)
+            self.assertAlmostEqual(demo.get_point(i, 0).z, 0, -1)
 
     def pull_apart(self, mols: Chem.Mol, distance: float) -> Chem.Mol:
         walton = Walton(mols)
