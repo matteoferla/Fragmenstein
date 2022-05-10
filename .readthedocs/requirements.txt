@@ -3,4 +3,4 @@ m2r2
 # installed already in RTD, but not locally
 readthedocs-sphinx-ext
 sphinx-rtd-theme
-libjs-mathjax
+# libjs-mathjax  # this cause the system to crash as it does not seem to exist. When and for what reason was it added?
