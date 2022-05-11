@@ -31,8 +31,10 @@ class _VictorShow(_VictorCommon):
             if not mol:
                 raise ValueError(
                     'One of the hits is None: if user manual tinkering happened, please run monster.fix_hits')
-            fh = StringIO(Chem.MolToPDBBlock(mol))  # I want atom names
-            comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
+            fh = StringIO(Chem.MolToMolBlock(mol))  # I want atom names
+            comp: nv.component.ComponentViewer = view.add_component(fh,   # noqa it's there.
+                                                                    name=mol.GetProp('_Name'),
+                                                                    ext='mol')
             # _color business stems from Walton.
             colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
             comp.update_ball_and_stick(colorValue=colorValue, multipleBond=True)
@@ -42,17 +44,30 @@ class _VictorShow(_VictorCommon):
                 continue
             fh = StringIO(molblock)
             comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
-            comp.add_representation('ball_and_stick', colorValue='white', multipleBond=True,
+            comp.add_representation('ball+stick', colorValue='white', multipleBond=True,
                                     sele=f'[{self.ligand_resn}]')
             # force it.
             comp.update_ball_and_stick(colorValue='white', multipleBond=True)
+            legend += ' Fragmenstein monster (white)'
+            view._js(f"""const comp = this.stage.compList[{len(self.hits)}]
+                                 const target_sele = new NGL.Selection('[{self.ligand_resn}]');
+                                 const radius = 5;
+                                 const neigh_atoms = comp.structure.getAtomSetWithinSelection( target_sele, radius );
+                                 const resi_atoms = comp.structure.getAtomSetWithinGroup( neigh_atoms );
+                                 comp.addRepresentation( "line", {{sele: resi_atoms.toSeleString(), 
+                                                                   colorValue: "gainsboro",
+                                                                   multipleBond: true}} );
+                                 comp.addRepresentation( "contact", {{sele: resi_atoms.toSeleString()}});
+                            """)
             break
-        legend += ' Fragmenstein monster (white)'
+        else:
+            pass
         if print_legend:
             display(HTML(legend))
         # async madness: disabled for now.
         # view.center(f'[{self.ligand_resn}]')
         return view
+
 
     # =================== save  ========================================================================================
 
