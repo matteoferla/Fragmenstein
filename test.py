@@ -19,6 +19,8 @@ import numpy as np
 
 # ======================================================================================================================
 
+import os
+test_mols_folder = os.path.join(os.path.dirname(__file__), 'test_mols')
 
 class MProPlaceTester(unittest.TestCase):
 
@@ -152,9 +154,9 @@ class MonsterCombineTests(unittest.TestCase):
     def test_orthomethyltoluene(self):
         name = 'orthomethyltoluene'
         after = 'Cc1cccc(C)c1'
-        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
+        toluene = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'toluene.mol'))
         toluene.SetProp('_Name', 'toluene')
-        rototoluene = Chem.MolFromMolFile('test_mols/rototoluene.mol')
+        rototoluene = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'rototoluene.mol'))
         rototoluene.SetProp('_Name', 'rototoluene')
         mol = Monster(hits=[toluene, rototoluene]).combine(keep_all=True).positioned_mol
         gotten = Chem.MolToSmiles(Chem.RemoveHs(mol))
@@ -163,9 +165,9 @@ class MonsterCombineTests(unittest.TestCase):
     def test_peridimethylnaphthalene(self):
         name = 'peridimethylnaphthalene'
         after = 'Cc1cccc2cccc(C)c12'
-        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
+        toluene = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'toluene.mol'))
         toluene.SetProp('_Name', 'toluene')
-        transtolueneF = Chem.MolFromMolFile('test_mols/transtoluene.mol')
+        transtolueneF = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'transtoluene.mol'))
         transtolueneF.SetProp('_Name', 'transtoluene-fuse')
         mol = Monster(hits=[toluene, transtolueneF]).combine(keep_all=True).positioned_mol
         gotten = Chem.MolToSmiles(Chem.RemoveHs(mol))
@@ -179,9 +181,9 @@ class MonsterCombineTests(unittest.TestCase):
                  'C[C@@H]1C=CC[C@]2(C=C[C@@H](C)C=C2)C1',
                  'C[C@H]1C=CC[C@]2(C=C[C@H](C)C=C2)C1',
                  'C[C@H]1C=CC[C@]2(C=C[C@@H](C)C=C2)C1')
-        toluene = Chem.MolFromMolFile('test_mols/toluene.mol')
+        toluene = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'toluene.mol'))
         toluene.SetProp('_Name', 'toluene')
-        transtolueneS = Chem.MolFromMolFile('test_mols/transtoluene2.mol')
+        transtolueneS = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'transtoluene2.mol'))
         transtolueneS.SetProp('_Name', 'transtoluene-spiro')
         # cmd.rotate('z', -90, 'rototoluene', camera=0)  # this predates capt. Robert Walton
         mol = Monster(hits=[toluene, transtolueneS]).combine(keep_all=True).positioned_mol
@@ -190,8 +192,8 @@ class MonsterCombineTests(unittest.TestCase):
 
     def test_real_merger(self):
         # Victor.enable_stdout(logging.DEBUG)
-        x0138 = Chem.MolFromMolFile('test_mols/mac-x0138.mol')
-        x0398 = Chem.MolFromMolFile('test_mols/mac-x0398.mol')
+        x0138 = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'mac-x0138.mol'))
+        x0398 = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'mac-x0398.mol'))
         monster = Monster([x0398, x0138])
         monster.combine()
         self.assertEqual('Nc1nc2c3c(c(O)cc(N)c3n1)C(O)=N2',
@@ -247,8 +249,7 @@ class MonsterPlaceTests(unittest.TestCase):
                     self.assertTrue(np.sum(np.abs(coords1 - coords2)) > 3)
 
     def test_flipped_lactam(self):
-        mol = Chem.MolFromMolFile('test_mols/F584.mol')
-        flipped_F584 = 'COc1cccc2C(=O)NCCCc12'
+        hit_F584 = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'F584.mol'))
         monster = Monster(hits=[hit_F584, ])
         flipped_F584 = 'COc1cccc2C(=O)NCCCc12'
         monster.place(Chem.MolFromSmiles(flipped_F584))
@@ -260,10 +261,10 @@ class MonsterPlaceTests(unittest.TestCase):
 class MultivictorPlaceTests(unittest.TestCase):
     def test_multivictor(self):
         from fragmenstein import MultiVictorPlacement
-        to_place = Chem.MolFromMolFile('test_mols/placed_example1.mol')
-        pdb_filename = 'test_mols/apo_example1.pdb'
+        to_place = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'placed_example1.mol'))
+        pdb_filename = os.path.join(test_mols_folder, 'apo_example1.pdb')
         smiles = Chem.MolToSmiles(to_place)
-        hits = [Chem.MolFromMolFile(os.path.join('test_mols', basename)) for basename in
+        hits = [Chem.MolFromMolFile(os.path.join(test_mols_folder, basename)) for basename in
                 ["x0032_0A.mol"]]  # , "x0103_0A.mol"]]
         # Victor.enable_stdout(level=logging.ERROR)
         with tempfile.TemporaryDirectory() as tmpdir:
