@@ -87,6 +87,7 @@ class _IgorUtils(_IgorBase):
     def display_energy(self,
                        minimized_mol: Union[Chem.Mol, None],
                        term: Union[str, Enum]='all',
+                       scorefxn: Optional[pyrosetta.ScoreFunction]=None,
                        colorMap:str='coolwarm') -> Dict[str, float]:
         """
         Given the ``minimized_mol`` display the energy contributions.
@@ -104,8 +105,9 @@ class _IgorUtils(_IgorBase):
         which is possibly more sane (e.g. ``igor.display_energy(minimized_mol, term=igor.display.Term.ELECTROSTATIC)``).
         """
         if minimized_mol is None:
-            minimized_mol = self.mol_from_pose()
-
+            minimized_mol:Chem.Mol = self.mol_from_pose()
+        if scorefxn is None:
+            scorefxn:pyrosetta.ScoreFunction = pyrosetta.get_fa_scorefxn()
         # ['all', 'lenard-jones', 'lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']
         # deal with choices of terms:
         if isinstance(term, Enum):
