@@ -56,7 +56,7 @@ def skip(app, what, name, obj, would_skip, options):
 def setup(app):
     app.connect('autodoc-skip-member', skip)
 
-# --- add mk files ---------------------------------------------------------
+# --- add md files ---------------------------------------------------------
 
 import m2r2  # noqa
 import os, re
