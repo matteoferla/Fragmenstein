@@ -11,6 +11,6 @@ molecular-rectifier
 smallworld-api  # optional
 sqlitedict  # optional
 nglview  # optional
-
+matplotlib
 # `pymol2` is conda only and optional
 # `pyrosetta` has non-standard installation, see docs and `fragmenstein.igor.pyrosetta_import` for mock for RTD
