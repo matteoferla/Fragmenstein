@@ -96,8 +96,10 @@ class _VictorCombine(_VictorCommon):
         self.make_output_folder()
         # paramterise
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
-        self.params = Params.load_mol(self.mol, name=self.ligand_resn)
-        self.params.NAME = self.ligand_resn # force it.
+        # ``Params.load_mol`` does a few things: ``from_mol``, the ``polish_mol`` ad then ``convert_mol``.
+        # here it is split up.
+        self.params = Params.from_mol(self.mol, name=self.ligand_resn, generic=False)
+        self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
         # get constraint
         self.constraint = self._get_constraint(self.extra_constraint)
