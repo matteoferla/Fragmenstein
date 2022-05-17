@@ -1,2 +1,3 @@
 include fragmenstein/mpro/data/hit_mols/*.mol
 include fragmenstein/mpro/data/template.pdb
+include fragmenstein/divergent_colors.json
