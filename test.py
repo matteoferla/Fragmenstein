@@ -447,6 +447,25 @@ class Internals(unittest.TestCase):
         except ConnectionError as error:
             pass
 
+from fragmenstein.monster.mcs_mapping import SpecialCompareAtoms
+
+class Mappings(unittest.TestCase):
+    """
+    These test monster.mcs_mapping
+    """
+    def test_not_to_dummy(self):
+        from rdkit.Chem import rdFMCS
+        toluene = Chem.MolFromSmiles('Cc1ccccc1')
+        toluene.SetProp('_Name', 'toluene')
+        benzyl = Chem.MolFromSmiles('*c1ccccc1')
+        benzyl.SetProp('_Name', 'benzyl')
+        params = rdFMCS.MCSParameters()
+        params.BondTyper = rdFMCS.BondCompare.CompareAny
+        params.AtomTyper = SpecialCompareAtoms()
+        compare = [benzyl, toluene]
+        # hit -> followup
+        res: rdFMCS.MCSResult = rdFMCS.FindMCS(compare, params)
+        self.assertEqual(res.numAtoms, 6)  # there are 7 atoms, but only 6 are mapped as the dummy is excluded
 
 # ----------------------------------------------------------------------------------------------------------------------
 class UnresolvedProblems(unittest.TestCase):
