@@ -5,6 +5,7 @@ This is inherited by MonsterPlace
     """
 
 ########################################################################################################################
+import warnings
 
 from rdkit.Chem import rdmolops
 
@@ -12,7 +13,7 @@ import itertools, operator
 import json
 from collections import Counter
 from collections import defaultdict
-from typing import Optional, Dict, List, Tuple, Set
+from typing import Optional, Dict, List, Tuple, Set, Unpack, Union  # noqa cf. .legacy monkeypatch
 from warnings import warn
 
 import numpy as np
@@ -25,12 +26,11 @@ from rdkit.Geometry.rdGeometry import Point3D
 from ._communal import _MonsterCommunal
 from ._merge import _MonsterMerge
 from .unmerge_mapper import Unmerge
+from .mcs_mapping import SpecialCompareAtoms, IndexMap, ExtendedFMCSMode, transmute_FindMCS_parameters, flip_mapping
 
 
 class _MonsterBlend(_MonsterMerge):
     # placement dependent methods
-
-
 
     # @classmethod #why was this a classmethod
     def full_blending(self) -> None:
@@ -72,21 +72,22 @@ class _MonsterBlend(_MonsterMerge):
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
-        maps = {}
+        maps: Dict[str, List[Dict[int, int]]] = {}
         for template in self.hits:
             if broad:
                 self.journal.debug('Merge ligands: False. Broad search: True')
-                pair_atom_maps, _ = self.get_mcs_mappings(self.initial_mol, template)
+                pair_atom_maps, _ = self.get_mcs_mappings(template, self.initial_mol)
                 maps[template.GetProp('_Name')] = pair_atom_maps
             else:
                 self.journal.debug('Merge ligands: False. Broad search: False')
-                pair_atom_maps_t = self._get_atom_maps(self.initial_mol, template,
-                                                       **self.strict_matching_mode)
-                pair_atom_maps = [dict(p) for p in pair_atom_maps_t]
+                pair_atom_maps_t: List[IndexMap] = self._get_atom_maps(followup=self.initial_mol, hit=template,
+                                                                       **self.strict_matching_mode)
+                pair_atom_maps: List[Dict[int, int]] = [dict(p) for p in pair_atom_maps_t]
                 maps[template.GetProp('_Name')] = pair_atom_maps
+        # todo flip round Unmerge. Unmerge wants name to dict of followup to hit... which is backwards.
         um = Unmerge(followup=self.initial_mol,
                      mols=self.hits,
-                     maps=maps,
+                     maps={name: list(map(flip_mapping, hit_mappings)) for name, hit_mappings in maps.items()},
                      no_discard=self.throw_on_discard)
 
         self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
@@ -104,9 +105,9 @@ class _MonsterBlend(_MonsterMerge):
 
         alts = zip(um.combined_bonded_alternatives, um.combined_map_alternatives)
         placed_options = [self.place_from_map(target_mol=self.initial_mol,
-                                             template_mol=mol,
-                                             atom_map=mappa,
-                                             random_seed=self.random_seed) for mol, mappa in alts]
+                                              template_mol=mol,
+                                              atom_map=mappa,
+                                              random_seed=self.random_seed) for mol, mappa in alts]
         # ------------------ Averages the overlapping atoms ------------------
         if um.pick != -1:  # override present!
             self.journal.debug(f'override present: {um.pick}')
@@ -228,12 +229,14 @@ class _MonsterBlend(_MonsterMerge):
             # presort as this is expensive.
             for template in self.mol_options:
                 # _get_atom_maps returns a list of alternative mappings which are lists of template to initail mol
-                atom_maps = self._get_atom_maps(template, self.initial_mol,
-                                                atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                                bondCompare=rdFMCS.BondCompare.CompareOrder,
-                                                ringMatchesRingOnly=True,
-                                                ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
-                                                matchChiralTag=False)
+                # todo flip around
+                atom_maps: List[IndexMap] = self._get_atom_maps(followup=self.initial_mol, hit=template,
+                                                                atomCompare=rdFMCS.AtomCompare.CompareElements,
+                                                                bondCompare=rdFMCS.BondCompare.CompareOrder,
+                                                                ringMatchesRingOnly=True,
+                                                                ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
+                                                                matchChiralTag=False)
+                atom_maps: List[IndexMap] = flip_mapping(atom_maps)
                 mapx[template.GetProp('_Name')] = (atom_maps, self.matching_modes[-1])
             # search properly only top 3.
             self.mol_options = sorted(self.mol_options, key=template_sorter)
@@ -241,7 +244,7 @@ class _MonsterBlend(_MonsterMerge):
                 atom_map, mode = self.get_mcs_mapping(template, self.initial_mol)
                 # get_mcs_mapping returns a dict going from template index to initial.
                 mapx[template.GetProp('_Name')] = (atom_map, mode)
-                self.journal.debug(f"With {template.GetProp('_Name')}, "+\
+                self.journal.debug(f"With {template.GetProp('_Name')}, " + \
                                    "{len(atom_map)} atoms map using mode {self.matching_modes.index(mode)}")
             ## pick best template
             self.mol_options = sorted(self.mol_options, key=template_sorter)
@@ -440,8 +443,6 @@ class _MonsterBlend(_MonsterMerge):
         # AllChem.SanitizeMol(putty)
         return putty  # positioned_mol
 
-
-
     def transfer_ring_data(self, donor: Chem.Atom, acceptor: Chem.Atom):
         """
         Transfer the info if a ringcore atom.
@@ -456,7 +457,9 @@ class _MonsterBlend(_MonsterMerge):
 
     # ========= Other ==================================================================================================
 
-    def posthoc_refine(self, scaffold, indices: Optional[List[int]] = None) -> Chem.Mol:
+    def posthoc_refine(self,
+                       scaffold: Chem.Mol,
+                       indices: Optional[List[int]] = None) -> Chem.Mol:
         """
         Averages the overlapping atoms.
 
@@ -502,61 +505,127 @@ class _MonsterBlend(_MonsterMerge):
                          catchErrors=True)
         return refined
 
-    def get_mcs_mappings(self, molA, molB, min_mode_index: int = 0) -> Tuple[List[Dict[int, int]], dict]:
+    def get_mcs_mappings(self,
+                         hit: Chem.Mol,
+                         followup: Chem.Mol,
+                         min_mode_index: int = 0,
+                         custom_map: Optional[Dict[str, IndexMap]] = None
+                         ) -> Tuple[List[Dict[int, int]], ExtendedFMCSMode]:
         """
-        This is a weird method. It does a strict MCS match.
+        This is a curious method. It does a strict MCS match.
         And then it uses laxer searches and finds the case where a lax search includes the strict search.
 
-        :param molA: query molecule
-        :param molB: target/ref molecule
+        :param hit: query molecule
+        :param followup: target/ref molecule
         :param min_mode_index: the lowest index to try (opt. speed reasons)
+        :param custom_map: is the user defined hit name to list of tuples of hit and followup index pairs
         :return: mappings and mode
         """
-        strict = self._get_atom_maps(molA, molB, **self.strict_matching_mode)
+        if not custom_map:
+            custom_map: Dict[str, Dict[int, int]] = self.custom_map
+        hit_name:str = hit.GetProp('_Name')
+        # -------------- Most strict mapping -------------------------------
+        # run from strictest to laxest to find the strictest mapping that encompasses the custom map
+        inverted_strict_i = 0
+        for strict_i, mode in enumerate(reversed(self.matching_modes + [self.strict_matching_mode]), start=-1):
+            # required for limiting the next iterator
+            inverted_strict_i = len(self.matching_modes) - strict_i
+            # this calls `self._get_atom_maps` does the MCS search
+            strict_maps: List[IndexMap] = self._get_atom_maps(hit=hit,
+                                                         followup=followup,
+                                                         custom_map=custom_map,
+                                                         **mode)
+            # there is the possibility that the strict mapping does not allow custom_map
+            # if so only the custom_map hits are used.
+            if hit_name in custom_map:
+                wanted: List[int] = self._get_required_indices_for_map(custom_map[hit_name])
+                strict_maps: List[IndexMap] = self._validate_vs_custom(strict_maps, wanted)
+            if len(strict_maps) != 0:
+                break  # from the reverse loop...
+        else:
+            self.journal.warning('User provided mapping is very unfavourable... using that along')
+            strict_maps: List[IndexMap] = [list(custom_map[hit_name].items()), ]
+        # -------------- Expand mapping -------------------------------
+        # go from laxest to strictest until one matches the strict form...
         for i, mode in enumerate(self.matching_modes):
             if i < min_mode_index:
                 continue
+            if i == inverted_strict_i:
+                break
             # heme is 70 or so atoms & Any-Any matching gets stuck. So guestimate to avoid that:
-            if molA.GetNumAtoms() > (50 + i * 10) or molB.GetNumAtoms() > (50 + i * 10):
+            if hit.GetNumAtoms() > (50 + i * 10) or followup.GetNumAtoms() > (50 + i * 10):
                 continue
-            lax = self._get_atom_maps(molA, molB, **mode)
-            # remove the lax matches that disobey
-            neolax = [l for l in lax if any([len(set(s) - set(l)) == 0 for s in strict])]
-            if len(neolax) == 0:
+
+            lax: List[IndexMap] = []
+            for strict_map in strict_maps:  #: IndexMap
+                expanded_custom_map: Dict[str, IndexMap] = self.expand_custom_map(custom_map, {hit_name: strict_map})
+                lax.extend(self._get_atom_maps(hit=hit,
+                                              followup=followup,
+                                              custom_map=expanded_custom_map, **mode))
+            if len(lax) == 0:
                 continue
             else:
-                return [dict(n) for n in neolax], mode
-        else:
-            # Then the strict will have to do.
-            return [dict(n) for n in strict], strict_settings  # tuple to dict
-            # raise ValueError('This is chemically impossible: nothing matches in the MCS step ' +\
-            #                  f'({len(self.matching_modes)} modes tried')
+                return [dict(n) for n in lax], mode
+        # The strict will have to do.
+        return [dict(n) for n in strict_maps], self.strict_matching_mode  # tuple to dict
 
-    def get_mcs_mapping(self, molA, molB, min_mode_index: int = 0) -> Tuple[Dict[int, int], dict]:
+    def get_mcs_mapping(self, hit, followup, min_mode_index: int = 0) -> Tuple[Dict[int, int], dict]:
         """
         This is a weird method. It does a strict MCS match.
         And then it uses laxer searches and finds the case where a lax search includes the strict search.
 
-        :param molA: query molecule
-        :param molB: target/ref molecule
+        :param hit: query molecule
+        :param followup: target/ref molecule
         :param min_mode_index: the lowest index to try (opt. speed reasons)
         :return: mapping and mode
         """
-        ms, mode = self.get_mcs_mappings(molA, molB, min_mode_index)
+        ms, mode = self.get_mcs_mappings(hit, followup, min_mode_index)
         return ms[0], mode
 
-    def _get_atom_maps(self, molA, molB, **mode) -> Set[Tuple[Tuple[int, int]]]:
+    def _get_atom_maps(self,
+                       hit: Chem.Mol,
+                       followup: Chem.Mol,
+                       custom_map: Optional[Dict[str, IndexMap]],
+                       **mode: Unpack[ExtendedFMCSMode]) -> List[IndexMap]:
+
+        """
+        The ``mode`` are FindMCS arguments, but this transmutes them into parameter scheme
+
+        The old method is now ``_get_atom_maps_OLD``.
+        """
+        if custom_map is None:
+            custom_map: Dict[str, Dict[int, int]] = self.custom_map
+        parameters: rdFMCS.MCSParameters = transmute_FindMCS_parameters(**mode)
+        # this looks odd, because the default parameters.AtomTyper is a atomcompare enum
+        # and can be overridden by a callable class instance (of MCSAtomCompare)
+        parameters.AtomTyper = SpecialCompareAtoms(comparison=parameters.AtomTyper,
+                                                   custom_map=custom_map)
+        res: rdFMCS.MCSResult = rdFMCS.FindMCS([hit, followup], parameters)
+        matches: List[IndexMap] = parameters.AtomTyper.get_valid_matches(parameters.AtomCompareParameters,
+                                                                         common=Chem.MolFromSmarts(res.smartsString),
+                                                                         hit=hit,
+                                                                         followup=followup
+                                                                         )
+        return matches
+
+    def _get_atom_maps_OLD(self, molA, molB, **mode: Unpack[ExtendedFMCSMode]) -> Set[Tuple[Tuple[int, int]]]:
+        """
+        The ``mode`` are FindMCS arguments.
+        """
+        warnings.warn('`_get_atom_maps_OLD` is no longer used.', category=DeprecationWarning)
         mcs = rdFMCS.FindMCS([molA, molB], **mode)
         common = Chem.MolFromSmarts(mcs.smartsString)
         matches = []
         # prevent a dummy to match a non-dummy, which can happen when the mode is super lax.
         is_dummy = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == '*'
+
         def all_bar_dummy(Aat, Bat) -> bool:
             """it is okay to match a dummy with dummy only"""
-            a_dummy:bool = is_dummy(molA, Aat)
-            b_dummy:bool = is_dummy(molB, Bat)
+            a_dummy: bool = is_dummy(molA, Aat)
+            b_dummy: bool = is_dummy(molB, Bat)
             # xor
             return (a_dummy and b_dummy) or not (a_dummy or b_dummy)
+
         # prevent matching hydrogens
         is_hydrogen = lambda mol, at: mol.GetAtomWithIdx(at).GetSymbol() == 'H'
         for molA_match in molA.GetSubstructMatches(common, uniquify=False):
@@ -571,6 +640,30 @@ class _MonsterBlend(_MonsterMerge):
 
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
         return self._get_atom_maps(molA, molB, **mode)[0]
+
+    def expand_custom_map(self, custom_map: Dict[str, IndexMap], addend: Dict[str, IndexMap]):
+        # not a IndexMap
+        new_map = custom_map.copy()
+        for k, add_mapping in addend.items():
+            if k not in new_map:
+                new_map[k] = add_mapping
+            else:
+                # custom_map gets priority
+                new_map[k] = tuple({**dict(add_mapping), **dict(custom_map[k])}.items())
+        return new_map
+
+    def _validate_vs_custom(self, maps: List[IndexMap], wanted_idx: List[int]) -> List[IndexMap]:
+        """return only the IndexMaps with all wanted_idx"""
+        # just in case there's a dictionary somehow....
+        get_set = lambda mapping: set(mapping.keys()) if isinstance(mapping, dict) else {i for i, j in mapping}
+        return [mapping for mapping in maps if len(set(wanted_idx) - get_set(mapping)) == 0]
+
+    def _get_required_indices_for_map(self, custom_hit_map: Union[IndexMap, Dict[int, int]]) -> List[int]:
+        if isinstance(custom_hit_map, dict):
+            custom_hit_map = custom_hit_map.items()
+        return [h for h, f in custom_hit_map if h >= 0 and f >= 0]
+
+
 
     def pretweak(self) -> None:
         """
@@ -598,14 +691,13 @@ class _MonsterBlend(_MonsterMerge):
         return [h.GetProp('_Name') for h in self.hits if
                 h.GetProp('_Name') not in self.unmatched]
 
-
     def sample_new_conformation(self, random_seed=None):
         scaffold = self.modifications["chimera"]
         atom_map = self.get_atom_map_fromProp(scaffold)
         if random_seed is None:
             random_seed = self.random_seed
         new_mol = self.place_from_map(target_mol=Chem.Mol(self.initial_mol), template_mol=scaffold, atom_map=atom_map,
-                       random_seed=random_seed)
+                                      random_seed=random_seed)
 
         merging_mode = getattr(self, "merging_mode", "off")
         if merging_mode == 'off':
@@ -615,7 +707,7 @@ class _MonsterBlend(_MonsterMerge):
         elif merging_mode == 'partial':
             self.partial_blending()
         elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none' or \
-            merging_mode == 'none':
+                merging_mode == 'none':
             new_mol = self.posthoc_refine(new_mol)
         else:
             valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')

@@ -60,13 +60,13 @@ class Unmerge(GPM):
         :param mols: 3D molecules
         :type mols: List[Chem.Mol]
         :param maps: can be generated outseide of Monster by ``.make_maps``.
-        :type maps: Dict[List[Dict[int, int]]]
+        :type maps: Dict[str, List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
         """
         # ---- inputs ------------
         self.followup = followup
         self.mols = mols
-        self.maps = maps
+        self.maps:Dict[str, List[Dict[int, int]]] = maps
         self.no_discard = no_discard
         if self.no_discard:
             self.max_strikes = 100
@@ -163,7 +163,7 @@ class Unmerge(GPM):
         This is basically if someone is using this class outside of Monster
 
         Returns a dictionary of key mol name and
-        value a list of possible dictionary with idex of target to the index given mol.
+        value a list of possible dictionary with index of an atom in target mol to the index given mol.
         Note that a bunch of mapping modes can be found in Monster init mixin class.
 
         :param target: the molecule to be mapped

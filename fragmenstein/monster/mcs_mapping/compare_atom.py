@@ -1,8 +1,11 @@
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
-from typing import Dict, List, Tuple, Optional
-import itertools
+# TypedDict & Unpack fixed in .legacy:
+from typing import Dict, List, Tuple, Optional, TypeVar, Sequence, TypedDict, Unpack  # noqa
 from functools import singledispatchmethod  # monkeypatched by .legacy (for Py3.7)
+import itertools
+
+from .types import IndexMap, BasicFMCSMode, ExtendedFMCSMode
 
 
 class VanillaCompareAtoms(rdFMCS.MCSAtomCompare):
@@ -104,10 +107,23 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         SpecialCompareAtoms(custom_map=mapping, exclusive_mapping=True)
     """
 
-    def __init__(self, custom_map: Optional[Dict[str, Dict[int, int]]] = None, exclusive_mapping: bool = True):
-        super().__init__()  # what is p_object?
-        self.custom_map = custom_map if custom_map else {} # custom as in user-defined
+    def __init__(self,
+                 comparison: rdFMCS.AtomCompare = rdFMCS.AtomCompare.CompareAnyHeavyAtom,
+                 custom_map: Optional[Dict[str, Dict[int, int]]] = None, exclusive_mapping: bool = True):
+        super().__init__(comparison=comparison)  # what is p_object?
+        self.custom_map = self._parse_custom_map(custom_map)  # custom as in user-defined
         self.banned = self._get_strict_banned() if exclusive_mapping else self._get_lax_banned()
+
+    def _parse_custom_map(self, custom_map):
+        """
+        Make sure its Dict[str, Dict[int, int]]
+        """
+        if custom_map is None:
+            custom_map = {}
+        assert isinstance(custom_map, dict), 'User defined map has to be mol name to Dict[int, int]'
+        for name, hit_map in custom_map.items():
+            custom_map[name] = dict(hit_map)
+        return custom_map
 
     def _get_strict_banned(self):
         """
@@ -145,7 +161,7 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         symbols = {hit_atom.GetSymbol(), followup_atom.GetSymbol()}
         # ------- Custom -----------------------
         # get the user defined map target -- see docstring for bla bla
-        custom:int = self.get_custom(hit, hit_atom_idx)
+        custom: int = self.get_custom(hit, hit_atom_idx)
         if custom == followup_atom_idx:
             # it is the custom map!
             return True
@@ -176,7 +192,7 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                           parameters: rdFMCS.MCSAtomCompareParameters,
                           common: Chem.Mol,
                           hit: Chem.Mol,
-                          followup: Chem.Mol) -> List[List[Tuple[int, int]]]:
+                          followup: Chem.Mol) -> List[IndexMap]:
         """
         Returns a list of possible matches, each being a lists of tuples of hit to follow indices,
         that obey the criteria of the atomic comparison
@@ -205,55 +221,5 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
           parameters: rdFMCS.MCSParameters,
           common: Chem.Mol,
           hit: Chem.Mol,
-          followup: Chem.Mol) -> List[List[Tuple[int, int]]]:
+          followup: Chem.Mol) -> List[IndexMap]:
         return self.get_valid_matches(parameters.AtomCompareParameters, common, hit, followup)
-
-    @staticmethod
-    def transmute_FindMCS_parameters(**mode) -> rdFMCS.MCSParameters:  # noqa lowercase not applicable
-        """
-        The function ``rdFMCS.FindMCS`` has two ways of being used.
-        In one, a series of arguments are passed,
-        in another a ``rdFMCS.MCSParameters`` object is passed (a wrapped C++ structure).
-        Unfortunately, there does not seem to be a way to transmute the former into the other.
-
-        Hence, this function
-
-        The ``params.AtomTyper`` and ``params.BondTyper`` members
-        can be either
-
-        * the enum ``rdFMCS.AtomCompare`` or ``rdFMCS.BondCompare``
-        * or a subclass of ``rdFMCS.MCSBondCompare`` or ``rdFMCS.MCSAtomCompare``
-
-        The ``rdFMCS.RingCompare`` appears to be absorbed into the ``params.BondCompareParameters``
-        member.
-        """
-        params = rdFMCS.MCSParameters()
-        # three integers: https://github.com/rdkit/rdkit/blob/b208da471f8edc88e07c77ed7d7868649ac75100/Code/GraphMol/FMCS/FMCS.h
-        # they are not rdFMCS.AtomCompare rdFMCS.BondCompare and rdFMCS.RingCompare enums?
-        # atom parameters
-        atomCompare: rdFMCS.AtomCompare = mode.get('atomCompare', rdFMCS.AtomCompare.CompareElements)
-        params.AtomTyper = atomCompare  # int or a callable
-        params.AtomCompareParameters.MatchIsotope = atomCompare == rdFMCS.AtomCompare.CompareIsotopes
-        params.AtomCompareParameters.CompleteRingsOnly = mode.get('completeRingsOnly', False)
-        params.AtomCompareParameters.MatchChiralTag = mode.get('matchChiralTag', False)
-        params.AtomCompareParameters.MatchValences = mode.get('matchValences', False)
-        params.AtomCompareParameters.RingMatchesRingOnly = mode.get('ringMatchesRingOnly', False)
-        # bond parameters
-        bondCompare: rdFMCS.BondCompare = mode.get('bondCompare', rdFMCS.BondCompare.CompareOrder)
-        ringCompare: rdFMCS.RingCompare = mode.get('ringCompare', rdFMCS.RingCompare.IgnoreRingFusion)
-        params.BondTyper = bondCompare
-        params.BondCompareParameters.CompleteRingsOnly = mode.get('completeRingsOnly', False)
-        params.BondCompareParameters.MatchFusedRings = ringCompare != rdFMCS.RingCompare.IgnoreRingFusion
-        params.BondCompareParameters.MatchFusedRingsStrict = ringCompare == rdFMCS.RingCompare.StrictRingFusion
-        params.BondCompareParameters.RingMatchesRingOnly = mode.get('ringMatchesRingOnly', False)
-        params.Threshold = mode.get('threshold', 1.0)
-        params.MaximizeBonds = mode.get('maximizeBonds', True)
-        params.Timeout = mode.get('timeout', 3600)
-        params.Verbose = mode.get('verbose', False)
-        params.InitialSeed = mode.get('seedSmarts', '')
-        # parameters with no equivalence (i.e. made up)
-        params.BondCompareParameters.MatchStereo = mode.get('matchStereo', False)
-        params.AtomCompareParameters.MatchFormalCharge = mode.get('matchFormalCharge', False)
-        params.AtomCompareParameters.MaxDistance = mode.get('maxDistance', -1)
-        # params.ProgressCallback Depracated
-        return params

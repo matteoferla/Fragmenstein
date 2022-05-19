@@ -7,7 +7,7 @@ This is contains the class _MonsterBase to be inherited by _MonsterCommunal, the
 ########################################################################################################################
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 
@@ -87,6 +87,7 @@ class _MonsterBase:
         self.initial_mol = None  # to be filled by place. The starting molecule (Chem.Mol).
         # Manually assignmnt of self.initial_mol is futile
         self.attachment = None  # place only.
+        self.custom_map: Dict[str, Dict[int, int]] = {}
         # -------- common ------------------------------------
         # # ivars of type List[str]
         self.unmatched = []  # rejected hit names List[str]

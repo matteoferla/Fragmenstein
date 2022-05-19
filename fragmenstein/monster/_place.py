@@ -7,7 +7,7 @@ Place followup
 
 ########################################################################################################################
 
-from typing import Optional
+from typing import Optional, Dict
 from warnings import warn
 
 from rdkit import Chem
@@ -20,6 +20,7 @@ class _MonsterPlace(_MonsterBlend):
     def place(self,
               mol: Chem.Mol,
               attachment: Optional[Chem.Mol] = None,
+              custom_map: Optional[Dict[str, Dict[int, int]]] = None,
               merging_mode: str = 'none_permissive'):
         """
         Positioned a given mol based on the hits. (Main entrypoint)
@@ -33,10 +34,15 @@ class _MonsterPlace(_MonsterBlend):
 
         :param mol:
         :param attachment:
+        :param custom_map:
         :param merging_mode:
         :return:
         """
+        if not mol.HasProp('_Name'):
+            mol.SetProp('_Name', 'followup')
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
+        if custom_map:
+            self.custom_map: Dict[str, Dict[int, int]] = custom_map
         # Reset
         self.unmatched = []
         self.mol_options = []
@@ -60,9 +66,11 @@ class _MonsterPlace(_MonsterBlend):
 
     def place_smiles(self,
                      smiles: str,
-                     attachment: Optional[Chem.Mol] = None):
+                     long_name: Optional[str]=None,
+                     **kwargs):
         mol = Chem.MolFromSmiles(smiles)
-        self.place(mol=mol, attachment=attachment)
+        mol.SetProp('_Name', long_name if long_name else 'followup')
+        self.place(mol=mol, **kwargs)
         return self
 
     def _parse_mol_for_place(self,

@@ -249,13 +249,35 @@ class MonsterPlaceTests(unittest.TestCase):
                     self.assertTrue(np.sum(np.abs(coords1 - coords2)) > 3)
 
     def test_flipped_lactam(self):
+        """
+        Given a benzo + 7-membered lactam map a mol with the amide flipped
+        """
+        hit_F584 = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'F584.mol'))
+
+        monster = Monster(hits=[hit_F584, ])
+        monster.place_smiles(smiles='COc1cccc2C(=O)NCCCc12', long_name='flipped_F584')
+        # monster.show_comparison()
+        self.assertEqual(len(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0]), 13)
+
+    def test_forced_flipped_lactam(self):
+
+        """
+        Given a benzo + 7-membered lactam map a mol with the amide flipped as the previous test
+        force the ketones to match
+        """
         hit_F584 = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'F584.mol'))
         monster = Monster(hits=[hit_F584, ])
-        flipped_F584 = 'COc1cccc2C(=O)NCCCc12'
-        monster.place(Chem.MolFromSmiles(flipped_F584))
+        monster.place_smiles(smiles='COc1cccc2C(=O)NCCCc12',
+                             long_name='flipped_F584',
+                             custom_map={'hit_F584': {13: 8}})
+        # monster.draw_nicely(monster.hits[0])
+        # monster.draw_nicely(monster.initial_mol)
         # monster.show_comparison()
-        # the problem is that a hydrogen gets mapped to a oxygen and this is unxpected (c.f. `_get_atom_maps`)
-        self.assertEqual(len(monster.get_mcs_mappings(monster.initial_mol, monster.hits[0])[0][0]), 13)
+        # the [0][0][13] is because of:
+        # Tuple[List[Dict[int, int]], ExtendedFMCSMode]
+        self.assertIn(13, monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0])
+        self.assertEqual(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0][13], 8)
+        #self.assertEqual(len(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0]), 13)
 
 
 class MultivictorPlaceTests(unittest.TestCase):
@@ -524,6 +546,12 @@ class Mappings(unittest.TestCase):
         # self.assertEqual(len(full_maps), 1, f'There is only one way to map it not {len(full_maps)} ({full_maps})')
         for full_map in full_maps:
             self.assertNotIn(1, dict(full_map).keys())
+
+    def test_flipper(self):
+        from fragmenstein.monster.mcs_mapping import flip_mapping
+        # Sequence[Tuple[int, int]]
+        flipped = flip_mapping([(1, 2)])
+        self.assertIsInstance(flipped, (list, tuple))
 
 
     def test_user_negmap2(self):
