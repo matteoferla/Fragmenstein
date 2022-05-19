@@ -2,6 +2,7 @@ from rdkit import Chem
 from rdkit.Chem import rdFMCS
 from typing import Dict, List, Tuple, Optional
 import itertools
+from functools import singledispatchmethod  # monkeypatched by .legacy (for Py3.7)
 
 
 class VanillaCompareAtoms(rdFMCS.MCSAtomCompare):
@@ -105,7 +106,7 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
 
     def __init__(self, custom_map: Optional[Dict[str, Dict[int, int]]] = None, exclusive_mapping: bool = True):
         super().__init__()  # what is p_object?
-        self.custom_map = custom_map if custom_map else {}
+        self.custom_map = custom_map if custom_map else {} # custom as in user-defined
         self.banned = self._get_strict_banned() if exclusive_mapping else self._get_lax_banned()
 
     def _get_strict_banned(self):
@@ -143,21 +144,22 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         followup_atom = followup.GetAtomWithIdx(followup_atom_idx)
         symbols = {hit_atom.GetSymbol(), followup_atom.GetSymbol()}
         # ------- Custom -----------------------
-        #         custom:int = self.get_custom(hit, hit_atom_idx)
-        #         if custom == followup_atom_idx:
-        #             # it is the custom map!
-        #             return True
-        #         elif custom != -1:
-        #             # a different index was given
-        #             # or a non -1 negative number
-        #             return False
-        #         elif followup_atom_idx in self.banned:
-        #             # banned is fully filled if exclusive_mapping was true during init
-        #             # otherwise its user provided negatives
-        #             return False
-        #         else:
-        #             # followup index not assigned
-        #             pass
+        # get the user defined map target -- see docstring for bla bla
+        custom:int = self.get_custom(hit, hit_atom_idx)
+        if custom == followup_atom_idx:
+            # it is the custom map!
+            return True
+        elif custom != -1:
+            # a different index was given
+            # or a non -1 negative number
+            return False
+        elif followup_atom_idx in self.banned:
+            # banned is fully filled if exclusive_mapping was true during init
+            # otherwise its user provided negatives
+            return False
+        else:
+            # followup index not assigned
+            pass
         # ------- Dummy ------------------------
         # dummy atom cannot match non-dummy atom:
         if '*' in symbols and len(symbols) > 1:
@@ -169,11 +171,19 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         # ------- vanilla ------------------------
         return super().__call__(parameters, hit, hit_atom_idx, followup, followup_atom_idx)
 
+    @singledispatchmethod
     def get_valid_matches(self,
                           parameters: rdFMCS.MCSAtomCompareParameters,
                           common: Chem.Mol,
                           hit: Chem.Mol,
                           followup: Chem.Mol) -> List[List[Tuple[int, int]]]:
+        """
+        Returns a list of possible matches, each being a lists of tuples of hit to follow indices,
+        that obey the criteria of the atomic comparison
+
+        parameters can be rdFMCS.MCSAtomCompareParameters or rdFMCS.MCSParameters
+        """
+
         matches = []
         for hit_match, followup_match in itertools.product(hit.GetSubstructMatches(common, uniquify=False),
                                                            followup.GetSubstructMatches(common, uniquify=False)):
@@ -190,14 +200,23 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         matches = list(set([tuple(sorted(m, key=lambda i: i[0])) for m in matches]))
         return matches
 
-    def transmute_FindMCS_parameters(**mode) -> rdFMCS.MCSParameters:
+    @get_valid_matches.register
+    def _(self,
+          parameters: rdFMCS.MCSParameters,
+          common: Chem.Mol,
+          hit: Chem.Mol,
+          followup: Chem.Mol) -> List[List[Tuple[int, int]]]:
+        return self.get_valid_matches(parameters.AtomCompareParameters, common, hit, followup)
+
+    @staticmethod
+    def transmute_FindMCS_parameters(**mode) -> rdFMCS.MCSParameters:  # noqa lowercase not applicable
         """
         The function ``rdFMCS.FindMCS`` has two ways of being used.
         In one, a series of arguments are passed,
         in another a ``rdFMCS.MCSParameters`` object is passed (a wrapped C++ structure).
         Unfortunately, there does not seem to be a way to transmute the former into the other.
 
-        Hence this function.
+        Hence, this function
 
         The ``params.AtomTyper`` and ``params.BondTyper`` members
         can be either
@@ -232,7 +251,7 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         params.Timeout = mode.get('timeout', 3600)
         params.Verbose = mode.get('verbose', False)
         params.InitialSeed = mode.get('seedSmarts', '')
-        # paramters with no equivalence (i.e. made up)
+        # parameters with no equivalence (i.e. made up)
         params.BondCompareParameters.MatchStereo = mode.get('matchStereo', False)
         params.AtomCompareParameters.MatchFormalCharge = mode.get('matchFormalCharge', False)
         params.AtomCompareParameters.MaxDistance = mode.get('maxDistance', -1)
