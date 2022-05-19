@@ -37,4 +37,4 @@ import pkg_resources
 
 json_str = pkg_resources.resource_string(__name__, 'divergent_colors.json').decode('utf-8')
 
-divergent_colors:Dict[int, List[str]] = json.loads(json_str)
+divergent_colors:Dict[int, List[str]] = {int(k): v for k, v in json.loads(json_str).items()}
