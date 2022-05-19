@@ -6,12 +6,7 @@ from rdkit.Chem import AllChem
 from ..monster import Monster
 from ..branding import divergent_colors
 
-import sys
-if sys.version_info.major != 3 or sys.version_info.minor < 8:
-    # hack to enable the backport. !pip install singledispatchmethod
-    import functools
-    from singledispatchmethod import singledispatchmethod
-    functools.singledispatchmethod = singledispatchmethod
+# courtesy of .legacy
 from functools import singledispatchmethod
 
 class WaltonBase:

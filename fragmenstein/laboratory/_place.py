@@ -8,10 +8,7 @@ from rdkit import Chem
 from fragmenstein import Victor
 from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
 
-if sys.version_info < (3, 8):
-    from typing_extensions import TypedDict
-else:
-    from typing import TypedDict
+from typing import TypedDict  # monkeypatched by .legacy. Absent in <Py3.8
 
 
 from ._base import LabBench, binarize, unbinarize
