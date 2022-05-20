@@ -50,7 +50,7 @@ class WaltonBase:
     def from_smiles(cls,
                     aligned: bool = False,
                     add_Hs: bool = False,
-                    **name2smiles: Dict[str, str]):
+                    **name2smiles: str):
         """
         Load from SMILES.
         provided as named arguments: ``from_smiles(bezene='c1ccccc1',..)``
