@@ -8,6 +8,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdMolAlign
 from rdkit.Geometry.rdGeometry import Point3D
+from rdkit.Chem import AllChem
+import operator
 
 from ._make_chimera import _MonsterChimera
 
@@ -127,3 +129,41 @@ class _MonsterRefine(_MonsterChimera):
 
         self.positioned_mol = new_mol
         return new_mol
+
+
+    @classmethod
+    def get_best_scoring(cls, mols: List[Chem.RWMol]) -> Chem.Mol:
+        """
+        Sorts molecules by how well they score w/ Merch FF
+        """
+        if len(mols) == 0:
+            raise ValueError(f'No molecules')
+        elif len(mols) == 1:
+            return mols[0]
+        # This is not expected to happen, but just in case
+        mols = [m for m in mols if m is not None]
+        scores = *map(cls.score_mol, mols),
+        cls.journal.debug(f'`.get_best_scoring (unmerge)` Scores: {scores}')
+        # proof that the mol has/lacks origins data:
+        # for mol in mols:
+        #     print('DEBUG OF LAST RESORT', mol)
+        #     print(cls.origin_from_mol(cls, mol.GetMol())) # called from instance
+        mol_scores = sorted(list(zip(mols, scores)), key=operator.itemgetter(1))
+        return mol_scores[0][0]
+
+    @staticmethod
+    def score_mol(mol: Chem.Mol) -> float:
+        """
+        Scores a mol without minimising
+        """
+        if isinstance(mol, Chem.RWMol):
+            mol = mol.GetMol()
+        else:
+            mol = Chem.Mol(mol)
+        mol.UpdatePropertyCache()  # noqa
+        Chem.SanitizeMol(mol)
+        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
+        if p is None:
+            return float('nan')
+        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
+        return ff.CalcEnergy()

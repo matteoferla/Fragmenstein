@@ -284,6 +284,13 @@ class MonsterPlaceTests(unittest.TestCase):
         self.assertEqual(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0][13], 8)
         #self.assertEqual(len(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0]), 13)
 
+    def test_by_expansion(self):
+        with Chem.SDMolSupplier('test_mols/5SB7_mergers.sdf') as reader:
+            mols = list(reader)
+        monster = Monster(mols[:2])
+        monster.place_smiles(Chem.MolToSmiles(mols[3]), merging_mode='off')
+        monster.by_expansion()
+        self.assertEqual(len(monster.unmatched), 0, f'{monster.unmatched} did not match')
 
 class MultivictorPlaceTests(unittest.TestCase):
 

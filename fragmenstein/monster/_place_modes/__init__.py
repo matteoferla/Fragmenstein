@@ -12,10 +12,11 @@ This was formerly part of the ``_blend_place.py`` file.
 
 from ._full import _MonsterFull
 from ._partial import _MonsterPartial
-from ._no_blending import _MonsterNone
+#from ._no_blending import _MonsterNone
+from ._expand import _MonsterExpand
 
 
-class _MonsterBlend(_MonsterFull, _MonsterPartial, _MonsterNone):
+class _MonsterBlend(_MonsterFull, _MonsterPartial, _MonsterExpand):
     """
     The order of inheritance is:
 
@@ -23,6 +24,6 @@ class _MonsterBlend(_MonsterFull, _MonsterPartial, _MonsterNone):
     2. _MonsterMap >
     3. _MonsterChimera >
     4. _MonsterRefine >
-    5. (_MonsterFull, _MonsterPartial, _MonsterNone) >
+    5. (_MonsterFull, _MonsterPartial, (_MonsterNone > _MonsterExpand)) >
     6. _MonsterBlend
     """

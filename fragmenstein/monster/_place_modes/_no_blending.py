@@ -1,5 +1,5 @@
 import operator
-from typing import Optional, Dict, List, Tuple, Set, Unpack, Union  # noqa cf. .legacy monkeypatch
+from typing import Optional, Dict, List, Tuple, Set, Sequence, Unpack, Union, Any, Iterable  # noqa cf. .legacy monkeypatch
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -15,86 +15,114 @@ class _MonsterNone(_MonsterRefine):
         """
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
-        maps: Dict[str, List[Dict[int, int]]] = {}
-        for template in self.hits:
-            if broad:
-                self.journal.debug('Merge ligands: False. Broad search: True')
-                pair_atom_maps, _ = self.get_mcs_mappings(template, self.initial_mol)
-                maps[template.GetProp('_Name')] = pair_atom_maps
-            else:
-                self.journal.debug('Merge ligands: False. Broad search: False')
-                pair_atom_maps_t: List[IndexMap] = self._get_atom_maps(followup=self.initial_mol, hit=template,
-                                                                       **self.strict_matching_mode)
-                pair_atom_maps: List[Dict[int, int]] = [dict(p) for p in pair_atom_maps_t]
-                maps[template.GetProp('_Name')] = pair_atom_maps
-        # todo flip round Unmerge. Unmerge wants name to dict of followup to hit... which is backwards.
-        um = Unmerge(followup=self.initial_mol,
-                     mols=self.hits,
-                     maps={name: list(map(flip_mapping, hit_mappings)) for name, hit_mappings in maps.items()},
-                     no_discard=self.throw_on_discard)
+        maps: Dict[str, List[Dict[int, int]]] = self._compute_maps(broad)
+        unmerger = self._perform_unmerge(maps)
+        self.positioned_mol, self.mol_options = self._place_unmerger(unmerger)
 
-        self.unmatched = [m.GetProp('_Name') for m in um.disregarded]
+
+    def _perform_unmerge(self, maps: Dict[str, List[Dict[int, int]]]) -> Unmerge:
+        """
+        The second third of the no_blending method. But also used by expansion mapping.
+
+        :param maps:
+        :return:
+        """
+        positive: Dict[str, List[Dict[int, int]]] = self._remove_negatives(maps)
+        flipped_maps: Dict[str, List[Dict[int, int]]] =\
+            {name: [flip_mapping(hm) for hm in hit_mappings] for name, hit_mappings in maps.items()}
+        # todo flip round Unmerge. Unmerge wants name to dict of followup to hit... which is backwards.
+        unmerger = Unmerge(followup=self.initial_mol,
+                             mols=self.hits,
+                             maps=flipped_maps,
+                             no_discard=self.throw_on_discard)
+        self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
-        self.journal.debug(f'followup to scaffold {um.combined_map}')
+        self.journal.debug(f'followup to scaffold {unmerger.combined_map}')
+        return unmerger
+
+    def _place_unmerger(self, unmerger: Unmerge) -> Tuple[Chem.Mol, List[Chem.Mol]]:
         # ------------------ places the atoms with known mapping ------------------
         placed = self.place_from_map(target_mol=self.initial_mol,
-                                     template_mol=um.combined_bonded,
-                                     atom_map=um.combined_map,
+                                     template_mol=unmerger.combined_bonded,
+                                     atom_map=unmerger.combined_map,
                                      random_seed=self.random_seed)
 
-        self.keep_copy(um.combined, 'scaffold')
-        self.keep_copy(um.combined_bonded, 'chimera')
+        self.keep_copy(unmerger.combined, 'scaffold')
+        self.keep_copy(unmerger.combined_bonded, 'chimera')
 
-        alts = zip(um.combined_bonded_alternatives, um.combined_map_alternatives)
+        alts = zip(unmerger.combined_bonded_alternatives, unmerger.combined_map_alternatives)
         placed_options = [self.place_from_map(target_mol=self.initial_mol,
-                                              template_mol=mol,
-                                              atom_map=mappa,
-                                              random_seed=self.random_seed) for mol, mappa in alts]
-        # ------------------ Averages the overlapping atoms ------------------
-        if um.pick != -1:  # override present!
-            self.journal.debug(f'override present: {um.pick}')
-            self.positioned_mol = self.posthoc_refine(placed)
-            self.mol_options = [self.posthoc_refine(mol) for mol in placed_options]
+                                             template_mol=mol,
+                                             atom_map=mappa,
+                                             random_seed=self.random_seed) for mol, mappa in alts]
+        # ------------------ .posthoc_refine averages the overlapping atoms ------------------
+        if unmerger.pick != -1:  # override present!
+            self.journal.debug(f'override present: {unmerger.pick}')
+            positioned_mol = self.posthoc_refine(placed)
+            mol_options = [self.posthoc_refine(mol) for mol in placed_options]
         else:
             mols: List[Chem.Mol] = [self.posthoc_refine(mol) for mol in [placed] + placed_options]
-            self.positioned_mol: Chem.Mol = self.get_best_scoring(mols)
-            mols.remove(self.positioned_mol)
-            self.mol_options: List[Chem.Mol] = mols
+            positioned_mol: Chem.Mol = self.get_best_scoring(mols)
+            mols.remove(positioned_mol)
+            mol_options: List[Chem.Mol] = mols
+        return positioned_mol, mol_options
 
-    @classmethod
-    def get_best_scoring(cls, mols: List[Chem.RWMol]) -> Chem.Mol:
+    def _compute_maps(self, broad: bool) -> Dict[str, List[Dict[int, int]]]:
         """
-        Sorts molecules by how well they score w/ Merch FF
-        """
-        if len(mols) == 0:
-            raise ValueError(f'No molecules')
-        elif len(mols) == 1:
-            return mols[0]
-        # This is not expected to happen, but just in case
-        mols = [m for m in mols if m is not None]
-        scores = *map(cls.score_mol, mols),
-        cls.journal.debug(f'`.get_best_scoring (unmerge)` Scores: {scores}')
-        # proof that the mol has/lacks origins data:
-        # for mol in mols:
-        #     print('DEBUG OF LAST RESORT', mol)
-        #     print(cls.origin_from_mol(cls, mol.GetMol())) # called from instance
-        mol_scores = sorted(list(zip(mols, scores)), key=operator.itemgetter(1))
-        return mol_scores[0][0]
+        Compute the mapping for each hit and returns a dict of name to list of mappings
+        in the scheme of ``[{hit_atom_idx: template_atom_idx}, ...]``
 
-    @staticmethod
-    def score_mol(mol: Chem.Mol) -> float:
+        :param broad:
+        :return:
         """
-        Scores a mol without minimising
+        return {hit.GetProp('_Name'): self._compute_hit_maps(hit, broad) for hit in self.hits}
+
+    def _compute_hit_maps(self, template: Chem.Mol, broad: bool) -> List[Dict[int, int]]:
         """
-        if isinstance(mol, Chem.RWMol):
-            mol = mol.GetMol()
+        Calcualte the list of options of possible maps of hit
+        :param template:
+        :param broad:
+        :return:
+        """
+        if broad:
+            self.journal.debug('Merge ligands: False. Broad search: True')
+            pair_atom_maps, _ = self.get_mcs_mappings(template, self.initial_mol)
+            return pair_atom_maps
         else:
-            mol = Chem.Mol(mol)
-        mol.UpdatePropertyCache()  # noqa
-        Chem.SanitizeMol(mol)
-        p = AllChem.MMFFGetMoleculeProperties(mol, 'MMFF94')
-        if p is None:
-            return float('nan')
-        ff = AllChem.MMFFGetMoleculeForceField(mol, p)
-        return ff.CalcEnergy()
+            self.journal.debug('Merge ligands: False. Broad search: False')
+            pair_atom_maps_t: List[IndexMap] = self._get_atom_maps(followup=self.initial_mol, hit=template,
+                                                                   **self.strict_matching_mode)
+            pair_atom_maps: List[Dict[int, int]] = [dict(p) for p in pair_atom_maps_t]
+            return pair_atom_maps
+
+    def _remove_negatives(self, map: Any) -> Any:
+        """
+        This is a hack to remove negative values from the map.
+        It like flip_mapping is a tangle of options. The latter has been typing.overload'ed
+
+        :param map:
+        :return:
+        """
+        if len(map) == 0:  # nothing to do
+            return map
+        # list of something
+        if isinstance(map, list) and isinstance(map[0], tuple) and isinstance(map[0][0], tuple):
+            return [(h, f) for h, f in map if f >= 0 and h >= 0]
+        elif isinstance(map, list) and isinstance(map[0], list):
+            return [self._remove_negatives(m) for m in map]
+        elif isinstance(map, list) and isinstance(map[0], dict):
+            return [self._remove_negatives(m) for m in map]
+        elif isinstance(map, list):
+            raise ValueError('Unsupported sub map type: {}'.format(type(map[0])))
+        # dict of something
+        if not isinstance(map, dict):
+            raise ValueError('Unsupported map type: {}'.format(type(map)))
+        first_val = list(map.values())[0]
+        if isinstance(map, dict) and isinstance(first_val, int):
+            return {h: f for h, f in map.items() if f >= 0 and h >= 0}
+        elif isinstance(map, dict) and isinstance(first_val, Iterable):
+            return {k: self._remove_negatives(v) for k, v in map.items()}
+        else:
+            raise ValueError('Unsupported sub map type: {}'.format(type(first_val)))
+

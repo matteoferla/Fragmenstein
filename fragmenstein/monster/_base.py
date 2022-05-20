@@ -166,3 +166,16 @@ class _MonsterBase:
         """
         return [h.GetProp('_Name') for h in self.hits if
                 h.GetProp('_Name') not in self.unmatched]
+
+    def get_hit_by_name(self, name: str) -> Chem.Mol:
+        """
+        Given a name of a hit (as defined in ``_Name`` property), return the hit.
+        Do note `fix_hits` will have been called, so the name may be assigned.
+        :param name:
+        :return:
+        """
+        for hit in self.hits:
+            if hit.GetProp('_Name') == name:
+                return hit
+        else:
+            raise ValueError(f"No hit with name {name}")

@@ -26,6 +26,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 class Unmerge(GPM):
     """
     This class tries to solve the mapping problem by try all possible mappings of the target to the ligand.
@@ -51,7 +52,7 @@ class Unmerge(GPM):
                  followup: Chem.Mol,
                  mols: List[Chem.Mol],
                  maps: Dict[str, List[Dict[int, int]]],
-                 no_discard: bool=False):
+                 no_discard: bool = False):
         """
         At the minute maps is a dict of hit name to a list of possible maps, wherein each map is a dict of
         atom index in the followup molecule to atom index in the target molecule,
@@ -68,7 +69,7 @@ class Unmerge(GPM):
         # ---- inputs ------------
         self.followup = followup
         self.mols = mols
-        self.maps:Dict[str, List[Dict[int, int]]] = maps
+        self.maps: Dict[str, List[Dict[int, int]]] = maps
         self.no_discard = no_discard
         if self.no_discard:
             self.max_strikes = 100
@@ -78,23 +79,20 @@ class Unmerge(GPM):
         self.c_map_options: List[Dict[int, int]] = []
         self.c_options: List[Chem.Mol] = []
         self.c_disregarded_options: List[List[Chem.Mol]] = []
-        self.combined:Chem.Mol= Chem.Mol()
+        self.combined: Chem.Mol = Chem.Mol()
         self.combined_alternatives: List[Chem.Mol] = []
-        self.combined_map:Dict[int, int] = {}
-        self.disregarded:List[Chem.Mol] = []
+        self.combined_map: Dict[int, int] = {}
+        self.disregarded: List[Chem.Mol] = []
         self.combined_bonded: Chem.Mol = Chem.Mol()
-        self.combined_bonded_alternatives:List[Chem.Mol] = []
-        self.combined_map_alternatives:List[Dict[int, int]] = []
+        self.combined_bonded_alternatives: List[Chem.Mol] = []
+        self.combined_map_alternatives: List[Dict[int, int]] = []
         self.calculate(accounted_for)
 
-    def calculate(self, accounted_for:set):
+    def calculate(self, accounted_for: set):
         """perform the calculations"""
-        #  ---- sorters  --------------------
-        def goodness_sorter(i:int) -> int:
-            # offness: How many bonds are too long?
-            n_off_atoms:int = self.offness(self.c_options[i], self.c_map_options[i])
-            return len(self.c_map_options[i]) - 3 * n_off_atoms
 
+        #  ---- sorters  --------------------
+        goodness_sorter = self.goodness_sorter_factory(3)
         accounted_sorter = self.template_sorter_factory(accounted_for)
         # ---- rotate ----------------------------
         if self.rotational_approach:
@@ -147,7 +145,7 @@ class Unmerge(GPM):
         self.combined = self.c_options[i]
         self.combined_map = self.c_map_options[i]
         self.disregarded = self.c_disregarded_options[i]
-        self.combined_bonded:Chem.Mol = self.bond()
+        self.combined_bonded: Chem.Mol = self.bond()
         alternative_indices = [j for j in equals if j != i]
         self.combined_alternatives = [self.c_options[j] for j in alternative_indices]
         self.combined_map_alternatives = [self.c_map_options[j] for j in alternative_indices]
@@ -207,7 +205,6 @@ class Unmerge(GPM):
             maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
         return maps
 
-
     def template_sorter_factory(self, accounted_for) -> Callable:
         """ returns the number of atoms that have not already been accounted for."""
 
@@ -218,6 +215,17 @@ class Unmerge(GPM):
 
         return template_sorter
 
+    def goodness_sorter_factory(self, offness_weight:int=3) -> Callable:
+        """
+        This is a factory for symmetry with template sorter... there is zero other reason for it to be so.
+        """
+
+        def goodness_sorter(i: int) -> int:
+            # offness: How many bonds are too long?
+            n_off_atoms: int = self.offness(self.c_options[i], self.c_map_options[i])
+            return len(self.c_map_options[i]) - offness_weight * n_off_atoms
+
+        return goodness_sorter
 
     def store(self, combined: Chem.Mol, combined_map: Dict[int, int], disregarded: List[Chem.Mol]):
         """
@@ -228,7 +236,6 @@ class Unmerge(GPM):
         self.c_options.append(combined)
         self.c_disregarded_options.append(disregarded)
         return None
-
 
     def unmerge_inner(self,
                       combined: Chem.Mol,
@@ -279,7 +286,6 @@ class Unmerge(GPM):
             # verdict
             self.judge_n_move_on(combined, combined_map, other, possible_map, others, disregarded)
 
-
     def judge_n_move_on(self, combined, combined_map, other, possible_map, others, disregarded):
         """
         The mutables need to be within their own scope
@@ -308,7 +314,6 @@ class Unmerge(GPM):
         template_sorter = self.template_sorter_factory(accounted_for)
         sorted_others = sorted(others[1:], key=template_sorter)
         self.unmerge_inner(combined, combined_map, sorted_others, disregarded)
-
 
     def get_possible_map(self,
                          other: Chem.Mol,
@@ -357,11 +362,11 @@ class Unmerge(GPM):
                 strikes += 1
         if strikes >= self.max_strikes:
             return {}
-        elif not self.check_possible_distances(other, possible_map, combined, combined_map, cutoff=self.distance_cutoff):
+        elif not self.check_possible_distances(other, possible_map, combined, combined_map,
+                                               cutoff=self.distance_cutoff):
             return {}
         else:
             return possible_map
-
 
     def check_possible_distances(self, other, possible_map, combined, combined_map, cutoff=3):
         for i, offset_o in possible_map.items():
@@ -378,8 +383,7 @@ class Unmerge(GPM):
                     pass  # unmapped neighbor
         return True
 
-
-    def bond(self, idx: Optional[int]=None) -> Chem.Mol:
+    def bond(self, idx: Optional[int] = None) -> Chem.Mol:
         """
         Add bonds. As in the verb 'to bond' ...
         """
@@ -406,14 +410,12 @@ class Unmerge(GPM):
                     putty.GetBondBetweenAtoms(ci, nci).SetBondType(bond_type)
         return putty.GetMol()
 
-
     def get_inter_distance(self, molA: Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> np.float:
         def get_pos(mol, idx):
             conf = mol.GetConformer()
             return np.array(conf.GetAtomPosition(idx))
 
         return np.linalg.norm(get_pos(molA, idxA) - get_pos(molB, idxB))
-
 
     def measure_map(self, mol: Chem.Mol, mapping: Dict[int, int]) -> np.array:
         """
@@ -440,10 +442,9 @@ class Unmerge(GPM):
                 atomic_distances = np.append(atomic_distances, np.linalg.norm(a - b))
         return atomic_distances
 
-
     def offness(self, mol: Chem.Mol,
                 mapping: Dict[int, int],
-                cutoff_distance:float=2.5) -> int:
+                cutoff_distance: float = 2.5) -> int:
         """
         How many bonds are too long?
 
