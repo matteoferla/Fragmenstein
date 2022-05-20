@@ -155,3 +155,14 @@ class _MonsterBase:
             atom.SetDoubleProp('_y', pos.y)
             atom.SetDoubleProp('_z', pos.z)
         return mol
+
+    @property
+    def matched(self) -> List[str]:
+        """
+        This is the counter to unmatched.
+        It's dynamic as you never know...
+
+        :return:
+        """
+        return [h.GetProp('_Name') for h in self.hits if
+                h.GetProp('_Name') not in self.unmatched]

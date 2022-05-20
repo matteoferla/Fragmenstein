@@ -6,8 +6,6 @@ from multiprocessing import Process
 
 import pyrosetta
 
-pyrosetta.init(
-    extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 # ======================================================================================================================
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -23,6 +21,9 @@ import os
 test_mols_folder = os.path.join(os.path.dirname(__file__), 'test_mols')
 
 class MProPlaceTester(unittest.TestCase):
+
+    def setUp(self):
+        Igor.init_pyrosetta()
 
     def untest_red_herring(self):  # without the test_ word this will not run.
         """
@@ -112,6 +113,10 @@ class MProPlaceTester(unittest.TestCase):
 # ======================================================================================================================
 
 class VictorCombineTests(unittest.TestCase):
+
+    def setUp(self):
+        Igor.init_pyrosetta()
+
     def test_noncovalent(self):
         MProVictor.quick_reanimation = False
         victor = MProVictor.from_hit_codes(hit_codes=['x0305', 'x1249'])
@@ -281,6 +286,10 @@ class MonsterPlaceTests(unittest.TestCase):
 
 
 class MultivictorPlaceTests(unittest.TestCase):
+
+    def setUp(self):
+        Igor.init_pyrosetta()
+
     def test_multivictor(self):
         from fragmenstein import MultiVictorPlacement
         to_place = Chem.MolFromMolFile(os.path.join(test_mols_folder, 'placed_example1.mol'))
@@ -300,6 +309,9 @@ class MultivictorPlaceTests(unittest.TestCase):
 class WaltonTests(unittest.TestCase):
 
     def smiles_assertEqual(self, a, b):
+        """
+        helper method to test equality of smiles
+        """
         if isinstance(a, str):
             expected_smiles = a
             mol = b

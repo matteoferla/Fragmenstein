@@ -2,7 +2,7 @@
 
 __doc__ = \
     """
-Unmerge mapper (not inherited)
+Unmerge mapper (not inherited) but inherits `positional_mapping.GPM`
     """
 
 __author__ = "Matteo Ferla. [Github](https://github.com/matteoferla)"
@@ -15,7 +15,7 @@ __citation__ = ""
 ########################################################################################################################
 
 
-from typing import Callable, List, Dict, Tuple, Optional, Any
+from typing import Callable, List, Dict, Tuple, Optional, Any, Sequence
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 import numpy as np
@@ -51,15 +51,17 @@ class Unmerge(GPM):
                  followup: Chem.Mol,
                  mols: List[Chem.Mol],
                  maps: Dict[str, List[Dict[int, int]]],
-                 no_discard:bool=False):
+                 no_discard: bool=False):
         """
-
+        At the minute maps is a dict of hit name to a list of possible maps, wherein each map is a dict of
+        atom index in the followup molecule to atom index in the target molecule,
+        not the reverse as it will be soon... (see ``mcs_mapping``)
 
         :param followup: the molecule to place
         :type followup: Chem.Mol
         :param mols: 3D molecules
         :type mols: List[Chem.Mol]
-        :param maps: can be generated outseide of Monster by ``.make_maps``.
+        :param maps: can be generated outseide of Monster by ``.make_maps``
         :type maps: Dict[str, List[Dict[int, int]]]
         :param no_discard: do not allow any to be discarded
         """
@@ -76,13 +78,17 @@ class Unmerge(GPM):
         self.c_map_options: List[Dict[int, int]] = []
         self.c_options: List[Chem.Mol] = []
         self.c_disregarded_options: List[List[Chem.Mol]] = []
-        self.combined = None
-        self.combined_alternatives = []
-        self.combined_map = {}
-        self.disregarded = []
-        self.combined_bonded = None
-        self.combined_bonded_alternatives = []
-        self.combined_map_alternatives = []
+        self.combined:Chem.Mol= Chem.Mol()
+        self.combined_alternatives: List[Chem.Mol] = []
+        self.combined_map:Dict[int, int] = {}
+        self.disregarded:List[Chem.Mol] = []
+        self.combined_bonded: Chem.Mol = Chem.Mol()
+        self.combined_bonded_alternatives:List[Chem.Mol] = []
+        self.combined_map_alternatives:List[Dict[int, int]] = []
+        self.calculate(accounted_for)
+
+    def calculate(self, accounted_for:set):
+        """perform the calculations"""
         #  ---- sorters  --------------------
         def goodness_sorter(i:int) -> int:
             # offness: How many bonds are too long?
@@ -141,11 +147,13 @@ class Unmerge(GPM):
         self.combined = self.c_options[i]
         self.combined_map = self.c_map_options[i]
         self.disregarded = self.c_disregarded_options[i]
-        self.combined_bonded = self.bond()
+        self.combined_bonded:Chem.Mol = self.bond()
         alternative_indices = [j for j in equals if j != i]
         self.combined_alternatives = [self.c_options[j] for j in alternative_indices]
         self.combined_map_alternatives = [self.c_map_options[j] for j in alternative_indices]
         self.combined_bonded_alternatives = [self.bond(n) for n in range(len(self.combined_alternatives))]
+        # ----- return ----------------------------------------------------------------
+        return self
 
     def get_key(self, d: dict, v: Any):
         """
@@ -172,7 +180,7 @@ class Unmerge(GPM):
         :return:
         """
 
-        def get_atom_maps(molA, molB, **mode) -> List[List[Tuple[int, int]]]:
+        def get_atom_maps(molA, molB, **mode) -> List[Sequence[Tuple[int, int]]]:
             mcs = rdFMCS.FindMCS([molA, molB], **mode)
             common = Chem.MolFromSmarts(mcs.smartsString)
             matches = []
@@ -185,7 +193,7 @@ class Unmerge(GPM):
                     matches.append([(molA_at, molB_at) for molA_at, molB_at in zip(molA_match, molB_match) if
                                     all_bar_dummy(molA_at, molB_at)])
             # you can map two toluenes 4 ways, but two are repeats.
-            return list[set([tuple(sorted(m, key=lambda i: i[0])) for m in matches])]
+            return list(set([tuple(sorted(m, key=lambda i: i[0])) for m in matches]))
 
         if mode is None:
             mode = dict(atomCompare=rdFMCS.AtomCompare.CompareElements,
@@ -193,7 +201,7 @@ class Unmerge(GPM):
                         ringMatchesRingOnly=True,
                         ringCompare=rdFMCS.RingCompare.PermissiveRingFusion,
                         matchChiralTag=True)
-        maps = {}
+        maps: Dict[str, List[Dict[int, int]]] = {}
         for template in mols:
             pair_atom_maps = get_atom_maps(target, template, **mode)
             maps[template.GetProp('_Name')] = [dict(p) for p in pair_atom_maps]
@@ -371,7 +379,10 @@ class Unmerge(GPM):
         return True
 
 
-    def bond(self, idx: Optional[int]=None):
+    def bond(self, idx: Optional[int]=None) -> Chem.Mol:
+        """
+        Add bonds. As in the verb 'to bond' ...
+        """
         if idx is None:
             # calculating  self.combined_bonded
             mol = self.combined

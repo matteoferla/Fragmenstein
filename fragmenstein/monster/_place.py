@@ -12,10 +12,22 @@ from warnings import warn
 
 from rdkit import Chem
 
-from ._blend_place import _MonsterBlend  # inherits _MonsterCommunal <- _MonsterBase
-
+from ._place_modes import _MonsterBlend
 
 class _MonsterPlace(_MonsterBlend):
+    """
+    * _MonsterBase
+    * _MonsterCommunal
+    * _MonsterTracker
+    * _MonsterMerge
+    * _MonsterCombine
+    * _MonsterMap
+    * _MonsterChimera
+    * _MonsterRefine
+    * (_MonsterFull, _MonsterPartial, _MonsterNone) >
+    * _MonsterBlend
+    * _MonsterPlace
+    """
 
     def place(self,
               mol: Chem.Mol,
