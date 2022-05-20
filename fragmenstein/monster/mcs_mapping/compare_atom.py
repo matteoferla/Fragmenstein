@@ -26,7 +26,7 @@ class VanillaCompareAtoms(rdFMCS.MCSAtomCompare):
         In https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/FMCS/Wrap/testFMCS.py
         it is clear one needs to make one's own.
         """
-        super().__init__()  # noqa but what is p_object?
+        super().__init__()  # noqa the p_obect (python object aka ctypes.py_object) is not used
         self.comparison = comparison
 
     def __call__(self,  # noqa signature matches... it is just Boost being Boost
