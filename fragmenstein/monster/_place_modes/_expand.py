@@ -24,6 +24,8 @@ class _MonsterExpand(_MonsterNone):
         primary_maps: List[Dict[int, int]]
         primary_name, primary_maps = self._get_primary_maps(primary_name)
         # -------------- Get the secondary hits --------------------------------
+        # positional_overlap is used by ``_expand_hit_atom_map_by_overlap``
+        # which is called by ``_get_unmerge_expansions``
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = self._compute_overlaps()
         unmergers: List[Unmerge] = self._get_unmerge_expansions(primary_name,
                                                                 primary_maps,
@@ -55,6 +57,7 @@ class _MonsterExpand(_MonsterNone):
         else:
             primary: Chem.Mol = self.get_hit_by_name(primary_name)
             primary_maps: List[Dict[int, int]] = self._compute_hit_maps(primary, broad=True)
+        self.journal.debug(f"Primary hit: {primary_name} with {len(primary_maps)} Primary maps: {primary_maps}")
         return primary_name, primary_maps
 
     def _get_unmerge_expansions(self, primary_name, primary_maps,
@@ -69,10 +72,12 @@ class _MonsterExpand(_MonsterNone):
         # hence each primary map is converted into a set of unmerge maps and the best wins.
         for primary_map in primary_maps:  #: Dict[int, int]
             # iterate over the hit map and expand to all overlapping atoms
+            self.journal.debug(f'primary_map: {primary_map}')
             exp_map: Dict[str, Dict[int, int]] = self._expand_hit_atom_map_by_overlap(primary_name,
                                                                                       primary_map,
                                                                                       positional_overlaps,
                                                                                       self.custom_map)
+            self.journal.debug(f'initial expanded map (primary + overlaps): {exp_map}')
             exp_maps = {primary_name: [primary_map]}  # only one primary map!
             # get the maps that are not the primary map
             for other in self.hits:
@@ -81,6 +86,7 @@ class _MonsterExpand(_MonsterNone):
                     continue
                 mappings, mode = self.get_mcs_mappings(other, self.initial_mol, min_mode_index, exp_map)
                 exp_maps[other_name] = mappings
+                self.journal.debug(f'candiate expanded maps: {exp_maps} following: {other_name}')
             # {h: f for h, f in .items() if h >= 0 and f >= 0}
             unmergers.append(self._perform_unmerge(maps=exp_maps))
         return unmergers
@@ -108,7 +114,11 @@ class _MonsterExpand(_MonsterNone):
     def _compute_overlaps(self) -> Dict[Tuple[str, str], Dict[int, int]]:
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = {}
         for mol1, mol2 in itertools.combinations(self.hits, 2):
-            positional_overlaps[(mol1.GetProp('_Name'), mol2.GetProp('_Name'))] = GPM.get_positional_mapping(mol1, mol2)
+            mol1_name:str = mol1.GetProp('_Name')
+            mol2_name:str = mol2.GetProp('_Name')
+            gpm = GPM.get_positional_mapping(mol1, mol2)
+            positional_overlaps[(mol1_name, mol2_name)] = gpm
+            positional_overlaps[(mol2_name, mol1_name)] = gpm
         return positional_overlaps
 
 

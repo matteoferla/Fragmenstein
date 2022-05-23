@@ -125,4 +125,3 @@ class _MonsterNone(_MonsterRefine):
             return {k: self._remove_negatives(v) for k, v in map.items()}
         else:
             raise ValueError('Unsupported sub map type: {}'.format(type(first_val)))
-

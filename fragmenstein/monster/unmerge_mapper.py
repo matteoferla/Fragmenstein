@@ -132,7 +132,7 @@ class Unmerge(GPM):
         ref = goodness_sorter(i)
         equals = [j for j in indices if goodness_sorter(j) == ref]
         if len(equals) > 1:
-            log.warning(f'There are {len(equals)} equally good mappings.')
+            log.warning(f'Unmerge: There are {len(equals)} equally good mappings (this slows things down).')
         # if self._debug_draw:
         #     print(f'## Option #{i}  for combinations:')
         #     for j in range(len(self.c_options)):

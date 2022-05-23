@@ -7,7 +7,7 @@ Place followup
 
 ########################################################################################################################
 
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from warnings import warn
 
 from rdkit import Chem
@@ -55,6 +55,8 @@ class _MonsterPlace(_MonsterBlend):
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
         if custom_map:
             self.custom_map: Dict[str, Dict[int, int]] = custom_map
+        # do the mol names match?
+        self._validate_custom_map()
         # Reset
         self.unmatched = []
         self.mol_options = []
@@ -70,8 +72,10 @@ class _MonsterPlace(_MonsterBlend):
             self.no_blending(broad=True)
         elif merging_mode == 'none':
             self.no_blending()
+        elif merging_mode == 'expansion':
+            self.by_expansion()
         else:
-            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')
+            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off', 'expansion')
             raise ValueError(
                 f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
         return self
@@ -100,3 +104,22 @@ class _MonsterPlace(_MonsterBlend):
         else:
             attachment = None
         return mol, attachment
+
+    def _validate_custom_map(self):
+        """
+        What on earth has the user submitted as custom_map?
+
+        :return:
+        """
+        # add missing keys
+        hit_names:List[str] = []
+        for hit in self.hits: #: Chem.Mol
+            hit_name:str = hit.GetProp('_Name')
+            hit_names.append(hit_name)
+            if hit_name not in self.custom_map:
+                self.custom_map[hit_name] = {}
+        # check for incorrect keys
+        for hit_name in self.custom_map:
+            if hit_name not in hit_names:
+                raise ValueError(f"Custom map contains key '{hit_name}' which is not in hits ({hit_names}).")
+

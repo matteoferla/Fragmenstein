@@ -147,6 +147,8 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         """
         name: str = hit_mol.GetProp('_Name')
         if name not in self.custom_map:
+            # technically impossible, bar for user altered map.
+            # should this corner case be handled everywhere?
             return -1
         return self.custom_map[name].get(hit_atom_idx, -1)
 
@@ -195,12 +197,24 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                           followup: Chem.Mol) -> List[IndexMap]:
         """
         Returns a list of possible matches, each being a lists of tuples of hit to follow indices,
-        that obey the criteria of the atomic comparison
+        that obey the criteria of the atomic comparison.
+
+        This however does not check if all the atoms in custom are present.
+        For that, ``Monster._validate_vs_custom`` is called in the method ``Monster.get_mcs_mappings``,
+        after calling ``Monster._get_atom_maps``, which calls this method.
+        (``Monster.get_mcs_mappings`` tries different matching schema,
+        while ``Monster._get_atom_maps`` is for one single scheme).
+        The primary reason why this is so, is that there are two tiers of requirements:
+
+        1. The custom map must be present vs
+        2. The custom map may be present, but has to be obeyed.
 
         parameters can be rdFMCS.MCSAtomCompareParameters or rdFMCS.MCSParameters
         """
 
         matches = []
+        # find the common matches and make sure they match each other:
+        # GetSubstructMatches is independent of AtomCompare.
         for hit_match, followup_match in itertools.product(hit.GetSubstructMatches(common, uniquify=False),
                                                            followup.GetSubstructMatches(common, uniquify=False)):
             # re `map(int, hit_match)` I do not know under what condition is it not an int...

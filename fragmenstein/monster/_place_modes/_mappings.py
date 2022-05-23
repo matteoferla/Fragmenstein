@@ -39,17 +39,19 @@ class _MonsterMap(_MonsterMerge):
                                                               followup=followup,
                                                               custom_map=custom_map,
                                                               **mode)
-            # there is the possibility that the strict mapping does not allow custom_map
-            # if so only the custom_map hits are used.
-            if hit_name in custom_map:
-                wanted: List[int] = self._get_required_indices_for_map(custom_map[hit_name])
+            # there is the possibility that the strict mapping does not allow the
+            # provided custom_map
+            # if so only the provided custom_map hits are used.
+            if hit_name in self.custom_map:
+                wanted: List[int] = self._get_required_indices_for_map(self.custom_map[hit_name])
                 strict_maps: List[IndexMap] = self._validate_vs_custom(strict_maps, wanted)
-            if len(strict_maps) != 0:
-                break  # from the reverse loop...
+                if len(strict_maps) != 0:
+                    break  # from the reverse loop...
         else:
-            self.journal.warning('User provided mapping is very unfavourable... using that along')
+            self.journal.warning('Provided mapping is very unfavourable... using that along for expanding the search')
             # unexpected pycharm warning as list({1:1}.items()) does give [[(1,1)]]
-            strict_maps: List[IndexMap] = [list(custom_map[hit_name].items()), ]  # noqa
+            strict_maps: List[IndexMap] = [list(custom_map.get(hit_name, {}).items()), ]  # noqa
+        self.journal.debug(f'`get_mcs_mappings` strict_maps for {hit_name}: {strict_maps}')
         # -------------- Expand mapping -------------------------------
         # go from laxest to strictest until one matches the strict form...
         for i, mode in enumerate(self.matching_modes):
@@ -158,7 +160,10 @@ class _MonsterMap(_MonsterMerge):
         return new_map
 
     def _validate_vs_custom(self, maps: List[IndexMap], wanted_idx: List[int]) -> List[IndexMap]:
-        """return only the IndexMaps with all wanted_idx"""
+        """return only the IndexMaps with all wanted_idx.
+        This is not part of ``SpecialCompareAtoms.get_valid_matches``
+        because there is a difference between must match and must be present as discussed in that method.
+        """
         # just in case there's a dictionary somehow....
         get_set = lambda mapping: set(mapping.keys()) if isinstance(mapping, dict) else {i for i, j in mapping}  # noqa
         return [mapping for mapping in maps if len(set(wanted_idx) - get_set(mapping)) == 0]
