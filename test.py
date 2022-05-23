@@ -208,6 +208,21 @@ class MonsterCombineTests(unittest.TestCase):
 
 class MonsterPlaceTests(unittest.TestCase):
 
+    def get_5SB7_mols(self) -> List[Chem.Mol]:
+        """
+        In https://onlinelibrary.wiley.com/doi/10.1002/anie.202204052
+        There is a lovely test case.
+        Namely the followup bold4 is a merger of F36 and F04 hits.
+        However... F04 (hello Hantzsch thiazole synthesis product) presents
+        the problematic case that the thiazole can be flipped either way
+        upon investigation of the crystal map
+        and the followup bold4 is indeed a flipped merger.
+        Therefore, without a custom_map the followup is incorrect.
+        """
+        with Chem.SDMolSupplier('test_mols/5SB7_mergers.sdf') as reader:
+            return list(reader)
+
+
     def test_sample_new_conformation(self):
         smiles = "C1C2C(C=C(C=2)C(C2C=CC=C2)CNOC)C=CC=1"
         mol = Chem.MolFromSmiles(smiles)
@@ -274,7 +289,9 @@ class MonsterPlaceTests(unittest.TestCase):
         monster = Monster(hits=[hit_F584, ])
         monster.place_smiles(smiles='COc1cccc2C(=O)NCCCc12',
                              long_name='flipped_F584',
-                             custom_map={'hit_F584': {13: 8}})
+                             custom_map={'hit_F584': {13: 8}},
+                             # merging_mode='expansion', # works on both expansion and no blend modes
+                             )
         # monster.draw_nicely(monster.hits[0])
         # monster.draw_nicely(monster.initial_mol)
         # monster.show_comparison()
@@ -284,13 +301,52 @@ class MonsterPlaceTests(unittest.TestCase):
         self.assertEqual(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0][13], 8)
         #self.assertEqual(len(monster.get_mcs_mappings(followup=monster.initial_mol, hit=monster.hits[0])[0][0]), 13)
 
-    def test_by_expansion(self):
-        with Chem.SDMolSupplier('test_mols/5SB7_mergers.sdf') as reader:
-            mols = list(reader)
+    def test_thiazole_flip(self):
+        """
+        See ``.get_5SB7_mols`` for details.
+
+        Potentially the number of specified atoms is excessive,
+        but as a human I just wrote down the atoms in the ring and was done with it.
+        """
+        mols = self.get_5SB7_mols()
+        monster = Monster([mols[0]])
+        monster.place(Chem.Mol(mols[0]),
+                      merging_mode='expansion',
+                      # custom_map={'F36': {1:7}, 'F04': {4:7}}
+                      custom_map={'F04': {-1: 4,  # no amine
+                                          4: -2,  # no amine
+                                          12: 12,
+                                          6: 13,
+                                          13: 6,
+                                          15: 14,
+                                          14: 15}}
+                      )
+        self.assertEqual(len(list(filter(len, monster.origin_from_mol(monster.positioned_mol)))), 15)
+        # the amine is banned in the map and the ring is flipped.
+
+    def test_thiazole_followup(self):
+        """
+        The followup compound is from 5SB3
+        and is 'bold4' in mols.
+        """
+        mols = self.get_5SB7_mols()
         monster = Monster(mols[:2])
-        monster.place_smiles(Chem.MolToSmiles(mols[3]), merging_mode='off')
-        monster.by_expansion()
-        self.assertEqual(len(monster.unmatched), 0, f'{monster.unmatched} did not match')
+        monster.place(Chem.Mol(mols[3]),
+                      merging_mode='expansion',
+                      custom_map={'F36': {1: 7},
+                                  'F04': {4: -1,  # no amine
+                                          12: 13,  # root to Ph
+                                          13: 5,
+                                          6: 14,
+                                          }
+                                  }
+                      )
+        # monster.show_comparison()
+        # monster.to_nglview(True)
+        # the amine at 7 is banned in F04.
+        self.assertEqual(monster.origin_from_mol()[7], ['F36.1'])
+        self.assertEqual(len(list(filter(len, monster.origin_from_mol(monster.positioned_mol)))), 22)
+
 
 class MultivictorPlaceTests(unittest.TestCase):
 
