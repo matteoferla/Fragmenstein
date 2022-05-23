@@ -23,22 +23,7 @@ class _VictorShow(_VictorCommon):
 
         Returns -> nv.NGLWidget
         """
-        color_series = iter(divergent_colors[len(self.hits)])
-        legend = ''
-        import nglview as nv
-        view = nv.NGLWidget()
-        for mol in self.hits:
-            if not mol:
-                raise ValueError(
-                    'One of the hits is None: if user manual tinkering happened, please run monster.fix_hits')
-            fh = StringIO(Chem.MolToMolBlock(mol))  # I want atom names
-            comp: nv.component.ComponentViewer = view.add_component(fh,   # noqa it's there.
-                                                                    name=mol.GetProp('_Name'),
-                                                                    ext='mol')
-            # _color business stems from Walton.
-            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
-            comp.update_ball_and_stick(colorValue=colorValue, multipleBond=True)
-            legend += f'<span style="color: {colorValue}">{mol.GetProp("_Name")}</span> '
+        view, legend = self.monster._to_nglview_and_legend()
         for molblock in (self.minimized_pdbblock, self.unminimized_pdbblock):
             if molblock is None:
                 continue
