@@ -12,7 +12,7 @@ class _VictorPlace(_VictorCommon):
     def place(self,
               smiles: str,
               long_name: str = 'ligand',
-              merging_mode='none_permissive',
+              merging_mode='expansion',
               atomnames: Optional[Dict[int, str]] = None,
               custom_map: Optional[Dict[str, Dict[int, int]]] = None,
               extra_ligand_constraint: Union[str] = None):
@@ -43,7 +43,7 @@ class _VictorPlace(_VictorCommon):
     def _(self,
           mol: Chem.Mol,
           long_name: str = 'ligand',
-          merging_mode='none_permissive',
+          merging_mode='expansion',
           atomnames: Optional[Dict[int, str]] = None,
           custom_map: Optional[Dict[str, Dict[int, int]]] = None,
           extra_ligand_constraint: Union[str] = None):

@@ -33,15 +33,16 @@ class _MonsterPlace(_MonsterBlend):
               mol: Chem.Mol,
               attachment: Optional[Chem.Mol] = None,
               custom_map: Optional[Dict[str, Dict[int, int]]] = None,
-              merging_mode: str = 'none_permissive'):
+              merging_mode: str = 'expansion'):
         """
         Positioned a given mol based on the hits. (Main entrypoint)
-        accepts the argument `merging_mode`, by default it is "permissive_none",
-        which calls `.no_blending(broad=True)`,
-        but "off" (does nothing except fill the attribute ``initial_mol``),
+        accepts the argument `merging_mode`, by default it is "expansion",
+        but was "permissive_none",
+        which call `.by_expansion` and `.no_blending(broad=True)` respectively.
+        "off" (does nothing except fill the attribute ``initial_mol``),
         "full" (`.full_blending()`),
         "partial" (`.partial_blending()`)
-        and "none" (`.no_blending()`)
+        and "none" (`.no_blending()`, but less thorough)
         are accepted.
 
         :param mol:
