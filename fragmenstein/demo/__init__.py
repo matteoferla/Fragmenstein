@@ -56,14 +56,14 @@ class MPro(BaseMolDataset):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# from ???
+from . import mac1_mols
 
 class Mac1(BaseMolDataset):
     """
     These are the fragments from https://pubmed.ncbi.nlm.nih.gov/33853786/
     binding he Macrodomain (Mac1 or NSP13) from SAR-COV-2
     """
-    dataset_package = None
+    dataset_package = mac1_mols
 
 
 
