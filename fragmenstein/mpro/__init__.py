@@ -125,7 +125,7 @@ class MProVictor(Victor):
                       .place(long_name=row.CID,
                              smiles=row.SMILES)
         elif row.category not in ('Acrylamide', 'Chloroacetamide', 'Vinylsulfonamide', 'Nitrile'):
-            cls.journal.warning(f'What is {row["CID"]}? Treating like a non-covalent.')
+            cls.journal.info(f'What is {row["CID"]}? Treating like a non-covalent.')
             return cls.from_hit_codes(hit_codes=row.fragments.split(','),
                                       category='noncolavent')\
                       .place(long_name=row.CID,
