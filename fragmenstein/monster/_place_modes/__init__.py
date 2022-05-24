@@ -12,7 +12,7 @@ This was formerly part of the ``_blend_place.py`` file.
 
 from ._full import _MonsterFull
 from ._partial import _MonsterPartial
-#from ._no_blending import _MonsterNone
+# from ._no_blending import _MonsterNone
 from ._expand import _MonsterExpand
 
 
