@@ -1,5 +1,5 @@
 from ._no_blending import _MonsterNone
-from typing import Dict, List, Tuple, Optional, Unpack  # noqa: F401
+from typing import Dict, List, Tuple, Optional, Unpack, Set  # noqa: F401
 from ..positional_mapping import GPM
 import itertools
 from ..mcs_mapping import IndexMap, ExtendedFMCSMode
@@ -79,12 +79,17 @@ class _MonsterExpand(_MonsterNone):
                                                                                       self.custom_map)
             self.journal.debug(f'initial expanded map (primary + overlaps): {exp_map}')
             exp_maps = {primary_name: [primary_map]}  # only one primary map!
+            accounted_for: Set[int] = {i for i in primary_map.values() if i >= 0}
             # get the maps that are not the primary map
             for other in self.hits:
                 other_name: str = other.GetProp('_Name')
                 if other_name == primary_name:
                     continue
+                mappings:List[Dict[int, int]]
+                mode: ExtendedFMCSMode
                 mappings, mode = self.get_mcs_mappings(other, self.initial_mol, min_mode_index, exp_map)
+                # drop any that are redundant with the primary hit
+                mappings = [d for d in mappings if len(set(d.values()) - accounted_for) > 0]
                 exp_maps[other_name] = mappings
                 self.journal.debug(f'candiate expanded maps: {exp_maps} following: {other_name}')
             # {h: f for h, f in .items() if h >= 0 and f >= 0}
