@@ -347,6 +347,54 @@ class MonsterPlaceTests(unittest.TestCase):
         self.assertEqual(monster.origin_from_mol()[7], ['F36.1'])
         self.assertEqual(len(list(filter(len, monster.origin_from_mol(monster.positioned_mol)))), 22)
 
+    def test_renumber(self):
+        mols = self.get_5SB7_mols()
+        # F04 {root: 12, N: 13, amine: 0, C: 6},
+        # original {root: 13, N: 5, amine: 7, C: 14},
+        # renumbered {root: 8, N:19, amine: 12, C: 9}
+        renumbered = Monster.renumber_followup_custom_map(mols[3],
+                                                          Chem.MolFromSmiles(Chem.MolToSmiles(mols[3])),
+                                                          custom_map={'F36': {1: 7},
+                                                                      'F04': {0: -1,  # no amine
+                                                                              -1: 7,
+                                                                              13: 5,  # to N
+                                                                              12: 13,  # root to Ph
+                                                                              6: 14,  # to C
+                                                                              }
+                                                                      }
+
+                                                          )
+        expected = {'F36': {1: 12}, 'F04': {0: -1, -1: 12, 13: 19, 12: 8, 6: 9}}
+        for name in renumbered:
+            self.assertEqual(tuple(renumbered[name]), tuple(expected[name]),
+                             f'{name} {renumbered[name]} != {expected[name]}')
+
+    def test_victor_mol(self):
+        """
+        Victor from mol has different indices than from a smiles
+        """
+        mols = self.get_5SB7_mols()
+        Igor.init_pyrosetta()
+
+        victor = Victor(hits=mols[:2], pdb_filename='template.pdb', ligand_resi='1X')
+
+        victor.place(mols[3],
+                     long_name=mols[3].GetProp('_Name'),
+                     merging_mode='expansion',
+                     custom_map={'F36': {1: 7},
+                                 'F04': {0: -1,  # no amine
+                                         -1: 7,  # no amine
+                                         13: 5,  # to N
+                                         12: 13,  # root to Ph
+                                         6: 14,  # to C
+                                         }
+                                 }
+                     )
+        # victor.show_comparison()
+        # victor.to_nglview()
+        rsmd = victor.validate(mols[3])['reference2minimized_rmsd']
+        self.assertLess(rsmd, 1, f"The resulting RMSD from the crystal is {rsmd}, which is greater than 1.")
+
 
 class MultivictorPlaceTests(unittest.TestCase):
 
