@@ -1,9 +1,6 @@
 __all__ = ['TestSet', 'MPro', 'BaseMolDataset']
 
-"""
-These are the fragments from https://pubmed.ncbi.nlm.nih.gov/33853786/
-binding he Macrodomain (Mac1 or NSP13) from SAR-COV-2
-"""
+
 
 from ._base_dataset_holder import BaseMolDataset
 from rdkit import Chem
@@ -55,6 +52,18 @@ class MPro(BaseMolDataset):
     @classmethod
     def mol2file_func(cls, hit_name: str) -> str:
         return f'Mpro-{hit_name}.mol'
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# from ???
+
+class Mac1(BaseMolDataset):
+    """
+    These are the fragments from https://pubmed.ncbi.nlm.nih.gov/33853786/
+    binding he Macrodomain (Mac1 or NSP13) from SAR-COV-2
+    """
+    dataset_package = None
 
 
 

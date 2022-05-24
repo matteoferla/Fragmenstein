@@ -33,3 +33,22 @@ fragmenstein.monster.unmerge\_mapper module
    :inherited-members:
    :undoc-members:
    :show-inheritance:
+
+fragmenstein.monster.mcs\_mapping module
+--------------------------------------------
+
+.. autoclass:: fragmenstein.monster.SpecialCompareAtoms
+   :members:
+   :inherited-members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: fragmenstein.monster.IndexMap
+   :members:
+   :inherited-members:
+   :undoc-members:
+
+.. autoclass:: fragmenstein.monster.ExtendedFMCSMode
+   :members:
+   :inherited-members:
+   :undoc-members:
