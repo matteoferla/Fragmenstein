@@ -17,6 +17,9 @@ from __future__ import annotations
 # block = Chem.MolToPDBBlock(mol)
 
 from textwrap import wrap
+import logging
+
+log = logging.getLogger(__name__)
 
 class MinimalPDBParser:
     """
@@ -72,7 +75,7 @@ class MinimalPDBParser:
             elif starts_with(row, 'ANISOU'):
                 continue
             elif self.step == 1:
-                print(f'What is {row}?')
+                log.info(f'What is {row}?')
             elif self.step > 1:
                 self.tails.append(row)
             else:
