@@ -8,21 +8,16 @@ This is a variant of Victor for MPro that uses data from PostEra
 ########################################################################################################################
 
 
-from ..victor import Victor
-from . import data  # in fragmenstein.__init__ this is imported as mpro_data
-
-import os, pyrosetta
-from rdkit import Chem
-from rdkit.Chem import Descriptors
 from typing import List, Optional
 from warnings import warn
 
 import pandas as pd
-import io
-import requests
-import random
-import importlib.resources as pkg_resources
+import pyrosetta
+from rdkit import Chem
 
+from ..demo import MPro as data  # noqa this is basically a package, but actually a class
+from ..victor import Victor
+from .dataframe import fetch_postera, read_postera
 
 
 class MProVictor(Victor):
@@ -93,17 +88,22 @@ class MProVictor(Victor):
 
     #self.combine(**options) unchanged.
 
-    def place(self, **options):
-        defaults = self._determine_extras(options['smiles'])
-        return super().place(**{**defaults, **options})
+    def place(self, *args, **options):
+        defaults = self._determine_extras(options['smiles'] if 'smiles' in options else args[0])
+        # singledispatchmethod does not like named args
+        kwargs = {**defaults, **options}
+        if 'smiles' in kwargs:
+            args.insert(0, kwargs['smiles'])
+            del kwargs['smiles']
+        return super().place(*args, **kwargs)
 
     # ======= postera csv file ops =====================================================================================
 
     @classmethod
     def fetch_postera(cls):
-        __doc__ = data.fetch_postera.__doc__
+        __doc__ = fetch_postera.__doc__
         warn('method moved to mpro_data (as function)', DeprecationWarning)
-        return data.fetch_postera()
+        return fetch_postera()
 
     @classmethod
     def analyse_postera(cls):

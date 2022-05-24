@@ -90,7 +90,7 @@ class LabBench:
         df['regarded'] = df.regarded.apply(nan_to_list)
         df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
-        df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
+        df['mpro_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
         df['outcome'] = df.apply(self._categorize, axis=1)
         return df
 
