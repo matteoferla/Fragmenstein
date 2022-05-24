@@ -81,6 +81,7 @@ class _MonsterNone(_MonsterRefine):
     def _compute_hit_maps(self, template: Chem.Mol, broad: bool) -> List[Dict[int, int]]:
         """
         Calcualte the list of options of possible maps of hit
+
         :param template:
         :param broad:
         :return:
