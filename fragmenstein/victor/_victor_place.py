@@ -3,8 +3,12 @@ from ._victor_common import _VictorCommon
 from rdkit_to_params import Params
 from ..monster import Monster
 from ..igor import Igor
+from rdkit import Chem
+from functools import singledispatchmethod
 
 class _VictorPlace(_VictorCommon):
+
+    @singledispatchmethod
     def place(self,
               smiles: str,
               long_name: str = 'ligand',
@@ -33,6 +37,26 @@ class _VictorPlace(_VictorCommon):
         # ## Analyse
         self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
         return self
+
+    # this is basically backwards... but it was written that way
+    @place.register
+    def _(self,
+          mol: Chem.Mol,
+          long_name: str = 'ligand',
+          merging_mode='none_permissive',
+          atomnames: Optional[Dict[int, str]] = None,
+          custom_map: Optional[Dict[str, Dict[int, int]]] = None,
+          extra_ligand_constraint: Union[str] = None):
+        smiles = Chem.MolToSmiles(mol)
+        if custom_map:
+            custom_map = Monster.renumber_followup_custom_map(mol, Chem.MolFromSmiles(smiles), custom_map)
+        if atomnames is None:
+            atomnames = {}
+        for atom in mol.GetAtoms():  #: Chem.Atom
+            if atom.GetPDBResidueInfo() is not None and atom.GetIdx() not in atomnames:
+                atomnames[atom.GetIdx()] = atom.GetPDBResidueInfo().GetName()
+        self.place(smiles, long_name, merging_mode, atomnames, custom_map, extra_ligand_constraint)
+
 
     def _prepare_args_for_placement(self,
               smiles: str,
@@ -158,7 +182,3 @@ class _VictorPlace(_VictorCommon):
         if self.covalent_resn and len(
                 [d for d in self.covalent_definitions if d['residue'] == self.covalent_resn]) == 0:
             raise ValueError(f'{self.long_name} - Unrecognised type {self.covalent_resn}')
-
-
-
-

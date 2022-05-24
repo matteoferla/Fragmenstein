@@ -23,7 +23,7 @@ class _VictorShow(_VictorCommon):
 
         Returns -> nv.NGLWidget
         """
-        view, legend = self.monster._to_nglview_and_legend()
+        view, legend = self.monster._to_nglview_and_legend(show_positioned_mol=False)
         for molblock in (self.minimized_pdbblock, self.unminimized_pdbblock):
             if molblock is None:
                 continue
