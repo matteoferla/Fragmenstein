@@ -81,6 +81,10 @@ class _MonsterNone(_MonsterRefine):
     def _compute_hit_maps(self, template: Chem.Mol, broad: bool) -> List[Dict[int, int]]:
         """
         Calcualte the list of options of possible maps of hit
+        This is called in the expansion tactic in ``_get_primary_maps``  (called to find the primary)
+        indirectly via ``_compute_maps``
+        or directly when a primary is known. The next step, does not call it but calls
+        ``_expand_hit_atom_map_by_overlap``.
 
         :param template:
         :param broad:

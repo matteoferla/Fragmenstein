@@ -46,6 +46,7 @@ class _MonsterMap(_MonsterMerge):
                 wanted: List[int] = self._get_required_indices_for_map(self.custom_map[hit_name])
                 strict_maps: List[IndexMap] = self._validate_vs_custom(strict_maps, wanted)
                 if len(strict_maps) != 0:
+                    # these maps are valid
                     break  # from the reverse loop...
         else:
             self.journal.warning('Provided mapping is very unfavourable... using that along for expanding the search')
@@ -65,10 +66,13 @@ class _MonsterMap(_MonsterMerge):
 
             lax: List[IndexMap] = []
             for strict_map in strict_maps:  #: IndexMap
+                # `_get_atom_maps` does the MCS search constrained by `expanded_custom_map`
                 expanded_custom_map: Dict[str, IndexMap] = self.expand_custom_map(custom_map, {hit_name: strict_map})
                 lax.extend(self._get_atom_maps(hit=hit,
                                                followup=followup,
-                                               custom_map=expanded_custom_map, **mode))
+                                               custom_map=expanded_custom_map,
+                                               **mode)
+                           )
             if len(lax) == 0:
                 continue
             else:

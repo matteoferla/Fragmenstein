@@ -17,8 +17,8 @@ class _MonsterExpand(_MonsterNone):
         Use that map as the base map for the other maps.
         """
         # -------------- Get the primary hit ----------------------------
-        primary_name: str
         primary_maps: List[Dict[int, int]]
+        # primary_name as None chooses one, else the primary name provided is used:
         primary_name, primary_maps = self._get_primary_maps(primary_name)
         # -------------- Get the secondary hits --------------------------------
         # positional_overlap is used by ``_expand_hit_atom_map_by_overlap``
@@ -42,8 +42,8 @@ class _MonsterExpand(_MonsterNone):
         if primary_name is None:
             # the list is [{hit_atom_idx: template_atom_idx}, ...]
             maps: Dict[str, List[Dict[int, int]]] = self._compute_maps(broad=True)
-            # get the largest maps
-            get_size = lambda l: len(l[0]) if len(l) else 0  # noqa: E731 Guido doesn't like lambda
+            # get the largest maps (not the number of maps which would be `len(l)`)
+            get_size = lambda l: len(l[0]) if len(l) else 0  # noqa: E731 Guido doesn't like lambda, but I do
             max_size = max(map(get_size, maps.values()))
             # sorted_maps: Dict[str, List[Dict[int, int]]] = dict(sorted(maps.items(),
             #                                                            key=lambda x: get_size(x[1]),
@@ -68,6 +68,10 @@ class _MonsterExpand(_MonsterNone):
         # the no_blend mode does the unmerged based on a dict of optional maps,
         # i.e. the maps do not affect each other. Here it is important that they do.
         # hence each primary map is converted into a set of unmerge maps and the best wins.
+        # if there is only one hit, then the primary map is the only unmerge map...
+        if len(self.hits) == 1:
+            return [self._perform_unmerge(maps={primary_name: primary_maps})]
+        # case: multiple hits
         for primary_map in primary_maps:  #: Dict[int, int]
             # iterate over the hit map and expand to all overlapping atoms
             self.journal.debug(f'primary_map: {primary_map}')
