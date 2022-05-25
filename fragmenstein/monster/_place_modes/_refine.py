@@ -119,11 +119,10 @@ class _MonsterRefine(_MonsterChimera):
             pass
         elif merging_mode == 'partial':
             self.partial_blending()  # noqa will be in the subclasse partial
-        elif merging_mode == 'none_permissive' or merging_mode == 'permissive_none' or \
-                merging_mode == 'none':
+        elif merging_mode in ('none_permissive', 'permissive_none', 'none', 'expansion'):
             new_mol = self.posthoc_refine(new_mol)
         else:
-            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off')
+            valid_modes = ('full', 'partial', 'none', 'none_permissive', 'expansion', 'off')
             raise ValueError(
                 f"Merging mode can only be {'| '.join(valid_modes)}, not '{merging_mode}'")
 
