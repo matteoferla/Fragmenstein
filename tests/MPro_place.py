@@ -66,7 +66,7 @@ class MProPlaceTester(unittest.TestCase):
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         victor.make_pse()
-        self.assertIn('x0995', victor.monster.unmatched)
+        self.assertNotIn('x0995', victor.monster.unmatched)
 
     def test_pentachromatic(self):
         """
@@ -93,8 +93,8 @@ class MProPlaceTester(unittest.TestCase):
         validation: Dict[str, float] = victor.validate(reference_mol=actual)
         rmsd = validation['reference2minimized_rmsd']
         self.assertLess(rmsd, 2, f'The RMSD is large...')
-        # self.assertIn('x1382', victor.monster.matched)
-        # self.assertIn('x0995', victor.monster.unmatched) # red herring
+        self.assertIn('x1382', victor.monster.matched)
+        self.assertNotIn('x0995', victor.monster.unmatched)  # red herring
 
 
 if __name__ == '__main__':
