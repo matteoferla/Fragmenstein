@@ -76,6 +76,22 @@ class UnresolvedProblems(unittest.TestCase):
         # ======
         self.assertEqual(Chem.MolToSmiles(chloroxylene), Chem.MolToSmiles(monster.positioned_mol))
 
+    def test_longer_link(self):
+        """
+        This is a know failure of the algorithm.
+        It does not map "properly" the case where a link is lengthened. This is problematic in general
+        and MCS based approach would not work even if the bondcomparison took into account whether atom is part
+        of a linear stretch.
+        """
+        benzylbenzene = Chem.MolFromSmiles('c1ccccc1Cc1ccccc1')
+        benzylbenzene.SetProp('_Name', 'benzylbenzene')
+        assert AllChem.EmbedMolecule(benzylbenzene) == 0
+        # extra carbon in bridge... dibenzyl
+        monster = Monster([benzylbenzene, ]).place_smiles('c1ccccc1CCc1ccccc1')
+        # this _seems_ correct, but it is not as the second ring is not mapped correctly.
+        self.assertEqual(benzylbenzene.GetNumAtoms(),
+                         len(monster.convert_origins_to_custom_map()['benzylbenzene']),
+                         'not all atoms are mapped')
 
 if __name__ == '__main__':
     unittest.main()
