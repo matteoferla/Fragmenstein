@@ -68,11 +68,15 @@ class Unmerge(GPM):
         """
         # ---- inputs ------------
         self.followup = followup
-        self.mols = mols
-        self.maps: Dict[str, List[Dict[int, int]]] = maps
         self.no_discard = no_discard
         if self.no_discard:
             self.max_strikes = 100
+        # only store non empty maps
+        self.mols: List[Chem.Mol] = [mol for mol in mols if len(maps[mol.GetProp('_Name')]) != 0]
+        self.maps: Dict[str, List[Dict[int, int]]] = maps
+        d: int = len(mols) - len(self.mols)
+        if self.no_discard and d > 0:
+            raise ConnectionError(f"{d} mols were discarded (due to unproductive maps, but no_discard is True")
         # ---- to be filled ------------
         # see `.store`
         accounted_for = set()
@@ -82,7 +86,7 @@ class Unmerge(GPM):
         self.combined: Chem.Mol = Chem.Mol()
         self.combined_alternatives: List[Chem.Mol] = []
         self.combined_map: Dict[int, int] = {}
-        self.disregarded: List[Chem.Mol] = []
+        self.disregarded: List[Chem.Mol] = [mol for mol in mols if len(maps[mol.GetProp('_Name')]) == 0]
         self.combined_bonded: Chem.Mol = Chem.Mol()
         self.combined_bonded_alternatives: List[Chem.Mol] = []
         self.combined_map_alternatives: List[Dict[int, int]] = []
@@ -132,7 +136,7 @@ class Unmerge(GPM):
         ref = goodness_sorter(i)
         equals = [j for j in indices if goodness_sorter(j) == ref]
         if len(equals) > 1:
-            log.warning(f'Unmerge: There are {len(equals)} equally good mappings (this slows things down).')
+            log.info(f'Unmerge: There are {len(equals)} equally good mappings (this slows things down).')
         # if self._debug_draw:
         #     print(f'## Option #{i}  for combinations:')
         #     for j in range(len(self.c_options)):
