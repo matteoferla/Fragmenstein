@@ -49,7 +49,7 @@ class LabPlace(LabBench):
                        ligand_resi='1B',
                        covalent_resi=self.covalent_resi,
                        )
-            v.place(smiles=smiles, long_name=name)
+            v.place(smiles, long_name=name)
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
             result['min_binary'] = binarize(v.minimized_mol)
