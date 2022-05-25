@@ -65,8 +65,9 @@ class MProPlaceTester(unittest.TestCase):
                      long_name='BEN-VAN-c98-4')
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
-        victor.make_pse()
-        self.assertNotIn('x0995', victor.monster.unmatched)
+        # in unmatched, x0995 is the red herring.
+        self.assertIn('x0995', victor.monster.unmatched)
+        #victor.make_pse()
 
     def test_pentachromatic(self):
         """
