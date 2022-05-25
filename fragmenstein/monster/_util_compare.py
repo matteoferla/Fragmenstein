@@ -63,9 +63,9 @@ class _MonsterUtilCompare:
                     if i is None:
                         continue
                     color_map[i] = followup_color_map[followup_idx]
-            print(f'hit {name}')
+            print(f'hit {name}')  # legit print, not a debug scar
             draw(mol, color_map, 300, 300)
-        print('Followup')
+        print('Followup') # legit print, not a debug scar
         draw(self.positioned_mol, followup_color_map, 300, 300)
 
 

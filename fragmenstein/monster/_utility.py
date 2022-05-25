@@ -260,7 +260,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         :return:
         """
         if mol.HasProp('_Name'):
-            print(mol.GetProp('_Name'))
+            print(mol.GetProp('_Name'))  # this is a legit print not a rogue one
         d = Draw.MolDraw2DSVG(400, 400)
         d.drawOptions().addAtomIndices = True
         d.drawOptions().addStereoAnnotation = True
