@@ -219,13 +219,15 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                                                            followup.GetSubstructMatches(common, uniquify=False)):
             # re `map(int, hit_match)` I do not know under what condition is it not an int...
             # but it was so in previous iteration
-            filtered = filter(lambda indices: self(parameters=parameters,
-                                                   hit=hit, followup=followup,
-                                                   hit_atom_idx=indices[0],
-                                                   followup_atom_idx=indices[1]),
-                              zip(map(int, hit_match), map(int, followup_match))
-                              )
-            matches.append(list(filtered))
+            for h, f in zip(map(int, hit_match), map(int, followup_match)):
+                if not self(parameters=parameters,
+                            hit=hit,
+                            followup=followup,
+                            hit_atom_idx=h,
+                            followup_atom_idx=f):
+                    break  # one index does not match. None should match.
+            else:
+                matches.append(list(zip(map(int, hit_match), map(int, followup_match))))
         # remove duplicates
         matches = list(set([tuple(sorted(m, key=lambda i: i[0])) for m in matches]))
         return matches
