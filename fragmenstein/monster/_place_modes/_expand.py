@@ -11,13 +11,10 @@ class _MonsterExpand(_MonsterNone):
     """
     A variant of no_blend mode, with a focus on expansion
     """
-    def by_expansion(self, primary_name:Optional[str]=None, min_mode_index:int=0):
+    def by_expansion(self, primary_name:Optional[str]=None, min_mode_index:int=0) -> Chem.Mol:
         """
         Get the maps. Find the map with the most atoms covered.
         Use that map as the base map for the other maps.
-
-        :param target: unless None, override the chosen first map.
-        :return:
         """
         # -------------- Get the primary hit ----------------------------
         primary_name: str
@@ -33,6 +30,7 @@ class _MonsterExpand(_MonsterNone):
                                                                 min_mode_index)
         # -------------- Sort the unmergers --------------------------------
         self.positioned_mol, self.mol_options = self._place_unmerger_expansions(unmergers)
+        return self.positioned_mol
 
     def _get_primary_maps(self, primary_name:Optional[str]=None) -> Tuple[str, List[Dict[int, int]]]:
         """
