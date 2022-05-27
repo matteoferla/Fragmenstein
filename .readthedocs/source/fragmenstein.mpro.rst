@@ -6,15 +6,6 @@ fragmenstein.mpro package
    :undoc-members:
    :show-inheritance:
 
-``fragmenstein.mpro`` is where the MPro data lives.
-Usable independently of ``MProVictor``.
+.. autofunction:: fragmenstein.mpro.dataframe.fetch_postera
 
-.. automodule:: fragmenstein.mpro.data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: fragmenstein.mpro.data.hit_mols
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autofunction:: fragmenstein.mpro.dataframe.read_postera

@@ -38,6 +38,7 @@ It is inherited by ``Monster`` only.
 from .positional_mapping import GPM
 from .bond_provenance import BondProvenance
 from .unmerge_mapper import Unmerge
+from .mcs_mapping import IndexMap, SpecialCompareAtoms, ExtendedFMCSMode
 
 
 # ---  Monster ---------------------------------------------------------------------------------------------------------

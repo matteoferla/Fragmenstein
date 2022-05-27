@@ -260,7 +260,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         :return:
         """
         if mol.HasProp('_Name'):
-            print(mol.GetProp('_Name'))
+            print(mol.GetProp('_Name'))  # this is a legit print not a rogue one
         d = Draw.MolDraw2DSVG(400, 400)
         d.drawOptions().addAtomIndices = True
         d.drawOptions().addStereoAnnotation = True
@@ -356,3 +356,19 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         if len(atommap) == 0:
             newMol = None
         return newMol, atommap
+
+    @staticmethod
+    def renumber_followup_custom_map(original_mol: Chem.Mol,
+                                     new_mol: Chem.Mol,
+                                     custom_map: Dict[str, Dict[int, int]]) -> Dict[str, Dict[int, int]]:
+        """
+        Give a followup ``original_mol`` and a copy but with its atom indices changed
+        return a new map for the copy
+        """
+        # GetSubstructMatch returns the indices of the caller molecule, not the query molecule
+        origin2new = {o: n for n, o in enumerate(original_mol.GetSubstructMatch(new_mol))}
+        new_custom_map: Dict[str, Dict[int, int]] = {}
+        for hit_name in custom_map:
+            # replace the values of the dict with the new indices or with itself if negative (a forbidden atom)
+            new_custom_map[hit_name] = {k: origin2new[v] if v >= 0 else v for k, v in custom_map[hit_name].items()}
+        return new_custom_map
