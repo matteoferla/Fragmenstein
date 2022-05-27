@@ -1,16 +1,20 @@
 # this is not read by setup. It is here solely for RTD and user interest
-requests
-ipython
-numpy
-scipy
-pandas
-pebble
-rdkit-pypi
-rdkit-to-params
-molecular-rectifier
-smallworld-api  # optional
-sqlitedict  # optional
-nglview  # optional
-matplotlib
+requests>=2.27.1
+ipython>=8.3.0  # Will this cause drama in colab which is using IPython 7.x?
+numpy>=1.22.4
+scipy>=1.8.1
+pandas>=1.4.2
+pebble>=4.6.3
+rdkit-pypi>=2022.3.2.1
+rdkit-to-params>=1.2.1   # MF authored this
+molecular-rectifier>=0.1.6  # MF authored this
+singledispatchmethod>= 1.0  # backport for python 3.7
+typing_extensions>=4.2.0  # backport for python 3.7
+singledispatchmethod>= 1.0  # backport for python 3.8
+matplotlib>=3.5.2  # optional
+smallworld-api>=1.1  # optional. MF authored this
+sqlitedict>= 2.0.0 # optional
+nglview>= 3.0.3  # optional
+
 # `pymol2` is conda only and optional
 # `pyrosetta` has non-standard installation, see docs and `fragmenstein.igor.pyrosetta_import` for mock for RTD
