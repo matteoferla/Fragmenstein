@@ -1,33 +1,38 @@
 from setuptools import setup, find_packages
 from warnings import warn
 from importlib import util
-import sys
+import os
 
-if sys.version_info.major != 3 or sys.version_info.minor < 6:
-    print(sys.version_info)
-    raise SystemError('Module written for Python 3.6+.')
+if os.path.exists('README.md'):
+    with open('README.md', 'r') as f:
+        long_description = f.read()
+else:
+    long_description = '''
+    Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
+    <img src="https://github.com/matteoferla/Fragmenstein/blob/master/images/fragmenstein.jpg?raw=true" width="300px">
+
+    Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
+
+    [![colab demo](https://img.shields.io/badge/Run--demo--in--colab-colab_fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb)
+
+    ![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
+    '''
+
+if os.path.exists('requirements.txt'):
+    with open('requirements.txt', 'r') as f:
+        requirements = [line.split('#')[0].strip() for line in f.readlines()]
+        requirements = [line for line in requirements if line]
+else:
+    requirements = []
 
 # ---------- Pip and Non pip modules  ----------------------------------------------------------------------------------
-requirements = ['pandas',
-                'numpy',
-                'requests',
-                'ipython',
-                'scipy',
-                'pebble',
-                'rdkit-to-params',
-                'molecular-rectifier',
-                'smallworld-api',
-                'nglview',
-                'sqlitedict ']
+
   # optional
 
 # `pip install xxx` from wheels (the pre-compiled packages), does not run setup.py.
 # While sdist does.
 # Therefore these warnings will not be shown for pip installations from wheels...
 
-if not util.find_spec('rdkit'):
-    # pypi overwrites the conda version
-    requirements.append('rdkit-pypi')
 
 if not util.find_spec('pyrosetta'):
     warn('The minimisation part of this code uses pyrosetta, which has to be downloaded from ' +
@@ -36,25 +41,14 @@ if not util.find_spec('pyrosetta'):
 if not util.find_spec('pymol2'):
     warn('The module pymol2 is optionally required (conda or apt-get installable).')
 
-long_description = '''
-Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
-<img src="https://github.com/matteoferla/Fragmenstein/blob/master/images/fragmenstein.jpg?raw=true" width="300px">
 
-Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
-
-[![colab demo](https://img.shields.io/badge/Run--demo--in--colab-colab_fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb)
-
-![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
-'''
 
 setup(
     name='Fragmenstein',
-    version='0.8.6',
+    version='0.9.1',
     python_requires='>=3.7',
     packages=find_packages(),
     include_package_data=True,
-    package_data={'fragmenstein.mpro.data': ['template.pdb'],
-                  'fragmenstein.mpro.data.hit_mols': ['*.mol']},
     install_requires=requirements,
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',
