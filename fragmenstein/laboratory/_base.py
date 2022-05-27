@@ -43,7 +43,7 @@ def unbinarize(bin: bytes, ignore_errors:bool=True) -> Union[Chem.Mol, None]:
 class LabBench:
 
     # the ``outcome`` column in the pandas dataframe can have these values in order of niceness:
-    category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'deviant', 'acceptable']
+    category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'equally sized', 'deviant', 'acceptable']
 
     def __init__(self, pdbblock: str, covalent_resi: Union[int, str, None]):
         self.pdbblock = pdbblock
@@ -91,28 +91,49 @@ class LabBench:
         df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
         df['mpro_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
-        df['outcome'] = df.apply(self._categorize, axis=1)
+        df['outcome'] = df.apply(self.categorize, axis=1)
+        df['percent_hybrid'] = df.unminimized_mol.apply(percent_hybrid)
         return df
 
-    def _categorize(self, row: pd.Series) -> str:
+    def categorize(self, row: pd.Series) -> str:
         """
-        Given a row categorise the outcome.
-        Called by ``get_completed``
+        Given a row categorise the 'outcome' field.
+        Called by ``get_completed``.
+
+        Subclass Laboratory to change what the outcome field ends up being.
+        But do remember to update the ``category_labels`` attribute.
         """
         # see category_labels for list of values.
         is_filled: Callable[[Any], int] = lambda value: len(value) != 0 if hasattr(value, '__len__') else False
-        if is_filled(row.disregarded):
+        if is_filled(row.disregarded) or 'ConnectionError' in row.error:
+            # either is the same thing, but the Victor error catching makes them different
             return 'too distant'
-        elif row.error == 'TimeoutError':
+        elif 'TimeoutError' in row.error:
             return 'timeout'
         elif is_filled(row.error):
             return 'crashed'
+        elif max(map(operator.methodcaller('GetNumHeavyAtoms'), row.hit_mols))  \
+                >=  row.unminimized_mol.GetNumHeavyAtoms():
+            return 'equally sized'
         elif row.comRMSD > 1:
             return 'too moved'
         elif row['∆∆G'] >= 0:
             return 'too contorted'
         else:
             return 'acceptable'
+
+    def percent_hybrid(self, mol: Chem.Mol) -> float:
+        """
+        Given the origins how much of the molecule is not accounted for by the primary hit?
+
+        :param mol:
+        :return:
+        """
+        if not isinstance(mol, Chem.Mol):
+            return float('nan')
+        origins: List[List[str]] = Monster.origin_from_mol(None, mol)
+        c = Counter([o[0].split('.')[0] if o else None for o in origins]).most_common()
+        return round((mol.GetNumHeavyAtoms() - c[0][1]) / mol.GetNumHeavyAtoms() * 100, 1)
 
     def __call__(self,
                  iterator: Iterator,
