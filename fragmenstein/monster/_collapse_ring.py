@@ -818,7 +818,7 @@ class _MonsterRing(_MonsterJoinNeigh):
                 penalties[:, i] = np.nan
         return penalties
 
-    def _get_distance(self, atom_a: Chem.Atom, atom_b: Chem.Atom) -> np.float:
+    def _get_distance(self, atom_a: Chem.Atom, atom_b: Chem.Atom) -> float:
         """
         Not sure where doing it manually is quicker than getting the whole 3D distance table.
 
