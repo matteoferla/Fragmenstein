@@ -414,7 +414,7 @@ class Unmerge(GPM):
                     putty.GetBondBetweenAtoms(ci, nci).SetBondType(bond_type)
         return putty.GetMol()
 
-    def get_inter_distance(self, molA: Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> np.float:
+    def get_inter_distance(self, molA: Chem.Mol, molB: Chem.Mol, idxA: int, idxB: int) -> float:
         def get_pos(mol, idx):
             conf = mol.GetConformer()
             return np.array(conf.GetAtomPosition(idx))
