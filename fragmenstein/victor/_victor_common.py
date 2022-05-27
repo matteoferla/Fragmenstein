@@ -26,7 +26,7 @@ class _VictorCommon(_VictorIgor):
         params_file = os.path.join(self.work_path, self.long_name, self.long_name + '.params')
         self.params.dump(params_file)
         # saving holo
-        self.journal.debug(f'{self.long_name} - saving holo (unmimised)')
+        self.journal.debug(f'{self.long_name} - saving holo (unminised)')
         holo_file = os.path.join(self.work_path, self.long_name, self.long_name + '.holo_unminimised.pdb')
         with open(holo_file, 'w') as w:
             w.write(self.unminimized_pdbblock)

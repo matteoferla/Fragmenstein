@@ -84,7 +84,7 @@ class _VictorIgor(_VictorStore):
                 self.journal.debug(
                     f'{self.long_name} - coord_constraint lowered: {self.igor.coordinate_constraint}:  {ddG} kcal/mol.')
             if self.igor.coordinate_constraint == 0.:
-                self.journal.warn(f'{self.long_name} - failed to minimise without constraints:  {ddG} kcal/mol.')
+                self.journal.warning(f'{self.long_name} - failed to minimise without constraints:  {ddG} kcal/mol.')
                 break
             elif self.igor.coordinate_constraint < 0.005:
                 self.igor.coordinate_constraint = 0.

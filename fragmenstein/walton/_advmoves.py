@@ -138,7 +138,7 @@ class WaltonAdvMove(WaltonMove):
                 continue  # no hydrogens
             atom_idx: int = atom.GetIdx()
             coords = self.get_point(atom_idx, mol_idx)
-            print(f'atom {atom_idx: >2}: x={coords.x:.1f} y={coords.y:.1f} z={coords.z:.1f}')
+            print(f'atom {atom_idx: >2}: x={coords.x:.1f} y={coords.y:.1f} z={coords.z:.1f}')  # legit print
 
     def get_centroid_of_atoms(self,
                               *idx_or_points: Union[int, Geometry.Point3D],

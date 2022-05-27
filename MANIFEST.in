@@ -1,3 +1,10 @@
-include fragmenstein/mpro/data/hit_mols/*.mol
-include fragmenstein/mpro/data/template.pdb
 include fragmenstein/divergent_colors.json
+recursive-include fragmenstein/demo *.mol *.pdb *.sdf
+
+# Patterns to exclude from any directory
+global-exclude *~
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .git
+global-exclude .ipynb_checkpoints
+global-exclude *.map

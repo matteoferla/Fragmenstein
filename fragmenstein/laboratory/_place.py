@@ -8,10 +8,7 @@ from rdkit import Chem
 from fragmenstein import Victor
 from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
 
-if sys.version_info < (3, 8):
-    from typing_extensions import TypedDict
-else:
-    from typing import TypedDict
+from typing import TypedDict  # monkeypatched by .legacy. Absent in <Py3.8
 
 
 from ._base import LabBench, binarize, unbinarize
@@ -52,7 +49,7 @@ class LabPlace(LabBench):
                        ligand_resi='1B',
                        covalent_resi=self.covalent_resi,
                        )
-            v.place(smiles=smiles, long_name=name)
+            v.place(smiles, long_name=name)
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
             result['min_binary'] = binarize(v.minimized_mol)

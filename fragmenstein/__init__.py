@@ -14,7 +14,7 @@ __citation__ = ""
 ########################################################################################################################
 
 from warnings import warn
-
+from . import legacy as _  # monkeypatches singledispatchmethod TypedDict Unpack on older Pythons
 
 try:
     from .igor import Igor

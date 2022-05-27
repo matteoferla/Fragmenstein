@@ -49,12 +49,10 @@ Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
 
 setup(
     name='Fragmenstein',
-    version='0.8.6',
+    version='0.9.0',
     python_requires='>=3.7',
     packages=find_packages(),
     include_package_data=True,
-    package_data={'fragmenstein.mpro.data': ['template.pdb'],
-                  'fragmenstein.mpro.data.hit_mols': ['*.mol']},
     install_requires=requirements,
     extras_require={'jupyter': ['jupyter']},
     url='https://github.com/matteoferla/Fragmenstein',

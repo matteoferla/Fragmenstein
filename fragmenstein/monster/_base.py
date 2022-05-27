@@ -7,7 +7,7 @@ This is contains the class _MonsterBase to be inherited by _MonsterCommunal, the
 ########################################################################################################################
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 
@@ -87,6 +87,7 @@ class _MonsterBase:
         self.initial_mol = None  # to be filled by place. The starting molecule (Chem.Mol).
         # Manually assignmnt of self.initial_mol is futile
         self.attachment = None  # place only.
+        self.custom_map: Dict[str, Dict[int, int]] = {}
         # -------- common ------------------------------------
         # # ivars of type List[str]
         self.unmatched = []  # rejected hit names List[str]
@@ -154,3 +155,27 @@ class _MonsterBase:
             atom.SetDoubleProp('_y', pos.y)
             atom.SetDoubleProp('_z', pos.z)
         return mol
+
+    @property
+    def matched(self) -> List[str]:
+        """
+        This is the counter to unmatched.
+        It's dynamic as you never know...
+
+        :return:
+        """
+        return [h.GetProp('_Name') for h in self.hits if
+                h.GetProp('_Name') not in self.unmatched]
+
+    def get_hit_by_name(self, name: str) -> Chem.Mol:
+        """
+        Given a name of a hit (as defined in ``_Name`` property), return the hit.
+        Do note `fix_hits` will have been called, so the name may be assigned.
+        :param name:
+        :return:
+        """
+        for hit in self.hits:
+            if hit.GetProp('_Name') == name:
+                return hit
+        else:
+            raise ValueError(f"No hit with name {name}")
