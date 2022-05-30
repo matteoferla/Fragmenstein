@@ -21,8 +21,9 @@ class MultiVictorPlacement():
 
     def place(self,  smiles: str, number_runs: int= 10,
               long_name: str = 'ligand',
-              merging_mode='none_permissive',
+              merging_mode='expansion',
               atomnames: Optional[Dict[int, str]] = None,
+              custom_map: Optional[Dict[str, Dict[int, int]]] = None,
               extra_ligand_constraint: Union[str] = None):
         """
         Places a followup (smiles) into the protein based upon the hits. Obtains number_runs solutions.
@@ -31,6 +32,7 @@ class MultiVictorPlacement():
         :param long_name: gets used for filenames so will get corrected
         :param merging_mode:
         :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
+        :param custom_map: see Monster.place
         :param extra_ligand_constraint:
         :return:
         """
@@ -45,7 +47,8 @@ class MultiVictorPlacement():
 
         i = 0
         victor = Victor(monster_random_seed=rseeds[i], **self.victor_init_args)
-        victor.place(smiles, long_name = long_name+str(i), merging_mode= merging_mode, atomnames=atomnames,
+        victor.place(smiles, long_name = long_name+str(i), merging_mode= merging_mode, 
+                     custom_map=custom_map, atomnames=atomnames,
                      extra_ligand_constraint=extra_ligand_constraint)
         victor.runNumber = i
         ddG = victor.ddG
@@ -56,6 +59,7 @@ class MultiVictorPlacement():
             monster.sample_new_conformation(rseeds[i])
             victor = Victor(monster_random_seed=rseeds[i], **self.victor_init_args)
             victor._prepare_args_for_placement(smiles=smiles, long_name = long_name+str(i), merging_mode= merging_mode,
+                                               custom_map=custom_map,
                                                atomnames=atomnames, extra_ligand_constraint=extra_ligand_constraint)
             victor.monster = monster
             victor._calculate_placement_minimizeMonster()
