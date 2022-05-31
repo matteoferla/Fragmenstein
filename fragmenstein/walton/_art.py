@@ -62,13 +62,29 @@ class WaltonArt(WaltonBase):
         """
         import nglview as nv
         view = nv.NGLWidget()
+        self._add_mols_to_nglview(view)
+        return view
+
+    def refresh_nglview(self, view: nv.NGLWidget) -> None:
+        """
+        In Walton altering hits manually does not have an effect on the NGLWidget,
+        but altering hits has no bad juju unlike Monster where altering the `.mols` can have a detrimental effect,
+        due to the lack of the sanitisation from the `monster.fix_mols(mols)` call.
+
+        :param view:
+        :return:
+        """
+        view._js(f"""this.stage.removeAllComponents()""")
+        self._add_mols_to_nglview(view)
+
+    def _add_mols_to_nglview(self, view: nv.NGLWidget) -> None:
         for mol in self.mols + [self.merged]:
             if not mol:  # self.merged is empty
                 continue
             fh = StringIO(Chem.MolToPDBBlock(mol))
             comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
             comp.update_ball_and_stick(colorValue=self._get_mol_color(mol), multipleBond=True)
-        return view
+
 
     def show3d(self) -> None:
         """

@@ -91,6 +91,9 @@ class _MonsterUtilCompare:
     def _to_nglview_and_legend(self, show_positioned_mol:False) -> Tuple[nv.NGLWidget, str]:
         """
         This is called by both ``Monster.to_nglview`` and ``Victor.to_nglview``
+        The color can be dictated by the optional private property ``_color``,
+        which may have been assigned by ``walton.color_in()`` or the user.
+
         :return:
         """
         color_series = iter(divergent_colors[len(self.hits)])

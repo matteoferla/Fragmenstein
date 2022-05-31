@@ -25,7 +25,7 @@ class WaltonBase:
         :param aligned: are they aligned? sets the namesake argument that does nothing ATM
         """
         # ## Mol
-        self.mols: List[Chem.Mol] = mols
+        self.mols: List[Chem.Mol] = mols  # It does not alter then, but `monster.fix_hits` will be called on __call__...
         # assign index (just in case):
         for idx, mol in enumerate(self.mols):
             mol.SetIntProp('_mol_index', idx)
