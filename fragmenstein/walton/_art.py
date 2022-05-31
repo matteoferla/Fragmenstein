@@ -3,8 +3,8 @@ from io import StringIO
 from typing import (Dict, TYPE_CHECKING)
 import sys
 
-if TYPE_CHECKING or 'sphinx' in sys.modules:
-    import nglview as nv
+import nglview as nv
+from ..display import MolNGLWidget
 
 from IPython.display import display
 from rdkit import Chem
@@ -60,9 +60,11 @@ class WaltonArt(WaltonBase):
         with the compounds and the merged if present.
         The colours will be those in the ``Chem.Mol``'s property ``_color``.
         """
-        import nglview as nv
-        view = nv.NGLWidget()
-        self._add_mols_to_nglview(view)
+        view = MolNGLWidget()
+        for mol in self.mols + [self.merged]:
+            if not mol:  # self.merged is empty
+                continue
+            view.add_mol(mol)
         return view
 
     def refresh_nglview(self, view: nv.NGLWidget) -> None:
@@ -74,16 +76,11 @@ class WaltonArt(WaltonBase):
         :param view:
         :return:
         """
-        view._js(f"""this.stage.removeAllComponents()""")
-        self._add_mols_to_nglview(view)
-
-    def _add_mols_to_nglview(self, view: nv.NGLWidget) -> None:
+        view.remove_all_components()
         for mol in self.mols + [self.merged]:
             if not mol:  # self.merged is empty
                 continue
-            fh = StringIO(Chem.MolToPDBBlock(mol))
-            comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
-            comp.update_ball_and_stick(colorValue=self._get_mol_color(mol), multipleBond=True)
+            view.add_mol(mol)
 
 
     def show3d(self) -> None:

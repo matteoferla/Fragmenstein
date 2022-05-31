@@ -42,6 +42,8 @@ class WaltonBase:
 
         Gets called by ``__init__`` and ``duplicate``.
         """
+        if len(self.mols) == 0:
+            return
         color_scale = self.color_scales[len(self.mols)]
         for mol, color in zip(self.mols, color_scale):
             mol.SetProp('_color', color)
@@ -76,6 +78,7 @@ class WaltonBase:
         monster = Monster(list(map(AllChem.RemoveHs, self.mols))).combine(**combine_kwargs)
         if minimize:
             monster.mmff_minimize()
+        monster.store_origin_colors_atomically()
         self.merged = monster.positioned_mol
         self.merged.SetProp('_color', color)
         return self.merged

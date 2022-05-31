@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple, Dict, Union
 from warnings import warn
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, Draw
+from rdkit.Chem import AllChem, rdFMCS, Draw, rdMolAlign
 
 import json
 
@@ -297,7 +297,9 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             mol = self.positioned_mol
         else:
             pass  # mol is fine
-        # protect
+        # store for later (drift prevention)
+        original_mol = Chem.Mol(mol)
+        # protect (DummyMasker could be used here)
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.AtomNumEqualsQueryAtom(0)):
             atom.SetBoolProp('_IsDummy', True)
             atom.SetAtomicNum(16)
@@ -334,6 +336,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
+        # prevent drift:
+        rdMolAlign.AlignMol(mol, original_mol)
         return success
 
     def _get_substructure_from_idxs(self, mol:Chem.Mol, atomIdx_list: List[int]) -> \

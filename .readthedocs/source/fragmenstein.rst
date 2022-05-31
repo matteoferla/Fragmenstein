@@ -18,6 +18,7 @@ Subpackages
    fragmenstein.cli
    fragmenstein.branding
    fragmenstein.m_rmsd
+   fragmenstein.display
 
 Module contents
 ---------------

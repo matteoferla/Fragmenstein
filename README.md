@@ -55,7 +55,7 @@ NB. In the absence of `pyrosetta` (which requires an academic licence), all bar 
 
 Additionally, there are a few minor classes.
 
-One of these is ``mRMSD``, a multiple RMSD variant which does not align and bases which atoms 
+One of these is ``mRMSD``, a multiple RMSD variant which does not superpose/align and bases which atoms 
 to use on coordinates —[documentation](documentation/mrmsd.md)
 
 The class `Walton` performs geometric manipulations of compounds, to set them up to demonstrate

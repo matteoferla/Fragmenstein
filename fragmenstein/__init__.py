@@ -44,3 +44,4 @@ from .m_rmsd import mRMSD
 from .mpro import MProVictor
 from .mpro import data as mpro_data
 from . import branding
+from .display import display_mols

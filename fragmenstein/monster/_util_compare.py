@@ -8,9 +8,10 @@ from functools import singledispatchmethod
 from typing import Tuple, List, Dict
 from io import StringIO
 import re
+from ..display import MolNGLWidget
 
 
-def draw(mol, color_map, x=200, y=200):
+def draw(mol, color_map, x=200, y=200, **kwargs):
     d = Draw.rdMolDraw2D.MolDraw2DSVG(x, y)
     flat = Chem.Mol(mol)
     AllChem.Compute2DCoords(flat)
@@ -19,6 +20,8 @@ def draw(mol, color_map, x=200, y=200):
                                             flat,
                                             highlightAtoms=list(color_map.keys()),
                                             highlightAtomColors=color_map2,
+                                            addAtomIndices=True,
+                                            **kwargs
                                             )
     d.FinishDrawing()
     display(SVG(d.GetDrawingText()))
@@ -32,25 +35,20 @@ def get_idx(name, origin, default=None):
 
 class _MonsterUtilCompare:
 
-    def show_comparison(self):
-        """"
-        Show the atom provenance of the follow molecule.
-
-        Parameters:
-
-        * nothing -> uses self.origin_from_mol
-        * hit2followup -> uses the hit2followup dict
+    def get_color_origins(self) -> Dict[str, Dict[int, str]]:
         """
-        # ------- followup -----------------------
-        #  origins is like [['MOL.7'], ['MOL.8'], ['MOL.9'], [], ...
+        Get for the hits and followup the color of the origin
+        as seen in show_comparison
+        :return:
+        """
+        color_maps = {}
         origins = self.origin_from_mol(self.positioned_mol)
         n_colors = sum(map(bool, origins))  # bool([]) is sensibly False in Python
         colors = divergent_colors[n_colors]
         mapped_idxs = [i for i, m in enumerate(origins) if m]
-        # d = Draw.rdMolDraw2D.MolDraw2DCairo(500, 500)
         followup_color_map = dict(zip(mapped_idxs, colors))
-        # later: draw(victor.minimized_mol, color_map)
-
+        positioned_name:str = self.positioned_mol.GetProp('_Name')
+        color_maps[positioned_name] = followup_color_map
         # -------------- hits ------------------
         for mol in self.hits:
             name = mol.GetProp('_Name')
@@ -63,9 +61,50 @@ class _MonsterUtilCompare:
                     if i is None:
                         continue
                     color_map[i] = followup_color_map[followup_idx]
+            color_maps[name] = color_map
+        return color_maps
+
+    def store_origin_colors_atomically(self):
+        """
+        Store the color of the origin in the mol as the private property _color
+        :return:
+        """
+        color_maps: Dict[str, Dict[int, str]] = self.get_color_origins()
+        for hit in self.hits:  #:Chem.Mol
+            name = hit.GetProp('_Name')
+            for atom in hit.GetAtoms():  #: Chem.Atom
+                atom.SetProp('_color', '#FFFFFF')  # white
+            if name not in color_maps:
+                continue
+            for i in color_maps[name]:
+                hit.GetAtomWithIdx(i).SetProp('_color', color_maps[name][i])
+        followup_map = color_maps[self.positioned_mol.GetProp('_Name')]
+        for atom in self.positioned_mol.GetAtoms():  #: Chem.Atom
+            atom.SetProp('_color', '#FFFFFF')  # white
+        for i in followup_map:
+            self.positioned_mol.GetAtomWithIdx(i).SetProp('_color', followup_map[i])
+
+
+    def show_comparison(self, *args, **kwargs):
+        """"
+        Show the atom provenance of the follow molecule.
+
+        Parameters:
+
+        * nothing -> uses self.origin_from_mol
+        * hit2followup -> uses the hit2followup dict
+        """
+        # ------- followup -----------------------
+        #  origins is like [['MOL.7'], ['MOL.8'], ['MOL.9'], [], ...
+        color_maps: Dict[str, Dict[int, str]] = self.get_color_origins()
+        # -------------- hits ------------------
+        for mol in self.hits:
+            name = mol.GetProp('_Name')
+            color_map = color_maps[name]
             print(f'hit {name}')  # legit print, not a debug scar
             draw(mol, color_map, 300, 300)
         print('Followup') # legit print, not a debug scar
+        followup_color_map = color_maps[self.positioned_mol.GetProp('_Name')]
         draw(self.positioned_mol, followup_color_map, 300, 300)
 
 
@@ -98,31 +137,18 @@ class _MonsterUtilCompare:
         """
         color_series = iter(divergent_colors[len(self.hits)])
         legend = ''
-        view = nv.NGLWidget()
+        view = MolNGLWidget()
         for mol in self.hits:
             colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
-            self.add_mol_to_nglview(colorValue=colorValue, mol=mol, view=view)
-
+            view.add_mol(colorValue=colorValue, mol=mol)
             legend += f'<span style="color: {colorValue}">{mol.GetProp("_Name")}</span> '
         if show_positioned_mol and self.positioned_mol:
-            self.add_mol_to_nglview(colorValue='white', mol=self.positioned_mol, view=view)
+            view.add_mol(colorValue='white', mol=self.positioned_mol)
             legend += f'<span>positioned followup (in white)</span> '
 
         return view, legend
 
-    def add_mol_to_nglview(self, view: nv.NGLWidget, mol: Chem.Mol, colorValue: str) -> nv.component.ComponentViewer:
-        if not mol:
-            raise ValueError(
-                'One of the hits is None: if user manual tinkering happened, please run monster.fix_hits')
-        fh = StringIO(Chem.MolToMolBlock(mol))  # I want atom names
-        comp: nv.component.ComponentViewer = view.add_component(fh,  # noqa it's there.
-                                                                name=mol.GetProp('_Name'),
-                                                                ext='mol')
-        # _color business stems from Walton.
-        comp.update_ball_and_stick(colorValue=colorValue, multipleBond=True)
-        return comp
-
-    def to_nglview(self, print_legend: bool = False) -> nv.NGLWidget:
+    def to_nglview(self, print_legend: bool = False) -> MolNGLWidget:
         """
         This is not the same method as in Victor.
         generates a NGLWidget (``IPython.display.display`` will show it)
