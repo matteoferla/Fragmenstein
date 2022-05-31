@@ -37,9 +37,9 @@ class WaltonMove(WaltonBase):
         else:
             raise TypeError(atom_idx)
 
-    # ----------- align ------------------------------------------------------------------
+    # ----------- superpose ------------------------------------------------------------------
 
-    def align_by_map(self, maps: Dict[Tuple[int, int], Dict[int, int]]):
+    def superpose_by_map(self, maps: Dict[Tuple[int, int], Dict[int, int]]):
         """
         The map is a dict of a tuple of two indices: the moving one and the fixed mol.
         The items are dictionary of atom indices from the former and the correspondance in the latter.
@@ -48,9 +48,9 @@ class WaltonMove(WaltonBase):
             Chem.rdMolAlign.AlignMol(self.mols[moved_idx],
                                      self.mols[fixed_idx],
                                      atomMap=list(atom_map.items()))
-        self.aligned = True
+        self.superposeed = True
 
-    def align_by_mcs(self, fixed_mol_idx=-1, **mcs_settings):
+    def superpose_by_mcs(self, fixed_mol_idx=-1, **mcs_settings):
         """
         Aligns by MCS. The fix molecule is the last molecule unless specified.
         """
@@ -66,7 +66,7 @@ class WaltonMove(WaltonBase):
                            )
             Chem.rdMolAlign.AlignMol(moved, fixed, atomMap=mcs_map)
             commons.append(common)
-        self.aligned = True
+        self.superposeed = True
         return commons
 
     # ----- transforms ----------------------------------------

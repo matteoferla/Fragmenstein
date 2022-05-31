@@ -14,7 +14,7 @@ class WaltonBase:
 
     def __init__(self,
                  mols: List[Chem.Mol],
-                 aligned: bool = False):
+                 superposed: bool = False):
         """
         To initialised from SMILES use the classmethod ``.from_smiles``.
         These are assumed to have a conformer.
@@ -22,7 +22,7 @@ class WaltonBase:
         the class attribute color_scales. By default it uses ``fragmenstein.branding.divergent_colors``
 
         :param mols: list of mols
-        :param aligned: are they aligned? sets the namesake argument that does nothing ATM
+        :param superposed: are they superposed? sets the namesake argument that does nothing ATM
         """
         # ## Mol
         self.mols: List[Chem.Mol] = mols  # It does not alter then, but `monster.fix_hits` will be called on __call__...
@@ -31,8 +31,8 @@ class WaltonBase:
             mol.SetIntProp('_mol_index', idx)
         # assign color:
         self.color_in()
-        # ## Aligned
-        self.aligned: bool = aligned
+        # ## superposed
+        self.superposed: bool = superposed
         # ## Computed
         self.merged: Union[None, Chem.Mol] = None
 
@@ -48,7 +48,7 @@ class WaltonBase:
 
     @classmethod
     def from_smiles(cls,
-                    aligned: bool = False,
+                    superposed: bool = False,
                     add_Hs: bool = False,
                     **name2smiles: str):
         """
@@ -63,7 +63,7 @@ class WaltonBase:
             AllChem.EmbedMolecule(mol)
             mol.SetProp('_Name', name)
             mols.append(mol)
-        return cls(mols=mols, aligned=aligned)
+        return cls(mols=mols, superposed=superposed)
 
     def __call__(self, color='#a9a9a9', minimize: bool = False, **combine_kwargs) -> Chem.Mol:  # darkgrey
         """

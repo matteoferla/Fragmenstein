@@ -68,7 +68,7 @@ Now, lets get the MCS merger
 ```python3
 from rdkit.Chem import rdFMCS, AllChem
 
-def align_by_mcs(moved: Chem.Mol, fixed: Chem.Mol) -> None:
+def superpose_by_mcs(moved: Chem.Mol, fixed: Chem.Mol) -> None:
     # superpose
     res: rdFMCS.MCSResult =rdFMCS.FindMCS([moved, fixed])
     common = Chem.MolFromSmarts(res.smartsString)
@@ -79,7 +79,7 @@ def align_by_mcs(moved: Chem.Mol, fixed: Chem.Mol) -> None:
                   )
     Chem.rdMolAlign.AlignMol(moved, fixed, atomMap=mcs_map)
     
-align_by_mcs(catechol, coumarate)
+superpose_by_mcs(catechol, coumarate)
 monster = Monster([catechol, coumarate]).combine()
 monster.mmff_minimize()
 mcsed = monster.positioned_mol

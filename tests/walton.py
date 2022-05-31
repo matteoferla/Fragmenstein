@@ -23,9 +23,9 @@ class WaltonTests(unittest.TestCase):
         obtained_smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
         self.assertEqual(expected_smiles, obtained_smiles)
 
-    def test_align_map(self):
+    def test_superpose_map(self):
         demo = Walton.from_smiles(resorcinol='c1ccc(O)cc1O', eugenol='Oc1ccc(cc1OC)CC=C')  # create instance
-        demo.align_by_map({(0, 1): {4: 0, 3: 1, 2: 2}})  # align molecules by atom indices
+        demo.superpose_by_map({(0, 1): {4: 0, 3: 1, 2: 2}})  # superpose molecules by atom indices
         demo()  # merge (Fragmenstein's Monster)
         self.smiles_assertEqual('C=CCc1ccc(O)c(OC)c1O', demo.merged)
 
@@ -47,7 +47,7 @@ class WaltonTests(unittest.TestCase):
     def pull_apart(self, mols: Chem.Mol, distance: float) -> Chem.Mol:
         walton = Walton(mols)
         walton.ring_on_plane(ring_idx=0, mol_idx=0)
-        walton.align_by_mcs()
+        walton.superpose_by_mcs()
         walton.translate_parallel(mol_idx=1, distance=distance,
                                   base_atom_idx=0, pointer_atom_idx=2)
         walton(joining_cutoff=10)

@@ -27,11 +27,11 @@ from .monster import Monster
 from typing import *
 
 class mRMSD:
-    """RMSD are unaligned and in Å.
+    """Mols are non-superposed ('aligned') for the RMSD and in Å.
 
     The RMSD has been calculated differently.
     The inbuilt RMSD calculations in RDKit (``Chem.rdMolAlign.GetBestRMS``) align the two molecules,
-    this does not align them.
+    this does not align/superpose them.
     This deals with the case of multiple hits.
     As a comparision, For euclidean distance the square root of the sum of the differences in each coordinates is taken.
     As a comparision, For a regular RMSD the still-squared distance is averaged before taking the root.

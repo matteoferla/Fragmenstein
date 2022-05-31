@@ -1,6 +1,6 @@
 # Combined RMSD
 
-This submodule calculate a multiple RMSD variant which does not align and
+This submodule calculate a multiple RMSD variant which does not superpose/'align' and
 bases which atoms to use on a given pairing, by default this which atoms were donors in Fragmenstein.
 
 It requires RDKit but not pyrosetta and can be used independently of Fragmenstein core functionality.

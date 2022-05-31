@@ -115,7 +115,7 @@ The method called by the class `place_from_map`, placed the followup using those
 
 To do a contrained embed in RDKit the reference atoms need to have a good geometry.
 Consequently, this is not possible.
-Therefore in the case of sidechains that are novel in the followup a optimised conformer is a aligned against the half placed followup
+Therefore in the case of sidechains that are novel in the followup a optimised conformer is a superposed against the half placed followup
 using the 3-4 atoms that are the closest neighbours within the half-placed structure and the side chain position copied from there for each bit.
 
 <img src="../../images/grid.jpg" alt="fragments of x0305" width="400px">

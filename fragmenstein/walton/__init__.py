@@ -8,14 +8,14 @@ from ._polygon import WaltonPolygon
 class Walton(WaltonAdvMove, WaltonArt, WaltonPolygon):
     """
     This is a diagnostic/demo class.
-    It aligns molecules for merging to test a hypothesis.
+    It superposes molecules for merging to test a hypothesis.
     In the Frankenstein novel,
     (Captain Walton is told the story of the creation of Adam by Victor Frankenstein.
     Basically he is just a spectator but actually allows the story to be known:
     this class does nothing bar demonstrate what can be done)
 
     Given a list of mols (or smiles as named arguments via the ``from_smiles`` classmethod),
-    It aligns them via the ``align_by_mcs`` or ``align_by_map`` methods.
+    It superposes them via the ``superpose_by_mcs`` or ``superpose_by_map`` methods.
     Calling the instance, will merge molecules and yield the merged molecule.
     The initial molecules are stored as a list in the attribute ``mols``.
     The merged molecule is stored in the attribute ``merged``.
@@ -33,7 +33,7 @@ class Walton(WaltonAdvMove, WaltonArt, WaltonPolygon):
     .. code-block:: python
 
         demo = Walton.from_smiles(resorcinol='c1ccc(O)cc1O', eugenol='Oc1ccc(cc1OC)CC=C') # create instance
-        demo.align_by_map({(0,1):{4:0, 3:1, 2:2}})  # align molecules by atom indices
+        demo.superpose_by_map({(0,1):{4:0, 3:1, 2:2}})  # superpose molecules by atom indices
         demo()  # merge (Fragmenstein's Monster)
         demo.show3d()  # show 2d, names and 3d
 
