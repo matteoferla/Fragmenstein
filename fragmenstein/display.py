@@ -65,15 +65,18 @@ class MolNGLWidget(nv.NGLWidget):
 
     def remove_all_components(self):
         self._js(f"""this.stage.removeAllComponents()""")
-        # delattr() ???
+        i = 0
+        while hasattr(self, f'component_{i}'):
+            delattr(self, f'component_{i}')
+            i += 1
 
     def add_neighbors(self, selection: str, comp_id: int = 0, radius: float = 5, style: str = 'hyperball',
                       color: str = 'gainsboro'):
         """
-        Given a compounent id as interpreted by NGL JS, add the neighbours.
+        Given a compounent id as an integer interpreted by NGL JS (not 'component_0'), add the neighbours.
 
         :param selection:
-        :param comp_id: if remove_all_components was called the component_0 etc are wrong.
+        :param comp_id: integer
         :param radius:
         :param style:
         :param color:
