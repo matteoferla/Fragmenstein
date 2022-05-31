@@ -3,8 +3,11 @@ from warnings import warn
 from importlib import util
 import os
 
-if os.path.exists('README.md'):
-    with open('README.md', 'r') as f:
+import os
+this_directory = os.path.abspath(os.path.dirname(__file__))
+
+if os.path.exists(os.path.join(this_directory, 'README.md')):
+    with open(os.path.join(this_directory, 'README.md'), 'r') as f:
         long_description = f.read()
 else:
     long_description = '''
@@ -18,8 +21,8 @@ else:
     ![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
     '''
 
-if os.path.exists('requirements.txt'):
-    with open('requirements.txt', 'r') as f:
+if os.path.exists(os.path.join(this_directory, 'requirements.txt')):
+    with open(os.path.join(this_directory, 'requirements.txt'), 'r') as f:
         requirements = [line.split('#')[0].strip() for line in f.readlines()]
         requirements = [line for line in requirements if line]
 else:
@@ -45,7 +48,10 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.9.1',
+    version='0.9.2',
+    description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     python_requires='>=3.7',
     packages=find_packages(),
     include_package_data=True,
@@ -65,9 +71,6 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
     ],
-    description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
-    long_description=long_description,
-    long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': ['fragmenstein=fragmenstein.cli:main'],
     }
