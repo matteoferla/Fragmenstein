@@ -93,3 +93,25 @@ class MolNGLWidget(nv.NGLWidget):
                                                                        }});
                      comp.addRepresentation( "contact", {{sele: resi_atoms.toSeleString()}});
                 """)
+
+    def add_selection_signal(self, molname_id: str, atom_id: str):
+        """
+        Add a signal to the viewer than fills the elements #molname_id and #atom_id
+
+        :param molname_id:
+        :param atom_id:
+        :return:
+        """
+        molview._js(f'''this.stage.signals.clicked.add(pickingProxy => {{
+                // for testing: NGL.getStage().compList[0].structure.getAtomProxy(50)
+                if (pickingProxy && (pickingProxy.atom || pickingProxy.bond )){{
+                    const atom = pickingProxy.atom || pickingProxy.closestBondAtom;
+                    const name = atom.qualifiedName().match(/(\d+\:\w)\..{1,5}/)[1]; //"[PRO]1114:A.C"
+                    const component = pickingProxy.component;
+                    document.getElementById('#{molname_id}').innerText = `${{component.name}}`;
+                    document.getElementById('#{atom_id}').innerText = `${{atom.index}}`;
+                    console.log(atom);
+                    console.log(component);
+                    }}
+            }});
+        ''')
