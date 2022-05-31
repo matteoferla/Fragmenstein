@@ -1,6 +1,5 @@
 # Fragmenstein
 Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
-<img src="images/fragmenstein.jpg" width="300px">
 
 [![Documentation Status](https://readthedocs.org/projects/fragmenstein/badge/?version=latest)](https://fragmenstein.readthedocs.io/en/latest/?badge=latest)
 [![ github forks matteoferla Fragmenstein?label=Fork&style=social](https://img.shields.io/github/forks/matteoferla/Fragmenstein?label=Fork&style=social&logo=github)](https://github.com/matteoferla/Fragmenstein)
