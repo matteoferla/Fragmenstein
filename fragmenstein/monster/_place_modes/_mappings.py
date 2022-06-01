@@ -96,7 +96,7 @@ class _MonsterMap(_MonsterMerge):
     def _get_atom_maps(self,
                        hit: Chem.Mol,
                        followup: Chem.Mol,
-                       custom_map: Optional[Dict[str, IndexMap]],
+                       custom_map: Optional[Dict[str, IndexMap]]=None,
                        **mode: Unpack[ExtendedFMCSMode]) -> List[IndexMap]:
 
         """
