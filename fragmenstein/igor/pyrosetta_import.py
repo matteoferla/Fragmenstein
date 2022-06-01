@@ -24,7 +24,7 @@ class AttributeFilledMock:
         return self
 
     def __call__(self, *args, **kargs):
-        warn()
+        warn('This call does nothing as PyRosetta is not installed', RuntimeWarning)
         return self
 
 # ======================================================================================================================
