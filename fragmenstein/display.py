@@ -35,7 +35,23 @@ def display_mols(mols: Sequence[Chem.Mol],
 
 class MolNGLWidget(nv.NGLWidget):
     """
-    Adds a method ``add_mol`` that simply adds an rdkit molecule to the viewer.
+    Adds:
+
+    a method ``add_mol`` that simply adds an rdkit molecule to the viewer.
+
+    .. code-block:: python
+
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles('CC')
+        view = MolNGLWidget()
+        view.add_mol(mol, colorValue='pink')
+
+    A method ``add_neighbors`` that adds a representation of the neighbours of a given selection.
+
+    .. code-block:: python
+
+        view.add_neighbors('[ATP]', comp_id=0, radius=5, style='hyperball', color='gainsboro')
+    And a methdo
     """
 
     def add_mol(self, mol: Chem.Mol, colorValue: str = '') -> nv.component.ComponentViewer:
@@ -55,31 +71,39 @@ class MolNGLWidget(nv.NGLWidget):
                                                                 name=mol.GetProp('_Name'),
                                                                 ext='pdb'
                                                                 )
+        comp.remove_ball_and_stick()
         if not colorValue and mol.HasProp('_color'):
             colorValue = mol.GetProp('_color')
         if colorValue:
-            comp.update_ball_and_stick(colorValue=colorValue)
-        comp.update_ball_and_stick(multipleBond=True)
+            comp.add_representation('ball+stick', colorValue=colorValue, multipleBond=True)
+        else:
+            comp.add_representation('ball+stick', multipleBond=True)
         # _color business stems from Walton.
         return comp
 
     def remove_all_components(self):
+        """
+        This removes the components and all traces of their existance in the widget
+
+        :return:
+        """
         self._js(f"""this.stage.removeAllComponents()""")
         i = 0
         while hasattr(self, f'component_{i}'):
             delattr(self, f'component_{i}')
             i += 1
+        self._ngl_component_ids = []
 
     def add_neighbors(self, selection: str, comp_id: int = 0, radius: float = 5, style: str = 'hyperball',
                       color: str = 'gainsboro'):
         """
-        Given a compounent id as an integer interpreted by NGL JS (not 'component_0'), add the neighbours.
+        Given a compounent id as an integer interpreted by NGL JS (not 'component_0'), show the neighbours.
 
-        :param selection:
-        :param comp_id: integer
-        :param radius:
-        :param style:
-        :param color:
+        :param selection: NGL style selection string, e.g. ``[ATP] or 1-30:A``
+        :param comp_id: integer not string
+        :param radius: float of atom to atom distance max
+        :param style: see NGL manual for the representation styles. Default is ``hyperball``
+        :param color: hashtag prefixed hex color string or CSS color name
         :return:
         """
         self._js(f"""const comp = this.stage.compList[{comp_id}]
@@ -97,12 +121,21 @@ class MolNGLWidget(nv.NGLWidget):
     def add_selection_signal(self, molname_id: str, atom_id: str):
         """
         Add a signal to the viewer than fills the elements #molname_id and #atom_id
+        when user clicks on an atom —not bond.
+        
+            
+        .. code-block:: python
+            
+            from IPython.display import display, HTML
+            # in real code the html entities &gt;/&lt; would be actual greater-than and lesser-than signs
+            display(HTML(f'&gt;div id="#{molname_id}"&lt;&gt;/div>&gt;div id="#{atom_id}"&lt;&gt;/div&lt;'))
+            view.add_selection_signal(molname_id, atom_id)
 
         :param molname_id:
         :param atom_id:
         :return:
         """
-        molview._js(f'''this.stage.signals.clicked.add(pickingProxy => {{
+        self._js(f'''this.stage.signals.clicked.add(pickingProxy => {{
                 // for testing: NGL.getStage().compList[0].structure.getAtomProxy(50)
                 if (pickingProxy && (pickingProxy.atom || pickingProxy.bond )){{
                     const atom = pickingProxy.atom || pickingProxy.closestBondAtom;

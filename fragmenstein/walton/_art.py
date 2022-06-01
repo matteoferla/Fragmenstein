@@ -67,7 +67,7 @@ class WaltonArt(WaltonBase):
             view.add_mol(mol)
         return view
 
-    def refresh_nglview(self, view: nv.NGLWidget) -> None:
+    def refresh_nglview(self, view: nv.NGLWidget, *others:Chem.Mol) -> None:
         """
         In Walton altering hits manually does not have an effect on the NGLWidget,
         but altering hits has no bad juju unlike Monster where altering the `.mols` can have a detrimental effect,
@@ -77,7 +77,7 @@ class WaltonArt(WaltonBase):
         :return:
         """
         view.remove_all_components()
-        for mol in self.mols + [self.merged]:
+        for mol in self.mols + [self.merged] + list(others):
             if not mol:  # self.merged is empty
                 continue
             view.add_mol(mol)
