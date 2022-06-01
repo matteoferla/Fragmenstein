@@ -136,15 +136,13 @@ class MolNGLWidget(nv.NGLWidget):
         :return:
         """
         self._js(f'''this.stage.signals.clicked.add(pickingProxy => {{
-                // for testing: NGL.getStage().compList[0].structure.getAtomProxy(50)
                 if (pickingProxy && (pickingProxy.atom || pickingProxy.bond )){{
                     const atom = pickingProxy.atom || pickingProxy.closestBondAtom;
-                    const name = atom.qualifiedName().match(/(\d+\:\w)\..{1,5}/)[1]; //"[PRO]1114:A.C"
                     const component = pickingProxy.component;
-                    document.getElementById('#{molname_id}').innerText = `${{component.name}}`;
-                    document.getElementById('#{atom_id}').innerText = `${{atom.index}}`;
                     console.log(atom);
                     console.log(component);
+                    document.getElementById('{molname_id}').innerText = `${{component.name}}`;
+                    document.getElementById('{atom_id}').innerText = `${{atom.index}}`;
                     }}
             }});
         ''')
