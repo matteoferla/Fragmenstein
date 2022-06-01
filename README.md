@@ -24,7 +24,10 @@ Scaffold hopping between bound compounds by stitching them together like a reani
 [![ codeclimate issues matteoferla Fragmenstein](https://img.shields.io/codeclimate/issues/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 [![ codeclimate tech-debt matteoferla Fragmenstein](https://img.shields.io/codeclimate/tech-debt/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 
-[![colab demo](https://img.shields.io/badge/Run--demo--in--colab-colab_fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb)
+| Name | Colab Link | PyRosetta | Description |
+| :--- | :--- | :---: | :--- |
+| Pipeline | [![colab demo](https://img.shields.io/badge/Run_full_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb) | &#10004;| Given a template and a some hits, <br>merge them <br>and place the most similar purchasable analogues from Enamine REAL |
+| Light | [![colab demo](https://img.shields.io/badge/Run_light_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_playground.ipynb) | &#10004;| Generate molecules and see how they merge<br>and how a placed compound fairs|
 
 ![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
 
