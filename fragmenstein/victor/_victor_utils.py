@@ -22,6 +22,7 @@ import requests
 import sys, json
 import unicodedata
 import numpy as np
+from ..extraction_funs import add_dummy_to_mol
 from typing import List, Union, Optional, Dict, Tuple
 
 from rdkit import Chem
@@ -221,27 +222,6 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
     # =================== extract_mols =================================================================================
 
     @classmethod
-    def find_attachment(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Union[Chem.Atom, None], Union[Chem.Atom, None]]:
-        """
-        Finds the two atoms in a crosslink bond without looking at LINK record
-
-        :param pdb: a rdkit Chem object
-        :param ligand_resn: 3 letter code
-        :return: tuple of non-ligand atom and ligand atom
-        """
-        for atom in pdb.GetAtoms():
-            if atom.GetPDBResidueInfo().GetResidueName() == ligand_resn:
-                for neigh in atom.GetNeighbors():
-                    if neigh.GetPDBResidueInfo().GetResidueName() != ligand_resn:
-                        attachment = neigh
-                        attachee = atom
-                        return (attachment, attachee)
-        else:
-            attachment = None
-            attachee = None
-            return (attachment, attachee)
-
-    @classmethod
     def find_closest_to_ligand(cls, pdb: Chem.Mol, ligand_resn: str) -> Tuple[Chem.Atom, Chem.Atom]:
         """
         Find the closest atom to the ligand
@@ -273,7 +253,8 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         """
          A key requirement for Monster is a separate mol file for the inspiration hits.
         This is however often a pdb. This converts.
-        `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimized()` calls mol_from_pose.
+        `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimized()` calls ``mol_from_pose``
+        and ``copy_bonds_by_atomnames`` which does not destroy pdbinfo.
 
         See ``extract_mol`` for single.
 
@@ -359,41 +340,30 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
             cls.journal.warning(f'PDB {filepath} is problematic. Skipping sanitization.')
             holo = readfun(data, proximityBonding=False, removeHs=True, sanitize=False)
         mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
-        attachment, attachee = cls.find_attachment(holo, ligand_resn)
-        if attachment is not None:  # covalent
-            mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
-            mod = Chem.RWMol(mol)
-            attachment.SetAtomicNum(0)  # dummy atom.
-            attachment.GetPDBResidueInfo().SetName('CONN')
-            pos = holo.GetConformer().GetAtomPosition(attachment.GetIdx())
-            ni = mod.AddAtom(attachment)
-            mod.GetConformer().SetAtomPosition(ni, pos)
-            attachee_name = attachee.GetPDBResidueInfo().GetName()
-            for atom in mod.GetAtoms():
-                if atom.GetPDBResidueInfo().GetName() == attachee_name:
-                    ai = atom.GetIdx()
-                    mod.AddBond(ai, ni, Chem.BondType.SINGLE)
-                    break
-            mol = mod.GetMol()
+        mol = add_dummy_to_mol(mol, ligand_resn, holo)
         if smiles is not None:
             if '*' in Chem.MolToSmiles(mol) and '*' not in smiles:
                 new_smiles = cls.make_covalent(smiles)
                 if new_smiles:
-                    cls.journal.info(f'{name} is covalent but a non covalent SMILES was passed, which was converted')
+                    cls.journal.info(f'{name} is covalent but ' +
+                                      'a non covalent SMILES was passed, which was converted')
                     smiles = new_smiles
                 else:
-                    cls.journal.warning(f'{name} is covalent but a non covalent SMILES was passed, which failed to convert')
+                    cls.journal.warning(f'{name} is covalent but ' +
+                                        'a non covalent SMILES was passed, which failed to convert')
             else:
                 pass
             try:
                 template = Chem.MolFromSmiles(smiles)
                 # template = AllChem.DeleteSubstructs(template, Chem.MolFromSmiles('*'))
+                AllChem.SanitizeMol(mol)
                 mol = AllChem.AssignBondOrdersFromTemplate(template, mol)
             except ValueError as error:
                 if throw_on_error:
                     raise error
                 else:
-                    cls.journal.warning(f'{name} failed at template-guided bond order correction - ({type(error)}: {error}).')
+                    cls.journal.warning(f'{name} failed at template-guided bond order correction ' +
+                                        f'- ({type(error)}: {error}).')
         mol.SetProp('_Name', name)
         return mol
 
@@ -484,7 +454,8 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                 pdbfile=os.path.join(folder, self.long_name + '.holo_minimised.pdb'),
                 params_file=os.path.join(folder, self.long_name + '.params'),
                 constraint_file=os.path.join(folder, self.long_name + '.con'))
-            self.minimized_mol = self._fix_minimized()  # otherwise it lacks PDBInfo, such as names
+            # victor._fix_minimized adds to igor.mol_from_pose
+            self.minimized_mol = self._fix_minimized()
         else:
             self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
                                  'unbound_ref2015': {'total_score': float('nan')}}
