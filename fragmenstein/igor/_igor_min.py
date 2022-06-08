@@ -17,6 +17,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from ._igor_base import _IgorBase
+from ..extraction_funs import add_dummy_to_mol
 
 
 class _IgorMin(_IgorBase):
@@ -35,8 +36,9 @@ class _IgorMin(_IgorBase):
         pose.dump_pdb(pyrosetta.rosetta.std.ostream(buffer))
         return buffer.str()
 
-    def mol_from_pose(self, pose:Optional[pyrosetta.Pose]=None) -> Chem.Mol:
+    def mol_from_pose(self, pose:Optional[pyrosetta.Pose]=None, add_dummy:bool=True) -> Chem.Mol:
         """
+        Returns the ligand without the dummy atom!
 
         :return: ligand
         :rtype: Chem.Mol
@@ -48,9 +50,14 @@ class _IgorMin(_IgorBase):
         # return mol
         if pose is None:
             pose = self.pose
-        mol = Chem.MolFromPDBBlock(self.pose2str(pose), proximityBonding=False, removeHs=False)
-        name3 = pose.residue(self.ligand_residue[0]).name3()
-        return Chem.SplitMolByPDBResidues(mol, whiteList=[name3])[name3]
+        holo: Chem.Mol = Chem.MolFromPDBBlock(self.pose2str(pose), proximityBonding=False, removeHs=False)
+        ligand_resn = pose.residue(self.ligand_residue[0]).name3()
+        # if the above differs from `Victor.ligand_resn` it is a problem though but as I cannot fathom why it would be
+        # it is likely impossible and Igor does not know so, it is likely fine...
+        ligand: Chem.Mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
+        if add_dummy:
+            ligand = add_dummy_to_mol(ligand, ligand_resn, holo)
+        return ligand
 
     def make_ligand_only_pose(self) -> pyrosetta.Pose:
         """

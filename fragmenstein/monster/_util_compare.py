@@ -13,6 +13,10 @@ from ..display import MolNGLWidget
 
 def draw(mol, color_map, x=200, y=200, **kwargs):
     d = Draw.rdMolDraw2D.MolDraw2DSVG(x, y)
+    d.drawOptions().addAtomIndices = True
+    d.drawOptions().addStereoAnnotation = True
+    d.drawOptions().prepareMolsBeforeDrawing = False
+    d.drawOptions().dummiesAreAttachments = True
     flat = Chem.Mol(mol)
     AllChem.Compute2DCoords(flat)
     color_map2 = {i: ColorConverter().to_rgb(n) for i, n in color_map.items()}
@@ -20,11 +24,11 @@ def draw(mol, color_map, x=200, y=200, **kwargs):
                                             flat,
                                             highlightAtoms=list(color_map.keys()),
                                             highlightAtomColors=color_map2,
-                                            addAtomIndices=True,
                                             **kwargs
                                             )
     d.FinishDrawing()
     display(SVG(d.GetDrawingText()))
+
 
 
 def get_idx(name, origin, default=None):
@@ -102,7 +106,7 @@ class _MonsterUtilCompare:
             name = mol.GetProp('_Name')
             color_map = color_maps[name]
             print(f'hit {name}')  # legit print, not a debug scar
-            draw(mol, color_map, 300, 300)
+            draw(mol, color_map, 300, 300, **kwargs)
         print('Followup') # legit print, not a debug scar
         followup_color_map = color_maps[self.positioned_mol.GetProp('_Name')]
         draw(self.positioned_mol, followup_color_map, 300, 300)

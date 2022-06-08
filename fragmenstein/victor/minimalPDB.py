@@ -97,6 +97,10 @@ class MinimalPDBParser:
         # 22             Character     chainID      Chain identifier.
         return entry[21].strip()
 
+    def get_atomname(self, entry: str) -> str:
+        # 13 - 16        Atom          name         Atom name.
+        return entry[12:16].strip()
+
     def get_residue_name(self, entry: str) -> int:
         # https://www.wwpdb.org/documentation/file-format-content/format33/sect9.html
         # 18 - 20        Residue name  resName      Residue name.

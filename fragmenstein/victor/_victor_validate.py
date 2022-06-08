@@ -1,4 +1,5 @@
 from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from ._victor_base import _VictorBase
 from ..m_rmsd import mRMSD

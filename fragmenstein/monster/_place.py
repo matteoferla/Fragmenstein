@@ -93,6 +93,12 @@ class _MonsterPlace(_MonsterBlend):
     def _parse_mol_for_place(self,
                              mol: Chem.Mol,
                              attachment: Optional[Chem.Mol] = None):
+        """
+        Atachment is a single atom molecule, say the SG atom of a CYS, onto which the mol is placed.
+        :param mol:
+        :param attachment:
+        :return:
+        """
         # ------------- store mol ---------------------------------------
         if mol.HasSubstructMatch(self.dummy) and attachment:
             pass

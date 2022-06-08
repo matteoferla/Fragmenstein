@@ -105,7 +105,7 @@ class _IgorUtils(_IgorBase):
         which is possibly more sane (e.g. ``igor.display_energy(minimized_mol, term=igor.display.Term.ELECTROSTATIC)``).
         """
         if minimized_mol is None:
-            minimized_mol:Chem.Mol = self.mol_from_pose()
+            minimized_mol:Chem.Mol = self.mol_from_pose(add_dummy=False)
         if scorefxn is None:
             scorefxn:pyrosetta.ScoreFunction = pyrosetta.get_fa_scorefxn()
         # ['all', 'lenard-jones', 'lj_atr', 'lj_rep', 'fa_solv', 'fa_elec']

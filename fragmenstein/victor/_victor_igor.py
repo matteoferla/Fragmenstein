@@ -2,44 +2,28 @@ from ._victor_store import _VictorStore
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from ..m_rmsd import mRMSD
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
+from ..extraction_funs import copy_bonds_by_atomnames
 
 class _VictorIgor(_VictorStore):
 
-    def _fix_minimized(self, ligand: Optional[Chem.Mol]=None) -> Chem.Mol:
+    def _fix_minimized(self, ligand: Optional[Chem.Mol]=None, add_dummy:bool=True) -> Chem.Mol:
         """
         PDBs are terrible for bond order etc. and Rosetta addes these based on atom types
+        igor.mol_from_pose cannot use victor.params.mol because it's upstream
+        hence this method which adds to it.
+
         :return:
         """
-        self.journal.debug(f'{self.long_name} - making ligand only')
-        if ligand is None: # normal route
-            ligand = self.igor.mol_from_pose()
-        # PDBResidueInfo is lost by AllChem.AssignBondOrdersFromTemplate
-        # but not prop
-        pdb_infos: Dict[Chem.AtomPDBResidueInfo] = {}
-        for atom in ligand.GetAtoms():
-            info: Chem.AtomPDBResidueInfo = atom.GetPDBResidueInfo()
-            pdb_infos[info.GetName()] = info
-            atom.SetProp('atom_name', info.GetName())
-        # copy bond order:
-        template = AllChem.DeleteSubstructs(self.params.mol, Chem.MolFromSmiles('*'))
-        try:
-            bonded = AllChem.AssignBondOrdersFromTemplate(template, ligand)
-        except ValueError:
-            try:
-                Chem.SanitizeMol(ligand)
-                bonded = AllChem.AssignBondOrdersFromTemplate(template,  ligand)
-            except ValueError:
-                self.journal.critical(
-                    f'Bond order restoration: {Chem.MolToSmiles(ligand)} != {Chem.MolToSmiles(template)}')
-                return ligand
-        # fix residue info
-        for atom in bonded.GetAtoms():
-            name = atom.GetProp('atom_name')
-            atom.SetPDBResidueInfo(pdb_infos[name])
-        Chem.SanitizeMol(bonded)
-        bonded.SetProp('_Name', self.long_name)
-        return bonded
+        if not add_dummy:
+            self.journal.debug(f'{self.long_name} - making ligand only')
+        else:
+            self.journal.debug(f'{self.long_name} - making ligand w/ dummy (if present)')
+        if ligand is None:  # normal route
+            ligand = self.igor.mol_from_pose(add_dummy=add_dummy)
+        # fix bond orders without breaking pdbinfo:
+        copy_bonds_by_atomnames(self.params.mol, ligand)
+        return ligand
 
     def quick_reanimate(self) -> float:
         """
@@ -98,6 +82,8 @@ class _VictorIgor(_VictorStore):
     def _store_after_reanimation(self):
         self.minimized_pdbblock = self.igor.pose2str()
         self.post_igor_step()  # empty overridable
+        # extract_mol is a classmethod in _victor_utils: it could be an option but it's inputs differ
+        # and there's a few diffent details.
         self.minimized_mol = self._fix_minimized()
         self.mrmsd = self._calculate_rmsd()
         self.journal.info(f'{self.long_name} - final score: {self.ddG} kcal/mol, RMSD: {self.mrmsd.mrmsd}.')

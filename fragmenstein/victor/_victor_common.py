@@ -1,5 +1,5 @@
 from ._victor_igor import _VictorIgor
-
+from .minimalPDB import MinimalPDBParser
 import os, re
 from typing import *
 from rdkit import Chem
@@ -166,11 +166,12 @@ class _VictorCommon(_VictorIgor):
 
     # ------------------------------------------------------------------------------------------------------------------
 
-    def _get_attachment_from_pdbblock(self) -> Union[None, Chem.Mol]:
+    def _get_attachment_from_pdbblock_via_pymol(self) -> Union[None, Chem.Mol]:
         """
+        DEPRACATED. FORMER CODE FOR ``_get_attachment_from_pdbblock``
+
         Yes, yes, I see the madness in using pymol to get an atom for rdkit to make a pose for pyrosetta.
         Hence why `find_attachment` will replace it.
-        todo `_get_attachment_from_pdbblock` --> `find_attachment`
         """
         import pymol2
 
@@ -198,6 +199,34 @@ class _VictorCommon(_VictorIgor):
                 except:
                     pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
                 return Chem.MolFromPDBBlock(pdb)
+
+    def _get_attachment_from_pdbblock(self) -> Union[None, Chem.Mol]:
+        """
+        ``find_attachment`` finds the actual attachment atom not the stated one.
+        The historic code for this is now ``_get_attachment_from_pdbblock_via_pymol``
+        :return:
+        """
+        if not self.covalent_resn:
+            return None
+        if self.covalent_resn == 'CYS':
+            name = 'SG'
+        else:
+            raise NotImplementedError('only done for cys atm')
+        if isinstance(self.covalent_resi, str):
+            resi, chain = re.match('(\d+)(\w)', self.covalent_resi).groups()
+            resi = int(resi)
+        else:
+            resi = self.covalent_resi
+            chain = None
+        parser = MinimalPDBParser(self.apo_pdbblock)
+        for atom_row in parser.coordinates:
+            if parser.get_residue_index(atom_row) != resi:
+                continue
+            if chain is not None and parser.get_chain(atom_row) != chain:
+                continue
+            if parser.get_atomname(atom_row) == name.strip():
+                return Chem.MolFromPDBBlock(atom_row)
+        return None
 
     def _get_war_def(self):
         for war_def in self.warhead_definitions:
