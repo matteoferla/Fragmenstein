@@ -380,7 +380,7 @@ class Unmerge(GPM):
         else:
             return possible_map
 
-    def check_possible_distances(self, other, possible_map, combined, combined_map, cutoff=3):
+    def check_possible_distances(self, other, possible_map, combined, combined_map, cutoff=2.5):
         for i, offset_o in possible_map.items():
             unoffset_o = offset_o - combined.GetNumAtoms()
             atom = self.followup.GetAtomWithIdx(i)
@@ -389,7 +389,12 @@ class Unmerge(GPM):
                 if ni in possible_map:
                     pass  # assuming the inspiration compound was not janky
                 elif ni in combined_map:
-                    if self.get_inter_distance(other, combined, unoffset_o, combined_map[ni]) > cutoff:
+                    separation = self.get_inter_distance(other, combined, unoffset_o, combined_map[ni])
+                    # removing the distance cutoff is a bad idea as the next atoms along with be stretched
+                    # but on others it is fine.
+                    if separation > cutoff * 2:  # very bad.
+                        return False
+                    elif separation > cutoff:  # moderately bad.
                         self.poisonous_indices.append(i)
                         self.poisonous_indices.append(ni)
                         return False
