@@ -16,13 +16,13 @@ class _MonsterNone(_MonsterRefine):
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
         maps: Dict[str, List[Dict[int, int]]] = self._compute_maps(broad)
-        unmerger = self._perform_unmerge(maps)
+        unmerger = self._perform_unmerge(maps, n_poisonous=3 if broad else 0)
         self.positioned_mol, self.mol_options = self._place_unmerger(unmerger)
 
 
     def _perform_unmerge(self,
                          maps: Dict[str, List[Dict[int, int]]],
-                         n_poisonous:int=3) -> Unmerge:
+                         n_poisonous:int) -> Unmerge:
         """
         The second third of the no_blending method. But also used by expansion mapping.
 

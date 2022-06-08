@@ -70,7 +70,7 @@ class _MonsterExpand(_MonsterNone):
         # hence each primary map is converted into a set of unmerge maps and the best wins.
         # if there is only one hit, then the primary map is the only unmerge map...
         if len(self.hits) == 1:
-            return [self._perform_unmerge(maps={primary_name: primary_maps})]
+            return [self._perform_unmerge(maps={primary_name: primary_maps}, n_poisonous=3)]
         # case: multiple hits
         for primary_map in primary_maps:  #: Dict[int, int]
             # iterate over the hit map and expand to all overlapping atoms
@@ -95,7 +95,7 @@ class _MonsterExpand(_MonsterNone):
                 exp_maps[other_name] = mappings
                 self.journal.debug(f'candiate expanded maps: {exp_maps} following: {other_name}')
             # {h: f for h, f in .items() if h >= 0 and f >= 0}
-            unmergers.append(self._perform_unmerge(maps=exp_maps))
+            unmergers.append(self._perform_unmerge(maps=exp_maps, n_poisonous=3))
         return unmergers
 
     def _place_unmerger_expansions(self, unmergers: List[Unmerge]) -> Tuple[Chem.Mol, List[Chem.Mol]]:
