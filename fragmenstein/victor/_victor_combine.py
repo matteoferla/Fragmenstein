@@ -101,6 +101,8 @@ class _VictorCombine(_VictorCommon):
         self.params = Params.from_mol(self.mol, name=self.ligand_resn, generic=False)
         self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
+        self.params.comments.clear()
+        self.params.comments.append('Generated via Fragmenstein')
         # get constraint
         self.constraint = self._get_constraint(self.extra_constraint)
         self.constraint.custom_constraint += self.make_coordinate_constraints_for_combination()

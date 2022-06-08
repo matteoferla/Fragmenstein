@@ -157,6 +157,7 @@ class _VictorBase:
         self.monster = Monster(hits,
                                average_position=self.monster_average_position,
                                random_seed=self.random_seed)
+        self.monster.throw_on_discard = self.monster_throw_on_discard
         self.igor = None
         self.unbound_pose = None
         self.minimized_pdbblock = None

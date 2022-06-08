@@ -6,8 +6,8 @@ from tests import MonsterPlaceTests
 from tests import MonsterCombineTests
 from tests import VictorCombineTests
 from tests import MProPlaceTester
-from tests import MultivictorPlaceTests
 from tests import WaltonTests
+from tests import MultivictorPlaceTests
 
 # Todo: add a class to test missing modules.
 if __name__ == '__main__':

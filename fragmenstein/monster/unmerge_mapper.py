@@ -79,6 +79,9 @@ class Unmerge(GPM):
             raise ConnectionError(f"{d} mols were discarded (due to unproductive maps, but no_discard is True")
         # ---- to be filled ------------
         # see `.store`
+        # list of indices in the followup that triggered a strike
+        # debug only
+        self.poisonous_indices = []
         accounted_for = set()
         self.c_map_options: List[Dict[int, int]] = []
         self.c_options: List[Chem.Mol] = []
@@ -110,7 +113,8 @@ class Unmerge(GPM):
             i = sorted(range(len(self.c_options)),
                        key=goodness_sorter,
                        reverse=True)[0]
-            for alt in self.c_disregarded_options[0]:
+            # key changed from 0 to i subsequently: pretty sure that was a typo (even if this is an ancient route)
+            for alt in self.c_disregarded_options[i]:
                 aname = alt.GetProp('_Name')
                 not_alt = set([o for o in others if o.GetProp('_Name') != aname])
                 self.unmerge_inner(Chem.Mol(), {}, [alt] + list(not_alt), [])
@@ -349,12 +353,15 @@ class Unmerge(GPM):
                     if c not in combined_map.values():
                         # the other atom does not contribute
                         strikes += 1
+                        self.poisonous_indices.append(i)
                     elif self.get_key(combined_map, c) == i:
                         pass  # that is fine.
                     else:  # no it's a different atom
                         strikes += 1
+                        self.poisonous_indices.append(i)
                 else:  # this position does not overlaps. Yet atom is accounted for.
                     strikes += 1
+                    self.poisonous_indices.append(i)
             elif o not in inter_map:
                 # new atom that does not overlap
                 possible_map[i] = combined.GetNumAtoms() + o
@@ -364,6 +371,7 @@ class Unmerge(GPM):
             else:  # mismatch!
                 log.debug(f'{label} - {i} mismatch')
                 strikes += 1
+                self.poisonous_indices.append(i)
         if strikes >= self.max_strikes:
             return {}
         elif not self.check_possible_distances(other, possible_map, combined, combined_map,
@@ -382,6 +390,8 @@ class Unmerge(GPM):
                     pass  # assuming the inspiration compound was not janky
                 elif ni in combined_map:
                     if self.get_inter_distance(other, combined, unoffset_o, combined_map[ni]) > cutoff:
+                        self.poisonous_indices.append(i)
+                        self.poisonous_indices.append(ni)
                         return False
                 else:
                     pass  # unmapped neighbor

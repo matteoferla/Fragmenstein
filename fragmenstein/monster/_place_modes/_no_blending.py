@@ -7,7 +7,7 @@ from rdkit.Chem import AllChem
 from ._refine import _MonsterRefine
 from ..mcs_mapping import IndexMap, flip_mapping
 from ..unmerge_mapper import Unmerge
-
+from collections import Counter
 
 class _MonsterNone(_MonsterRefine):
 
@@ -20,7 +20,9 @@ class _MonsterNone(_MonsterRefine):
         self.positioned_mol, self.mol_options = self._place_unmerger(unmerger)
 
 
-    def _perform_unmerge(self, maps: Dict[str, List[Dict[int, int]]]) -> Unmerge:
+    def _perform_unmerge(self,
+                         maps: Dict[str, List[Dict[int, int]]],
+                         n_poisonous:int=3) -> Unmerge:
         """
         The second third of the no_blending method. But also used by expansion mapping.
 
@@ -34,12 +36,42 @@ class _MonsterNone(_MonsterRefine):
         unmerger = Unmerge(followup=self.initial_mol,
                              mols=self.hits,
                              maps=flipped_maps,
-                             no_discard=self.throw_on_discard)
+                             no_discard=False)  # self.throw_on_discard?
         self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
+        if n_poisonous and self.unmatched:
+            self._remove_poisonous(flipped_maps, unmerger.poisonous_indices, n_poisonous)
+            unmerger = Unmerge(followup=self.initial_mol,
+                               mols=self.hits,
+                               maps=flipped_maps,
+                               no_discard=False)  # self.throw_on_discard?
+            self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
         if self.throw_on_discard and len(self.unmatched):
             raise ConnectionError(f'{self.unmatched} was rejected.')
         self.journal.debug(f'followup to scaffold {unmerger.combined_map}')
         return unmerger
+
+    def _remove_poisonous(self,
+                          flipped_maps,
+                          poisonous_indices: List[int],
+                          n_poisonous: int) -> None:
+        """
+        By poisonous it is intended the few atoms that cause a mapping for placement to go wrong.
+
+        :param flipped_maps: modified in place
+        :param poisonous_indices: a list with repeated indices as unmerge.poisonous_indices: for commonness
+        :param n_poisonous: max indices to remove
+        :return:
+        """
+        for i, c in Counter(poisonous_indices).most_common(n_poisonous):  # followup index
+            for name, followup2hits in flipped_maps.items():
+                for followup2hit in followup2hits:
+                    if i not in followup2hit.keys():
+                        continue
+                    if name in self.custom_map and i in self.custom_map[name].values():
+                        continue
+                    self.journal.debug(f'Removing poisonous mapping: ' +
+                                       f'hit {name} index {followup2hit[i]} to followup index {i}')
+                    del followup2hit[i]
 
     def _place_unmerger(self, unmerger: Unmerge) -> Tuple[Chem.Mol, List[Chem.Mol]]:
         # ------------------ places the atoms with known mapping ------------------
