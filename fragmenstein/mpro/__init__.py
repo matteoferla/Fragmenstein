@@ -92,9 +92,6 @@ class MProVictor(Victor):
         defaults = self._determine_extras(options['smiles'] if 'smiles' in options else args[0])
         # singledispatchmethod does not like named args
         kwargs = {**defaults, **options}
-        if 'smiles' in kwargs:
-            args.insert(0, kwargs['smiles'])
-            del kwargs['smiles']
         return super().place(*args, **kwargs)
 
     # ======= postera csv file ops =====================================================================================
