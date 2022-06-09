@@ -16,13 +16,16 @@ class _MonsterNone(_MonsterRefine):
         no merging is done. The hits are mapped individually. Not great for small fragments.
         """
         maps: Dict[str, List[Dict[int, int]]] = self._compute_maps(broad)
+        # there is no primary hit in no_blending mode.
         unmerger = self._perform_unmerge(maps, n_poisonous=3 if broad else 0)
+        self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
         self.positioned_mol, self.mol_options = self._place_unmerger(unmerger)
 
 
     def _perform_unmerge(self,
                          maps: Dict[str, List[Dict[int, int]]],
-                         n_poisonous:int) -> Unmerge:
+                         n_poisonous:int,
+                         primary_name:Optional[str]=None) -> Unmerge:
         """
         The second third of the no_blending method. But also used by expansion mapping.
 
@@ -37,33 +40,43 @@ class _MonsterNone(_MonsterRefine):
                              mols=self.hits,
                              maps=flipped_maps,
                              no_discard=False)  # self.throw_on_discard?
-        self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
-        if n_poisonous and self.unmatched:
-            self._remove_poisonous(flipped_maps, unmerger.poisonous_indices, n_poisonous)
-            unmerger = Unmerge(followup=self.initial_mol,
+        unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
+        if n_poisonous and unmatched:
+            self._remove_poisonous(flipped_maps, unmerger.poisonous_indices, n_poisonous, primary_name)
+            retried_unmerger = Unmerge(followup=self.initial_mol,
                                mols=self.hits,
                                maps=flipped_maps,
                                no_discard=False)  # self.throw_on_discard?
-            self.unmatched = [m.GetProp('_Name') for m in unmerger.disregarded]
-        if self.throw_on_discard and len(self.unmatched):
-            raise ConnectionError(f'{self.unmatched} was rejected.')
+            retried_unmatched = [m.GetProp('_Name') for m in retried_unmerger.disregarded]
+            if len(retried_unmatched) < len(unmatched):
+                self.journal.debug(f'Retried unmerge yield the matching of ' +
+                                   f'{set(unmatched) - set(retried_unmatched)} ' +
+                                   f'via the removal of {unmerger.poisonous_indices}')
+                unmerger = retried_unmerger
+                unmatched = retried_unmatched
+        if self.throw_on_discard and len(unmatched):
+            raise ConnectionError(f'{unmatched} was rejected.')
         self.journal.debug(f'followup to scaffold {unmerger.combined_map}')
         return unmerger
 
     def _remove_poisonous(self,
                           flipped_maps,
                           poisonous_indices: List[int],
-                          n_poisonous: int) -> None:
+                          n_poisonous: int,
+                          primary_name:Optional[str]=None) -> None:
         """
         By poisonous it is intended the few atoms that cause a mapping for placement to go wrong.
 
         :param flipped_maps: modified in place
         :param poisonous_indices: a list with repeated indices as unmerge.poisonous_indices: for commonness
         :param n_poisonous: max indices to remove
+        :param primary_name: remove poisonous atoms from primary hit only
         :return:
         """
         for i, c in Counter(poisonous_indices).most_common(n_poisonous):  # followup index
             for name, followup2hits in flipped_maps.items():
+                if primary_name is not None and name != primary_name:
+                    continue
                 for followup2hit in followup2hits:
                     if i not in followup2hit.keys():
                         continue
