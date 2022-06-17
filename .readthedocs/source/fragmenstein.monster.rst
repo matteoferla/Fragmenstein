@@ -52,3 +52,5 @@ fragmenstein.monster.mcs\_mapping module
    :members:
    :inherited-members:
    :undoc-members:
+   :exclude-members: '__init__', 'clear', 'copy', 'fromkeys',
+        'get', 'items', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'values'
