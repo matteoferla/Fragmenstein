@@ -81,7 +81,8 @@ class _IgorUtils(_IgorBase):
                                                                                          o,
                                                                                          scorefxn)
                     for st, s in zip(score_types, score):
-                        scores[iname][st] += s
+                        # technically only fa_intra_rep is 100 fold less than fa_rep
+                        scores[iname][st] += s if target_res != r else s/100
         return scores
 
     def display_energy(self,

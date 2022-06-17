@@ -34,7 +34,9 @@ class WaltonBase:
         # ## superposed
         self.superposed: bool = superposed
         # ## Computed
-        self.merged: Union[None, Chem.Mol] = None
+        self.merged: Union[None, Chem.Mol] = None  # not a dynamic property: allows vandalism
+        # the hits will be passed again on call:
+        self.monster = Monster(list(map(AllChem.RemoveHs, self.mols)))
 
     def color_in(self):
         """
@@ -75,11 +77,12 @@ class WaltonBase:
         """
         # neogreen '#39ff14'
         # joining_cutoff= 5
-        monster = Monster(list(map(AllChem.RemoveHs, self.mols))).combine(**combine_kwargs)
+        self.monster.hits = list(map(AllChem.RemoveHs, self.mols))
+        self.monster.combine(**combine_kwargs)
         if minimize:
-            monster.mmff_minimize()
-        monster.store_origin_colors_atomically()
-        self.merged = monster.positioned_mol
+            self.monster.mmff_minimize()
+        self.monster.store_origin_colors_atomically()
+        self.merged = AllChem.RemoveHs(self.monster.positioned_mol)
         self.merged.SetProp('_color', color)
         return self.merged
 
