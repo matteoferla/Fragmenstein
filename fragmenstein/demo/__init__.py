@@ -2,7 +2,7 @@ __all__ = ['TestSet', 'MPro', 'BaseMolDataset']
 
 
 
-from ._base_dataset_holder import BaseMolDataset
+from ._base_dataset_holder import BaseMolDataset, extend_doc
 from rdkit import Chem
 from typing import List
 import os
@@ -18,7 +18,7 @@ class TestSet(BaseMolDataset):
     dataset_package = test_mols
 
     @classmethod
-    def get_template(cls) -> str:
+    def get_template(cls):
         cls.raise_not_implemented()
 
     @classmethod
@@ -54,7 +54,6 @@ class MPro(BaseMolDataset):
         return f'Mpro-{hit_name}.mol'
 
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 from . import mac1_mols
 
@@ -64,6 +63,10 @@ class Mac1(BaseMolDataset):
     binding he Macrodomain (Mac1 or NSP13) from SAR-COV-2
     """
     dataset_package = mac1_mols
+
+extend_doc(TestSet)
+extend_doc(MPro)
+extend_doc(Mac1)
 
 
 
