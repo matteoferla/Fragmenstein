@@ -25,7 +25,7 @@ class _VictorPlace(_VictorCommon):
         :param long_name: gets used for filenames so will get corrected
         :param merging_mode:
         :param atomnames: an optional dictionary that gets used by ``Params.from_smiles``
-        :param custom_map: see Monster.place
+        :param custom_map: see Monster.place and Monster.renumber_followup_custom_map
         :param extra_ligand_constraint:
         :return:
         """
@@ -49,6 +49,7 @@ class _VictorPlace(_VictorCommon):
           extra_ligand_constraint: Union[str] = None):
         smiles = Chem.MolToSmiles(mol)
         if custom_map:
+            # map applies to mol, but it needs to apply to Chem.MolFromSmiles(smiles)
             custom_map = Monster.renumber_followup_custom_map(mol, Chem.MolFromSmiles(smiles), custom_map)
         if atomnames is None:
             atomnames = {}
