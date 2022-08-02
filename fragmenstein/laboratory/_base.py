@@ -1,10 +1,12 @@
+import logging
 import pebble
+import operator
 from typing import (Any, Callable, Union, Iterator, Sequence, List)
 from collections import Counter
 import pandas as pd
-import pebble, operator
 from rdkit import Chem
 from ..monster import Monster
+from ..victor import Victor
 
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
@@ -51,6 +53,8 @@ class LabBench:
         self.covalent_resi = covalent_resi
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
         self.raw_results = []
+        if not len(Victor.journal.handlers):
+            Victor.enable_stdout(logging.CRITICAL)
 
     # keep it just in case: (not called within class as that would require `self.__class__.binarize`)
     binarize: Callable[[Chem.Mol, bool], bytes] = staticmethod(binarize)
