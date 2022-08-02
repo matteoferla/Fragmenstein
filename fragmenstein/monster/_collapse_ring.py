@@ -1013,16 +1013,18 @@ class _MonsterRing(_MonsterJoinNeigh):
                 neigh_i = neigh.GetIdx()
                 if neigh_i < atom_i:  # dont check twice...
                     continue
-                # de triangulate
+                # de triangulate?
                 third_i = self._get_triangle(atom, neigh)
                 if third_i is not None:
                     # it is a triangle
                     third = mol.GetAtomWithIdx(third_i)
                     self.journal.debug(f'Triangle present {(atom_i, neigh_i, third_i)}.')
+                    combinator = partial(itertools.combinations, r=2)
+                    combinator.__qualname__ = 'triangle'
                     self._detriangulate_inner(mol,
                                               atoms=[atom, neigh, third],
                                               atom_indices=[atom_i, neigh_i, third_i],
-                                              combinator=partial(itertools.combinations, r=2)
+                                              combinator=combinator
                                               )
                 # de square-ify
                 sq = self._get_square(atom, neigh)
@@ -1033,9 +1035,13 @@ class _MonsterRing(_MonsterJoinNeigh):
                     # bonding is:
                     # atom - neigh - far - close - atom
                     self.journal.debug(f'Square present {(atom_i, neigh_i, far_i, close_i)}.')
-                    # combinations would fail at a atom - far bond
+                    # combinations would fail at diagonally opposite angles as they arent bonded
                     # the order is irrelevant if the same fun is called
-                    combinator = lambda l: [[l[0], l[1]], [l[0], l[2]], [l[1], l[3]], [l[2], l[3]]]
+                    combinator = lambda l: [[l[0], l[1]],
+                                            [l[0], l[2]],
+                                            [l[1], l[3]],
+                                            [l[2], l[3]]]
+                    combinator.__qualname__ = 'quadrangle'
                     self._detriangulate_inner(mol,
                                               atoms=[atom, neigh, close, far],
                                               atom_indices=[atom_i, neigh_i, close_i, far_i],
@@ -1058,7 +1064,9 @@ class _MonsterRing(_MonsterJoinNeigh):
         """
         bonds = [mol.GetBondBetweenAtoms(a, b) for a, b in combinator(atom_indices)]
         if any([bond is None for bond in bonds]):
-            self.journal.critical(f'IMPOSSIBLE ERROR: detriangulate missing bond. {atom_indices}, {atoms}')
+            self.journal.critical(f'IMPOSSIBLE ERROR: detriangulate missing bond ' +
+                                  f'(combinator={combinator.__qualname__}. ' +
+                                  f'{atom_indices}, {atoms}')
             return None
         provenances = BondProvenance.get_bonds(bonds)
         # original
