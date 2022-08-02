@@ -1,9 +1,10 @@
 import pebble
-from typing import (Any, Callable, Union, Iterator, Sequence)
-
+from typing import (Any, Callable, Union, Iterator, Sequence, List)
+from collections import Counter
 import pandas as pd
-import pebble
+import pebble, operator
 from rdkit import Chem
+from ..monster import Monster
 
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
@@ -92,7 +93,7 @@ class LabBench:
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
         df['mpro_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
         df['outcome'] = df.apply(self.categorize, axis=1)
-        df['percent_hybrid'] = df.unminimized_mol.apply(percent_hybrid)
+        df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
         return df
 
     def categorize(self, row: pd.Series) -> str:
