@@ -90,6 +90,8 @@ class _VictorCombine(_VictorCommon):
                              collapse_rings=True,
                              joining_cutoff=self.joining_cutoff  # Å
                              )
+        if self.monster_throw_on_discard and len(self.monster.unmatched):
+            raise ConnectionError(f'Hits too distant to combine')
         self.mol = self.monster.positioned_mol
         self.smiles = Chem.MolToSmiles(self.mol)
         # making folder.

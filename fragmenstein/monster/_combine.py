@@ -43,6 +43,9 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         else:
             col_hits = self.hits
         self.positioned_mol = self.simply_merge_hits(col_hits, linked=False)
+        # remove props
+        *map(self.positioned_mol.ClearProp, self.positioned_mol.GetPropNames()),  # noqa
+        self.positioned_mol.SetProp('_Name', '-'.join([h.GetProp('_Name') for h in self.hits]))
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
         if self.throw_on_discard and len(self.unmatched):

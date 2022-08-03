@@ -32,6 +32,7 @@ class _VictorJournal(_VictorSafety):
         handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s'))
         cls.journal.addHandler(handler)
         # logging.getLogger('py.warnings').addHandler(handler)
+        cls.journal.setLevel(level)  # downgrade to the level of the handler
         if captured:
             cls.capture_logs()
 
