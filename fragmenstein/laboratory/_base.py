@@ -1,9 +1,12 @@
+import logging
 import pebble
-from typing import (Any, Callable, Union, Iterator, Sequence)
-
+import operator
+from typing import (Any, Callable, Union, Iterator, Sequence, List)
+from collections import Counter
 import pandas as pd
-import pebble
 from rdkit import Chem
+from ..monster import Monster
+from ..victor import Victor
 
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
@@ -50,6 +53,8 @@ class LabBench:
         self.covalent_resi = covalent_resi
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
         self.raw_results = []
+        if not len(Victor.journal.handlers):
+            Victor.enable_stdout(logging.CRITICAL)
 
     # keep it just in case: (not called within class as that would require `self.__class__.binarize`)
     binarize: Callable[[Chem.Mol, bool], bytes] = staticmethod(binarize)
@@ -59,6 +64,8 @@ class LabBench:
         """
         A pebble.ProcessMapFuture cannot be stored as an instance attribute as it's not picklable
         as it handles the lock. As a result it must be passed.
+
+        Fills ``self.raw_results`` with the results of the futures, before returning a dataframe.
         """
         result_iter: Iterator[int] = futures.result()
         self.raw_results = []
@@ -86,13 +93,13 @@ class LabBench:
             lambda row: row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)
         nan_to_list = lambda value: value if isinstance(value, list) else []
-        df['disregarded'] = df.disregarded.apply(nan_to_list)
-        df['regarded'] = df.regarded.apply(nan_to_list)
+        df['disregarded'] = df.disregarded.apply(nan_to_list)  # str
+        df['regarded'] = df.regarded.apply(nan_to_list)  # str
         df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
-        df['mpro_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
+        df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
         df['outcome'] = df.apply(self.categorize, axis=1)
-        df['percent_hybrid'] = df.unminimized_mol.apply(percent_hybrid)
+        df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
         return df
 
     def categorize(self, row: pd.Series) -> str:
@@ -113,7 +120,7 @@ class LabBench:
         elif is_filled(row.error):
             return 'crashed'
         elif max(map(operator.methodcaller('GetNumHeavyAtoms'), row.hit_mols))  \
-                >=  row.unminimized_mol.GetNumHeavyAtoms():
+                >= row.unminimized_mol.GetNumHeavyAtoms():
             return 'equally sized'
         elif row.comRMSD > 1:
             return 'too moved'

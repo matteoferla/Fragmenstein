@@ -25,6 +25,8 @@ class LabCombine(LabBench):
                        covalent_resi=self.covalent_resi,
                        # a random residue is **still** required for the constaint ref atom.
                        )
+            v.monster_throw_on_discard = True
+            v.monster.throw_on_discard = True
             v.combine()
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)

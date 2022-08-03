@@ -119,3 +119,17 @@ class BaseMolDataset:
     @classmethod
     def get_template(cls) -> str:
         return cls.get_text('template.pdb')
+
+# not for the classes to use
+def extend_doc(cls):
+    """
+    This adds usage notes dynamically to the modules.
+    The spacing will be off.
+    """
+    extra = f"""
+    The module {cls.dataset_package.__name__} contains the data, but
+    not functions to retrieve them without using ``pkg_resources``.
+    These are added by the class {cls.__name__} as class methods.
+    Not all of the methods are implemented for all datasets.
+    """
+    cls.dataset_package.__doc__ += extra

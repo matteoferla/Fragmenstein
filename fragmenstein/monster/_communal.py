@@ -410,12 +410,12 @@ class _MonsterCommunal(_MonsterTracker):
         """
         get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors() if
                                        self._is_count_valid(neigh)]
-        f_neighs = get_neigh_idxs(first)
-        s_neighs = get_neigh_idxs(second)
+        f_neighs: List[int] = get_neigh_idxs(first)
+        s_neighs: List[int] = get_neigh_idxs(second)
         a = set(f_neighs) - {first.GetIdx(), second.GetIdx()}
         b = set(s_neighs) - {first.GetIdx(), second.GetIdx()}
-        others = list(a.intersection(b))
-        if len(others) == 0:  # is disjoined
+        others: List[int] = list(a.intersection(b))
+        if len(others) == 0:  # is a disjoined
             return None
         else:
             return list(others)

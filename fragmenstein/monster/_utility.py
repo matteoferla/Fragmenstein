@@ -280,7 +280,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
-    def mmff_minimize(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> None:
+    def mmff_minimize(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> bool:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_dist_thr Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
