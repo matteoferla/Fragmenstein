@@ -1,5 +1,5 @@
 # Fragmenstein
-Scaffold hopping between bound compounds by stitching them together like a reanimated corpse.
+Fragmenstein: Merging, linking and placing compunds by stitching bound compounds together like a reanimated corpse.
 
 [![Documentation Status](https://readthedocs.org/projects/fragmenstein/badge/?version=latest)](https://fragmenstein.readthedocs.io/en/latest/?badge=latest)
 [![ github forks matteoferla Fragmenstein?label=Fork&style=social](https://img.shields.io/github/forks/matteoferla/Fragmenstein?label=Fork&style=social&logo=github)](https://github.com/matteoferla/Fragmenstein)
