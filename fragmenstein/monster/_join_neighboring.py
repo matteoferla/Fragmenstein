@@ -88,6 +88,8 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         previous = anchor_A
         if linking is False and n_new > 0:
             self.journal.warning(f'Was going to bond {anchor_A} and {anchor_B} but reconsidered.')
+        elif previous == anchor_B:
+            self.journal.warning(f'Self bonding prevented. This molecule is problematic.')
         elif linking is True and n_new <= 0:
             combo.AddBond(previous, anchor_B, Chem.BondType.SINGLE)
             new_bond = combo.GetBondBetweenAtoms(previous, anchor_B)

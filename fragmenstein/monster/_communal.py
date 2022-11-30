@@ -172,7 +172,7 @@ class _MonsterCommunal(_MonsterTracker):
             penalties[:, weigh_bool] += weight
         return penalties
 
-    def _nan_fill_submatrix(self, matrix, indices):
+    def _nan_fill_submatrix(self, matrix: np.ndarray, indices: List[int]) -> None:
         """
         Given a square matrix, blank the self-submatrix of the group of indices
         There is probably a better way to do this.
@@ -184,6 +184,7 @@ class _MonsterCommunal(_MonsterTracker):
         """
         dimension = matrix.shape[0]
         bool_vector = np.zeros((dimension, 1)).astype(bool)
+        indices = [i for i in indices if isinstance(i, int) and i < dimension]
         bool_vector[indices] = True
         bool_matrix = np.tile(bool_vector, (1, dimension))
         logic = np.logical_and(bool_matrix, bool_matrix.transpose())
