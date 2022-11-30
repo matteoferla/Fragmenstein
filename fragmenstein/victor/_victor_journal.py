@@ -2,7 +2,9 @@ from ._victor_safety import _VictorSafety
 from ._loggerwriter import LoggerWriter
 import logging, sys, os, re, requests, unicodedata
 from rdkit import Chem
+from rdkit.rdBase import WrapLogs
 from rdkit_to_params import Params
+
 
 
 class _VictorJournal(_VictorSafety):
@@ -69,7 +71,7 @@ class _VictorJournal(_VictorSafety):
         """
         if cls._rdkit_captured:
             return
-        Chem.WrapLogs()
+        WrapLogs()
         sys.stderr = LoggerWriter(cls.journal.warning)
         cls._rdkit_captured = True
 
