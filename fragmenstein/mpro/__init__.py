@@ -99,7 +99,7 @@ class MProVictor(Victor):
     @classmethod
     def fetch_postera(cls):
         __doc__ = fetch_postera.__doc__
-        warn('method moved to mpro_data (as function)', DeprecationWarning)
+        warn('method moved to mpro_data (as function)', category=DeprecationWarning)
         return fetch_postera()
 
     @classmethod
