@@ -9,6 +9,7 @@ import pyrosetta
 # ======================================================================================================================
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdqueries
+from rdkit.Geometry import Point3D
 
 from fragmenstein import Monster, Victor, Igor, mpro_data, Walton
 from fragmenstein.mpro import MProVictor
@@ -108,6 +109,29 @@ class Internals(unittest.TestCase):
             self.fail('should have raised a connection error')
         except ConnectionError as error:
             pass
+
+    def test_neigh_bonding(self):
+        """
+        This was to address the bug from 5/1/23.
+
+        Issue was in ``_nan_fill_submatrix``, which was not blanking due to
+        ``isinstance(np.int64(42), int) == False``
+        """
+        # make mols
+        methane: Chem.Mol = Chem.MolFromSmiles('C')
+        methane.SetProp('_Name', 'methane')
+        AllChem.EmbedMolecule(methane, coordMap={0: Point3D(0, 0, 0)})
+        ammonia = Chem.MolFromSmiles('N')
+        ammonia.SetProp('_Name', 'ammonia')
+        # merge
+        monster = Monster([])
+        AllChem.EmbedMolecule(ammonia, coordMap={0: Point3D(3, 0, 0)})
+        self.translate(ammonia, x=3)
+        # monster.join_neighboring_mols(methane, ammonia)
+        combo, candidates = monster._find_all_closest(methane, ammonia)  # _find_all_closest is in communal
+        self.assertEqual(combo.GetNumAtoms(), 2)
+        self.assertNotEqual(candidates[0][0], candidates[0][1])
+
 
 
 if __name__ == '__main__':

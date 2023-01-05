@@ -25,6 +25,8 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         :return:
         """
         # get closets atoms
+        combo: Chem.RWMol
+        candidates = List[Tuple[int, int, float]]
         combo, candidates = self._find_all_closest(mol_A, mol_B)  # _find_all_closest is in communal
         anchor_A, anchor_B, distance = candidates[0]
         mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=True)
@@ -84,7 +86,8 @@ class _MonsterJoinNeigh(_MonsterCommunal):
             self.journal.warning(msg)
             raise ConnectionError(msg)
         # place new atoms
-        self.journal.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) via the addition of {n_new} atoms.')
+        self.journal.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) '+
+                           f'via the addition of {n_new} atoms.')
         previous = anchor_A
         if linking is False and n_new > 0:
             self.journal.warning(f'Was going to bond {anchor_A} and {anchor_B} but reconsidered.')

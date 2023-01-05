@@ -64,6 +64,8 @@ class _MonsterCommunal(_MonsterTracker):
         :param mol_B:
         :return:
         """
+        combo: Chem.RWMol
+        candidates: Tuple[int, int, float]
         combo, candidates = self._find_all_closest(mol_A, mol_B)
         return (combo, *candidates[0])
 
@@ -81,12 +83,12 @@ class _MonsterCommunal(_MonsterTracker):
         penalties = self._get_joining_penalties(combo, distance_matrix.shape)
         # ========= get closest
         pendist_matrix = penalties + distance_matrix
-        pendistance = np.nanmin(pendist_matrix)
+        pendistance = float(np.nanmin(pendist_matrix))
         if np.isnan(pendistance):
             raise ConnectionError('This is impossible. Previous is absent??')
-        candidates = []
+        candidates: List[Tuple[int, int, float]] = []
 
-        def get_closest(pendistance):
+        def get_closest(pendistance: float):
             p = np.where(pendist_matrix == pendistance)
             anchor_A = int(p[0][0])
             anchor_B = int(p[1][0])
@@ -97,7 +99,7 @@ class _MonsterCommunal(_MonsterTracker):
             return anchor_A, anchor_B, distance
 
         anchor_A, anchor_B, distance = get_closest(pendistance)
-        candidates.append((anchor_A, anchor_B, distance))
+        candidates.append((int(anchor_A), int(anchor_B), distance))
         with np.errstate(invalid='ignore'):
             pendist_matrix[pendist_matrix > 1.] = np.nan
         while pendistance < 1.:
@@ -138,8 +140,8 @@ class _MonsterCommunal(_MonsterTracker):
         distance_matrix = Chem.Get3DDistanceMatrix(combo)
         length = combo.GetNumAtoms()
         # nan fill the self values
-        self._nan_fill_submatrix(distance_matrix, A_idxs)
-        self._nan_fill_submatrix(distance_matrix, B_idxs)
+        self._nan_fill_submatrix(distance_matrix, list(A_idxs))
+        self._nan_fill_submatrix(distance_matrix, list(B_idxs))
         return distance_matrix
 
     def _nan_fill_others(self, mol: Chem.Mol, distance_matrix: np.array, good_indices: List[int]):
@@ -184,7 +186,7 @@ class _MonsterCommunal(_MonsterTracker):
         """
         dimension = matrix.shape[0]
         bool_vector = np.zeros((dimension, 1)).astype(bool)
-        indices = [i for i in indices if isinstance(i, int) and i < dimension]
+        indices = [i for i in indices if isinstance(i, (int, np.int64)) and i < dimension]
         bool_vector[indices] = True
         bool_matrix = np.tile(bool_vector, (1, dimension))
         logic = np.logical_and(bool_matrix, bool_matrix.transpose())
