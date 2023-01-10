@@ -17,6 +17,8 @@ import numpy as np
 
 from fragmenstein.demo import TestSet
 
+# import logging
+# Victor.enable_stdout(logging.DEBUG)
 # ======================================================================================================================
 
 class MonsterCombineTests(unittest.TestCase):

@@ -6,11 +6,20 @@ from rdkit.Chem import AllChem
 
 from fragmenstein import Monster, Igor
 from fragmenstein.mpro import MProVictor
+from typing import Union
 # ======================================================================================================================
 class UnresolvedProblems(unittest.TestCase):
 
     def setUp(self):
         Igor.init_pyrosetta()
+
+    def assertMolEqual(self, mol1: Union[str, Chem.Mol], mol2: Union[str, Chem.Mol]):
+        """
+        For now I am comparing SMILES (tut tut), but I will fix it one day...
+        """
+        smiles1: str = mol1 if isinstance(mol1, str) else Chem.MolToSmiles(AllChem.RemoveAllHs(mol1))
+        smiles2: str = mol1 if isinstance(mol2, str) else Chem.MolToSmiles(AllChem.RemoveAllHs(mol2))
+        self.assertEqual(smiles1, smiles2)
 
     def test_recto_fail_A(self):
         """This used to fail."""
@@ -44,12 +53,12 @@ class UnresolvedProblems(unittest.TestCase):
         # merge
         monster = Monster(hits=[toluene, chlorobutane]).combine(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(chlorotoluene), Chem.MolToSmiles(monster.positioned_mol))  # CC(Cl)CCc1ccccc1
+        self.assertMolEqual(chlorotoluene, monster.positioned_mol)
 
     def test_supplementary2_to_recto_fail_A(self):
         """
         This was meant to test as above.
-        It mergers xylene with chloropentane
+        It merges xylene with chloropentane
         :return:
         """
         #
@@ -74,7 +83,7 @@ class UnresolvedProblems(unittest.TestCase):
         #
         monster = Monster(hits=[xylene, chloropentane]).combine(keep_all=False)
         # ======
-        self.assertEqual(Chem.MolToSmiles(chloroxylene), Chem.MolToSmiles(monster.positioned_mol))
+        self.assertEqual(Chem.MolToSmiles(chloroxylene), Chem.MolToSmiles(AllChem.RemoveAllHs(monster.positioned_mol)))
 
     def test_longer_link(self):
         """

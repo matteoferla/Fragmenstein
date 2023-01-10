@@ -3,7 +3,7 @@ import unittest
 # ======================================================================================================================
 from rdkit import Chem
 from rdkit.Chem import AllChem
-
+from typing import List
 from fragmenstein import Walton
 
 # ======================================================================================================================
@@ -12,7 +12,8 @@ class WaltonTests(unittest.TestCase):
 
     def smiles_assertEqual(self, a, b):
         """
-        helper method to test equality of smiles
+        helper method to test equality of smiles.
+        Simply reshuffled the parts. Lazy.
         """
         if isinstance(a, str):
             expected_smiles = a
@@ -44,7 +45,7 @@ class WaltonTests(unittest.TestCase):
         for i in range(demo.mols[0].GetNumAtoms()):
             self.assertAlmostEqual(demo.get_point(i, 0).z, 0, -1)
 
-    def pull_apart(self, mols: Chem.Mol, distance: float) -> Chem.Mol:
+    def pull_apart(self, mols: List[Chem.Mol], distance: float) -> Chem.Mol:
         walton = Walton(mols)
         walton.ring_on_plane(ring_idx=0, mol_idx=0)
         walton.superpose_by_mcs()
@@ -54,7 +55,11 @@ class WaltonTests(unittest.TestCase):
         return walton.merged
 
     def test_pull_apart(self):
+        """
+        Two benzene molecules are placed at different distances.
+        """
         benzene = Chem.MolFromSmiles('c1ccccc1')
+        benzene.SetProp('_Name', 'benzene')
         AllChem.EmbedMolecule(benzene)
         expectations = {0.0: 'c1ccccc1',  # benzene
                         2.5: 'c1ccc2ccccc2c1',  # naphthalene

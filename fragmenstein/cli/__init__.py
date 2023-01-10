@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = '0.1'
+from ..version import __version__
 __doc__ = """
 Command line interface to Fragmenstein.
 The the first argument to the command is one of the three option:

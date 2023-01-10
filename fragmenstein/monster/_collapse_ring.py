@@ -927,6 +927,7 @@ class _MonsterRing(_MonsterJoinNeigh):
     # ======== Emergency ===============================================================================================
 
     def _emergency_joining(self, mol: Chem.Mol) -> Chem.Mol:
+        self.journal.debug('`_emergency_joining` called')
         return self._join_internally(mol, severe=True)
 
     def _join_internally(self, mol: Chem.Mol, severe: bool = False) -> Chem.Mol:

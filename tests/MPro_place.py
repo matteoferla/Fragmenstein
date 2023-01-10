@@ -90,7 +90,10 @@ class MProPlaceTester(unittest.TestCase):
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         actual = mpro_data.get_mol('x2646')
-        victor.make_pse(extra_mols=[actual])
+        try:
+            victor.make_pse(extra_mols=[actual])
+        except ModuleNotFoundError:
+            print('PyMOL is not installed. Cannot export result.')
         validation: Dict[str, float] = victor.validate(reference_mol=actual)
         rmsd = validation['reference2minimized_rmsd']
         self.assertLess(rmsd, 2, f'The RMSD is large...')

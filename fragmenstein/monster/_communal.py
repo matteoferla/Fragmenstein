@@ -251,7 +251,8 @@ class _MonsterCommunal(_MonsterTracker):
                                                 provenance='other_novel'
                                                 )
                 else:
-                    self.journal.debug(f'... Potentially adding bond between {keeper_idx} and {neigh_idx} during bond copying')
+                    self.journal.debug(
+                        f'... Potentially adding bond between {keeper_idx} and {neigh_idx} during bond copying')
                     self._add_bond_if_possible(mol=mol,
                                                first=keeper,
                                                second=neighbor,
@@ -292,8 +293,8 @@ class _MonsterCommunal(_MonsterTracker):
         elif atom.HasProp('DELETE'):  # if it is to be deleted it should be fine.
             return True
         elif n_neigh <= 2 and atom.GetIsAromatic():
-            return True, Chem.BondType.SINGLE
-        elif n_neigh <= 3 and not atom.GetIsAromatic():
+            return True  # Chem.BondType.SINGLE
+        elif n_neigh <= 3 and not atom.GetIsAromatic():  # noqa Chem.Atom.GetIsAromatic(atom)
             return True
         else:
             return False  # too bonded already!
@@ -373,7 +374,6 @@ class _MonsterCommunal(_MonsterTracker):
         else:
             return False
 
-
     def _is_would_be_square(self, first: Chem.Atom, second: Chem.Atom) -> bool:
         """
         Get bool of whether two atoms share a common neighbor+over-neighbor. Ie. joining them would make a square.
@@ -437,7 +437,6 @@ class _MonsterCommunal(_MonsterTracker):
         else:
             return True
 
-
     def _get_square(self, first: Chem.Atom, second: Chem.Atom) -> Union[Tuple[int, int], None]:
         for third in [neigh for neigh in second.GetNeighbors() if neigh.GetIdx() != first.GetIdx()]:
             fourths = self._get_triangles(first, third)
@@ -467,4 +466,3 @@ class _MonsterCommunal(_MonsterTracker):
                         pass
                 else:
                     raise ValueError('I do not think this is possible.')
-

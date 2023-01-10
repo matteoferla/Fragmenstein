@@ -48,7 +48,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.9.11',
+    version='0.9.12',
     description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
     long_description=long_description,
     long_description_content_type='text/markdown',

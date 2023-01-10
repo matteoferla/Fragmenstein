@@ -21,7 +21,7 @@ from molecular_rectifier import Rectifier
 
 class _MonsterCombine(_MonsterRing, _MonsterMerge):
 
-    def combine(self, keep_all: bool=True, collapse_rings: bool=True, joining_cutoff: int = 5):
+    def combine(self, keep_all: bool = True, collapse_rings: bool = True, joining_cutoff: int = 5):
         """
         Merge/links the hits. (Main entrypoint)
 
@@ -56,13 +56,14 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
             self.positioned_mol = self.expand_ring(self.positioned_mol)
         # bonded_as_original=False no longer needed.
         self.keep_copy(self.positioned_mol, 'expanded')
-        self._join_internally(self.positioned_mol)  # will call join_neighboring_mols on any frags
+        self._join_internally(self.positioned_mol)  # will call `join_neighboring_mols` on any frags
         self.journal.debug(f'Expanded')
         try:
             self.rectify()
         except Chem.AtomValenceException:
             self.journal.info('Ring expansion while trying to appease the bonding caused an issue. Rolling back.')
-            mol = Chem.RWMol(self.modifications['Rings expanded and original bonding restored']) # not the novel bonding
+            mol = Chem.RWMol(
+                self.modifications['Rings expanded and original bonding restored'])  # not the novel bonding
             self._delete_collapsed(mol)
             self._detriangulate(mol)
             self.positioned_mol = self._emergency_joining(mol)
@@ -87,7 +88,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         if len(frags) == 1:
             # all good
             self.positioned_mol = recto.mol
-        else: # the molecule is still nasty. Getting largest.
+        else:  # the molecule is still nasty. Getting largest.
             self.positioned_mol = sorted(frags, key=lambda mol: mol.GetNumAtoms(), reverse=True)[0]
         Chem.rdmolops.AssignStereochemistryFrom3D(self.positioned_mol)
-        self.keep_copies(recto.modifications, 'fixed')
+        self.keep_copies(recto.modifications, 'rectified')
