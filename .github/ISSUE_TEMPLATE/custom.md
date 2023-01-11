@@ -17,4 +17,5 @@ get_version = lambda name: pkg_resources.get_distribution(name).version
 print(f'Python {sys.version}\n'+
       f'on {platform.system()} {platform.machine()}\n'+
       f'with Fragmenstein {get_version("fragmenstein")} and PyRosetta  {get_version("pyrosetta")}'
-     )```
+     )
+```
