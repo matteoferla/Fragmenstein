@@ -10,7 +10,7 @@ __email__ = "matteo.ferla@gmail.com"
 __date__ = "2020 A.D."
 __license__ = "MIT"
 __citation__ = ""
-from .version import __version__
+from ..version import __version__
 
 ########################################################################################################################
 
