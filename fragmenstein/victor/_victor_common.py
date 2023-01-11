@@ -116,8 +116,9 @@ class _VictorCommon(_VictorIgor):
         # Calculate
         for i in range(mol.GetNumAtoms()):
             if len(origins[i]) > 0:
-                atom = mol.GetAtomWithIdx(i)
-                if atom.GetSymbol() == '*':
+                atom: Chem.Atom = mol.GetAtomWithIdx(i)
+                if atom.GetAtomicNum() < 2:  # noqa
+                    # zahl of 0 is *, 1 is H
                     continue
                 elif atom.GetPDBResidueInfo() is None:
                     self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
@@ -135,9 +136,14 @@ class _VictorCommon(_VictorIgor):
                 else:
                     raise ValueError(f'{self.constraint_function_type} is not HARMONIC or FADE or BOUNDED')
                 atomname = atom.GetPDBResidueInfo().GetName()
-                lines.append(f'CoordinateConstraint {atomname} {self.ligand_resi} ' +
-                             f'CA {self.covalent_resi} ' +
-                             f'{pos.x} {pos.y} {pos.z} {fxn}\n')
+                line = f'CoordinateConstraint {atomname} {self.ligand_resi} ' + \
+                             f'CA {self.covalent_resi} ' + \
+                             f'{pos.x} {pos.y} {pos.z} {fxn}\n'
+                if 'nan' in line:
+                    # todo: This is serious.
+                    self.journal.warning(f'{atomname} lacks coordinates')
+                    continue
+                lines.append(line)
         return ''.join(lines)
 
     def make_coordinate_constraints_for_combination(self):
