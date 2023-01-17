@@ -280,7 +280,10 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)
 
-    def mmff_minimize(self, mol: Optional[Chem.Mol] = None, ff_dist_thr: float = 2.) -> bool:
+    def mmff_minimize(self, mol: Optional[Chem.Mol] = None,
+                      ff_dist_thr: float = 2.,
+                      ff_constraint:int=10,
+                      allow_lax:bool=True) -> bool:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_dist_thr Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
@@ -316,10 +319,10 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         # restrain
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
             i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, ff_dist_thr, 10)
+            ff.MMFFAddPositionConstraint(i, ff_dist_thr, ff_constraint)
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, 0.1, 10)
+            ff.MMFFAddPositionConstraint(i, 0.1, ff_constraint)
         try:
             m = ff.Minimize()
             if m == -1:
@@ -328,11 +331,17 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
                 self.journal.info('MMFF Minisation was successful')
             elif m == 1:
                 self.journal.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
+                success = False
             else:
                 self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
         except RuntimeError as error:
-            self.journal.error(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
+            self.journal.info(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
             success = False
+        if not success and allow_lax:
+            success:bool = self.mmff_minimize(mol,
+                                              ff_dist_thr=ff_dist_thr//2,
+                                              ff_constraint=ff_constraint//2,
+                                              allow_lax=False)
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)

@@ -89,6 +89,7 @@ class LabBench:
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})
         # list of dict to dataframe
         df = pd.DataFrame(self.raw_results)
+        assert len(df), 'No combination was successful'
         df['LE'] = df.apply(
             lambda row: row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)

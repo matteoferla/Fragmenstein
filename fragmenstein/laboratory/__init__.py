@@ -1,5 +1,6 @@
 from ._combine import LabCombine
 from ._place import LabPlace
+from ._base import binarize, unbinarize
 
 class Laboratory(LabCombine, LabPlace):
     """

@@ -3,7 +3,6 @@ from warnings import warn
 from importlib import util
 import os
 
-import os
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
 if os.path.exists(os.path.join(this_directory, 'README.md')):
@@ -48,7 +47,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.9.12.1',
+    version='0.9.12.2',
     description='Scaffold hopping between bound compounds by stitching them together like a reanimated corpse',
     long_description=long_description,
     long_description_content_type='text/markdown',

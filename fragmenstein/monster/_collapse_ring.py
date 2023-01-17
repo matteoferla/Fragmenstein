@@ -269,10 +269,19 @@ class _MonsterRing(_MonsterJoinNeigh):
         ``_get_expansion_for_atom`` given one of the list of the data from the latter (representing a ring core)
         and an index of which of the internal atoms that were collapsed return a dictionary of details
         of that atom.
+        This is called iteratively in ``_restore_original_bonding`` and ``_place_ring_atoms``.
 
         :param ring: see ``_get_expansion_data``
         :param i: the internal index. Say 'elements': ['C', 'C', 'C', 'O', 'C', 'C'].  i = 3 would will be Oxygen.
         :return:
+
+        If there's something fishy use this snippet to debug:
+
+        .. code-block:: python
+            atom : Chem.Atom
+            for atom in victor.monster.modifications['merged template'].GetAtoms():
+                print(atom.GetIdx(), atom.GetSymbol(), atom.GetAtomicNum(), atom.GetIsotope(), atom.GetPropsAsDict(), '\n')
+
         """
         try:
             # ori_is and current_is
@@ -281,10 +290,10 @@ class _MonsterRing(_MonsterJoinNeigh):
         except IndexError as error:
             troublesome = [k for k in ring if isinstance(ring[k], list) and len(ring[k]) <= i]
             if len(troublesome) == 0:
-                raise IndexError(f'There is a major issue with ring data for index {i} ({error}): {ring}')
+                raise IndexError(f'(Ring expansion) There is a major issue with ring data for index {i} ({error}): {ring}')
             elif troublesome[0] == 'current_is':
-                self.journal.warning(f'One atom {i} lacks a current index! ' + \
-                                     f'This is a fallback that should not happen')
+                self.journal.warning(f'(Ring expansion) One atom {i} lacks a current index! ' + \
+                                     f'This is a fallback that should not happen  ({error})')
                 mol:Chem.Mol = ring['atom'].GetOwningMol()  # noqa
                 ring['current_is'] = [self._get_new_index(mol, old_i, search_collapsed=False) for old_i in
                                       ring['ori_is']]

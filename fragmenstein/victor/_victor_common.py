@@ -153,21 +153,29 @@ class _VictorCommon(_VictorIgor):
         :return:
         """
         lines = []
-        conf = self.monster.positioned_mol.GetConformer()
+        conf: Chem.Conformer = self.monster.positioned_mol.GetConformer()
+        atom: Chem.Atom
         for i, atom in enumerate(self.monster.positioned_mol.GetAtoms()):
-            if atom.GetSymbol() == '*':
+            if atom.GetAtomicNum() < 2:  # noqa
+                # zahl of 0 is *, 1 is H
                 continue
             elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):
-                continue # novels
+                continue  # novels
             elif atom.GetPDBResidueInfo() is None:
                 self.journal.critical(f'Atom {i} ({atom.GetSymbol()}) has no name!')
                 continue
             else:
                 pos = conf.GetAtomPosition(i)
-                fxn = f'HARMONIC 0 1' # the other do not make sense here.
-                lines.append(f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
+                fxn = f'HARMONIC 0 1'  # the other do not make sense here.
+
+                line = f'CoordinateConstraint {atom.GetPDBResidueInfo().GetName()} {self.ligand_resi} ' + \
                              f'CA {self.covalent_resi} ' + \
-                             f'{pos.x} {pos.y} {pos.z} {fxn}\n')
+                             f'{pos.x} {pos.y} {pos.z} {fxn}\n'
+                if 'nan' in line:
+                    # todo: This is serious.
+                    self.journal.warning(f'Atom {i} lacks coordinates')
+                    continue
+                lines.append(line)
         return ''.join(lines)
 
     # ------------------------------------------------------------------------------------------------------------------
