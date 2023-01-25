@@ -100,6 +100,5 @@ class MProPlaceTester(unittest.TestCase):
         self.assertIn('x1382', victor.monster.matched)
         self.assertNotIn('x0995', victor.monster.unmatched)  # red herring
 
-
 if __name__ == '__main__':
     unittest.main()
