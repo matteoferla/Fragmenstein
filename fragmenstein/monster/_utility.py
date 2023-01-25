@@ -6,7 +6,7 @@ These are extras for the Monster step
 
 ########################################################################################################################
 from itertools import combinations
-from typing import List, Optional, Tuple, Dict, Union
+from typing import List, Optional, Tuple, Dict, Union, Iterable
 from warnings import warn
 
 from rdkit import Chem
@@ -206,7 +206,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             with open(filename, 'w') as w:
                 w.write(d.GetDrawingText())
 
-    def make_pse(self, filename='test.pse', extra_mols: Optional[Chem.Mol] = None):
+    def make_pse(self, filename='test.pse', extra_mols: Optional[Iterable[Chem.Mol]] = None):
         """
         This is specifically for debugging the full fragment merging mode.
         For general use. Please use the Victor method ``make_pse``.
@@ -243,7 +243,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
                 pymol.cmd.show('sticks', 'chimera')
             if self.positioned_mol:
                 pymol.cmd.show('sticks', 'followup')
-            if extra_mols:
+            if extra_mols is not None:
                 for mol in extra_mols:
                     name = mol.GetProp('_Name')
                     pymol.cmd.read_molstr(Chem.MolToMolBlock(mol, kekulize=False), name)
