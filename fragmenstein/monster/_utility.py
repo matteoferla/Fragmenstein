@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple, Dict, Union, Iterable
 from warnings import warn
 
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdFMCS, Draw, rdMolAlign
+from rdkit.Chem import AllChem, rdFMCS, Draw, rdMolAlign, rdqueries
 
 import json
 
@@ -53,10 +53,10 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         # class or instance?
         if followup_placed is None:  # instance
             assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
-            followup_placed = cls.positioned_mol
+            followup_placed = cls.positioned_mol  # noqa it's not a class but an instance
         if hits is None:  # instance
             assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
-            hits = cls.hits
+            hits = cls.hits # noqa it's not a class but an instance
         for i in range(followup_placed.GetNumAtoms()):
             assert followup_placed.GetAtomWithIdx(i).GetSymbol() == followup_moved.GetAtomWithIdx(
                 i).GetSymbol(), 'The atoms order is changed.'
@@ -215,7 +215,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         :return:
         """
         assert '.pse' in filename, 'Must be a pymol pse extension!'
-        import pymol2
+        import pymol2  # noqa it's an optional
         with pymol2.PyMOL() as pymol:
             tints = iter(
                 ['wheat', 'palegreen', 'lightblue', 'paleyellow', 'lightpink', 'palecyan', 'lightorange', 'bluewhite'])
@@ -317,12 +317,15 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             return False
         ff = AllChem.MMFFGetMoleculeForceField(mol, p)
         # restrain
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_Novel', negate=True)):
+        restrained = []
+        for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)):
             i = atom.GetIdx()
             ff.MMFFAddPositionConstraint(i, ff_dist_thr, ff_constraint)
-        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            restrained.append(i)
+        for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_IsDummy')):
             i = atom.GetIdx()
             ff.MMFFAddPositionConstraint(i, 0.1, ff_constraint)
+            restrained.append(i)
         try:
             m = ff.Minimize()
             if m == -1:
@@ -346,7 +349,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
         # prevent drift:
-        rdMolAlign.AlignMol(mol, original_mol)
+        rdMolAlign.AlignMol(mol, original_mol, atomMap=list(zip(restrained, restrained)))
         return success
 
     def _get_substructure_from_idxs(self, mol:Chem.Mol, atomIdx_list: List[int]) -> \

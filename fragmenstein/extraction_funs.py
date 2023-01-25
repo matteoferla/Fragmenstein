@@ -1,10 +1,12 @@
 """
 These are common functions moved out of Victor and Igor to reduce duplication.
 """
+import logging
 
 from rdkit import Chem
 from typing import Tuple, Union, Callable
 
+log = logging.getLogger()
 
 def add_dummy_to_mol(ligand: Chem.Mol,
                      ligand_resn: str,
@@ -70,7 +72,7 @@ def get_equivalent(template_atom: Chem.Atom, query_mol: Chem.Mol) -> Chem.Atom:
     return get_by_atomname(query_mol, get_atomname(template_atom))
 
 
-def copy_bonds_by_atomnames(template: Chem.Mol, target: Chem.Mol) -> None:
+def copy_bonds_by_atomnames(template: Chem.Mol, target: Chem.Mol) -> bool:
     """
     Fixes bonds _inplace_ and sanity checks the mol is still the same.
 
@@ -80,16 +82,22 @@ def copy_bonds_by_atomnames(template: Chem.Mol, target: Chem.Mol) -> None:
 
     Plus ``PDBResidueInfo`` is lost by ``AllChem.AssignBondOrdersFromTemplate``
     """
+    successful = True
     for template_bond in template.GetBonds():  # type: Chem.Bond
         begin: Chem.Atom = template_bond.GetBeginAtom()
         end: Chem.Atom = template_bond.GetEndAtom()
         query_bond = target.GetBondBetweenAtoms(get_equivalent(begin, target).GetIdx(),
                                                 get_equivalent(end, target).GetIdx())
         if query_bond is None:
-            raise ValueError(f'{get_atomname(begin)} and {get_atomname(end)} are' + \
-                             'bonded in the params but not the minimised? This is impossible')
+            # This is due to the molecule being pulled apart at a ring closure.
+            # A common issue with RNA minisation too.
+            log.error(f'{get_atomname(begin)} and {get_atomname(end)} are' + \
+                             ' bonded in the params but not the minimised: this is a Rosetta glitch')
+            successful = False
+            continue
         query_bond.SetBondType(template_bond.GetBondType())
         # heme will have crash upstream though:
         query_bond.SetBondDir(template_bond.GetBondDir())
     target.UpdatePropertyCache(strict=False)
     Chem.SanitizeMol(target)
+    return successful
