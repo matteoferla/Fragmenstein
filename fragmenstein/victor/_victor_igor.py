@@ -22,7 +22,9 @@ class _VictorIgor(_VictorStore):
         if ligand is None:  # normal route
             ligand = self.igor.mol_from_pose(add_dummy=add_dummy)
         # fix bond orders without breaking pdbinfo:
-        copy_bonds_by_atomnames(self.params.mol, ligand)
+        if not copy_bonds_by_atomnames(self.params.mol, ligand):
+            self.journal.warning(f'{self.long_name} - Rosetta ring closure failed: +infinity kcal/mol penalty')
+            self.energy_score['ligand_ref2015']['total_score'] = float('inf')
         return ligand
 
     def quick_reanimate(self) -> float:
