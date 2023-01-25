@@ -43,6 +43,7 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     This master reanimator keeps a ``.journal`` (logging, class attribute).
 
     The constructor sets the protein detail. While, place or combine deal do the analyses.
+    These are the attributes of the class or instance (not the constructor, which are below):
 
     :ivar apo_pdbblock: The apo protein template PDB block (inputted)
     :vartype apo_pdbblock: str
