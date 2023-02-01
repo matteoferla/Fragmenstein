@@ -26,7 +26,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
-    'sphinx-mdinclude',
+    'sphinx_mdinclude',
     #'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     #'sphinx.ext.imgconverter',
