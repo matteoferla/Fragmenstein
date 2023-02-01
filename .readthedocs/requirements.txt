@@ -1,5 +1,7 @@
 sphinx-toolbox
 m2r2
+mistune==0.8.4
+# the latter is for m2r2 else: AttributeError: module 'mistune' has no attribute 'BlockGrammar'
 # installed already in RTD, but not locally
 readthedocs-sphinx-ext
 sphinx-rtd-theme
