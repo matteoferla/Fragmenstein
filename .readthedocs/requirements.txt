@@ -1,8 +1,7 @@
 sphinx-toolbox
-m2r2
-mistune==0.8.4
-# the latter is for m2r2 else: AttributeError: module 'mistune' has no attribute 'BlockGrammar'
-# installed already in RTD, but not locally
+#m2r2
+sphinx-mdinclude
+# installed already in RTD, but not locally:
 readthedocs-sphinx-ext
 sphinx-rtd-theme
 # libjs-mathjax  # this cause the system to crash as it does not seem to exist. When and for what reason was it added?

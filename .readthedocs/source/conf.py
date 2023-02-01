@@ -26,6 +26,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
+    'sphinx-mdinclude',
     #'sphinx_toolbox.more_autodoc',
     'sphinx.ext.autodoc',
     #'sphinx.ext.imgconverter',
@@ -58,7 +59,7 @@ def setup(app):
 
 # --- add md files ---------------------------------------------------------
 
-import m2r2  # noqa
+#import m2r2  # noqa
 import os, re
 
 for filename in os.listdir():
@@ -67,7 +68,7 @@ for filename in os.listdir():
 
 repo_base_path = os.path.abspath("../../")
 
-def convert_write(markdown_filename, srt_filename):
+def convert_write(markdown_filename, new_filename):
     with open(markdown_filename) as fh:
         markdown_block = fh.read()
     markdown_block = re.sub(r"""href=(['"])[./]*images/""", r'href=\1', markdown_block)
@@ -90,11 +91,11 @@ def convert_write(markdown_filename, srt_filename):
         return f"[{match['label']}]({link})"
 
     markdown_block = re.sub(r'\[(?P<label>.*?)\]\((?P<link>.*?)\)', fix_md_link, markdown_block)
-    rst_block = m2r2.convert(markdown_block)
-    with open(srt_filename, 'w') as fh:
-        fh.write(rst_block)
+    #rst_block = m2r2.convert(markdown_block)
+    with open(new_filename, 'w') as fh:
+        fh.write(markdown_block)
 
-convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.rst')
+convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.md')
 
 new_files = {'discussion': [], 'notes': []}
 definitions = (('documentation', 'doc_', 'discussion'),
@@ -105,7 +106,7 @@ for folder, prefix, pagename in definitions:
         path = os.path.join(repo_base_path, folder, filename)
         if os.path.isdir(path) or '.md' not in path or 'sphinx' in path:
             continue
-        convert_write(path, prefix+filename.replace('.md', '.rst'))
+        convert_write(path, prefix+filename)  #.replace('.md', '.rst')
         new_files[pagename].append(prefix+filename.replace('.md', ''))
 
 for _, _, pagename in definitions:
