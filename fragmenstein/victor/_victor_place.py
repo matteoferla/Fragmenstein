@@ -92,7 +92,7 @@ class _VictorPlace(_VictorCommon):
         # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
         # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
 
-    def _calculate_placement_prepareMonster(self):
+    def _calculate_placement_chem(self):
         '''
         First part of the placement pipeline.
           1) Check parameters
@@ -122,7 +122,7 @@ class _VictorPlace(_VictorCommon):
         self.post_monster_step()  # empty overridable
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
 
-    def _calculate_placement_minimizeMonster(self):
+    def _calculate_placement_thermo(self):
         '''
         Second and last part of the placement pipeline.
           1) Plonks the monster in the structure
@@ -166,8 +166,8 @@ class _VictorPlace(_VictorCommon):
 
         :return:
         """
-        self._calculate_placement_prepareMonster()
-        self._calculate_placement_minimizeMonster()
+        self._calculate_placement_chem()
+        self._calculate_placement_thermo()
 
     def _assert_placement_inputs(self):
         if '*' in self.smiles and (self.covalent_resi is None or self.covalent_resn is None):

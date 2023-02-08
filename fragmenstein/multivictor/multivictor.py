@@ -62,7 +62,7 @@ class MultiVictorPlacement():
                                                custom_map=custom_map,
                                                atomnames=atomnames, extra_ligand_constraint=extra_ligand_constraint)
             victor.monster = monster
-            victor._calculate_placement_minimizeMonster()
+            victor._calculate_placement_thermo()
             self.placed_victors += [(victor.ddG, victor)]
         self.placed_victors = sorted(self.placed_victors)
 

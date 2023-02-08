@@ -7,10 +7,10 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 import time, warnings
+from ._victor_mode import VictorMinMode
 
 
 # ================== Main entry=====================================================================================
-
 
 
 
@@ -21,7 +21,7 @@ class _VictorCombine(_VictorCommon):
                 atomnames: Optional[Dict[int, str]] = None,
                 warhead_harmonisation: str = 'first',
                 joining_cutoff=5.,  # Å
-                extra_ligand_constraint: Union[str] = None
+                extra_ligand_constraint: Union[str] = None,
                 ):
         """
          Combines the hits without a template.
@@ -82,6 +82,16 @@ class _VictorCombine(_VictorCommon):
 
 
     def _calculate_combination(self):
+        """
+        called by ``combine`` within ``_safely_do``
+        """
+        self._calculate_combination_chem()
+        self._calculate_combination_thermo()
+
+    def _calculate_combination_chem(self):
+        """
+        The rdkit part. Monster is used to combine the hits.
+        """
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self._harmonize_warhead_combine()
         # TODO Does combine not need attachment??
@@ -96,6 +106,8 @@ class _VictorCombine(_VictorCommon):
         self.smiles = Chem.MolToSmiles(self.mol)
         # making folder.
         self.make_output_folder()
+
+    def _calculate_combination_thermo(self):
         # paramterise
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         # ``Params.load_mol`` does a few things: ``from_mol``, the ``polish_mol`` ad then ``convert_mol``.
