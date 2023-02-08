@@ -4,6 +4,7 @@ from rdkit.Chem import AllChem, Draw
 from IPython.display import display
 from matplotlib.colors import ColorConverter
 import nglview as nv
+from nglview.component import ComponentViewer
 from io import StringIO
 
 
@@ -54,7 +55,7 @@ class MolNGLWidget(nv.NGLWidget):
     And a methdo
     """
 
-    def add_mol(self, mol: Chem.Mol, colorValue: str = '') -> nv.component.ComponentViewer:
+    def add_mol(self, mol: Chem.Mol, colorValue: str = '') -> ComponentViewer:
         """
         Add a rdkit.Chem to an NGLWidget.
         This function is used by Walton and Monster
@@ -67,7 +68,7 @@ class MolNGLWidget(nv.NGLWidget):
             raise ValueError( 'Provided mol is None: '+\
                               'if user manual tinkering happened, please run monster.fix_hits')
         fh = StringIO(Chem.MolToPDBBlock(mol))  # I want atom names if present
-        comp: nv.component.ComponentViewer = self.add_component(fh,  # noqa it's there.
+        comp: ComponentViewer = self.add_component(fh,  # noqa it's there.
                                                                 name=mol.GetProp('_Name'),
                                                                 ext='pdb'
                                                                 )

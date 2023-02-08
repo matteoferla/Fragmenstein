@@ -10,11 +10,12 @@ from rdkit import Chem
 import os, re
 from typing import (Optional)
 from ._victor_common import _VictorCommon
+from ..display import ComponentViewer, MolNGLWidget
 
 class _VictorShow(_VictorCommon):
     # partial move out of utility module
 
-    def to_nglview(self, print_legend: bool = False):
+    def to_nglview(self, print_legend: bool = False) -> MolNGLWidget:
         """`
         generates a NGLWidget (``IPython.display.display`` will show it)
         with the compounds and the merged if present.
@@ -28,7 +29,7 @@ class _VictorShow(_VictorCommon):
             if molblock is None:
                 continue
             fh = StringIO(molblock)
-            comp: nv.component.ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
+            comp: ComponentViewer = view.add_component(fh, ext='pdb')  # noqa it's there.
             comp.add_representation('ball+stick', colorValue='white', multipleBond=True,
                                     sele=f'[{self.ligand_resn}]')
             # force it.
