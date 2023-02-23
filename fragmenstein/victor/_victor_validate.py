@@ -26,6 +26,8 @@ class _VictorValidate(_VictorBase):
         try:
             # compare with reference mol
             return func(*args, **kwargs).mrmsd
+        except KeyboardInterrupt as err:
+            raise err
         except self.error_to_catch as err:
             self.journal.error(f'{err.__class__.__name__}: {err} in validation step.')
             pass

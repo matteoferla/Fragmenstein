@@ -108,6 +108,8 @@ class _VictorIgor(_VictorStore):
         """
         try:
             conn = sum([o != [] for o in self.monster.origin_from_mol(self.monster.positioned_mol)])
+        except KeyboardInterrupt as err:
+            raise err
         except Exception as err:
             self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
             conn = float('nan')
@@ -119,6 +121,8 @@ class _VictorIgor(_VictorStore):
             origins = self.monster.origin_from_mol(self.monster.positioned_mol)
             unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in
                           zip(origins, self.monster.positioned_mol.GetAtoms())])
+        except KeyboardInterrupt as err:
+            raise err
         except Exception as err:
             self.journal.warning(f'{self.long_name} - {err.__class__.__name__}: {err}')
             unconn = float('nan')

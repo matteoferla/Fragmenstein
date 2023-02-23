@@ -210,6 +210,8 @@ class _VictorCommon(_VictorIgor):
                         pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name} and chain {chain}')
                     else:
                         pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
+                except KeyboardInterrupt as err:
+                    raise err
                 except:
                     pdb = pymol.cmd.get_pdbstr(f'resi {resi} and name {name}')
                 return Chem.MolFromPDBBlock(pdb)

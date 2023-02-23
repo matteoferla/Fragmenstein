@@ -288,6 +288,8 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                                           proximityBonding=proximityBonding)
                     if mol is not None:
                         mols[name] = mol
+                except KeyboardInterrupt as err:
+                    raise err
                 except Exception as error:
                     if throw_on_error:
                         raise error

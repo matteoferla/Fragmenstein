@@ -26,6 +26,10 @@ def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
     exception = Exception if ignore_errors else ()
     try:
         return mol.ToBinary(propertyFlags=0b00010111)    # noqa it's an instance.
+    except KeyboardInterrupt as err:
+        raise err
+    except KeyboardInterrupt as err:
+        raise err
     except exception as error:
         return Chem.Mol().ToBinary(propertyFlags=0b00010111)  # noqa
 
@@ -40,6 +44,8 @@ def unbinarize(bin: bytes, ignore_errors:bool=True) -> Union[Chem.Mol, None]:
         return None
     try:
         return Chem.Mol(bin)
+    except KeyboardInterrupt as err:
+        raise err
     except exception:
         return None
 
@@ -84,6 +90,8 @@ class LabBench:
                 print('Keyboard!')
                 self.raw_results.append({'error': 'KeyboardInterrupt', 'name': ''})
                 break
+            except KeyboardInterrupt as err:
+                raise err
             except Exception as error:
                 print(f'{error.__class__.__name__}: {error}')
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})

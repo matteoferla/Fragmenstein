@@ -25,6 +25,8 @@ class _VictorSafety(_VictorBase):
             try:
                 if execute is not None:
                     execute()
+            except KeyboardInterrupt as err:
+                raise err
             except self.error_to_catch as err:
                 self.error_msg = f'{err.__class__.__name__}: {err}'
                 if reject is not None:

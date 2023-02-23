@@ -145,7 +145,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
                 else:
                     origin.append(json.loads(x))
             elif atom.HasProp('_ori_name'): # single name.
-                origin.append([atom.GetProp('_ori_name')])
+                origin.append([atom.GetProp('_ori_name')+'.'+atom.GetProp('_ori_i')])
             else:
                 origin.append([])
         return origin
@@ -276,6 +276,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             if show:
                 display(SVG(d.GetDrawingText()))
             return d
+        except KeyboardInterrupt as err:
+            raise err
         except Exception as err:
             warn(f'*{err.__class__.__name__}* : {err}')
             display(x)

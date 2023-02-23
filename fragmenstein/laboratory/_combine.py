@@ -34,6 +34,8 @@ class LabCombine(LabBench):
             result['hit_binaries'] = [binarize(h) for h in v.hits]
             return result
             # v.make_pse()
+        except KeyboardInterrupt as err:
+            raise err
         except Exception as error:
             error_msg = f'{error.__class__.__name__} {error}'
             Victor.journal.critical(f'*** {error_msg} for {tentative_name}')
