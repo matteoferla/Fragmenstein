@@ -22,4 +22,7 @@ class Laboratory(LabCombine, LabPlace):
     and replace `.Victor` with their subclass of Victor.
     However, there are a few requirements, so please see ``combine_subprocess`` and ``place_subprocess``,
     where it gets called.
+    Laboratory does not contain handy empty methods for the user to override like Victor (
+
+    `post_igor_step`)
     """

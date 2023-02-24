@@ -150,6 +150,8 @@ class LabBench:
             return float('nan')
         origins: List[List[str]] = Monster.origin_from_mol(None, mol)
         c = Counter([o[0].split('.')[0] if o else None for o in origins]).most_common()
+        if not len(c):
+            return float('nan')
         return round((mol.GetNumHeavyAtoms() - c[0][1]) / mol.GetNumHeavyAtoms() * 100, 1)
 
     def __call__(self,
