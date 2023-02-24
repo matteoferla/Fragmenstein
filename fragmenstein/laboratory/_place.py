@@ -5,7 +5,7 @@ import pandas as pd
 import pebble
 from rdkit import Chem
 
-from fragmenstein import Victor
+
 from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
 
 from typing import TypedDict  # monkeypatched by .legacy. Absent in <Py3.8
@@ -38,17 +38,22 @@ class BinPlacementInput(TypedDict):
 class LabPlace(LabBench):
 
     def place_subprocess(self, inputs: BinPlacementInput):
+        """
+        This is the placement subprocess. The combination subprocess is ``place_subprocess``.
+        They are very similar...
+        """
         name = inputs['name']
         smiles =  inputs['smiles']
         pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         try:
             hits = [unbinarize(bh) for bh in inputs['binary_hits']]
-            v = Victor(hits=hits,
-                       pdb_block=self.pdbblock,
-                       ligand_resn='LIG',
-                       ligand_resi='1B',
-                       covalent_resi=self.covalent_resi,
-                       )
+            # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
+            v = self.Victor(hits=hits,
+                            pdb_block=self.pdbblock,
+                            ligand_resn='LIG',
+                            ligand_resi='1B',
+                            covalent_resi=self.covalent_resi,
+                            )
             v.place(smiles, long_name=name)
             result: dict = v.summarize()
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
@@ -59,7 +64,7 @@ class LabPlace(LabBench):
             raise err
         except Exception as error:
             error_msg = f'{error.__class__.__name__} {error}'
-            Victor.journal.critical(f'*** {error_msg} for {name}')
+            v.journal.critical(f'*** {error_msg} for {name}')
             return dict(error=error_msg, name=name)
 
     def place(self,
@@ -88,7 +93,7 @@ class LabPlace(LabBench):
                          'name': data['name']+f'-isomer_{i}',
                          'smiles': sub_smiles}
                                 for data in iterator
-                                for i, sub_smiles in enumerate(Victor.get_isomers_smiles(data['smiles']))
+                                for i, sub_smiles in enumerate(self.Victor.get_isomers_smiles(data['smiles']))
                         ]
         return self(iterator=iterator, fun=self.place_subprocess, **kwargs)
 

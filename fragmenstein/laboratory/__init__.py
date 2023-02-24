@@ -17,4 +17,9 @@ class Laboratory(LabCombine, LabPlace):
                      x='outcome',
                      category_orders={'outcome': lab.category_labels},
             title='Distribution of outcome')
+
+    In the case of subclassed Victor, the user can create a `Laboratory` instance,
+    and replace `.Victor` with their subclass of Victor.
+    However, there are a few requirements, so please see ``combine_subprocess`` and ``place_subprocess``,
+    where it gets called.
     """

@@ -59,6 +59,7 @@ class LabBench:
         self.covalent_resi = covalent_resi
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
         self.raw_results = []
+        self.Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
         if not len(Victor.journal.handlers):
             Victor.enable_stdout(logging.CRITICAL)
 
