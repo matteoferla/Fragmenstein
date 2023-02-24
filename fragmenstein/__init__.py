@@ -33,7 +33,7 @@ except ImportError as err:
 
 
 try:
-    from .laboratory import Laboratory
+    from .laboratory import Laboratory, binarize, unbinarize
 except ImportError as err:
     warn(f'Laboratory unavailable —{err}.', category=ImportWarning)
 
