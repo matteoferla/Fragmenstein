@@ -5,6 +5,7 @@ from typing import Dict
 from molecular_rectifier import Rectifier
 from ..monster import Monster
 
+
 class MCSMerger(Monster):
     """
     see ``combine()`` for ops.
@@ -154,7 +155,7 @@ class MCSMerger(Monster):
             mod_bond = self.mod.GetBondBetweenAtoms(fore_begin_idx, fore_end_idx)  # noqa
             if mod_bond is None:
                 # the bond did not exist
-                total_bonds: int = self.mod.AddBond(fore_begin_idx, fore_end_idx, aft_bond.GetBondType())   # noqa
+                total_bonds: int = self.mod.AddBond(fore_begin_idx, fore_end_idx, aft_bond.GetBondType())  # noqa
                 mod_bond = self.mod.GetBondBetweenAtoms(fore_begin_idx, fore_end_idx)  # noqa
                 mod_bond.SetProp('provenance', 'aft')
             elif aft_bond.GetBondTypeAsDouble() > mod_bond.GetBondTypeAsDouble():
@@ -225,12 +226,11 @@ class MCSMerger(Monster):
         fore_conf = self.fore.GetConformer()
         coord_map: Dict[int, Geometry.Point3D] = {ci: fore_conf.GetAtomPosition(fi) for ci, fi in combo2fore.items()}
         conf_i = AllChem.EmbedMolecule(self.positioned_mol,
-                                       **dict(clearConfs=True,
-                                              coordMap=coord_map,
-                                              ignoreSmoothingFailures=True,
-
-                                              **embed_args
-                                              )
+                                       **{**dict(clearConfs=True,
+                                                 coordMap=coord_map,
+                                                 ignoreSmoothingFailures=True),
+                                          **embed_args
+                                          }
                                        )
 
         if conf_i != -1:
