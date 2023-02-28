@@ -1,6 +1,7 @@
 from ._combine import LabCombine
 from ._place import LabPlace
 from ._base import binarize, unbinarize
+from ._place import MolPlacementInput, BinPlacementInput
 
 class Laboratory(LabCombine, LabPlace):
     """

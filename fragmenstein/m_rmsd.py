@@ -340,7 +340,7 @@ class mRMSD:
             return []
 
     @classmethod
-    def _get_xyz(cls, atom: Chem.Atom) -> Tuple[float]:
+    def _get_xyz(cls, atom: Chem.Atom) -> Tuple[float,float,float]:
         if atom.HasProp('_x'):
             return (atom.GetDoubleProp('_x'),
                     atom.GetDoubleProp('_y'),
