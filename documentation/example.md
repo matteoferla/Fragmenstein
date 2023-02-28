@@ -191,6 +191,16 @@ victor.ddG
 
 ## Troubleshooting
 
+### Ligand not in template
+
+If the ligand is not in the template, then the ∆∆G will be zero.
+This often happens **when the template was energy minimised, but was not re-aligned to the original pose**,
+and as a result it drifted away from the ligand.
+
+Doing a 'redocking' placement is always a sane way to start (place a compound based on itself).
+For a small XChem hit, 
+we are talking about -5 kcal/mol circa.
+
 ### Too many results
 
 The ∆∆G (kcal/mol) is not that you would get if the compound were in the spot in with the energy minimum (as in docking).
