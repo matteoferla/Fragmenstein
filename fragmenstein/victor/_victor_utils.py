@@ -484,6 +484,7 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                 for tauto in enumerate_tautomers(stereo)
                 ]
 
+    @classmethod
     def get_isomers_smiles(cls, smiles: str) -> List[str]:
         """
         Same as `get_isomers`, but with smiles.
