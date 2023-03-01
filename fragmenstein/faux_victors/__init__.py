@@ -9,8 +9,8 @@ Victor alternatives not meant for production use, but for testing and debugging.
 To run in ``Laboratory`` class set the ``.Victor`` attribute to the desired ``Victor`` alternative.
 
 ... code-block:: python
-    from framgenstein import Laboratory
-    from framgenstein.faux_victors import Mictor  # MCS hack for negative benchmarking
+    from fragmenstein import Laboratory
+    from fragmenstein.faux_victors import Mictor  # MCS hack for negative benchmarking
     lab = Laboratory(pdbblock=pdbblock, covalent_resi=None)
     lab.Victor = Mictor
     combinations: pd.DataFrame = lab.combine(hits, n_cores=28)
