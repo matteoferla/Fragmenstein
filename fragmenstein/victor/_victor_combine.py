@@ -100,6 +100,7 @@ class _VictorCombine(_VictorCommon):
                              collapse_rings=True,
                              joining_cutoff=self.joining_cutoff  # Å
                              )
+        self.post_monster_step()  # empty overridable
         if self.monster_throw_on_discard and len(self.monster.unmatched):
             raise ConnectionError(f'Hits too distant to combine')
         self.mol = self.monster.positioned_mol
@@ -138,6 +139,7 @@ class _VictorCombine(_VictorCommon):
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()
         self._checkpoint_bravo()
+        self.pre_igor_step()  # empty overridable
         self.igor = Igor.from_pdbblock(pdbblock=self.unminimized_pdbblock,
                                        params_file=params_file,
                                        constraint_file=constraint_file,

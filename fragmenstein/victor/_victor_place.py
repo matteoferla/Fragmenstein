@@ -134,11 +134,12 @@ class _VictorPlace(_VictorCommon):
         self._checkpoint_bravo()  # saving
         # save stuff
         params_file, holo_file, constraint_file = self._save_prerequisites()
-        self.pre_igor_step()  # empty overridable
+        self.post_params_step()  # empty overridable
         self.unbound_pose = self.params.test()
         self._checkpoint_alpha()  # saving
         # ***** EGOR *******
         self.journal.debug(f'{self.long_name} - setting up Igor')
+        self.pre_igor_step()  # empty overridable
         self.igor = Igor.from_pdbblock(pdbblock=self.unminimized_pdbblock,
                                        params_file=params_file,
                                        constraint_file=constraint_file,
