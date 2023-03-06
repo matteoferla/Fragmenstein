@@ -1,7 +1,7 @@
 import logging
 import pebble
 import operator
-from typing import (Any, Callable, Union, Iterator, Sequence, List)
+from typing import (Any, Callable, Union, Iterator, Sequence, List, Dict)
 from collections import Counter
 import pandas as pd
 from rdkit import Chem
@@ -141,18 +141,40 @@ class LabBench:
 
     def percent_hybrid(self, mol: Chem.Mol) -> float:
         """
-        Given the origins how much of the molecule is not accounted for by the primary hit?
+        Given the origins how much of the molecule is solely from the second hit?
+        It's the ratio of the number of atoms from the second hit to the total number of atoms with an inspiration.
+        Do note that monster has the dynamic attributes, ``.percent_common`` and ``.num_common``.
+        This is how-much and how-many of the molecule is common to both hits.
+        This metric is not in Monster but in the Laboratory, making it handy for overriding.
+        It also aims at not diagnosing how much overlap there is but to diagnose how combined the molecule is.
 
-        :param mol:
-        :return:
+        Basically there are a bunch of Qs to ask if there are two hits:
+
+        * How much of a molecule is common to both?
+        * How much is from either single hit?
+        * How much is unmapped?
+
+        But when discussing mergers,
+        if a bunch of atoms are common, the first contribute more,
+        but the second hit does not contribute anything
+        then it's not a merger: it's just the first hit.
+        Hence the need for this odd ratio.
         """
         if not isinstance(mol, Chem.Mol):
             return float('nan')
+        # origins: list of one entry for each followup atom to list of strings of hit name dot atom name
         origins: List[List[str]] = Monster.origin_from_mol(None, mol)
-        c = Counter([o[0].split('.')[0] if o else None for o in origins]).most_common()
-        if not len(c):
+        hit_names = [[ori_name.split('.')[0] for ori_name in atomic] if atomic else [] for atomic in origins]
+        flat_names = [name for atomic in hit_names for name in atomic]
+        names = set(flat_names)
+        if len(names) == 0:  # no inspirations
             return float('nan')
-        return round((mol.GetNumHeavyAtoms() - c[0][1]) / mol.GetNumHeavyAtoms() * 100, 1)
+        elif len(names) == 1:  # one inspirations
+            return 0.
+        # hit to number of atoms with only that hit as origin
+        single_origin: Dict[str, int] = {name: sum([name in atomic for atomic in hit_names if len(atomic) == len(names) - 1]) for name in names}
+        sorted_names = sorted(single_origin, key=single_origin.get, reverse=True)
+        return 100 - int(single_origin[sorted_names[0]] / sum(single_origin.values()) * 100)
 
     def __call__(self,
                  iterator: Iterator,

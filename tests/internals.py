@@ -15,6 +15,9 @@ from fragmenstein import Monster, Victor, Igor, mpro_data, Walton
 from fragmenstein.mpro import MProVictor
 from typing import *
 import numpy as np
+import json
+from rdkit import Chem
+from fragmenstein import Laboratory
 
 # ======================================================================================================================
 
@@ -132,6 +135,12 @@ class Internals(unittest.TestCase):
         self.assertEqual(combo.GetNumAtoms(), 2)
         self.assertNotEqual(candidates[0][0], candidates[0][1])
 
+    def test_percent_hybrid(self):
+        chlorobutane = Chem.MolFromSmiles('[Cl]CCCC')
+        origins = [[], ['ethanol.1'], ['ethanol.2', 'isopronanol.3'], ['isopronanol.2'], ['isopronanol.4']]
+        chlorobutane.SetProp('_Origins', json.dumps(origins))
+        hybrid = Laboratory.percent_hybrid(None, chlorobutane)
+        self.assertEqual(hybrid, 34)  # ethanol has 1 single origin atom, isopronanol has 2
 
 
 if __name__ == '__main__':
