@@ -208,18 +208,35 @@ class mRMSD:
     def from_other_annotated_mols(cls,
                             followup: Chem.Mol,
                             hits: Sequence[Chem.Mol],
-                            annotated: Chem.Mol
+                            annotated: Chem.Mol,
                             ) -> mRMSD:
-        # has become nearly redundant with from_unannotated_mols except this expect annotated to have: from_unannotated_mols
-        # the former way has issues with isomorphisms
-        # cls.copy_origins(annotated, followup)
-        # return cls.from_annotated_mols(followup, hits)
-        posibilities : Tuple[List[Chem.Mol], List[List[int]]]= cls.copy_all_possible_origins(annotated, followup)
-        targets: List[Chem.Mol] = posibilities[0]
-        assert targets, 'Molecule could not be mapped.'
-        results = [(target, cls.from_annotated_mols(target, hits)) for target in targets]
-        return list(sorted(results, key=lambda x: x[1].mrmsd))[0][1]
+        xyz_present = any([atom.HasProp('_x') for atom in annotated.GetAtoms()])
+        # combine will have xyz, place no. TODO: make this more robust
+        if xyz_present:
+            name2xyz = {}
+            for atom in annotated.GetAtoms():
+                pi = atom.GetPDBResidueInfo()
+                if pi and atom.HasProp('_x'):
+                    name2xyz[pi.GetName()] = {cart: atom.GetDoubleProp("_" + cart) for cart in ('x', 'y', 'z')}
 
+            for atom in followup.GetAtoms():
+                pi = atom.GetPDBResidueInfo()
+                name = pi.GetName()
+                if pi and name in name2xyz:
+                    for cart in ('x', 'y', 'z'):
+                        atom.SetDoubleProp('_' + cart, name2xyz[name][cart])
+            return cls.from_annotated_mols(followup, hits)
+        else:
+            # has become nearly redundant with from_unannotated_mols except this expect annotated to have:
+            # from_unannotated_mols
+            # the former way has issues with isomorphisms
+            # cls.copy_origins(annotated, followup)
+            # return cls.from_annotated_mols(followup, hits)
+            posibilities : Tuple[List[Chem.Mol], List[List[int]]]= cls.copy_all_possible_origins(annotated, followup)
+            targets: List[Chem.Mol] = posibilities[0]
+            assert targets, 'Molecule could not be mapped.'
+            results = [(target, cls.from_annotated_mols(target, hits)) for target in targets]
+            return list(sorted(results, key=lambda x: x[1].mrmsd))[0][1]
 
 
     def calculate_msd(self, molA, molB, mapping) -> float:
@@ -293,6 +310,7 @@ class mRMSD:
         common = Chem.MolFromSmarts(mcs.smartsString)
         options = []
         originss = []
+        # adding Unique=False will make benzene isomorphism not an issue, but the code will grind to a halt.
         for target_match in target.GetSubstructMatches(common):
             for anno_match in annotated.GetSubstructMatches(common):
                 dmapping = dict(zip(target_match, anno_match))
