@@ -322,6 +322,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         restrained = []
         for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)):
             i = atom.GetIdx()
+            if atom.GetAtomicNum() == 1:
+                continue
             ff.MMFFAddPositionConstraint(i, ff_dist_thr, ff_constraint)
             restrained.append(i)
         for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_IsDummy')):
