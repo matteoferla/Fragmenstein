@@ -1,4 +1,4 @@
-__version__ = "0.9.13"
+__version__ = "0.10"
 
 from typing import Dict
 def get_versions() -> Dict[str, str]:
@@ -11,5 +11,8 @@ def get_versions() -> Dict[str, str]:
 
     return dict(python=sys.version, os_type=platform.system(), arc=platform.machine(),
                 fragmenstein=get_version("fragmenstein"),
-                pyrosetta=get_version("pyrosetta")
+                pyrosetta=get_version("pyrosetta"),
+                rdkit=get_version("rdkit"),
+                molecular_rectifier=get_version('molecular-rectifier'),
+                rdkit_to_params=get_version('rdkit-to-params')
                 )
