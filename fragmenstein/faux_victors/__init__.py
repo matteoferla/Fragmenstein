@@ -5,6 +5,8 @@ Victor alternatives not meant for production use, but for testing and debugging.
 * ``Wictor``: Victor without pyrosetta, i.e. no energy minimization.
 * ``AccountableBRICS``: Not a Victor, but generates a BRICS decomposition of the hits and returns a dataframe
     with the built molecules usable in ``Laboratory.place``.
+* ``FreeVictor``: Victor with no constraints.
+* ``SingleVictor``: Victor with only one hit used for constraints.
 
 To run in ``Laboratory`` class set the ``.Victor`` attribute to the desired ``Victor`` alternative.
 
@@ -20,3 +22,4 @@ To run in ``Laboratory`` class set the ``.Victor`` attribute to the desired ``Vi
 from .mcs_victor import Mictor, MCSMerger
 from .no_pyrosetta import Wictor
 from .brics import AccountableBRICS
+from .others import FreeVictor, SingleVictor
