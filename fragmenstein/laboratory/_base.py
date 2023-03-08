@@ -81,7 +81,7 @@ class LabBench:
                 result = next(result_iter)
                 self.raw_results.append(result)
             except TimeoutError as error:
-                print("Function took longer than %d seconds" % error.args[1])
+                Victor.journal.error("Function took longer than %d seconds" % error.args[1])
                 self.raw_results.append({'error': 'TimeoutError', 'name': ''})
             except StopIteration as error:
                 # it would be nice having a mock entry with the expected values...
@@ -94,11 +94,13 @@ class LabBench:
             except KeyboardInterrupt as err:
                 raise err
             except Exception as error:
-                print(f'{error.__class__.__name__}: {error}')
+                Victor.journal.error(f'{error.__class__.__name__}: {error}')
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})
         # list of dict to dataframe
         df = pd.DataFrame(self.raw_results)
-        assert len(df), 'No combination was successful'
+        if len(df) or '∆∆G' not in df.columns:
+            Victor.journal.critical('No results were found. Returning an empty dataframe.')
+            return df
         df['LE'] = df.apply(
             lambda row: row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)
@@ -174,6 +176,8 @@ class LabBench:
         # hit to number of atoms with only that hit as origin
         single_origin: Dict[str, int] = {name: sum([name in atomic for atomic in hit_names if len(atomic) == len(names) - 1]) for name in names}
         sorted_names = sorted(single_origin, key=single_origin.get, reverse=True)
+        if sum(single_origin.values()) == 0:
+            return 0.
         return 100 - int(single_origin[sorted_names[0]] / sum(single_origin.values()) * 100)
 
     def __call__(self,
