@@ -7,11 +7,13 @@ from copy import deepcopy
 from rdkit import Chem
 from ..unmerge_mapper import Unmerge
 
+
 class _MonsterExpand(_MonsterNone):
     """
     A variant of no_blend mode, with a focus on expansion
     """
-    def by_expansion(self, primary_name:Optional[str]=None, min_mode_index:int=0) -> Chem.Mol:
+
+    def by_expansion(self, primary_name: Optional[str] = None, min_mode_index: int = 0) -> Chem.Mol:
         """
         Get the maps. Find the map with the most atoms covered.
         Use that map as the base map for the other maps.
@@ -32,7 +34,7 @@ class _MonsterExpand(_MonsterNone):
         self.positioned_mol, self.mol_options = self._place_unmerger_expansions(unmergers)
         return self.positioned_mol
 
-    def _get_primary_maps(self, primary_name:Optional[str]=None) -> Tuple[str, List[Dict[int, int]]]:
+    def _get_primary_maps(self, primary_name: Optional[str] = None) -> Tuple[str, List[Dict[int, int]]]:
         """
         The primary hit is the hit will most in common with the placed molecule.
 
@@ -90,7 +92,7 @@ class _MonsterExpand(_MonsterNone):
                 other_name: str = other.GetProp('_Name')
                 if other_name == primary_name:
                     continue
-                mappings:List[Dict[int, int]]
+                mappings: List[Dict[int, int]]
                 mode: ExtendedFMCSMode
                 mappings, mode = self.get_mcs_mappings(other, self.initial_mol, min_mode_index, exp_map)
                 # drop any that are redundant with the primary hit
@@ -126,13 +128,12 @@ class _MonsterExpand(_MonsterNone):
     def _compute_overlaps(self) -> Dict[Tuple[str, str], Dict[int, int]]:
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = {}
         for mol1, mol2 in itertools.combinations(self.hits, 2):
-            mol1_name:str = mol1.GetProp('_Name')
-            mol2_name:str = mol2.GetProp('_Name')
+            mol1_name: str = mol1.GetProp('_Name')
+            mol2_name: str = mol2.GetProp('_Name')
             gpm = GPM.get_positional_mapping(mol1, mol2)
             positional_overlaps[(mol1_name, mol2_name)] = gpm
             positional_overlaps[(mol2_name, mol1_name)] = gpm
         return positional_overlaps
-
 
     def _include_missing_hits(self, custom_map: Dict[str, Dict[int, int]]) -> None:
         for hit in self.hits:
@@ -141,10 +142,10 @@ class _MonsterExpand(_MonsterNone):
                 custom_map[name] = {}
 
     def _expand_hit_atom_map_by_overlap(self,
-                                     hit_name: str,
-                                     hit_atom_map: Dict[int, int],
-                                     positional_overlaps: Dict[Tuple[str, str], Dict[int, int]],
-                                     custom_map: Dict[str, Dict[int, int]]) -> Dict[str, Dict[int, int]]:
+                                        hit_name: str,
+                                        hit_atom_map: Dict[int, int],
+                                        positional_overlaps: Dict[Tuple[str, str], Dict[int, int]],
+                                        custom_map: Dict[str, Dict[int, int]]) -> Dict[str, Dict[int, int]]:
         """
         Expanded the custom_map by adding all atoms that are covered by the hit_atom_map.
 
@@ -160,7 +161,7 @@ class _MonsterExpand(_MonsterNone):
         self._include_missing_hits(expanded)
         for hit_atom_idx, template_atom_idx in hit_atom_map.items():
             for other in self.hits:
-                other_name:str = other.GetProp('_Name')
+                other_name: str = other.GetProp('_Name')
                 if other_name == hit_name:
                     continue
                 # ------------- deal with atoms that overlap --------------------------
@@ -178,6 +179,5 @@ class _MonsterExpand(_MonsterNone):
                 elif template_atom_idx in expanded[other_name].values():
                     pass  # there is a mapping already ?!
                 else:  # damn the template_atom_idx
-                    expanded[other_name][-2-hit_atom_idx] = template_atom_idx
+                    expanded[other_name][-2 - hit_atom_idx] = template_atom_idx
         return expanded
-
