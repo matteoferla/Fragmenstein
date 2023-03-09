@@ -12,6 +12,7 @@ from typing import Tuple, List, Dict, Optional, Union
 import numpy as np
 from .bond_provenance import BondProvenance
 from ._communal import _MonsterCommunal
+from ..error import DistanceError
 
 class _MonsterJoinNeigh(_MonsterCommunal):
     def join_neighboring_mols(self, mol_A: Chem.Mol, mol_B: Chem.Mol): # noqa uppercase is fine.
@@ -84,7 +85,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         if distance > self.joining_cutoff:
             msg = f'Atoms {anchor_A}+{anchor_B} are {distance} Å away. Cutoff is {self.joining_cutoff}.'
             self.journal.warning(msg)
-            raise ConnectionError(msg)
+            raise DistanceError(distance=distance)
         # place new atoms
         self.journal.debug(f'Molecules will be joined via atoms {anchor_A}+{anchor_B} ({distance} Å) '+
                            f'via the addition of {n_new} atoms.')

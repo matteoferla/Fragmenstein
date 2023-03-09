@@ -13,6 +13,7 @@ from rdkit import Chem
 
 from ._modification_logging import _MonsterTracker
 from .bond_provenance import BondProvenance
+from ..error import ShoddyCodeError
 
 
 # _MonsterBase -> _MonsterTracker -> _MonsterCommunal
@@ -85,7 +86,7 @@ class _MonsterCommunal(_MonsterTracker):
         pendist_matrix = penalties + distance_matrix
         pendistance = float(np.nanmin(pendist_matrix))
         if np.isnan(pendistance):
-            raise ConnectionError('This is impossible. Previous is absent??')
+            raise ShoddyCodeError('This is impossible. Previous is absent??')
         candidates: List[Tuple[int, int, float]] = []
 
         def get_closest(pendistance: float):

@@ -124,7 +124,7 @@ class LabBench:
         """
         # see category_labels for list of values.
         is_filled: Callable[[Any], int] = lambda value: len(value) != 0 if hasattr(value, '__len__') else False
-        if is_filled(row.disregarded) or 'ConnectionError' in row.error:
+        if is_filled(row.disregarded) or 'DistanceError' in row.error:
             # either is the same thing, but the Victor error catching makes them different
             return 'too distant'
         elif 'TimeoutError' in row.error:

@@ -2,6 +2,7 @@ import json
 from typing import List
 from rdkit import Chem
 from ..victor import Victor
+from ..error import DistanceError
 from rdkit.Chem import AllChem
 
 class FreeVictor(Victor):
@@ -60,7 +61,7 @@ class SingleVictor(Victor):
                              )
         self.post_monster_step()  # empty overridable
         if self.monster_throw_on_discard and len(self.monster.unmatched):
-            raise ConnectionError(f'Hits too distant to combine')
+            raise DistanceError(hits=self.monster.unmatched, distance=self.joining_cutoff)
         self.mol = self.monster.positioned_mol
         self.smiles = Chem.MolToSmiles(self.mol)
         # making folder.

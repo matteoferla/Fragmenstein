@@ -21,6 +21,7 @@ from rdkit.Chem import rdFMCS
 import numpy as np
 import json
 from .positional_mapping import GPM
+from ..error import DistanceError
 from collections import deque
 import logging
 
@@ -76,7 +77,7 @@ class Unmerge(GPM):
         self.maps: Dict[str, List[Dict[int, int]]] = maps
         d: int = len(mols) - len(self.mols)
         if self.no_discard and d > 0:
-            raise ConnectionError(f"{d} mols were discarded (due to unproductive maps, but no_discard is True")
+            raise DistanceError(hits=mols)
         # ---- to be filled ------------
         # see `.store`
         # list of indices in the followup that triggered a strike
@@ -122,7 +123,7 @@ class Unmerge(GPM):
         if self.no_discard:
             valids = [i for i, v in enumerate(self.c_disregarded_options) if len(v) == 0]
             if len(valids) == 0:
-                raise ConnectionError('No valid mappings that do not disregard compounds.')
+                raise DistanceError('No valid mappings that do not disregard compounds.')
         else:
             valids = list(range(len(self.c_options)))
         indices = sorted(valids,

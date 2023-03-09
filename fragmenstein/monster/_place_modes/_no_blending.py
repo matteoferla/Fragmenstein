@@ -8,6 +8,7 @@ from ._refine import _MonsterRefine
 from ..mcs_mapping import IndexMap, flip_mapping
 from ..unmerge_mapper import Unmerge
 from collections import Counter
+from ...error import DistanceError
 
 class _MonsterNone(_MonsterRefine):
 
@@ -55,7 +56,7 @@ class _MonsterNone(_MonsterRefine):
                 unmerger = retried_unmerger
                 unmatched = retried_unmatched
         if self.throw_on_discard and len(unmatched):
-            raise ConnectionError(f'{unmatched} was rejected.')
+            raise DistanceError(hits=unmatched)
         self.journal.debug(f'followup to scaffold {unmerger.combined_map}')
         return unmerger
 

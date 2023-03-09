@@ -11,7 +11,9 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdqueries
 from rdkit.Geometry import Point3D
 
+# TESTS IS EXTERNAL TO FRAGMENSTEIN DO NOT CHANGE TO RELATIVE!
 from fragmenstein import Monster, Victor, Igor, mpro_data, Walton
+from fragmenstein.error import FragmensteinError
 from fragmenstein.mpro import MProVictor
 from typing import *
 import numpy as np
@@ -110,7 +112,7 @@ class Internals(unittest.TestCase):
         try:
             monster.combine(keep_all=True, joining_cutoff=2)
             self.fail('should have raised a connection error')
-        except ConnectionError as error:
+        except FragmensteinError as error:
             pass
 
     def test_neigh_bonding(self):

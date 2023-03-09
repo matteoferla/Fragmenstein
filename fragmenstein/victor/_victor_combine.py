@@ -8,6 +8,7 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 import time, warnings
 from ._victor_mode import VictorMinMode
+from ..error import DistanceError
 
 
 # ================== Main entry=====================================================================================
@@ -102,7 +103,7 @@ class _VictorCombine(_VictorCommon):
                              )
         self.post_monster_step()  # empty overridable
         if self.monster_throw_on_discard and len(self.monster.unmatched):
-            raise ConnectionError(f'Hits too distant to combine')
+            raise DistanceError(hits=self.monster.unmatched)
         self.mol = self.monster.positioned_mol
         self.smiles = Chem.MolToSmiles(self.mol)
         # making folder.

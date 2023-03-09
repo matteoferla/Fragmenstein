@@ -21,6 +21,7 @@ from .._merge import _MonsterMerge
 from ..unmerge_mapper import Unmerge
 from ..mcs_mapping import SpecialCompareAtoms, IndexMap, ExtendedFMCSMode, transmute_FindMCS_parameters, flip_mapping
 from ._refine import _MonsterRefine
+from ...error import FragmensteinError
 
 class _MonsterPartial(_MonsterRefine):
     # placement dependent methods
@@ -105,7 +106,7 @@ class _MonsterPartial(_MonsterRefine):
             h_alt = Chem.Mol(h1)
             try:
                 combined_dodgies.append(self.merge_pair(h_alt, h2))
-            except ConnectionError:
+            except FragmensteinError:
                 pass
         combinations = [merged] + dodgies + combined_dodgies
         # propagate alternatives

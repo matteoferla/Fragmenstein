@@ -2,7 +2,10 @@ class LabExtras:
 
     error_classifications ={'SUCCESS': 'success',
                             'UNCLASSIFIED': 'unclassified',
-                            'ConnectionError': 'distance',
+                            'ConnectionError': 'distance',  # legacy
+                            'DistanceError': 'distance',
+                            'RectificationError': 'incorrect rectification',
+                            'FullOverlapError': 'distance',
                             'TimeoutError': 'timeout',
                             'No sub-structure match': 'incorrect parameterisation #1',
                             'Violation occurred': 'incorrect rectification #1',

@@ -6,6 +6,7 @@ from ..mcs_mapping import IndexMap, ExtendedFMCSMode
 from copy import deepcopy
 from rdkit import Chem
 from ..unmerge_mapper import Unmerge
+from ...error import FragmensteinError, DistanceError
 
 
 class _MonsterExpand(_MonsterNone):
@@ -26,6 +27,11 @@ class _MonsterExpand(_MonsterNone):
         # positional_overlap is used by ``_expand_hit_atom_map_by_overlap``
         # which is called by ``_get_unmerge_expansions``
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = self._compute_overlaps()
+        if self.throw_on_discard:
+            positional_overlaps = {pairing: mapping for pairing, mapping in positional_overlaps.items() if mapping}
+            if len(positional_overlaps) == 0 and len(self.hits) > 1:
+                # `positional_overlaps` is always empty if there is only one hit!
+                raise DistanceError(hits=self.hits)
         unmergers: List[Unmerge] = self._get_unmerge_expansions(primary_name,
                                                                 primary_maps,
                                                                 positional_overlaps,

@@ -15,6 +15,7 @@ from ._base import _MonsterBase
 from ._communal import _MonsterCommunal
 from ._merge import _MonsterMerge
 from molecular_rectifier import Rectifier
+from ..error import DistanceError, RectificationError, FragmensteinError
 
 
 ########################################################################################################################
@@ -49,7 +50,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         self.keep_copy(self.positioned_mol, 'merged template')
         ## Discard can happen for other reasons than disconnect
         if self.throw_on_discard and len(self.unmatched):
-            raise ConnectionError(f'Could not combine with {self.unmatched} (>{self.joining_cutoff}')
+            raise DistanceError(hits=self.unmatched, distance=self.joining_cutoff)
         # expand and fix
         self.journal.debug(f'Merged')
         if collapse_rings:
@@ -70,7 +71,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
             self.rectify()
         except RecursionError:
             self.journal.critical(f'Recursion limit in rectifier')
-            raise ConnectionError(f'Can not rectify {self.positioned_mol}')
+            raise RectificationError(f'Recursion limit in rectifier', mol=self.positioned_mol)
         self.journal.debug(f'Rectified')
         return self
 
@@ -79,7 +80,7 @@ class _MonsterCombine(_MonsterRing, _MonsterMerge):
         recto = Rectifier(self.positioned_mol)
         try:
             recto.fix()
-        except ConnectionError:
+        except FragmensteinError:
             self.journal.critical(f'This really odd cornercase: Rectifier broke the mol.')
             mol = self._emergency_joining(recto.mol)
             recto = Rectifier(mol)

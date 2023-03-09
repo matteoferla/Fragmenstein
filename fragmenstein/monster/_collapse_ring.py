@@ -24,6 +24,7 @@ from rdkit.Geometry.rdGeometry import Point3D
 
 from ._join_neighboring import _MonsterJoinNeigh
 from .bond_provenance import BondProvenance
+from ..error import DistanceError, FragmensteinError
 
 
 ########################################################################################################################
@@ -146,7 +147,7 @@ class _MonsterRing(_MonsterJoinNeigh):
         try:
             mol.UpdatePropertyCache(strict=False)
             mol = self._emergency_joining(mol)  # does not modify in place!
-        except ConnectionError as error:
+        except FragmensteinError as error:
             if self.throw_on_discard:
                 raise error
             else:
@@ -953,7 +954,7 @@ class _MonsterRing(_MonsterJoinNeigh):
         else:
             while n > 1:
                 if severe:
-                    self.journal.warning(f'Molecule disconnected in {n} parts. Please inspect final product!')
+                    self.journal.info(f'Molecule disconnected in {n} parts. Please inspect final product!')
                 else:
                     self.journal.debug('Linking two disconnected fragments')
                 # ----- get names ---------------

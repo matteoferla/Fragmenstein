@@ -20,6 +20,7 @@ from rdkit.Chem import rdmolops
 from ._join_neighboring import _MonsterJoinNeigh
 from .bond_provenance import BondProvenance
 from .positional_mapping import GPM
+from ..error import DistanceError, FragmensteinError
 
 
 class _MonsterMerge(_MonsterJoinNeigh, GPM):
@@ -50,25 +51,25 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
         for fragmentanda in hits[1:]:
             try:
                 scaffold = self.merge_pair(scaffold, fragmentanda)
-            except ConnectionError:
+            except FragmensteinError:
                 save_for_later.append(fragmentanda)
         # second try
         join_later = []
         for fragmentanda in save_for_later:
             try:
                 scaffold = self.merge_pair(scaffold, fragmentanda)
-            except ConnectionError:
+            except FragmensteinError:
                 join_later.append(fragmentanda)
         # join (last ditch)
         for fragmentanda in join_later:
             if linked:
                 try:
                     scaffold = self.join_neighboring_mols(scaffold, fragmentanda)
-                except ConnectionError:
+                except FragmensteinError as error:
                     self.unmatched.append(fragmentanda.GetProp("_Name"))
                     msg = f'Hit {fragmentanda.GetProp("_Name")} has no connections! Skipping!'
                     if self.throw_on_discard:
-                        raise ConnectionError(msg)
+                        raise error
                     else:
                         warn(msg)
             else:
@@ -151,7 +152,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
             A2B_mapping = self.get_positional_mapping(scaffold, fragmentanda)
         get_key = lambda d, v: list(d.keys())[list(d.values()).index(v)]
         if len(A2B_mapping) == 0:
-            raise ConnectionError('No overlap!')
+            raise DistanceError(hits=[scaffold, fragmentanda])
         # store alternative atom symbols.
         for si, fi in A2B_mapping.items():
             sa = scaffold.GetAtomWithIdx(si)
