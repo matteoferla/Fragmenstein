@@ -73,6 +73,7 @@ class _MonsterUtilCompare:
         Store the color of the origin in the mol as the private property _color
         :return:
         """
+        # color_maps = {'benzene': {0: '#AED882', ...},..
         color_maps: Dict[str, Dict[int, str]] = self.get_color_origins()
         for hit in self.hits:  #:Chem.Mol
             name = hit.GetProp('_Name')
@@ -81,7 +82,7 @@ class _MonsterUtilCompare:
             if name not in color_maps:
                 continue
             for i in color_maps[name]:
-                hit.GetAtomWithIdx(i).SetProp('_color', color_maps[name][i])
+                hit.GetAtomWithIdx(i % 100).SetProp('_color', color_maps[name][i])
         followup_map = color_maps[self.positioned_mol.GetProp('_Name')]
         for atom in self.positioned_mol.GetAtoms():  #: Chem.Atom
             atom.SetProp('_color', '#FFFFFF')  # white
