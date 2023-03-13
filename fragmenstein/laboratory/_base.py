@@ -98,7 +98,7 @@ class LabBench:
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})
         # list of dict to dataframe
         df = pd.DataFrame(self.raw_results)
-        if len(df) or '∆∆G' not in df.columns:
+        if not len(df) or '∆∆G' not in df.columns:
             Victor.journal.critical('No results were found. Returning an empty dataframe.')
             return df
         df['LE'] = df.apply(
@@ -114,10 +114,19 @@ class LabBench:
         df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
         return df
 
-    def categorize(self, row: pd.Series) -> str:
+    def categorize(self,
+                   row: pd.Series,
+                   size_tolerance: int=0,
+                   move_cutoff:float=1.,
+                   ddG_cutoff:float=0.,
+                   ) -> str:
         """
         Given a row categorise the 'outcome' field.
         Called by ``get_completed``.
+
+        size_tolerance is the number of atoms below the largest hit that is still acceptable.
+        move_cutoff is the RMSD of the minimized molecules. Below this is acceptable.
+        ddG_cutoff is the ∆∆G of the minimized molecules. Below this is acceptable.
 
         Subclass Laboratory to change what the outcome field ends up being.
         But do remember to update the ``category_labels`` attribute.
@@ -131,12 +140,12 @@ class LabBench:
             return 'timeout'
         elif is_filled(row.error):
             return 'crashed'
-        elif max(map(operator.methodcaller('GetNumHeavyAtoms'), row.hit_mols))  \
+        elif max(map(operator.methodcaller('GetNumHeavyAtoms'), row.hit_mols)) - size_tolerance  \
                 >= row.unminimized_mol.GetNumHeavyAtoms():
             return 'equally sized'
-        elif row.comRMSD > 1:
+        elif row.comRMSD > move_cutoff:
             return 'too moved'
-        elif row['∆∆G'] >= 0:
+        elif row['∆∆G'] >= ddG_cutoff:
             return 'too contorted'
         else:
             return 'acceptable'
