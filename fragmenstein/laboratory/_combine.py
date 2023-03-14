@@ -5,7 +5,7 @@ import pandas as pd
 import pebble
 from rdkit import Chem
 
-from ._base import LabBench, binarize
+from ._base import LabBench, binarize, unbinarize
 from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
 
 
@@ -19,7 +19,8 @@ class LabCombine(LabBench):
         pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         tentative_name = 'UNKNOWN'
         try:
-            hits: List[Chem.Mol] = [Chem.Mol(bh) for bh in binary_hits]
+            hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
+            assert len(hits) > 0, 'No valid hits!'
             tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
             v = self.Victor(hits=hits,
@@ -42,7 +43,7 @@ class LabCombine(LabBench):
             raise err
         except Exception as error:
             error_msg = f'{error.__class__.__name__} {error}'
-            v.journal.critical(f'*** {error_msg} for {tentative_name}')
+            self.Victor.journal.critical(f'*** {error_msg} for {tentative_name}')
             return dict(error=error_msg, name=tentative_name)
 
     def combine(self,

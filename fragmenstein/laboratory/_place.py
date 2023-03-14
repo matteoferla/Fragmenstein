@@ -1,5 +1,5 @@
 import sys
-from typing import (Union, Iterator, Sequence)
+from typing import (Union, Iterator, Sequence, List)
 
 import pandas as pd
 import pebble
@@ -42,11 +42,13 @@ class LabPlace(LabBench):
         This is the placement subprocess. The combination subprocess is ``place_subprocess``.
         They are very similar...
         """
-        name = inputs['name']
-        smiles =  inputs['smiles']
+        name: str = inputs['name']
+        smiles: str = inputs['smiles']
         pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         try:
-            hits = [unbinarize(bh) for bh in inputs['binary_hits']]
+            binary_hits = inputs['binary_hits']
+            hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
+            assert len(hits) > 0, 'No valid hits!'
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
             v = self.Victor(hits=hits,
                             pdb_block=self.pdbblock,

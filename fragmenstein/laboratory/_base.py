@@ -38,10 +38,10 @@ def unbinarize(bin: bytes, ignore_errors:bool=True) -> Union[Chem.Mol, None]:
     exception = Exception if ignore_errors else ()
     if isinstance(bin, Chem.Mol):  # lol
         return bin
-    if isinstance(bin, float):  # nan
+    elif not isinstance(bin, bytes) and ignore_errors:
         return None
-    if bin is None:
-        return None
+    elif not isinstance(bin, bytes):
+        raise TypeError('the molecule binary provide is not a bytes')
     try:
         return Chem.Mol(bin)
     except KeyboardInterrupt as err:
