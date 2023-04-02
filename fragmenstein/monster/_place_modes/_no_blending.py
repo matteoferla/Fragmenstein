@@ -8,7 +8,7 @@ from ._refine import _MonsterRefine
 from ..mcs_mapping import IndexMap, flip_mapping
 from ..unmerge_mapper import Unmerge
 from collections import Counter
-from ...error import DistanceError
+from ...error import DistanceError, PoisonError
 
 class _MonsterNone(_MonsterRefine):
 
@@ -28,7 +28,8 @@ class _MonsterNone(_MonsterRefine):
                          n_poisonous:int,
                          primary_name:Optional[str]=None) -> Unmerge:
         """
-        The second third of the no_blending method. But also used by expansion mapping.
+        The second third of the no_blending method.
+        But also used by expansion mapping.
 
         :param maps:
         :return:
@@ -55,7 +56,13 @@ class _MonsterNone(_MonsterRefine):
                                    f'via the removal of {unmerger.poisonous_indices}')
                 unmerger = retried_unmerger
                 unmatched = retried_unmatched
-        if self.throw_on_discard and len(unmatched):
+        if not self.throw_on_discard:
+            pass
+        elif len(unmatched) == 0:
+            pass
+        elif len(unmerger.poisonous_indices):
+            raise PoisonError(mol=unmatched, indices=unmerger.poisonous_indices)
+        else:
             raise DistanceError(hits=unmatched)
         self.journal.debug(f'followup to scaffold {unmerger.combined_map}')
         return unmerger
