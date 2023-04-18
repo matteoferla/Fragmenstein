@@ -144,6 +144,12 @@ class Internals(unittest.TestCase):
         hybrid = Laboratory.percent_hybrid(None, chlorobutane)
         self.assertEqual(hybrid, 34)  # ethanol has 1 single origin atom, isopronanol has 2
 
+    # def test_doubleconstraint(self):
+    #     diaminopentane = Chem.MolFromSmiles('NCCCCCN')
+    #     AllChem.EmbedMolecule(diaminopentane)
+    #     AllChem
+    #
+    #     #Monster([])
 
 if __name__ == '__main__':
     unittest.main()
