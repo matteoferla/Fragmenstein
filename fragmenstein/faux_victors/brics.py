@@ -15,7 +15,7 @@ class AccountableBRICS:
 
     ... code-block:: python
         decomposer = AccountableBRICS(hits)
-        df: pd.DataFrame = decomposer(cutoff=d.median, max_mergers=100)
+        df: pd.DataFrame = decomposer(cutoff=decomposer.median, max_mergers=100)
         decomposer.info
         # {'N_hits': 44, 'N_fragments': 157, 'too_small': 0, 'missing': [], 'max_reached': True, 'N_built': 100}
 
