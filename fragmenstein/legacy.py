@@ -20,6 +20,8 @@ if sys.version_info.major != 3 or sys.version_info.minor < 8:
     typing.overload = overload  # noqa
 if sys.version_info.major != 3 or sys.version_info.minor < 11:
     # Unpack allows clean annotation of **kwargs!
-    from typing_extensions import Unpack  # this was only "recently" added... if you get an error: upgrade package
+    from typing_extensions import Unpack, NotRequired
+    # this was only "recently" added... if you get an error: upgrade package typing_extensions
     import typing
     typing.Unpack = Unpack
+    typing.NotRequired = NotRequired
