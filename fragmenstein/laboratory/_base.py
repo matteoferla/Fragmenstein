@@ -54,7 +54,7 @@ class LabBench:
     # the ``outcome`` column in the pandas dataframe can have these values in order of niceness:
     category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'equally sized', 'deviant', 'acceptable']
 
-    def __init__(self, pdbblock: str, covalent_resi: Union[int, str, None]):
+    def __init__(self, pdbblock: str, covalent_resi: Union[int, str, None] = None):
         self.pdbblock = pdbblock
         self.covalent_resi = covalent_resi
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
