@@ -71,6 +71,7 @@ class WaltonTests(unittest.TestCase):
                         8.0: 'c1ccc(OCCOc2ccccc2)cc1', # glycol bridge
                         }
         for distance, expected in expectations.items():
+            print(distance)
             merged: Chem.Mol = self.pull_apart([Chem.Mol(benzene), Chem.Mol(benzene)], distance)
             self.smiles_assertEqual(expected, merged)
 

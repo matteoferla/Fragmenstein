@@ -4,7 +4,7 @@ import unittest, os
 # ======================================================================================================================
 from multiprocessing import Process
 
-import pyrosetta
+from fragmenstein.igor.pyrosetta_import import pyrosetta
 
 # ======================================================================================================================
 from rdkit import Chem
@@ -12,7 +12,8 @@ from rdkit.Chem import AllChem, rdqueries
 from rdkit.Geometry import Point3D
 
 # TESTS IS EXTERNAL TO FRAGMENSTEIN DO NOT CHANGE TO RELATIVE!
-from fragmenstein import Monster, Victor, Igor, mpro_data, Walton
+from fragmenstein import Monster, Igor, Victor
+from fragmenstein.demo import Mac1
 from fragmenstein.error import FragmensteinError
 from fragmenstein.mpro import MProVictor
 from typing import *
@@ -143,6 +144,13 @@ class Internals(unittest.TestCase):
         chlorobutane.SetProp('_Origins', json.dumps(origins))
         hybrid = Laboratory.percent_hybrid(None, chlorobutane)
         self.assertEqual(hybrid, 34)  # ethanol has 1 single origin atom, isopronanol has 2
+
+    def test_assign_empty(self):
+        vicky = Victor.__new__(Victor)
+        vicky.apo_pdbblock = Mac1.get_template()
+        print(vicky._get_empty_resi())
+
+
 
     # def test_doubleconstraint(self):
     #     diaminopentane = Chem.MolFromSmiles('NCCCCCN')
