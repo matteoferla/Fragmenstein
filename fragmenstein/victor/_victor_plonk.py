@@ -1,5 +1,5 @@
-import re
-from typing import Optional
+import re, string
+from typing import Optional, Set
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -112,6 +112,16 @@ class _VictorPlonk(_VictorJournal):
             p_resi, p_chain = re.match('(\d+)(\D?)', str(self.covalent_resi)).groups()
             if not pdbdata.has_residue_index(int(p_resi), p_chain):
                 self.covalent_resi = f'{pdbdata.get_residue_index(entry)}{pdbdata.get_chain(entry)}'
+
+    def _get_empty_resi(self) -> str:
+        """
+        return the first empty chain basically.
+        """
+        pdbdata = MinimalPDBParser(self.apo_pdbblock,
+                                   remove_other_hetatms=False)
+        chains: Set[str] = {pdbdata.get_chain(entry) for entry in pdbdata.coordinates}
+        missing = sorted(set(string.ascii_uppercase).difference(chains))
+        return f'1{missing[0]}'
 
 
     def _plonk_monster_in_structure_raw(self):

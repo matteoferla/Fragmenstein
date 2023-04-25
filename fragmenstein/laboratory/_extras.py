@@ -33,3 +33,6 @@ class LabExtras:
                 return value
             else:
                 return cls.error_classifications['UNCLASSIFIED']
+
+    def convert_to_sdf(self, df):
+        pass

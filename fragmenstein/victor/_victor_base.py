@@ -99,7 +99,7 @@ class _VictorBase:
                  pdb_filename: Union[None, str] = None,
                  pdb_block: Union[None, str] = None,
                  ligand_resn: str = 'LIG',
-                 ligand_resi: Union[int, str] = '1B',
+                 ligand_resi: Union[int, str, None] = None,
                  covalent_resn: str = 'CYS',  # no other option is accepted.
                  covalent_resi: Optional[Union[int, str]] = None,
                  extra_protein_constraint: Union[str] = None,
@@ -132,7 +132,7 @@ class _VictorBase:
             raise ValueError('Provide a pdb_filename or pdb_block of the template')
         self.hits = hits
         self.ligand_resn = ligand_resn.upper()
-        self.ligand_resi = ligand_resi
+        self.ligand_resi = ligand_resi if ligand_resi else self._get_empty_resi()
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
         self._correct_covalent_resi()  # noqa defined in plonk. todo: split into covalent and anchor residue.

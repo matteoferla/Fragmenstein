@@ -24,7 +24,7 @@ class MolPlacementInput(TypedDict):
     smiles: str
     name: str
     hits: Sequence[Chem.Mol]
-    custom_map: NotRequired[Dict[Dict[int, int]]]
+    custom_map: NotRequired[Dict[str, Dict[int, int]]]
 
 
 class BinPlacementInput(TypedDict):
@@ -35,7 +35,7 @@ class BinPlacementInput(TypedDict):
     smiles: str
     name: str
     binary_hits: Sequence[bytes]
-    custom_map: NotRequired[Dict[Dict[int, int]]]
+    custom_map: NotRequired[Dict[str, Dict[int, int]]]
 
 class LabPlace(LabBench):
 
@@ -55,7 +55,7 @@ class LabPlace(LabBench):
             victor = self.Victor(hits=hits,
                             pdb_block=self.pdbblock,
                             ligand_resn='LIG',
-                            ligand_resi='1B',
+                            ligand_resi=self.ligand_resi,
                             covalent_resi=self.covalent_resi,
                             )
             victor.place(smiles, long_name=name)

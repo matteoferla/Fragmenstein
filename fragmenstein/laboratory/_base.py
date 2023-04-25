@@ -54,11 +54,12 @@ class LabBench:
     # the ``outcome`` column in the pandas dataframe can have these values in order of niceness:
     category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'equally sized', 'deviant', 'acceptable']
 
-    def __init__(self, pdbblock: str, covalent_resi: Union[int, str, None] = None):
+    def __init__(self, pdbblock: str, covalent_resi: Union[int, str, None] = None, ligand_resi: Union[str, None]=None):
         self.pdbblock = pdbblock
         self.covalent_resi = covalent_resi
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
         self.raw_results = []
+        self.ligand_resi = ligand_resi
         self.Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
         if not len(Victor.journal.handlers):
             Victor.enable_stdout(logging.CRITICAL)

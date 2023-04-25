@@ -26,7 +26,7 @@ class LabCombine(LabBench):
             v = self.Victor(hits=hits,
                        pdb_block=self.pdbblock,
                        ligand_resn='LIG',
-                       ligand_resi='1B',
+                       ligand_resi=self.ligand_resi,
                        covalent_resi=self.covalent_resi,
                        # a random residue is **still** required for the constaint ref atom.
                        )
