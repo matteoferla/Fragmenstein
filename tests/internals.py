@@ -19,12 +19,15 @@ from fragmenstein.mpro import MProVictor
 from typing import *
 import numpy as np
 import json
-from rdkit import Chem
-from fragmenstein import Laboratory
+from rdkit import Chem, rdBase
+from fragmenstein import Laboratory, Victor
 
 # ======================================================================================================================
 
 class Internals(unittest.TestCase):
+
+    def setUp(self):
+        Victor.capture_rdkit_log()
     def test_triangle(self):
         """
         Test triangle prevention.

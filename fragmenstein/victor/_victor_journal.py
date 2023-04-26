@@ -2,7 +2,7 @@ from ._victor_safety import _VictorSafety
 from ._loggerwriter import LoggerWriter
 import logging, sys, os, re, requests, unicodedata
 from rdkit import Chem
-from rdkit.rdBase import WrapLogs
+from rdkit.rdBase import WrapLogs, LogToPythonLogger
 from rdkit_to_params import Params
 
 
@@ -69,10 +69,15 @@ class _VictorJournal(_VictorSafety):
         RDKit spits a few warning and errors.
         This makes them inline with the logger.
         """
-        if cls._rdkit_captured:
-            return
-        WrapLogs()
-        sys.stderr = LoggerWriter(cls.journal.warning)
+        # formerly:
+        #WrapLogs()
+        #sys.stderr = LoggerWriter(cls.journal.warning)
+        rdkit_log = logging.getLogger('rdkit')
+        if not len(cls.journal.handlers):
+            rdkit_log.handlers = [logging.NullHandler()]
+        else:
+            rdkit_log.handlers = cls.journal.handlers
+        LogToPythonLogger()
         cls._rdkit_captured = True
 
     _rosetta_captured = False
