@@ -105,7 +105,7 @@ class _VictorBase:
                  extra_protein_constraint: Union[str] = None,
                  pose_fx: Optional[Callable] = None,
                  monster_random_seed: Optional[int] = None
-                 ):
+                 ) -> object:
         """
         Initialise Victor in order to allow either combinations (merging/linking without a given aimed for molecule)
         or placements (using a given aimed for molecule).

@@ -255,6 +255,7 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         This is however often a pdb. This converts.
         `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimized()` calls ``mol_from_pose``
         and ``copy_bonds_by_atomnames`` which does not destroy pdbinfo.
+        The latter is glitchy. Use ``combine_for_bondorder``.
 
         See ``extract_mol`` for single.
 

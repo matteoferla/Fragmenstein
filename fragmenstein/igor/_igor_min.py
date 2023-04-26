@@ -51,12 +51,18 @@ class _IgorMin(_IgorBase):
         if pose is None:
             pose = self.pose
         holo: Chem.Mol = Chem.MolFromPDBBlock(self.pose2str(pose), proximityBonding=False, removeHs=False)
+        # resn is not stored in the Igor object so we get it from the pose
         ligand_resn = pose.residue(self.ligand_residue[0]).name3()
         # if the above differs from `Victor.ligand_resn` it is a problem though but as I cannot fathom why it would be
         # it is likely impossible and Igor does not know so, it is likely fine...
         ligand: Chem.Mol = Chem.SplitMolByPDBResidues(holo, whiteList=[ligand_resn])[ligand_resn]
         if add_dummy:
             ligand = add_dummy_to_mol(ligand, ligand_resn, holo)
+        # store PDB atom names as molFileAlias
+        for a in ligand.GetAtoms():
+            name = a.GetPDBResidueInfo().GetName()
+            a.SetProp('molFileAlias', name)
+        # done. Bond order fixed later
         return ligand
 
     def make_ligand_only_pose(self) -> pyrosetta.Pose:

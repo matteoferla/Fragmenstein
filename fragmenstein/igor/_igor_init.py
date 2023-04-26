@@ -43,8 +43,8 @@ class _IgorInit(_IgorBase):
             pyrosetta.rosetta.core.pose.addVirtualResAsRoot(self.pose)
         pyrosetta.create_score_function('ref2015')(self.pose)
         self.constraint_file = constraint_file  #: str
-        self.ligand_residue = self._parse_residue(ligand_residue)
-        self.key_residues = self._parse_key_residues(key_residues)
+        self.ligand_residue: List[int] = self._parse_residue(ligand_residue)
+        self.key_residues: List[int] = self._parse_key_residues(key_residues)
 
     @classmethod
     def from_pdbblock(cls,
@@ -94,14 +94,14 @@ class _IgorInit(_IgorBase):
     # ============= Private methods for init ===========================================================================
 
     def _parse_residue(self, residue: Union[int, str, Tuple[int, str], pyrosetta.Vector1]):
-        parsed = []
+        parsed: List[int] = []
         if residue is None:
             ## assuming it is LIG then.
             ligand_selector = pyrosetta.rosetta.core.select.residue_selector.ResidueNameSelector()
             ligand_selector.set_residue_name3('LIG')
             m = self._vector2residues(ligand_selector.apply(self.pose))  # noqa its in Igor_min
-            if len(m) == 1:
-                warn('There are many residues called LIG!. Please specify the name3/resn/resi yourself!')
+            if len(m) > 1:
+                warn('There are many residues called LIG!. Please consider specifying the name3/resn/resi yourself!')
             for r in m:
                 parsed.append(r)
         elif isinstance(residue, int):

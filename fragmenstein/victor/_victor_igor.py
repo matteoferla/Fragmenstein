@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from ..m_rmsd import mRMSD
 from typing import Dict, Optional, Callable
-from ..extraction_funs import copy_bonds_by_atomnames
+from ..extraction_funs import combine_for_bondorder
 
 class _VictorIgor(_VictorStore):
 
@@ -21,11 +21,10 @@ class _VictorIgor(_VictorStore):
             self.journal.debug(f'{self.long_name} - making ligand w/ dummy (if present)')
         if ligand is None:  # normal route
             ligand = self.igor.mol_from_pose(add_dummy=add_dummy)
-        # fix bond orders without breaking pdbinfo:
-        if not copy_bonds_by_atomnames(self.params.mol, ligand):
-            self.journal.warning(f'{self.long_name} - Rosetta ring closure failed: +infinity kcal/mol penalty')
-            self.energy_score['ligand_ref2015']['total_score'] = float('inf')
-        return ligand
+        new_ligand: Chem.Mol = combine_for_bondorder(self.params.mol, ligand)
+        # self.journal.warning(f'{self.long_name} - Rosetta ring closure failed: +infinity kcal/mol penalty')
+        # self.energy_score['ligand_ref2015']['total_score'] = float('inf')
+        return new_ligand
 
     def quick_reanimate(self) -> float:
         """

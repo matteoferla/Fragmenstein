@@ -26,6 +26,8 @@ class _IgorUtils(_IgorBase):
         :return:
         """
         docked = self.pose.clone()
+        # self.ligand_residue[0] is pose index. This is a bit weird / hacky for now:
+        # the pdb_info needs resetting everything chain A.
         docked.pdb_info().set_resinfo(res=self.ligand_residue[0], chain_id='B', pdb_res=1)
         docked.remove_constraints()
         pyrosetta.rosetta.protocols.docking.setup_foldtree(docked, 'A_B', pyrosetta.Vector1([1]))
