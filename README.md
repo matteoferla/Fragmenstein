@@ -234,6 +234,18 @@ fragment based screening.
 [This dataset](https://github.com/postera-ai/COVID_moonshot_submissions) has some unique peculiarities that potentially
 are not encountered in other projects.
 
+## Command line interface
+
+The strength of Fragmenstein is as a python module, but there is a command line interface.
+
+```bash
+fragmenstein monster combine -i hit1.mol hit2.mol >> combo.mol
+fragmenstein monster place -i hit1.mol hit2.mol -s 'CCO' >> placed.mol
+fragmenstein victor combine -i hit1.mol hit2.mol -t protein.pdb -o output >> combo.mol
+fragmenstein victor combine -i hit1.mol hit2.mol -s 'NCO' -n molname -t protein.pdb -o output >> placed.mol
+fragmenstein laboratory combine -i hits.sdf -o output -d output.csv -s output.sdf -c 24
+```
+
 ## Authors
 
 | Author               | Role                    | Homepage                                              | Department                                               | Badges                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
