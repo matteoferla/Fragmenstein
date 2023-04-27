@@ -66,7 +66,7 @@ class MProPlaceTester(unittest.TestCase):
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         # in unmatched, x0995 is the red herring.
-        self.assertIn('x0995', victor.monster.unmatched)
+        self.assertIn('x0995', victor.monster.unmatched, f'x0995 is the red herring')
         #victor.make_pse()
 
     def test_pentachromatic(self):
