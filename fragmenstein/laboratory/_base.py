@@ -101,7 +101,7 @@ class LabBench:
             Victor.journal.critical('No results were found. Returning an empty dataframe.')
             return df
         df['LE'] = df.apply(
-            lambda row: row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
+            lambda row: - row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)
         nan_to_list = lambda value: value if isinstance(value, list) else []
         df['disregarded'] = df.disregarded.apply(nan_to_list)  # str
