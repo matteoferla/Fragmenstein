@@ -1,4 +1,4 @@
-import sys
+import sys, functools
 from typing import (Union, Iterator, Sequence, List)
 
 import pandas as pd
@@ -68,7 +68,7 @@ class LabPlace(LabBench):
             raise err
         except Exception as error:
             error_msg = f'{error.__class__.__name__} {error}'
-            victor.journal.critical(f'*** {error_msg} for {name}')
+            self.Victor.journal.critical(f'*** {error_msg} for {name}')
             return dict(error=error_msg, name=name)
 
     def place(self,
@@ -105,7 +105,9 @@ class LabPlace(LabBench):
                 else:
                     yield inputs
 
-        return self(iterator=generator(), fun=self.place_subprocess, **kwargs)
+        df = self(iterator=generator(), fun=self.place_subprocess, **kwargs)
+        df['outcome'] = df.apply(functools.partial(self.categorize, size_tolerance=+50), axis=1)
+        return df
 
 
 # prepend docstring to combine

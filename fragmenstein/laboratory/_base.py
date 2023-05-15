@@ -92,8 +92,6 @@ class LabBench:
                 print('Keyboard!')
                 self.raw_results.append({'error': 'KeyboardInterrupt', 'name': ''})
                 break
-            except KeyboardInterrupt as err:
-                raise err
             except Exception as error:
                 Victor.journal.error(f'{error.__class__.__name__}: {error}')
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})
@@ -111,7 +109,6 @@ class LabBench:
         df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
         df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
-        df['outcome'] = df.apply(self.categorize, axis=1)
         df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
         return df
 

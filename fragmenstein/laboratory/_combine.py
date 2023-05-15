@@ -59,7 +59,9 @@ class LabCombine(LabBench):
             iterator = itertools.permutations(map(binarize, mols), combination_size)
         else:
             iterator = itertools.combinations(map(binarize, mols), combination_size)
-        return self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
+        df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
+        df['outcome'] = df.apply(self.categorize, axis=1)
+        return df
 
 # prepend docstring to combine
 LabCombine.combine.__doc__ = LabBench.__call__.__doc__  + '\n\n' + LabCombine.combine.__doc__
