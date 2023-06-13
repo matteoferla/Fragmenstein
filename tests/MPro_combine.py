@@ -1,19 +1,12 @@
-import logging
-import tempfile
-import unittest, os
-# ======================================================================================================================
-from multiprocessing import Process
+import unittest
 
-import pyrosetta
-
-# ======================================================================================================================
-from rdkit import Chem
-from rdkit.Chem import AllChem
-
-from fragmenstein import Monster, Victor, Igor, mpro_data, Walton
+from fragmenstein import Igor
 from fragmenstein.mpro import MProVictor
-from typing import *
-import numpy as np
+
+
+# ======================================================================================================================
+# ======================================================================================================================
+
 
 # ======================================================================================================================
 
@@ -44,7 +37,6 @@ class VictorCombineTests(unittest.TestCase):
         MProVictor.quick_reanimation = False
         victor = MProVictor.from_hit_codes(hit_codes=['x0426', 'x0540'])
         victor.combine()
-
 
 
 if __name__ == '__main__':

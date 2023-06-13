@@ -23,7 +23,7 @@ from typing import List, Union, Optional, Callable, Dict
 
 from rdkit import Chem
 from ..m_rmsd import mRMSD
-from ..monster import Monster
+from ..monster import Monster   # will become Victor.Monster
 
 
 class _VictorBase:
@@ -35,6 +35,8 @@ class _VictorBase:
     work_path = 'output'
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)
+    # here for ease of subclassing
+    Monster = Monster
 
     covalent_definitions = [{'residue': 'CYS', 'smiles': '*SC', 'atomnames': ['CONN3', 'SG', 'CB']}]
     warhead_definitions = [{'name': 'acrylamide',
@@ -155,9 +157,9 @@ class _VictorBase:
         self.constraint = None
         self.modifications = {}
         self.unminimized_pdbblock = None
-        self.monster = Monster(hits,
-                               average_position=self.monster_average_position,
-                               random_seed=self.random_seed)
+        self.monster = self.Monster(hits,
+                                    average_position=self.monster_average_position,
+                                    random_seed=self.random_seed)
         self.monster.throw_on_discard = self.monster_throw_on_discard
         self.igor = None
         self.unbound_pose = None
