@@ -517,3 +517,16 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                                                replacement=Chem.MolFromSmiles(warhead_def['noncovalent'])
                                                )  # noqa it is filled.
         return Chem.MolToSmiles(unrxn_mols[0]), warhead_def['name']
+
+    def get_plip_interactions(self):
+        """
+        Optional, but useful to have.
+        Get the interactions from PLIP.
+        """
+        from .plip import PLIPper
+        plipper = PLIPper(pdb_block=self.minimized_pdbblock,
+                          resn=self.ligand_resn,
+                          resi=int(self.ligand_resi[:-1]),
+                          chain=self.ligand_resi[-1])
+        setattr(self, 'plipper', plipper)  # new attribute
+        return plipper.interaction_counts
