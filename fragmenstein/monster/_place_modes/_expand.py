@@ -28,14 +28,22 @@ class _MonsterExpand(_MonsterNone):
         # which is called by ``_get_unmerge_expansions``
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = self._compute_overlaps()
         if self.throw_on_discard:
+            # The two hits do not overlap. This was a decision of the user surely.
             positional_overlaps = {pairing: mapping for pairing, mapping in positional_overlaps.items() if mapping}
             if len(positional_overlaps) == 0 and len(self.hits) > 1:
                 # `positional_overlaps` is always empty if there is only one hit!
-                raise DistanceError(hits=self.hits)
+                # raise DistanceError(hits=self.hits)
+                # TODO Add way to make this fatal on request!
+                self.journal.warning(f'No positions overlap of the hits')
         unmergers: List[Unmerge] = self._get_unmerge_expansions(primary_name,
                                                                 primary_maps,
                                                                 positional_overlaps,
                                                                 min_mode_index)
+        if self.throw_on_discard:
+            hit_names = [h.GetProp('_Name') for h in self.hits]
+            unmergers = [u for u in unmergers if all([h in u.maps and len(u.maps[h]) and len(u.maps[h][0]) for h in hit_names])]
+            if len(unmergers) == 0:
+                raise DistanceError(hits=self.hits)
         # -------------- Sort the unmergers --------------------------------
         self.positioned_mol, self.mol_options = self._place_unmerger_expansions(unmergers)
         return self.positioned_mol
@@ -171,7 +179,7 @@ class _MonsterExpand(_MonsterNone):
                 if other_name == hit_name:
                     continue
                 # ------------- deal with atoms that overlap --------------------------
-                overlaps: Dict[int, int] = positional_overlaps[(hit_name, other_name)]
+                overlaps: Dict[int, int] = positional_overlaps.get((hit_name, other_name), {})
                 if hit_atom_idx in overlaps:
                     # ignore the special overrides
                     if template_atom_idx < 0:

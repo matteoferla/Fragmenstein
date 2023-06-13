@@ -107,6 +107,8 @@ class _IgorInit(_IgorBase):
         elif isinstance(residue, int):
             # it is a pose residue index.
             parsed.append(residue)
+        elif isinstance(residue, str) and residue.isdigit():
+            parsed.append(int(residue))
         elif isinstance(residue, str) and residue[:-1].isdigit():
             # it is a pdb residue index + chain e.g. 23A.
             res = int(residue[:-1])
@@ -121,8 +123,10 @@ class _IgorInit(_IgorBase):
                 parsed.append(r)
         elif isinstance(residue, tuple) and len(residue) == 2:
             parsed = self.pose.pdb_info().pdb2pose(res=residue[0], chain=residue[1])
-        elif isinstance(residue, pyrosetta.Vector1):
-            for r in [i + 1 for i, v in enumerate(residue) if v == 1]:
+        # elif isinstance(residue, pyrosetta.Vector1): will raise an error
+        # as the latter is a function. that redirects to `vector1_int`, `vector1_double` etc.
+        elif hasattr(residue, '__class__') and 'vector1' in residue.__class__.__name__:
+            for r in [int(i + 1) for i, v in enumerate(residue) if int(v) == 1]:
                 parsed.append(r)
         else:
             raise ValueError(f'No idea what {residue} is.')

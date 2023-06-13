@@ -10,6 +10,7 @@ __email__ = "matteo.ferla@gmail.com"
 __date__ = "2020 A.D."
 __license__ = "MIT"
 __citation__ = ""
+
 from ..version import __version__
 
 ########################################################################################################################
@@ -90,7 +91,7 @@ class _VictorBase:
 
     error_to_catch = ()  # Exception
 
-    remove_other_hetatms = True #remove all protein heteroatoms that are not water or ligand when loaded from PDB
+    remove_other_hetatms = True  # remove all protein heteroatoms that are not water or ligand when loaded from PDB
 
     # ================== Init ==========================================================================================
 
@@ -131,8 +132,8 @@ class _VictorBase:
         else:
             raise ValueError('Provide a pdb_filename or pdb_block of the template')
         self.hits = hits
-        self.ligand_resn = ligand_resn.upper()
-        self.ligand_resi = ligand_resi if ligand_resi else self._get_empty_resi()
+        self.ligand_resn: str = ligand_resn.upper()
+        self.ligand_resi: str = ligand_resi if ligand_resi else self._get_empty_resi()
         self.covalent_resn = covalent_resn.upper()
         self.covalent_resi = covalent_resi
         self._correct_covalent_resi()  # noqa defined in plonk. todo: split into covalent and anchor residue.
