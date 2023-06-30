@@ -46,3 +46,4 @@ from .mpro import data as mpro_data
 from . import branding
 from .display import display_mols, MolNGLWidget
 from .error import FragmensteinError, DistanceError, ShoddyCodeError, PoisonError
+from .faux_victors import Wictor  # the rest are mostly experiments
