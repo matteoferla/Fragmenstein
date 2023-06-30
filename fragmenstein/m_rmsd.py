@@ -11,6 +11,9 @@ __email__ = "matteo.ferla@gmail.com"
 __date__ = "2020 A.D."
 __license__ = "MIT"
 __citation__ = ""
+
+import warnings
+
 from .version import __version__
 
 ########################################################################################################################
@@ -18,10 +21,12 @@ from .version import __version__
 
 from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem
+from rdkit.Geometry import Point3D
 
 from typing import Sequence, List, Optional, Tuple
 
 import json, re
+import numpy as np
 
 from .monster import Monster
 from typing import *
@@ -168,6 +173,9 @@ class mRMSD:
 
     @classmethod
     def is_origin_annotated(cls, mol: Chem.Mol) -> bool:
+        """
+        This is atom not mol.
+        """
         for atom in mol.GetAtoms():
             if len(cls._get_origin(atom)) > 0:
                 return True
@@ -210,22 +218,38 @@ class mRMSD:
                             hits: Sequence[Chem.Mol],
                             annotated: Chem.Mol,
                             ) -> mRMSD:
-        xyz_present = any([atom.HasProp('_x') for atom in annotated.GetAtoms()])
-        # combine will have xyz, place no. TODO: make this more robust
-        if xyz_present:
+        """
+        The two molecules are the same (atom names included) but the followup lacks annotations.
+        """
+        cls.overannotate(annotated, hits=hits, priority=('atom_origin', 'mol_origin', 'xyz'))
+        if all([cls.is_xyz_annotated(annotated),
+                annotated.GetAtomWithIdx(0).GetPDBResidueInfo() is not None,
+                followup.GetAtomWithIdx(0).GetPDBResidueInfo() is not None
+                ]):
+            # match by atom name
             name2xyz = {}
             for atom in annotated.GetAtoms():
                 pi = atom.GetPDBResidueInfo()
                 if pi and atom.HasProp('_x'):
                     name2xyz[pi.GetName()] = {cart: atom.GetDoubleProp("_" + cart) for cart in ('x', 'y', 'z')}
-
             for atom in followup.GetAtoms():
                 pi = atom.GetPDBResidueInfo()
+                if pi is None:
+                    continue
                 name = pi.GetName()
                 if pi and name in name2xyz:
                     for cart in ('x', 'y', 'z'):
                         atom.SetDoubleProp('_' + cart, name2xyz[name][cart])
             return cls.from_annotated_mols(followup, hits)
+        elif (atom.GetSymbol() for atom in annotated.GetAtoms()) == (atom.GetSymbol() for atom in followup.GetAtoms()):
+            # element sequence matches... but has no atom names
+            for anno_atom, follow_atom in zip(annotated.GetAtoms(), followup.GetAtoms()):
+                if anno_atom.HasProp('_Origin'):
+                    follow_atom.SetProp('_Origin', anno_atom.GetProp('_Origin'))
+                if anno_atom.HasProp('_x'):
+                    follow_atom.SetProp('_x', anno_atom.GetProp('_x'))
+                    follow_atom.SetProp('_y', anno_atom.GetProp('_y'))
+                    follow_atom.SetProp('_z', anno_atom.GetProp('_z'))
         else:
             # has become nearly redundant with from_unannotated_mols except this expect annotated to have:
             # from_unannotated_mols
@@ -271,6 +295,8 @@ class mRMSD:
     @classmethod
     def copy_origins(cls, annotated: Chem.Mol, target: Chem.Mol):
         """
+        > This is no longer used by ``from_other_annotated_mols``.
+
         Monster leaves a note of what it did. atom prop _Origin is a json of a list of mol _Name dot AtomIdx.
         However, the atom order seems to be maintained but I dont trust it. Also dummy atoms are stripped.
 
@@ -278,6 +304,7 @@ class mRMSD:
         :param target:
         :return: a list of origins
         """
+        warnings.warn('This is no longer used by ``from_other_annotated_mols``.', DeprecationWarning)
         mcs = rdFMCS.FindMCS([target, annotated],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareAny,
@@ -285,6 +312,7 @@ class mRMSD:
         common = Chem.MolFromSmarts(mcs.smartsString)
         dmapping = dict(zip(target.GetSubstructMatch(common), annotated.GetSubstructMatch(common)))
         origins = []
+        cls.overannotate(annotated, [], ('atom_origin', 'mol_origin', 'surrender'))
         for i in range(target.GetNumAtoms()):
             if i in dmapping:
                 atom = annotated.GetAtomWithIdx(dmapping[i])
@@ -303,6 +331,7 @@ class mRMSD:
         :param target:
         :return: a list of mols and a list of orgins (a list too)
         """
+        cls.overannotate(annotated, [], ('atom_origin', 'mol_origin', 'xyz'))
         mcs = rdFMCS.FindMCS([target, annotated],
                              atomCompare=rdFMCS.AtomCompare.CompareElements,
                              bondCompare=rdFMCS.BondCompare.CompareAny,
@@ -329,6 +358,78 @@ class mRMSD:
                 originss.append(origins)
         return options, originss
 
+    @classmethod
+    def overannotate(cls, mol: Chem.Mol, hits: List[Chem.Mol], priority=('mol_origin', 'atom_origin', 'xyz')):
+        """
+        Unfortunately, in an attempt to make users happy, I have to make the code more complicated.
+        There are three different annotation systems going on.
+        The first is the property '_Origin' in the ``Chem.Mol``.
+        The second is the property '_Origin' in the ``Chem.Atom``.
+        The third is the properties '_x', '_y', '_z' in the ``Chem.Atom``.
+
+        This method will take the first priority that is available and propagate it to the other two.
+
+        :param mol: the annotated molecule
+        :param hits: the hits that are used to annotate the molecule
+        :param priority: the priority of the annotation, a sequence of up to four strings:
+            'mol_origin', 'atom_origin', 'xyz', 'surrender'
+        """
+        if len(priority) == 0:
+            raise ValueError('molecule is not annotated')
+        task = priority[0]
+        # -----------------------------------------------
+        if task == 'mol_origin':
+            if not mol.HasProp('_Origin'):
+                return cls.overannotate(mol, hits, tuple(priority[1:]))
+            origins = json.loads(mol.GetProp('_Origin'))
+            assert len(origins) == mol.GetNumAtoms(), f'Mismatch {len(origins)} vs. {mol.GetNumAtoms()}'
+            for i, atom in enumerate(mol.GetAtoms()):
+                # add origin to atom
+                atom.SetProp('_Origin', json.dumps(origins[i]))
+                # add xyz to atom
+                cls._atom_origin_to_xyz(origins[i], atom, hits)
+            return None
+        # -----------------------------------------------
+        elif task == 'atom_origin':
+            if not cls.is_origin_annotated(mol):
+                return cls.overannotate(mol, hits, tuple(priority[1:]))
+            origins = [cls._get_origin(atom) for atom in mol.GetAtoms()]
+            # add origin to mol
+            mol.SetProp('_Origin', json.dumps(origins))
+            # add xyz to atom
+            for atom, origin in zip(mol.GetAtoms(), origins):
+                cls._atom_origin_to_xyz(origin, atom, hits)
+        # -----------------------------------------------
+        elif task == 'xyz':
+            if not cls.is_xyz_annotated(mol):
+                return cls.overannotate(mol, hits, tuple(priority[1:]))
+            # this cannot be consolidated...
+            pass
+        elif task == 'surrender':
+            return None
+        else:
+            raise ValueError(f'Unknown task {task}')
+
+    @classmethod
+    def _atom_origin_to_xyz(cls, origins: List[str], atom: Chem.Atom, hits: List[Chem.Mol]):
+        points = []
+        if len(hits) == 0:
+            return  # no hits
+        hitdex: Dict[str, Chem.Mol] = {hit.GetProp('_Name'): hit for hit in hits}
+        for origin in origins:
+            if origin == 'none':
+                # thank you human.
+                continue
+            hit_name, idx = re.match(r'(.*)\.(\d+)', origin).groups()
+            atom.SetProp('_ori_name', hit_name)
+            if hit_name not in hitdex:
+                return
+            ref_conf = hitdex[hit_name].GetConformer()
+            ref_xyz: Point3D = ref_conf.GetAtomPosition(int(idx))
+            points.append(list(ref_xyz))  # noqa this is okay
+        if points:
+            xyz = np.mean(points, axis=0)
+            cls._set_xyz(atom, xyz)
 
     @classmethod
     def migrate_origin(cls, mol: Chem.Mol, tag='_Origin') -> Chem.Mol:
@@ -339,12 +440,7 @@ class mRMSD:
         :param tag: name of prop
         :return: the same mol
         """
-        assert mol.HasProp(tag), f'There is no tag {tag}'
-        origins = json.loads(mol.GetProp(tag))
-        assert len(origins) == mol.GetNumAtoms(), f'Mismatch {len(origins)} vs. {mol.GetNumAtoms()}'
-        for i, atom in enumerate(mol.GetAtoms()):
-            atom.SetProp('_Origin', json.dumps(origins[i]))
-        return mol
+        raise NotImplementedError('This method was deprecated. Use ``overannotate`` instead. Requires HITS!')
 
     @classmethod
     def _get_origin(cls, atom: Chem.Atom) -> List[str]:
@@ -369,9 +465,9 @@ class mRMSD:
     @classmethod
     def _set_xyz(cls, atom: Chem.Atom, xyz):
         if len(xyz):
-            atom.SetDoubleProp('_x', xyz[0]),
-            atom.SetDoubleProp('_y', xyz[1]),
-            atom.SetDoubleProp('_z', xyz[2])
+            atom.SetDoubleProp('_x', float(xyz[0])),
+            atom.SetDoubleProp('_y', float(xyz[1])),
+            atom.SetDoubleProp('_z', float(xyz[2]))
 
     @classmethod
     def from_internal_xyz(cls, annotated_followup):
