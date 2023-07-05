@@ -107,7 +107,8 @@ class _VictorBase:
                  covalent_resi: Optional[Union[int, str]] = None,
                  extra_protein_constraint: Union[str] = None,
                  pose_fx: Optional[Callable] = None,
-                 monster_random_seed: Optional[int] = None
+                 monster_random_seed: Optional[int] = None,
+                 **settings
                  ) -> object:
         """
         Initialise Victor in order to allow either combinations (merging/linking without a given aimed for molecule)
@@ -123,6 +124,7 @@ class _VictorBase:
         :param extra_protein_constraint: multiline string of constraints relevant to the protein
         :param pose_fx: a function to call with pose to tweak or change something before minimising.
         :param monster_random_seed: a random seed for rdkit Embedding
+        :param settings: Not used in base version of Victor
         """
         # ## Store
         # entry attributes
@@ -142,6 +144,9 @@ class _VictorBase:
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
         self.random_seed = monster_random_seed
+        self.settings = settings  # not used for now
+        if len(self.settings) > 0:
+            self.journal.critical('settings not used in this version of Victor')
         # ## Fill by place and combine differently
         self.long_name = 'ligand'
         self.smiles = None

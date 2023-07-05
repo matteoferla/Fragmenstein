@@ -291,7 +291,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
 
         :param mol: opt. mol. modified in place.
-        :param ff_dist_thr: Distance threshold (Å) for atomic positions mapped to hits for  MMFF constrains
+        :param ff_dist_thr: Distance threshold (Å) for atomic positions mapped to hits for  MMFF constrains.
+                            if NaN then fixed point constraints (no movement) are used.
 
         :return: None
         """
@@ -302,6 +303,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             mol = self.positioned_mol
         else:
             pass  # mol is fine
+        fixed_mode = str(ff_dist_thr).lower() == 'nan'
         # store for later (drift prevention)
         original_mol = Chem.Mol(mol)
         # protect (DummyMasker could be used here)
@@ -320,11 +322,19 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         ff = AllChem.MMFFGetMoleculeForceField(mol, p)
         # restrain
         restrained = []
-        for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)):
+        novels = list(mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)))
+        if len(novels) == 0 and fixed_mode:
+            self.journal.warning('No novel atoms found in fixed_mode (ff_dist_thr == NaN), '+\
+                                 'this is probably a mistake')
+            return True  # nothing to do
+        for atom in novels:
             i = atom.GetIdx()
             if atom.GetAtomicNum() == 1:
                 continue
-            ff.MMFFAddPositionConstraint(i, ff_dist_thr, ff_constraint)
+            if fixed_mode:
+                ff.AddFixedPoint(i)
+            else:
+                ff.MMFFAddPositionConstraint(i, ff_dist_thr, ff_constraint)
             restrained.append(i)
         for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_IsDummy')):
             i = atom.GetIdx()
@@ -344,6 +354,9 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         except RuntimeError as error:
             self.journal.info(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
             success = False
+        if fixed_mode and len(restrained) > 0:
+            # no need to align nothing could have moved
+            return success
         if not success and allow_lax:
             success:bool = self.mmff_minimize(mol,
                                               ff_dist_thr=ff_dist_thr//2,
@@ -355,6 +368,37 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         # prevent drift:
         rdMolAlign.AlignMol(mol, original_mol, atomMap=list(zip(restrained, restrained)))
         return success
+
+    def MMFF_score(self, mol: Optional[Chem.Mol] = None, delta: bool = False) -> float:
+        """
+        Merck force field. Chosen over Universal for no reason at all.
+
+        :param mol: ligand
+        :type mol: Chem.Mol optional. If absent extracts from pose.
+        :param delta: report difference from unbound (minimized)
+        :type delta: bool
+        :return: kcal/mol
+        :rtype: float
+
+        :warning: This was moved out of Igor. Victor has the method for calling it with igor.mol_from_pose
+        """
+        if mol is None:
+            mol = self.positioned_mol
+        try:
+            AllChem.UFFGetMoleculeForceField(mol)
+            ff = AllChem.UFFGetMoleculeForceField(mol)
+            ff.Initialize()
+            # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
+            if delta:
+                pre = ff.CalcEnergy()
+                ff.Minimize()
+                post = ff.CalcEnergy()
+                return pre - post
+            else:
+                return ff.CalcEnergy()
+        except RuntimeError as err:
+            warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
+            return float('nan')
 
     def _get_substructure_from_idxs(self, mol:Chem.Mol, atomIdx_list: List[int]) -> \
                                     Tuple[Union[Chem.Mol, Chem.Mol],Dict[int,int] ]:

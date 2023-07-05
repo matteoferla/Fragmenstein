@@ -25,6 +25,7 @@ class _VictorPlonk(_VictorJournal):
             if not l_chain:
                 l_chain = 'B'
             # get the cx atom name
+            assert len(self.params.CONNECT) != 0
             cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
             # TODO the SG connection is hardcoded.
             return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                ' + \
@@ -61,7 +62,7 @@ class _VictorPlonk(_VictorJournal):
             # _plonk_monster_in_structure_raw does no corrections.
             return self._plonk_monster_in_structure_minimal()
 
-    def _get_preminimized_undummied_monster(self):
+    def _get_preminimized_undummied_monster(self) -> Chem.Mol:
         """
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.
@@ -73,7 +74,7 @@ class _VictorPlonk(_VictorJournal):
             self.monster.mmff_minimize(mol)
         return AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
 
-    def _plonk_monster_in_structure_minimal(self):
+    def _plonk_monster_in_structure_minimal(self) -> str:
         """
         Plonks the molecule in the structure without using pymol.
         Uses a custom miniparser. see minimalPDB

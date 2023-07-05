@@ -92,32 +92,12 @@ class _IgorMin(_IgorBase):
 
     def MMFF_score(self, mol: Optional[Chem.Mol] = None, delta: bool = False) -> float:
         """
-        Merck force field. Chosen over Universal for no reason at all.
+        :warning: This was moved out of Igor, which still has a method, albeit for calling this. But on the minimised.
 
-        :param mol: ligand
-        :type mol: Chem.Mol optional. If absent extracts from pose.
-        :param delta: report difference from unbound (minimized)
-        :type delta: bool
-        :return: kcal/mol
-        :rtype: float
+        ``mol = victor.igor.mol_from_pose()``
         """
-        if mol is None:
-            mol = self.mol_from_pose()
-        try:
-            AllChem.UFFGetMoleculeForceField(mol)
-            ff = AllChem.UFFGetMoleculeForceField(mol)
-            ff.Initialize()
-            # print(f'MMFF: {ff.CalcEnergy()} kcal/mol')
-            if delta:
-                pre = ff.CalcEnergy()
-                ff.Minimize()
-                post = ff.CalcEnergy()
-                return pre - post
-            else:
-                return ff.CalcEnergy()
-        except RuntimeError as err:
-            warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
-            return float('nan')
+        raise NotImplementedError('method moved out of Igor and into Victor and Monster')
+
 
     def _add_constraints(self, add_pose_constraints=True):
         # constrain
@@ -340,8 +320,7 @@ class _IgorMin(_IgorBase):
         scorefxn = pyrosetta.rosetta.core.scoring.ScoreFunctionFactory.create_score_function("ref2015")
         scorefxn(self.pose)
         sfxd = self.detailed_scores(self.pose, lig_pos)
-        return {'MMFF_ligand': self.MMFF_score(delta=True),
-                'holo_ref2015': scorefxn(self.pose),
+        return {'holo_ref2015': scorefxn(self.pose),
                 'ligand_ref2015': sfxd,
                 **self.score_split()}
 
@@ -358,14 +337,16 @@ class _IgorMin(_IgorBase):
         i = lig_pos - 1  ##pose numbering is fortran style. while python is C++
         return {data.dtype.names[j]: data[i][j] for j in range(len(data.dtype))}
 
-    def minimize(self, cycles: int = 15, default_coord_constraint=True):
+    def minimize(self, cycles: int = 15, default_coord_constraint=True, weight: float = 1.0,):
         self._add_constraints(add_pose_constraints=True)
         self.repack_neighbors()
         mover = self.get_mod_FastRelax(cycles,
                                        default_coord_constraint=default_coord_constraint,
                                        cartesian=True,
-                                       use_mod_script=True
+                                       use_mod_script=True,
+                                       weight=weight,
                                        )
+        # alternatives...
         # mover = self.get_PertMinMover()
         # mover = self.get_MinMover()
         self.repack_neighbors()

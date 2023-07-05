@@ -53,7 +53,10 @@ class _MonsterChimera(_MonsterMap):
             warn('Valance issue' + str(err))
         return chimera
 
-    def place_from_map(self, target_mol: Chem.Mol, template_mol: Chem.Mol, atom_map: Optional[Dict] = None,
+    def place_from_map(self,
+                       target_mol: Chem.Mol,
+                       template_mol: Chem.Mol,
+                       atom_map: Optional[Dict] = None,
                        random_seed=None) -> Chem.Mol:
         """
         This method places the atoms with known mapping
