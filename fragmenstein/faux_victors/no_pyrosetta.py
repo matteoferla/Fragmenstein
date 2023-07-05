@@ -31,6 +31,8 @@ class Wictor(Victor):
         pass
 
     def _checkpoint_charlie(self):
+        # making folder.
+        self.make_output_folder()
         # no igor!
         self._log_warnings()
         self.journal.debug(f'{self.long_name} - saving pose collage')

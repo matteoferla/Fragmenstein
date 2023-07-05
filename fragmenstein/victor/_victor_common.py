@@ -11,9 +11,8 @@ from rdkit_to_params import Constraints
 class _VictorCommon(_VictorIgor):
 
     def make_output_folder(self):
+        os.makedirs(self.work_path, exist_ok=True)
         path = os.path.join(self.work_path, self.long_name)
-        if not os.path.exists(self.work_path):
-            os.mkdir(self.work_path)
         if not os.path.exists(path):
             os.mkdir(path)
         else:
@@ -401,3 +400,8 @@ class _VictorCommon(_VictorIgor):
                 return new_hits
         else: # it is a warhead name.
             raise NotImplementedError
+
+    def MMFF_score(self, mol: Optional[Chem.Mol] = None, delta: bool = False) -> float:
+        if mol is None:
+            mol = self.igor.mol_from_pose()
+        return self.monster.MMFF_score(mol, delta=delta)
