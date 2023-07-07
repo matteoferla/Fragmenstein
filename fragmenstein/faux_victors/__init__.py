@@ -23,3 +23,4 @@ from .mcs_victor import Mictor, MCSMerger
 from .no_pyrosetta import Wictor
 from .brics import AccountableBRICS
 from .others import FreeVictor, SingleVictor
+from .quick import Quicktor

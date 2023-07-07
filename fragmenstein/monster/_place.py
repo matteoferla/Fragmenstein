@@ -58,6 +58,7 @@ class _MonsterPlace(_MonsterBlend):
         if custom_map is None:
             custom_map = {}
         if enforce_warhead_mapping and self.attachment:
+            self.journal.debug('Enforcing warhead mapping')
             custom_map: Dict[str, Dict[int, int]] = self._add_warhead_mapping(custom_map)
         self.custom_map: Dict[str, Dict[int, int]] = custom_map
         # do the mol names match?

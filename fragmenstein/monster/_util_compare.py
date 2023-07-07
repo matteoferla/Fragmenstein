@@ -5,7 +5,7 @@ from rdkit.Chem import Draw, AllChem
 from matplotlib.colors import ColorConverter
 from ..branding import divergent_colors
 from functools import singledispatchmethod
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 from io import StringIO
 import re
 from ..display import MolNGLWidget
@@ -113,7 +113,7 @@ class _MonsterUtilCompare:
         draw(self.positioned_mol, followup_color_map, 300, 300)
 
 
-    def convert_origins_to_custom_map(self) -> Dict[str, Dict[int, int]]:
+    def convert_origins_to_custom_map(self, mol: Optional[Chem.Mol]=None) -> Dict[str, Dict[int, int]]:
         """
         The origins stored in the followup differ in format from the custom_map.
         The former is a list of lists of hit_name+atom_index,
@@ -121,11 +121,13 @@ class _MonsterUtilCompare:
         hit atom indices to _intended_ followup index.
         This method converts the former to the latter.
 
+        If mol is None, then self.positioned_mol is used.
+
         :return:
         """
         custom_map: Dict[str, Dict[int, int]] = {}
         # `origins_from_mol` uses self.positioned_mol by default... what if it is not set?
-        origins:List[List[str]] = self.origin_from_mol()  # noqa It is in utility
+        origins:List[List[str]] = self.origin_from_mol(mol)  # noqa It is in utility
         for hit in self.hits:  #:Chem.Mol
             name:str = hit.GetProp('_Name')
             # "default=-1-fi" is to assign a unique negative number to prevent anything mapping to the target index.

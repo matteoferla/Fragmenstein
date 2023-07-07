@@ -25,7 +25,7 @@ class _VictorPlonk(_VictorJournal):
             if not l_chain:
                 l_chain = 'B'
             # get the cx atom name
-            assert len(self.params.CONNECT) != 0
+            assert len(self.params.CONNECT) != 0, 'No connection atom found in params file.'
             cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
             # TODO the SG connection is hardcoded.
             return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                ' + \

@@ -28,7 +28,7 @@ class _MonsterExpand(_MonsterNone):
         # which is called by ``_get_unmerge_expansions``
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = self._compute_overlaps()
         if self.throw_on_discard:
-            # The two hits do not overlap. This was a decision of the user surely.
+            # The two hits do not overlap. This was a decision of the user, surely.
             positional_overlaps = {pairing: mapping for pairing, mapping in positional_overlaps.items() if mapping}
             if len(positional_overlaps) == 0 and len(self.hits) > 1:
                 # `positional_overlaps` is always empty if there is only one hit!
@@ -39,14 +39,53 @@ class _MonsterExpand(_MonsterNone):
                                                                 primary_maps,
                                                                 positional_overlaps,
                                                                 min_mode_index)
+        # Nota bene:
+        # The custom map is a Dict of hit names to Dict of indices of hit to indices of followup.
+        # The Unmerge.map is a Dict of hit names to List of Dict of indices of followup to indices of hit.
+        # it is reversed in the Unmerge object.
         if self.throw_on_discard:
             hit_names = [h.GetProp('_Name') for h in self.hits]
-            unmergers = [u for u in unmergers if all([h in u.maps and len(u.maps[h]) and len(u.maps[h][0]) for h in hit_names])]
+            unmergers: List[Unmerge] = [u for u in unmergers if all([h in u.maps and len(u.maps[h]) and len(u.maps[h][0]) for h in hit_names])]
             if len(unmergers) == 0:
                 raise DistanceError(hits=self.hits)
         # -------------- Sort the unmergers --------------------------------
         self.positioned_mol, self.mol_options = self._place_unmerger_expansions(unmergers)
+        # ---- custom map sanity -----------------------------------
+        if sum(map(len, self.custom_map.values())) and not self._check_custom_map(self.positioned_mol):
+            self.journal.debug(f'Custom map sanity check failed for best candidate.')
+            for mol in self.mol_options:
+                if self._check_custom_map(self.positioned_mol):
+                    self.positioned_mol = mol
+                    break
+            else:
+                raise FragmensteinError(f'No custom map satisfied by any of the options.')
         return self.positioned_mol
+
+    def _check_custom_map(self, mol: Chem.Mol) -> bool:
+        """
+        Check that the custom map is satisfied by the molecule.
+        """
+        originses: List[List[str]] = self.origin_from_mol(mol)
+        for name, custom in self.custom_map.items():
+            for hit_i, followup_i in custom.items():
+                if followup_i < 0 and \
+                        all([(f'{name}.{hit_i}' not in origin) for origins in originses for origin in origins]):
+                    pass  # forbidden correctly — absent from all origins
+                elif followup_i < 0:  # damnation
+                    self.journal.info('Suboptimal fixing: atom is forbidden from matching, '+\
+                                      'but is matched indirectly but not constrained.')
+                    followup_i = [o for o, origins in enumerate(originses) for origin in origins if f'{name}.{hit_i}' in origin][0]
+                    mol.GetAtomWithIdx(followup_i).SetProp('_origin', 'none')
+                    mol.GetAtomWithIdx(followup_i).SetBoolProp('_Novel', True)
+                elif any([origin == f'{name}.{hit_i}' for origin in originses[followup_i]]):
+                    pass  # mapped correctly
+                elif hit_i < 0 and name not in originses[followup_i]:
+                    pass  # forbidden correctly
+                else:
+                    self.journal.info(f'Custom map sanity check failed for a combination for hit {name} idx {hit_i} '+\
+                                      f'to followup idx {followup_i} — {originses}')
+                    return False
+        return True
 
     def _get_primary_maps(self, primary_name: Optional[str] = None) -> Tuple[str, List[Dict[int, int]]]:
         """

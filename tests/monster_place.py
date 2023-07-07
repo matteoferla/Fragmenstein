@@ -8,6 +8,12 @@ from rdkit.Chem import AllChem
 from fragmenstein import Monster, Victor, Igor
 from fragmenstein.demo import TestSet, MPro
 
+from fragmenstein import Monster
+from fragmenstein import FragmensteinError
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from typing import Dict
+
 
 # ======================================================================================================================
 
@@ -187,6 +193,28 @@ class MonsterPlaceTests(unittest.TestCase):
         rsmd = victor.validate(mols[3])['reference2minimized_rmsd']
         self.assertLess(rsmd, 1.1, f"The resulting RMSD from the crystal is {rsmd}, which is greater than 1.")
 
+    def test_custom(self):
+        x1594 = Chem.MolFromMolBlock(
+            'x1594\n     RDKit          3D\n\n 10 11  0  0  0  0  0  0  0  0999 V2000\n   -6.8740    9.8340  -32.5350 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.6660   10.2800  -31.2910 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.8820   11.4760  -29.6270 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.1990    9.8070  -30.1740 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.0830   12.4690  -29.0140 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.7030   10.5680  -29.1130 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.2680   13.2420  -29.7830 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -5.8120   11.3450  -31.0120 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.2110   13.0710  -31.1840 C   0  0  0  0  0  0  0  0  0  0  0  0\n   -4.9820   12.1370  -31.7840 C   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  1  0\n  2  4  2  0\n  2  8  1  0\n  3  5  1  0\n  3  6  2  0\n  3  8  1  0\n  4  6  1  0\n  5  7  2  0\n  7  9  1  0\n  8 10  1  0\n  9 10  2  0\nA    1\n N  \nA    2\n C  \nA    3\n C1 \nA    4\n N1 \nA    5\n C2 \nA    6\n N2 \nA    7\n C3 \nA    8\n N3 \nA    9\n C4 \nA   10\n C5 \nM  END\n')
+        sulfonamide = Chem.MolFromMolBlock(
+            'sulfonamide\n     RDKit          3D\n\n  5  4  0  0  0  0  0  0  0  0999 V2000\n   -8.9730   12.5540  -34.4110 N   0  0  0  0  0  0  0  0  0  0  0  0\n   -7.9880   13.6990  -33.7420 S   0  0  0  0  0  0  0  0  0  0  0  0\n   -8.4880   13.9520  -32.4200 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -8.1620   15.1860  -34.7160 O   0  0  0  0  0  0  0  0  0  0  0  0\n   -6.6410   13.2300  -33.9060 C   0  0  0  0  0  0  0  0  0  0  0  0\n  1  2  1  0\n  2  3  2  0\n  2  4  2  0\n  2  5  1  0\nM  END\n')
+        monstah = Monster([x1594, sulfonamide], joining_cutoff=10)
+
+        def make_obvious_map(mol):
+            return {'sulfonamide': dict(enumerate(mol.GetSubstructMatch(sulfonamide))),
+                       'x1594': dict(enumerate(mol.GetSubstructMatch(x1594)))}
+
+        mol = Chem.MolFromSmiles('S(N)(=O)(=O)CCCCCCNc1nnc2ccccn12')
+        monstah.place(mol, custom_map=make_obvious_map(mol))
+        self.assertTrue(monstah._check_custom_map(monstah.positioned_mol), 'This should be a valid custom map.')
+        try:
+            mol = Chem.MolFromSmiles('S(N)(=O)(=O)CNc1nnc2ccccn12')
+            monstah.place(mol, custom_map=make_obvious_map(mol))
+        except FragmensteinError:
+            pass
+        else:
+            monstah._check_custom_map(monstah.positioned_mol)
+            self.fail('This should be an invalid custom map.')
 
 if __name__ == '__main__':
     unittest.main()
