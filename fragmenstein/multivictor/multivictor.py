@@ -47,7 +47,7 @@ class MultiVictorPlacement():
 
         i = 0
         victor = Victor(monster_random_seed=rseeds[i], **self.victor_init_args)
-        victor.place(smiles, long_name = long_name+str(i), merging_mode= merging_mode, 
+        victor.place(smiles, long_name=long_name+str(i), merging_mode= merging_mode,
                      custom_map=custom_map, atomnames=atomnames,
                      extra_ligand_constraint=extra_ligand_constraint)
         victor.runNumber = i

@@ -1,7 +1,7 @@
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 # TypedDict & Unpack fixed in .legacy:
-from typing import Dict, List, Tuple, Optional, TypeVar, Sequence, TypedDict, Unpack  # noqa
+from typing import Dict, List, Union, Tuple, Optional, TypeVar, Sequence, TypedDict, Unpack  # noqa
 from functools import singledispatchmethod  # monkeypatched by .legacy (for Py3.7)
 import itertools
 
@@ -39,6 +39,8 @@ class VanillaCompareAtoms(rdFMCS.MCSAtomCompare):
         a2: Chem.Atom = mol2.GetAtomWithIdx(atom_idx2)
         # ------- isotope ------------------------
         if parameters.MatchIsotope and a1.GetIsotope() != a2.GetIsotope():  # noqa
+            return False
+        if sum([a1.GetAtomicNum() == 0, a2.GetAtomicNum() == 0]) == 1:
             return False
         elif self.comparison == rdFMCS.AtomCompare.CompareIsotopes and a1.GetIsotope() != a2.GetIsotope():  # noqa
             return False
@@ -111,28 +113,17 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                  comparison: rdFMCS.AtomCompare = rdFMCS.AtomCompare.CompareAnyHeavyAtom,
                  custom_map: Optional[Dict[str, Dict[int, int]]] = None, exclusive_mapping: bool = True):
         super().__init__(comparison=comparison)  # what is p_object?
-        self.custom_map = self._parse_custom_map(custom_map)  # custom as in user-defined
+        self.custom_map = self.fix_custom_map(custom_map)  # custom as in user-defined
         self.banned = self._get_strict_banned() if exclusive_mapping else self._get_lax_banned()
 
-    def _parse_custom_map(self, custom_map):
-        """
-        Make sure its Dict[str, Dict[int, int]]
-        """
-        if custom_map is None:
-            custom_map = {}
-        assert isinstance(custom_map, dict), 'User defined map has to be mol name to Dict[int, int]'
-        for name, hit_map in custom_map.items():
-            custom_map[name] = dict(hit_map)
-        return custom_map
-
-    def _get_strict_banned(self):
+    def _get_strict_banned(self) -> List[int]:
         """
         A list of followup indices that cannot be unmapped
         called if exclusive_mapping is True
         """
         return [foll_idx for mapping in self.custom_map.values() for foll_idx in mapping.values()]
 
-    def _get_lax_flipped_map(self):
+    def _get_lax_flipped_map(self) -> List[int]:
         """
         A list of followup indices that cannot be mapped as per negative hit index
         called if exclusive_mapping is False
@@ -146,10 +137,6 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
         If nothing, -1 is returned
         """
         name: str = hit_mol.GetProp('_Name')
-        if name not in self.custom_map:
-            # technically impossible, bar for user altered map.
-            # should this corner case be handled everywhere?
-            return -1
         return self.custom_map[name].get(hit_atom_idx, -1)
 
     def __call__(self,
@@ -158,6 +145,12 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                  hit_atom_idx: int,
                  followup: Chem.Mol,
                  followup_atom_idx: int) -> bool:
+        if followup.GetProp('_Name') == hit.GetProp('_Name'):
+            # self to self mapping
+            return super().__call__(parameters, hit, hit_atom_idx, followup, followup_atom_idx)
+        if hit.GetProp('_Name') not in self.custom_map:
+            # self to self mapping
+            return super().__call__(parameters, hit, hit_atom_idx, followup, followup_atom_idx)
         hit_atom = hit.GetAtomWithIdx(hit_atom_idx)
         followup_atom = followup.GetAtomWithIdx(followup_atom_idx)
         symbols = {hit_atom.GetSymbol(), followup_atom.GetSymbol()}
@@ -194,10 +187,11 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                           parameters: rdFMCS.MCSAtomCompareParameters,
                           common: Chem.Mol,
                           hit: Chem.Mol,
-                          followup: Chem.Mol) -> List[IndexMap]:
+                          followup: Chem.Mol) -> List[Dict[int, int]]:
         """
-        Returns a list of possible matches, each being a lists of tuples of hit to follow indices,
+        Returns a list of possible matches, each a dictionary of hit to follow indices,
         that obey the criteria of the atomic comparison.
+        (Formerly this was a IndexAtom)
 
         This however does not check if all the atoms in custom are present.
         For that, ``Monster._validate_vs_custom`` is called in the method ``Monster.get_mcs_mappings``,
@@ -227,10 +221,11 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
                             followup_atom_idx=f):
                     break  # one index does not match. None should match.
             else:
-                matches.append(list(zip(map(int, hit_match), map(int, followup_match))))
+                matches.append(dict(zip(map(int, hit_match), map(int, followup_match))))
         # remove duplicates
-        matches = list(set([tuple(sorted(m, key=lambda i: i[0])) for m in matches]))
-        return matches
+        hash_dict = lambda match: hash(tuple(sorted(match.items(), key=lambda i: i[0])))
+        unique_matches = {hash_dict(match): match for match in matches}
+        return list(unique_matches.values())
 
     @get_valid_matches.register
     def _(self,
@@ -239,3 +234,23 @@ class SpecialCompareAtoms(VanillaCompareAtoms):
           hit: Chem.Mol,
           followup: Chem.Mol) -> List[IndexMap]:
         return self.get_valid_matches(parameters.AtomCompareParameters, common, hit, followup)
+
+    def fix_custom_map(self,
+                          custom_map: Dict[str, Union[Sequence[Tuple[int, int]], Dict[int, int]]]) \
+            -> Dict[str, Dict[int, int]]:
+        """
+        This will be deprecated in the future. As Monster.fix_custom_map is better.
+
+        Make sure its Dict[str, Dict[int, int]]
+
+        There is a bit of confusion about the custom map.
+        Converts the custom map from dict of lists of 2-element tuples to dict of dicts.
+        """
+        if custom_map is None:
+            # in Monster {h.GetProp('_Name'): {} for h in self.hits}
+            return {}
+        assert isinstance(custom_map, dict), 'User defined map has to be mol name to Dict[int, int]'
+        for name, hit_map in custom_map.items():
+            custom_map[name] = dict(hit_map)
+        return custom_map
+    

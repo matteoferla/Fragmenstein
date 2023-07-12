@@ -29,7 +29,7 @@ class _MonsterExpand(_MonsterNone):
         positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = self._compute_overlaps()
         if self.throw_on_discard:
             # The two hits do not overlap. This was a decision of the user, surely.
-            positional_overlaps = {pairing: mapping for pairing, mapping in positional_overlaps.items() if mapping}
+            positional_overlaps: Dict[Tuple[str, str], Dict[int, int]] = {pairing: mapping for pairing, mapping in positional_overlaps.items() if mapping}
             if len(positional_overlaps) == 0 and len(self.hits) > 1:
                 # `positional_overlaps` is always empty if there is only one hit!
                 # raise DistanceError(hits=self.hits)
@@ -66,8 +66,9 @@ class _MonsterExpand(_MonsterNone):
         Check that the custom map is satisfied by the molecule.
         """
         originses: List[List[str]] = self.origin_from_mol(mol)
-        for name, custom in self.custom_map.items():
-            for hit_i, followup_i in custom.items():
+        mapping: Dict[int, int]
+        for name, mapping in self.custom_map.items():
+            for hit_i, followup_i in mapping.items():
                 if followup_i < 0 and \
                         all([(f'{name}.{hit_i}' not in origin) for origins in originses for origin in origins]):
                     pass  # forbidden correctly — absent from all origins
@@ -113,11 +114,19 @@ class _MonsterExpand(_MonsterNone):
         self.journal.debug(f"Primary hit: {primary_name} with {len(primary_maps)} Primary maps: {primary_maps}")
         return primary_name, primary_maps
 
-    def _get_unmerge_expansions(self, primary_name, primary_maps,
-                                positional_overlaps,
-                                min_mode_index) -> List[Unmerge]:
+    def _get_unmerge_expansions(self,
+                                primary_name: str,
+                                primary_maps: List[Dict[int, int]],
+                                positional_overlaps: Dict[Tuple[str, str], Dict[int, int]],
+                                min_mode_index: int) -> List[Unmerge]:
         """
-        Calls _perform_unmerge which calls Unmerge
+        Calls _perform_unmerge which calls Unmerge.
+
+        :param primary_name: the hit name. Unlike the other methods, this is not optional.
+                for example in ``._get_primary_maps(primary_name)`` it can be None.
+        :param primary_maps: the maps for the primary hit. This is returned by ``._get_primary_maps(primary_name)``
+        :param positional_overlaps: the positional overlaps. see ``_compute_overlaps``.
+        :param min_mode_index: the minimum mode index. see ``get_mcs_mappings``, whose default is 0.
         """
         unmergers = []
         # the no_blend mode does the unmerged based on a dict of optional maps,
@@ -188,12 +197,6 @@ class _MonsterExpand(_MonsterNone):
             positional_overlaps[(mol2_name, mol1_name)] = gpm
         return positional_overlaps
 
-    def _include_missing_hits(self, custom_map: Dict[str, Dict[int, int]]) -> None:
-        for hit in self.hits:
-            name = hit.GetProp('_Name')
-            if name not in custom_map:
-                custom_map[name] = {}
-
     def _expand_hit_atom_map_by_overlap(self,
                                         hit_name: str,
                                         hit_atom_map: Dict[int, int],
@@ -211,7 +214,7 @@ class _MonsterExpand(_MonsterNone):
         """
         expanded: Dict[str, Dict[int, int]] = deepcopy(custom_map)
         expanded[hit_name] = hit_atom_map
-        self._include_missing_hits(expanded)
+        self.fix_custom_map(expanded)
         for hit_atom_idx, template_atom_idx in hit_atom_map.items():
             for other in self.hits:
                 other_name: str = other.GetProp('_Name')

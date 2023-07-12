@@ -104,6 +104,7 @@ class Unmerge(GPM):
         accounted_sorter = self.template_sorter_factory(accounted_for)
         # ---- rotate ----------------------------
         if self.rotational_approach:
+            # this is the default basically
             others = deque(self.mols)
             for s in range(len(self.mols)):
                 others.rotate(1)
@@ -123,7 +124,7 @@ class Unmerge(GPM):
         if self.no_discard:
             valids = [i for i, v in enumerate(self.c_disregarded_options) if len(v) == 0]
             if len(valids) == 0:
-                raise DistanceError('No valid mappings that do not disregard compounds.')
+                raise DistanceError(message='No valid mappings that do not disregard compounds.')
         else:
             valids = list(range(len(self.c_options)))
         indices = sorted(valids,
@@ -255,9 +256,13 @@ class Unmerge(GPM):
         Assesses a combination of maps
         rejections: unmapped (nothing maps) / unnovel (adds nothing)
 
+        Do note that this method uses a lot of instance attributes.
+        ``self.maps`` has the mapping data.
+        This method combines to make ``self.combined_map``.
+
         :param combined:
-        :param combined_map:
-        :param others:
+        :param combined_map: This is passed empty the first time.
+        :param others: It's a list of a deque that is rotated (if rotational_approach is True) of self.mols
         :param disregarded:
         :return:
         """

@@ -13,7 +13,7 @@ class _MonsterMap(_MonsterMerge):
                          hit: Chem.Mol,
                          followup: Chem.Mol,
                          min_mode_index: int = 0,
-                         custom_map: Optional[Dict[str, IndexMap]] = None
+                         custom_map: Optional[Dict[str, Dict[int, int]]] = None
                          ) -> Tuple[List[Dict[int, int]], ExtendedFMCSMode]:
         """
         This is a curious method. It does a strict MCS match.
@@ -26,7 +26,11 @@ class _MonsterMap(_MonsterMerge):
         :return: mappings and mode
         """
         if not custom_map:
+            # Issue 42:
+            # Dict[str, IndexMap] = Dict[str, Sequence[Tuple[int, int]]]
+            # not Dict[str, Dict[int, int]]
             custom_map: Dict[str, Dict[int, int]] = self.custom_map
+        custom_map = self.fix_custom_map(custom_map)  # Issue 42
         hit_name: str = hit.GetProp('_Name')
         # -------------- Most strict mapping -------------------------------
         # run from strictest to laxest to find the strictest mapping that encompasses the custom map
@@ -43,15 +47,17 @@ class _MonsterMap(_MonsterMerge):
             # provided custom_map
             # if so only the provided custom_map hits are used.
             if hit_name in self.custom_map:
+                # wanted hit indices
                 wanted: List[int] = self._get_required_indices_for_map(self.custom_map[hit_name])
-                strict_maps: List[IndexMap] = self._validate_vs_custom(strict_maps, wanted)
+                strict_maps: List[Dict[int, int]] = self._validate_vs_custom(strict_maps, wanted)
                 if len(strict_maps) != 0:
                     # these maps are valid
                     break  # from the reverse loop...
         else:
             self.journal.warning('Provided mapping is very unfavourable... using that along for expanding the search')
             # unexpected pycharm warning as list({1:1}.items()) does give [[(1,1)]]
-            strict_maps: List[IndexMap] = [list(custom_map.get(hit_name, {}).items()), ]  # noqa
+            # single choice list in this case
+            strict_maps: List[Dict[int, int]] = [custom_map.get(hit_name, {}), ]
         self.journal.debug(f'`get_mcs_mappings` strict_maps for {hit_name}: {strict_maps}')
         # -------------- Expand mapping -------------------------------
         # go from laxest to strictest until one matches the strict form...
@@ -65,9 +71,10 @@ class _MonsterMap(_MonsterMerge):
                 continue
 
             lax: List[IndexMap] = []
-            for strict_map in strict_maps:  #: IndexMap
+            for strict_map in strict_maps:  #: Dict[int, int]
                 # `_get_atom_maps` does the MCS search constrained by `expanded_custom_map`
-                expanded_custom_map: Dict[str, IndexMap] = self.expand_custom_map(custom_map, {hit_name: strict_map})
+                expanded_custom_map: Dict[str, Dict[int, int]] = self.expand_custom_map(custom_map,
+                                                                                        {hit_name: strict_map})
                 lax.extend(self._get_atom_maps(hit=hit,
                                                followup=followup,
                                                custom_map=expanded_custom_map,
@@ -97,7 +104,7 @@ class _MonsterMap(_MonsterMerge):
                        hit: Chem.Mol,
                        followup: Chem.Mol,
                        custom_map: Optional[Dict[str, IndexMap]]=None,
-                       **mode: Unpack[ExtendedFMCSMode]) -> List[IndexMap]:
+                       **mode: Unpack[ExtendedFMCSMode]) -> List[Dict[int, int]]:
 
         """
         The ``mode`` are FindMCS arguments, but this transmutes them into parameter scheme
@@ -106,18 +113,19 @@ class _MonsterMap(_MonsterMerge):
         """
         if custom_map is None:
             custom_map: Dict[str, Dict[int, int]] = self.custom_map
+        custom_map = self.fix_custom_map(custom_map)  # Issue 42
         parameters: rdFMCS.MCSParameters = transmute_FindMCS_parameters(**mode)
         # this looks odd, because the default parameters.AtomTyper is a atomcompare enum
         # and can be overridden by a callable class instance (of MCSAtomCompare)
         parameters.AtomTyper = SpecialCompareAtoms(comparison=parameters.AtomTyper,
                                                    custom_map=custom_map)
         res: rdFMCS.MCSResult = rdFMCS.FindMCS([hit, followup], parameters)
-        matches: List[IndexMap] = parameters.AtomTyper.get_valid_matches(parameters.AtomCompareParameters,
+        matches: List[Dict[int, int]] = parameters.AtomTyper.get_valid_matches(parameters.AtomCompareParameters,
                                                                          common=Chem.MolFromSmarts(res.smartsString),
                                                                          hit=hit,
                                                                          followup=followup
                                                                          )
-        return matches
+        return [dict(m) for m in matches]
 
     def _get_atom_maps_OLD(self, molA, molB, **mode: Unpack[ExtendedFMCSMode]) -> Set[Tuple[Tuple[int, int]]]:
         """
@@ -152,27 +160,30 @@ class _MonsterMap(_MonsterMerge):
     def _get_atom_map(self, molA, molB, **mode) -> List[Tuple[int, int]]:
         return self._get_atom_maps(molA, molB, **mode)[0]
 
-    def expand_custom_map(self, custom_map: Dict[str, IndexMap], addend: Dict[str, IndexMap]):
+    def expand_custom_map(self,
+                          custom_map: Dict[str, Dict[int, int]],
+                          addend: Dict[str, Dict[int, int]]) \
+            -> Dict[str, Dict[int, int]]:
         # not a IndexMap
         new_map = custom_map.copy()
         for k, add_mapping in addend.items():
             if k not in new_map:
-                new_map[k] = add_mapping
+                new_map[k] = dict(add_mapping)
             else:
                 # custom_map gets priority
-                new_map[k] = tuple({**dict(add_mapping), **dict(custom_map[k])}.items())
+                new_map[k] = {**dict(add_mapping), **dict(custom_map[k])}
         return new_map
 
-    def _validate_vs_custom(self, maps: List[IndexMap], wanted_idx: List[int]) -> List[IndexMap]:
-        """return only the IndexMaps with all wanted_idx.
+    def _validate_vs_custom(self, maps: List[Dict[int, int]], wanted_idx: List[int]) -> List[Dict[int, int]]:
+        """return only the IndexMaps with all wanted_idx (wanted in the hit)
         This is not part of ``SpecialCompareAtoms.get_valid_matches``
         because there is a difference between must match and must be present as discussed in that method.
         """
-        # just in case there's a dictionary somehow....
-        get_set = lambda mapping: set(mapping.keys()) if isinstance(mapping, dict) else {i for i, j in mapping}  # noqa
+        get_set = lambda mapping: set(mapping.keys()) if isinstance(mapping, dict) else {i for i, j in mapping}
         return [mapping for mapping in maps if len(set(wanted_idx) - get_set(mapping)) == 0]
 
-    def _get_required_indices_for_map(self, custom_hit_map: Union[IndexMap, Dict[int, int]]) -> List[int]:
-        if isinstance(custom_hit_map, dict):
-            custom_hit_map = custom_hit_map.items()
-        return [h for h, f in custom_hit_map if h >= 0 and f >= 0]
+    def _get_required_indices_for_map(self, custom_hit_map: Dict[int, int]) -> List[int]:
+        """
+        Returns the hit indices that must be present in the map.
+        """
+        return [h for h, f in custom_hit_map.items() if h >= 0 and f >= 0]

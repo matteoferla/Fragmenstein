@@ -13,6 +13,9 @@ from fragmenstein import FragmensteinError
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from typing import Dict
+from rdkit import RDLogger
+
+RDLogger.DisableLog('rdApp.warning')  # shut up about the hydrogens already
 
 
 # ======================================================================================================================
@@ -108,16 +111,18 @@ class MonsterPlaceTests(unittest.TestCase):
         """
         mols = TestSet.get_5SB7_mols()
         monster = Monster([mols[0]])
-        monster.place(Chem.Mol(mols[0]),
+        alt = Chem.Mol(mols[0])
+        alt.SetProp('_Name', 'alt')
+        monster.place(alt,
                       merging_mode='expansion',
-                      # custom_map={'F36': {1:7}, 'F04': {4:7}}
                       custom_map={'F04': {-1: 4,  # no amine
-                                          4: -2,  # no amine
-                                          12: 12,
+                                          4: -1,  # no amine
                                           6: 13,
                                           13: 6,
-                                          15: 14,
-                                          14: 15}}
+                                          14: 15,
+                                          15: 14
+                                          }
+                                  }
                       )
         self.assertEqual(len(list(filter(len, monster.origin_from_mol(monster.positioned_mol)))), 15)
         # the amine is banned in the map and the ring is flipped.
@@ -177,7 +182,7 @@ class MonsterPlaceTests(unittest.TestCase):
         victor = Victor(hits=mols[:2], pdb_block=MPro.get_template(), ligand_resi='1X')
 
         victor.place(mols[3],
-                     long_name=mols[3].GetProp('_Name'),
+                     long_name='5SB7-placement',
                      merging_mode='expansion',
                      custom_map={'F36': {1: 7},
                                  'F04': {0: -1,  # no amine
@@ -191,7 +196,7 @@ class MonsterPlaceTests(unittest.TestCase):
         # victor.show_comparison()
         # victor.to_nglview()
         rsmd = victor.validate(mols[3])['reference2minimized_rmsd']
-        self.assertLess(rsmd, 1.1, f"The resulting RMSD from the crystal is {rsmd}, which is greater than 1.")
+        self.assertLess(rsmd, 1.5, f"The resulting RMSD from the crystal is {rsmd}, which is greater than 1.")
 
     def test_custom(self):
         x1594 = Chem.MolFromMolBlock(

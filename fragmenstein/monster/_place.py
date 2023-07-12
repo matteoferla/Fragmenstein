@@ -13,6 +13,7 @@ from warnings import warn
 from rdkit import Chem
 
 from ._place_modes import _MonsterBlend
+from .mcs_mapping import IndexMap
 
 class _MonsterPlace(_MonsterBlend):
     """
@@ -48,15 +49,15 @@ class _MonsterPlace(_MonsterBlend):
 
         :param mol:
         :param attachment: This the SG of the cysteine if covalent
-        :param custom_map:
+        :param custom_map: Dict of hit_name to Dict of hit_idx to followup_idx
         :param merging_mode:
         :return:
         """
         if not mol.HasProp('_Name'):
             mol.SetProp('_Name', 'followup')
+        assert not any([mol.GetProp('_Name') == h.GetProp('_Name') for h in self.hits]), 'Placement has the same name as a hit!'
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
-        if custom_map is None:
-            custom_map = {}
+        custom_map = self.fix_custom_map(custom_map)
         if enforce_warhead_mapping and self.attachment:
             self.journal.debug('Enforcing warhead mapping')
             custom_map: Dict[str, Dict[int, int]] = self._add_warhead_mapping(custom_map)
@@ -125,7 +126,7 @@ class _MonsterPlace(_MonsterBlend):
         """
         # add missing keys
         hit_names:List[str] = []
-        for hit in self.hits: #: Chem.Mol
+        for hit in self.hits:  #: Chem.Mol
             hit_name:str = hit.GetProp('_Name')
             hit_names.append(hit_name)
             if hit_name not in self.custom_map:
@@ -135,7 +136,7 @@ class _MonsterPlace(_MonsterBlend):
             if hit_name not in hit_names:
                 raise ValueError(f"Custom map contains key '{hit_name}' which is not in hits ({hit_names}).")
 
-    def _add_warhead_mapping(self, custom_map: Dict[str, Dict[int, int]]) -> Dict[str, Dict[int, int]]:
+    def _add_warhead_mapping(self, custom_map: Dict[str, IndexMap]) -> Dict[str, IndexMap]:
         """
         Add the warhead mapping to the custom_map.
         Does not use the warhead definition as it may be missing.
@@ -148,7 +149,7 @@ class _MonsterPlace(_MonsterBlend):
         if len(dummies) == 0:
             self.journal.warning('The provided molecule is not covalent...')
             return custom_map
-        if len(dummies) >1:
+        if len(dummies) > 1:
             self.journal.info('More than one dummy atom found: cannot enforce warhead mapping.')
             return custom_map
         followup_dummy = dummies[0]

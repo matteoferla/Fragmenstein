@@ -152,7 +152,7 @@ class _VictorBase:
         self.smiles = None
         # ## Filled by place
         self.merging_mode = "none_permissive"
-        self.custom_map = {}
+        self.custom_map = {}  # this will be fixed in monster by `.fix_custom_map`
         # ## Filled by combine
         self.joining_cutoff = None
         # ## Calculated

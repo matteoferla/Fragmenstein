@@ -1,5 +1,8 @@
 import unittest
 from rdkit import Chem
+from fragmenstein import Monster
+from rdkit import Chem, RDLogger
+from rdkit.Chem import AllChem
 from fragmenstein.monster.mcs_mapping import SpecialCompareAtoms
 # ======================================================================================================================
 
@@ -30,6 +33,7 @@ class Mappings(unittest.TestCase):
         compare = [self.benzyl, self.toluene]
         # hit -> followup
         res: rdFMCS.MCSResult = rdFMCS.FindMCS(compare, params)
+        print(res.smartsString)
         self.assertEqual(res.numAtoms, 6)  # there are 7 atoms, but only 6 are mapped as the dummy is excluded
 
     def test_user_map(self):
@@ -108,6 +112,18 @@ class Mappings(unittest.TestCase):
         # self.assertEqual(len(full_maps), 1, f'There is only one way to map it not {len(full_maps)} ({full_maps})')
         for full_map in full_maps:
             self.assertNotIn(1, dict(full_map).values())
+
+    def test_issue42(self):
+        RDLogger.DisableLog('rdApp.warning')  # shut up about the hydrogens already
+        # hydrogenated indole w/ a methyl on the r6
+        hit = Chem.MolFromSmiles('N1CCC2C1CC(C)CC2')
+        AllChem.EmbedMolecule(hit)
+        hit.SetProp('_Name', 'foo')
+        monstah = Monster([hit])
+        # hydrogenated benzothiazole w/ no methyl
+        monstah.place_smiles('N1CSC2C1CCCC2')
+        self.assertEqual('foo.0+foo.1+foo.2+foo.3+foo.4+foo.5+foo.6+foo.8+foo.9',
+                         '+'.join([o[0] if o else 'NA' for o in monstah.origin_from_mol()]))
 
 
 

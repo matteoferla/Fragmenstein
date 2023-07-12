@@ -7,7 +7,7 @@ This is contains the class _MonsterBase to be inherited by _MonsterCommunal, the
 ########################################################################################################################
 
 import logging
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Sequence, Tuple, Union
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 
@@ -179,3 +179,25 @@ class _MonsterBase:
                 return hit
         else:
             raise ValueError(f"No hit with name {name}")
+        
+
+    def fix_custom_map(self,
+                          custom_map: Dict[str, Union[Sequence[Tuple[int, int]], Dict[int, int]]]) \
+            -> Dict[str, Dict[int, int]]:
+        """
+        This is duplicated in SpecialCompareAtoms,
+        but will be deprecated in favour of this one.
+
+        Make sure its Dict[str, Dict[int, int]]
+
+        There is a bit of confusion about the custom map.
+        Converts the custom map from dict of lists of 2-element tuples to dict of dicts.
+        """
+        if custom_map is None:
+            # in Monster only not SpecalCompareAtoms!
+            return {h.GetProp('_Name'): {} for h in self.hits}
+        assert isinstance(custom_map, dict), 'User defined map has to be mol name to Dict[int, int]'
+        for name, hit_map in custom_map.items():
+            custom_map[name] = dict(hit_map)
+        return custom_map
+
