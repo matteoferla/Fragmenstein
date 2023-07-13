@@ -31,14 +31,6 @@ class Quicktor(Victor):
                                         'ringMatchesRingOnly': True}]
         self.monster_mmff_minisation = True  # as is default. Repeated for emphasis.
 
-    def post_monster_step(self):
-        mapping = self.monster.convert_origins_to_custom_map()
-        for hit in self.monster.hits:
-            hit_name = hit.GetProp('_Name')
-            if hit_name not in mapping:
-                raise FragmensteinError('Failed mapping')
-            if all([k < 0 for k in mapping[hit_name]]):
-                raise FragmensteinError('Failed mapping')
 
     def _get_preminimized_undummied_monster(self) -> Chem.Mol:
         """
