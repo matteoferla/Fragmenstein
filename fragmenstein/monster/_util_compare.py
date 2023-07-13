@@ -113,26 +113,46 @@ class _MonsterUtilCompare:
         draw(self.positioned_mol, followup_color_map, 300, 300)
 
 
-    def convert_origins_to_custom_map(self, mol: Optional[Chem.Mol]=None) -> Dict[str, Dict[int, int]]:
+    def convert_origins_to_custom_map(self, mol: Optional[Chem.Mol]=None, forbiddance=True) -> Dict[str, Dict[int, int]]:
         """
         The origins stored in the followup differ in format from the custom_map.
         The former is a list of lists of hit_name+atom_index,
         while the latter is a dictionary of hit_name to dictionary of
         hit atom indices to _intended_ followup index.
         This method converts the former to the latter.
+        If forbiddance is True, non mapping atoms are marked with negatives.
 
         If mol is None, then self.positioned_mol is used.
 
         :return:
         """
-        custom_map: Dict[str, Dict[int, int]] = {}
+        custom_map: Dict[str, Dict[int, int]] = {hit.GetProp('_Name'): {} for hit in self.hits}
         # `origins_from_mol` uses self.positioned_mol by default... what if it is not set?
         origins:List[List[str]] = self.origin_from_mol(mol)  # noqa It is in utility
-        for hit in self.hits:  #:Chem.Mol
-            name:str = hit.GetProp('_Name')
-            # "default=-1-fi" is to assign a unique negative number to prevent anything mapping to the target index.
-            custom_map[name] = {get_idx(name, o, default=-1-fi): fi for fi, ori in enumerate(origins) for o in ori}
-        return custom_map
+        for fi, ori in enumerate(origins):
+            for origin in ori:
+                reg = re.search('(.*)\.(\d+)', str(origin))
+                if reg is None:  # literally `none`... Although this is legacy.
+                    continue
+                name = reg.group(1)
+                hi = int(reg.group(2)) % 100
+                custom_map[name][hi] = fi
+        new_custom_map = {}
+        for hit in self.hits:
+            name = hit.GetProp('_Name')
+            ni = -1
+            new_custom_map[name] = {}
+            for hi in range(hit.GetNumAtoms()):
+                if hi in custom_map[name]:
+                    new_custom_map[name][hi] = custom_map[name][hi]
+                elif not forbiddance:
+                    pass
+                elif hit.GetAtomWithIdx(hi).GetAtomicNum() == 1:
+                    pass
+                else:
+                    new_custom_map[name][hi] = ni
+                    ni -= 1
+        return new_custom_map
 
     def _to_nglview_and_legend(self, show_positioned_mol:False) -> Tuple[nv.NGLWidget, str]:
         """
