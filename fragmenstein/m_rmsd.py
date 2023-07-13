@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import defaultdict
 ########################################################################################################################
 
 __doc__ = \
@@ -487,14 +488,31 @@ class mRMSD:
         conf = annotated_followup.GetConformer()
         n = 0
         tatoms = 0
+        ns = defaultdict(int)
+        ts = defaultdict(int)
         for a, atom in enumerate(annotated_followup.GetAtoms()):
-            if atom.HasProp('_x'):
-                x, y, z = cls._get_xyz(atom)
-                tatoms += 1
-                n += sum([(conf.GetAtomPosition(a).x - x) ** 2 +
-                            (conf.GetAtomPosition(a).y - y) ** 2 +
-                            (conf.GetAtomPosition(a).z - z) ** 2])
+            if not atom.HasProp('_x'):
+                continue
+            x, y, z = cls._get_xyz(atom)
+            tatoms += 1
+            d = sum([(conf.GetAtomPosition(a).x - x) ** 2 +
+                        (conf.GetAtomPosition(a).y - y) ** 2 +
+                        (conf.GetAtomPosition(a).z - z) ** 2])
+            n += d
+            if atom.HasProp('_Origin'):
+                origins = json.loads(atom.GetProp('_Origin'))
+                for origin in origins:
+                    if origin == 'none':
+                        continue
+                    hit_name, idx = re.match(r'(.*)\.(\d+)', origin).groups()
+                    ns[hit_name] += d
+                    ts[hit_name] += 1
+            elif atom.HasProp('_ori_name'):
+                hit_name = atom.GetProp('_ori_name')
+                ns[hit_name] += d
+                ts[hit_name] += 1
         self.mrmsd = (n / tatoms) ** 0.5
+        self.rmsds = [(ns[hit_name] / ts[hit_name]) ** 0.5 for hit_name in ns]
         return self
 
 
