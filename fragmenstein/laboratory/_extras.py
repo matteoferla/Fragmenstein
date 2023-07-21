@@ -1,3 +1,6 @@
+import pandas as pd
+from rdkit.Chem import PandasTools
+
 class LabExtras:
 
     error_classifications ={'SUCCESS': 'success',
@@ -34,5 +37,24 @@ class LabExtras:
             else:
                 return cls.error_classifications['UNCLASSIFIED']
 
-    def convert_to_sdf(self, df):
-        pass
+    @classmethod
+    def convert_to_sdf(self,
+                       df: pd.DataFrame,
+                       filename: str = f'fragmenstein.sdf',
+                       acceptable_only = True,
+                       sort_values='∆∆G',
+                       name='name',
+                       mol_name='minimized_mol'):
+        if acceptable_only:
+            df = df.loc[(df.outcome == 'acceptable')]
+        short = df.sort_values(sort_values).reset_index().drop_duplicates(name)
+
+        PandasTools.WriteSDF(df=short,
+                             out=filename,
+                             molColName=mol_name,
+                             idName=name,
+                             properties=['regarded', 'smiles', '∆∆G', '∆G_bound', '∆G_unbound',
+                                         'comRMSD', 'N_constrained_atoms', 'N_unconstrained_atoms', 'runtime',
+                                         'LE', 'outcome',
+                                         'prcent_hybrid']
+                             )

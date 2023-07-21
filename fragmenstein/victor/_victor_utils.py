@@ -23,7 +23,7 @@ import sys, json
 import unicodedata
 import numpy as np
 from ..extraction_funs import add_dummy_to_mol
-from typing import List, Union, Optional, Dict, Tuple
+from typing import List, Union, Optional, Dict, Tuple, TYPE_CHECKING
 
 from rdkit import Chem
 from rdkit.Chem import rdFMCS, AllChem, EnumerateStereoisomers
@@ -35,6 +35,9 @@ from ..m_rmsd import mRMSD
 from ..monster import Monster
 from rdkit_to_params import Params
 from ..igor import Igor
+
+if TYPE_CHECKING or 'sphinx' in sys.modules:
+    import pandas as pd
 
 
 class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
@@ -524,9 +527,49 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         Get the interactions from PLIP.
         """
         from .plip import PLIPper
-        plipper = PLIPper(pdb_block=self.minimized_pdbblock,
+        from plip.basic import config
+
+        config.NOHYDRO = True
+        clean_block = ''
+        for l in self.minimized_pdbblock.split('\n'):
+            if l.startswith('#'):
+                break
+            clean_block += l + '\n'
+        plipper = PLIPper(pdb_block=[self.minimized_pdbblock],
                           resn=self.ligand_resn,
                           resi=int(self.ligand_resi[:-1]),
                           chain=self.ligand_resi[-1])
         setattr(self, 'plipper', plipper)  # new attribute
         return plipper.interaction_counts
+
+    @staticmethod
+    def to_simple_smiles(mol: Chem.Mol) -> str:
+        if not isinstance(mol, Chem.Mol) or not mol.GetNumAtoms():
+            return ''
+        try:
+            mol = AllChem.RemoveAllHs(mol)
+            for atom in mol.GetAtoms():
+                atom.SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
+            return Chem.MolToSmiles(mol)
+        except:
+            return ''
+
+    def migrate_sw_origins(self, row: pd.Series) -> Dict[str, Dict[int, int]]:
+        """
+        Given a Victor object and a SmallWorld seach result row, return the "custom_map"
+        """
+        # hit names to [hit to minimised]
+        origins: Dict[str, Dict[int, int]] = self.monster.convert_origins_to_custom_map(forbiddance=False)
+        # minimised
+        query2minimized: Dict[int, int] = dict(
+            enumerate(self.minimized_mol.GetSubstructMatch(Chem.MolFromSmiles(row['qrySmiles']))))
+        minimized2query: Dict[int, int] = dict(zip(query2minimized.values(), query2minimized.keys()))
+        # candiate
+        query2candidate: Dict[int, int] = dict(enumerate(row['atomMap']))
+        candidate2query: Dict[int, int] = dict(zip(query2candidate.values(), query2candidate.keys()))
+        # mixing
+        minimized2candidate: Dict[int, int] = {m: query2candidate.get(q, -1) for m, q in minimized2query.items()}
+        origins2candidate = {name: {o: minimized2candidate.get(m, -1) for o, m in origins[name].items()} for name in
+                             origins}
+        return origins2candidate
+

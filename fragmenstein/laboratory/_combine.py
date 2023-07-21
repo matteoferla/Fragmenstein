@@ -37,6 +37,8 @@ class LabCombine(LabBench):
             result['unmin_binary'] = binarize(v.monster.positioned_mol)
             result['min_binary'] = binarize(v.minimized_mol)
             result['hit_binaries'] = [binarize(h) for h in v.hits]
+            if self.run_plip:
+                result.update(v.get_plip_interactions())
             return result
             # v.make_pse()
         except KeyboardInterrupt as err:
