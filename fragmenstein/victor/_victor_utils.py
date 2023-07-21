@@ -528,12 +528,14 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         """
         from .plip import PLIPper
         from plip.basic import config
-
-        config.NOHYDRO = True
+        # PLIP is a bit problematic with hydrogens as it doesn't like them and loses atomtypes
+        config.NOHYDRO = False  # default
         clean_block = ''
         for l in self.minimized_pdbblock.split('\n'):
             if l.startswith('#'):
                 break
+            if l.contains('    H'):
+                continue
             clean_block += l + '\n'
         plipper = PLIPper(pdb_block=[self.minimized_pdbblock],
                           resn=self.ligand_resn,
