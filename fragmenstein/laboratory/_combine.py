@@ -23,24 +23,24 @@ class LabCombine(LabBench):
             assert len(hits) > 0, 'No valid hits!'
             tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
-            v = self.Victor(hits=hits,
+            victor = self.Victor(hits=hits,
                        pdb_block=self.pdbblock,
                        ligand_resn='LIG',
                        ligand_resi=self.ligand_resi,
                        covalent_resi=self.covalent_resi,
                        # a random residue is **still** required for the constaint ref atom.
                        )
-            v.monster_throw_on_discard = True
-            v.monster.throw_on_discard = True
-            v.combine()
-            result: dict = v.summarize()
-            result['unmin_binary'] = binarize(v.monster.positioned_mol)
-            result['min_binary'] = binarize(v.minimized_mol)
-            result['hit_binaries'] = [binarize(h) for h in v.hits]
+            victor.monster_throw_on_discard = True
+            victor.monster.throw_on_discard = True
+            victor.combine()
+            result: dict = victor.summarize()
+            result['unmin_binary'] = binarize(victor.monster.positioned_mol)
+            result['min_binary'] = binarize(victor.minimized_mol)
+            result['hit_binaries'] = [binarize(h) for h in victor.hits]
             if self.run_plip:
-                result.update(v.get_plip_interactions())
+                result.update(victor.get_plip_interactions())
             return result
-            # v.make_pse()
+            # victor.make_pse()
         except KeyboardInterrupt as err:
             raise err
         except Exception as error:
