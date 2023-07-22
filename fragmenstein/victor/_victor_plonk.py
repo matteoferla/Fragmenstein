@@ -77,7 +77,7 @@ class _VictorPlonk(_VictorJournal):
     def _plonk_monster_in_structure_minimal(self) -> str:
         """
         Plonks the molecule in the structure without using pymol.
-        Uses a custom miniparser. see minimalPDB
+        Uses a custom miniparser. see minimalPDB.MinimalPDBParser
 
         :return:
         """

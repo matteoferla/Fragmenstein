@@ -22,7 +22,7 @@ from collections import Counter, defaultdict
 from plip.structure.preparation import PDBComplex, PLInteraction
 from openbabel.pybel import Atom, Residue
 from openbabel.pybel import ob
-from .minimalPDB import MinimalPDB
+from .minimalPDB import MinimalPDBParser
 import warnings
 
 
