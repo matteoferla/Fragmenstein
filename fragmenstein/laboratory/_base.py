@@ -8,6 +8,8 @@ from rdkit import Chem
 from ..monster import Monster
 from ..victor import Victor
 
+# not needed for binarize... but just in case user is not using them...
+Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
     # this is convoluted as None is a common error outcome with RDKit
@@ -136,7 +138,9 @@ class LabBench:
         """
         # see category_labels for list of values.
         is_filled: Callable[[Any], int] = lambda value: len(value) != 0 if hasattr(value, '__len__') else False
-        if is_filled(row.disregarded) or 'DistanceError' in row.error:
+        if 'disregarded' not in row.index:
+            return 'crashed'  # the whole row is empty
+        elif is_filled(row.disregarded) or 'DistanceError' in row.error:
             # either is the same thing, but the Victor error catching makes them different
             return 'too distant'
         elif 'TimeoutError' in row.error:

@@ -524,9 +524,10 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
     def get_plip_interactions(self):
         """
         Optional, but useful to have.
+        And highly experimental!
         Get the interactions from PLIP.
         """
-        from .plip import PLIPper
+        from .plip import SerialPLIPper
         from plip.basic import config
         # PLIP is a bit problematic with hydrogens as it doesn't like them and loses atomtypes
         config.NOHYDRO = False  # default
@@ -534,15 +535,16 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         for l in self.minimized_pdbblock.split('\n'):
             if l.startswith('#'):
                 break
-            if l.contains('    H'):
+            if '    H' in l:
                 continue
             clean_block += l + '\n'
-        plipper = PLIPper(pdb_block=[self.minimized_pdbblock],
+        plipper = SerialPLIPper(pdb_block=clean_block,
                           resn=self.ligand_resn,
                           resi=int(self.ligand_resi[:-1]),
                           chain=self.ligand_resi[-1])
         setattr(self, 'plipper', plipper)  # new attribute
-        return plipper.interaction_counts
+        interaction_set = plipper.get_interaction_set(plipper.pdb_block)
+        return plipper.get_interaction_counts(interaction_set)
 
     @staticmethod
     def to_simple_smiles(mol: Chem.Mol) -> str:
