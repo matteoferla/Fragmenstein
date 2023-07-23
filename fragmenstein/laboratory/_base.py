@@ -182,7 +182,7 @@ class LabBench:
             return float('nan')
         # origins: list of one entry for each followup atom to list of strings of hit name dot atom name
         origins: List[List[str]] = Monster.origin_from_mol(None, mol)
-        hit_names = [[ori_name.split('.')[0] for ori_name in atomic] if atomic else [] for atomic in origins]
+        hit_names = [[ori_name.split('.')[0] for ori_name in atomic if ori_name] if atomic else [] for atomic in origins]
         flat_names = [name for atomic in hit_names for name in atomic]
         names = set(flat_names)
         if len(names) == 0:  # no inspirations
