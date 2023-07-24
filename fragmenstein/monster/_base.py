@@ -128,11 +128,17 @@ class _MonsterBase:
                 raise ValueError(f'Hit has to be a Chem.Mol! not {type(hit)}')
             # fallback naming.
             if not hit.HasProp('_Name') or hit.GetProp('_Name').strip() == '':
-                hit.SetProp('_Name', f'hit{hi}')
+                for k in ('id', 'ID', 'Id',  'name', 'Name'):
+                    if hit.HasProp(k):
+                        hit.SetProp('_Name', hit.GetProp(k))
+                        break
+                else:
+                    hit.SetProp('_Name', f'hit{hi}')
             elif hit.GetProp('_Name') in dejavu:
                 hit.SetProp('_Name', hit.GetProp('_Name') + f'_{hi}')
             dejavu.add(hit.GetProp('_Name'))
-
+            if not hit.HasProp('Id'):
+                hit.SetProp('Id', hit.GetProp('_Name'))
             # ====== IMPORTANT ==========
             self.store_positions(hit)
         return hits
