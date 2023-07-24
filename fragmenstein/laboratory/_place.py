@@ -63,7 +63,7 @@ class LabPlace(LabBench):
             result['unmin_binary'] = binarize(victor.monster.positioned_mol)
             result['min_binary'] = binarize(victor.minimized_mol)
             result['hit_binaries'] = [binarize(h) for h in victor.hits]
-            if self.run_plip:
+            if self.run_plip and victor.minimized_pdbblock:
                 result.update(victor.get_plip_interactions())
             return result
         except KeyboardInterrupt as err:
