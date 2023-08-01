@@ -412,6 +412,9 @@ class _MonsterCommunal(_MonsterTracker):
         :param second: atom
         :return: atom index of third
         """
+        if first.GetIdx() == second.GetIdx():
+            return None
+        # count valids: that will not be deleted
         get_neigh_idxs = lambda atom: [neigh.GetIdx() for neigh in atom.GetNeighbors() if
                                        self._is_count_valid(neigh)]
         f_neighs: List[int] = get_neigh_idxs(first)
