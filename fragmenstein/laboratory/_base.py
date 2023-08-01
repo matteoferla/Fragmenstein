@@ -68,6 +68,7 @@ class LabBench:
         self.ligand_resi = ligand_resi
         self.Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
         self.run_plip = run_plip
+        self.blacklist = []  # list of names to skip
         if not len(Victor.journal.handlers):
             Victor.enable_stdout(logging.CRITICAL)
 
@@ -201,6 +202,7 @@ class LabBench:
                  fun: Callable,
                  n_cores: int = 4,
                  timeout: int = 240,
+                 max_tasks: int = 0,  # 0 mean infinity
                  asynchronous: bool = False
                  ):
         """Combine/permute the molecules ``mols``
@@ -208,6 +210,14 @@ class LabBench:
         killing any that live longer than ``timeout`` seconds.
         The method returns an iterator of promises ``pebble.ProcessMapFuture`` if ``asynchronous`` is True,
         or the results as a pandas DataFrame. To convert the promises to a dataframe use ``get_completed``."""
+
+        def max_out(inner_iterator, maximum: int):
+            for i, item in zip(range(maximum), inner_iterator):
+                yield item
+
+        if max_tasks > 0:
+            iterator = max_out(iterator, max_tasks)
+
         with pebble.ProcessPool(max_workers=n_cores, max_tasks=n_cores) as pool:
             futures: pebble.ProcessMapFuture = pool.map(fun, iterator, timeout=timeout)
         if asynchronous:

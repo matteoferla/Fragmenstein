@@ -22,6 +22,8 @@ class LabCombine(LabBench):
             hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
             assert len(hits) > 0, 'No valid hits!'
             tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
+            if tentative_name in self.blacklist:
+                raise ValueError(f'{tentative_name} is blacklisted')
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
             victor = self.Victor(hits=hits,
                        pdb_block=self.pdbblock,
