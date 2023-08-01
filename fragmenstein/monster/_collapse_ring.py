@@ -1077,9 +1077,10 @@ class _MonsterRing(_MonsterJoinNeigh):
         """
         bonds = [mol.GetBondBetweenAtoms(a, b) for a, b in combinator(atom_indices)]
         if any([bond is None for bond in bonds]):
-            self.journal.critical(f'IMPOSSIBLE ERROR: detriangulate missing bond ' +
-                                  f'(combinator={combinator.__qualname__}. ' +
-                                  f'{atom_indices})')
+            # this bond was fixed in the previous iteration
+            # self.journal.critical(f'IMPOSSIBLE ERROR: detriangulate missing bond ' +
+            #                       f'(combinator={combinator.__qualname__}. ' +
+            #                       f'{atom_indices})')
             return None
         provenances = BondProvenance.get_bonds(bonds)
         # original
