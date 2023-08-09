@@ -117,7 +117,12 @@ class LabBench:
         df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
         df['minimized_mol'] = df.min_binary.apply(unbinarize)
         df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
+        df['hit_names'] = df.hit_mols.apply(lambda v: [m.GetProp('_Name') for m in v])
         df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
+        # if plipped fix nans
+        intxn_names = [c for c in df.columns if isinstance(c, tuple)]
+        for intxn_name in intxn_names:
+            df[intxn_name] = df[intxn_name].fillna(0).astype(int)
         return df
 
     def categorize(self,
