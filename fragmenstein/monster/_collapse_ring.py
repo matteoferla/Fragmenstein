@@ -1038,7 +1038,7 @@ class _MonsterRing(_MonsterJoinNeigh):
                                               combinator=combinator
                                               )
                     # start again
-                    return _detriangulate(mol)
+                    return self._detriangulate(mol)
                 # de square-ify
                 sq = self._get_square(atom, neigh)
                 if sq is not None:
