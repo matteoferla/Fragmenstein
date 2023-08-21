@@ -59,7 +59,7 @@ class LabPlace(LabBench):
                             covalent_resi=self.covalent_resi,
                             )
             victor.place(smiles, long_name=name)
-            result: dict = victor.summarize()
+            result: dict = {**dict(inputs), **victor.summarize()}
             result['unmin_binary'] = binarize(victor.monster.positioned_mol)
             result['min_binary'] = binarize(victor.minimized_mol)
             result['hit_binaries'] = [binarize(h) for h in victor.hits]

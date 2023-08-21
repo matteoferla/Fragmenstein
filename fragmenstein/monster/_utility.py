@@ -385,6 +385,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         if mol is None:
             mol = self.positioned_mol
         try:
+            mol = Chem.Mol(mol)  # copy!
             AllChem.UFFGetMoleculeForceField(mol)
             ff = AllChem.UFFGetMoleculeForceField(mol)
             ff.Initialize()
