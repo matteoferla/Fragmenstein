@@ -2,7 +2,6 @@ from IPython.display import SVG, display, HTML
 import nglview as nv
 from rdkit import Chem
 from rdkit.Chem import Draw, AllChem
-from matplotlib.colors import ColorConverter
 from ..branding import divergent_colors
 from functools import singledispatchmethod
 from typing import Tuple, List, Dict, Optional
@@ -12,6 +11,7 @@ from ..display import MolNGLWidget
 
 
 def draw(mol, color_map, x=200, y=200, **kwargs):
+    from matplotlib.colors import ColorConverter
     d = Draw.rdMolDraw2D.MolDraw2DSVG(x, y)
     d.drawOptions().addAtomIndices = True
     d.drawOptions().addStereoAnnotation = True

@@ -2,9 +2,8 @@ from typing import Sequence
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from IPython.display import display
-from matplotlib.colors import ColorConverter
-import nglview as nv
 from nglview.component import ComponentViewer
+import nglview as nv
 from io import StringIO
 
 
@@ -15,6 +14,8 @@ def display_mols(mols: Sequence[Chem.Mol],
     """
     Generic wrapper for calling ``display(Draw.MolsToGridImage)``
     """
+    from matplotlib.colors import ColorConverter
+
     if not mols:
         return  # no mols, no display
     flattos = [AllChem.RemoveHs(mol) for mol in mols if isinstance(mol, Chem.Mol)]
