@@ -56,6 +56,7 @@ class LabCombine(LabBench):
                 combination_size:int=2,
                 **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
         """
+        Combine all of ``mols`` with each other in combinations of ``combination_size``.
         Due to the way Monster works merging A with B may yield a different result to B with A.
         Hence the ``permute`` boolean argument.
         """  # extended at end of file.
@@ -67,5 +68,19 @@ class LabCombine(LabBench):
         df['outcome'] = df.apply(self.categorize, axis=1)
         return df
 
+    def twoway_combine(self,
+                primary_mols: Sequence[Chem.Mol],
+                secondary_mols: Sequence[Chem.Mol],
+                permute:bool=True,
+                **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
+        """
+        Combine ``primary_mols`` with ``secondary_mols``.
+        """
+        iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols))
+        df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
+        df['outcome'] = df.apply(self.categorize, axis=1)
+        return df
+
 # prepend docstring to combine
 LabCombine.combine.__doc__ = LabBench.__call__.__doc__  + '\n\n' + LabCombine.combine.__doc__
+LabCombine.twoway_combine.__doc__ = LabBench.__call__.__doc__  + '\n\n' + LabCombine.twoway_combine.__doc__
