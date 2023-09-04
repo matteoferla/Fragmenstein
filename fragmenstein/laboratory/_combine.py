@@ -71,12 +71,20 @@ class LabCombine(LabBench):
     def twoway_combine(self,
                 primary_mols: Sequence[Chem.Mol],
                 secondary_mols: Sequence[Chem.Mol],
-                permute:bool=True,
+                combination_size:int=2,
                 **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
         """
         Combine ``primary_mols`` with ``secondary_mols``.
         """
-        iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols))
+        if combination_size == 2:
+            iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols))
+        elif combination_size == 3:
+            extras = map(binarize, list(primary_mols) + list(secondary_mols))
+        elif combination_size > 2:
+            extras = itertools.product(map(binarize, list(primary_mols) + list(secondary_mols)), repeat=combination_size - 2)
+            iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols), extras)
+        else:
+            raise ValueError(f'combination_size must be > 2 (given: {combination_size}')
         df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
         df['outcome'] = df.apply(self.categorize, axis=1)
         return df
