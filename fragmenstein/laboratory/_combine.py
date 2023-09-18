@@ -1,9 +1,9 @@
 import itertools
-from typing import (Union, Sequence, List)
+from typing import Union, Sequence, List, Iterator
 
 import pandas as pd
 import pebble
-from rdkit import Chem
+from rdkit import Chem, rdBase
 
 from ._base import LabBench, binarize, unbinarize
 from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RTD
@@ -26,12 +26,12 @@ class LabCombine(LabBench):
                 raise ValueError(f'{tentative_name} is blacklisted')
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
             victor = self.Victor(hits=hits,
-                       pdb_block=self.pdbblock,
-                       ligand_resn='LIG',
-                       ligand_resi=self.ligand_resi,
-                       covalent_resi=self.covalent_resi,
-                       # a random residue is **still** required for the constaint ref atom.
-                       )
+                                 pdb_block=self.pdbblock,
+                                 ligand_resn='LIG',
+                                 ligand_resi=self.ligand_resi,
+                                 covalent_resi=self.covalent_resi,
+                                 # a random residue is **still** required for the constaint ref atom.
+                                 )
             victor.monster_throw_on_discard = True
             victor.monster.throw_on_discard = True
             victor.combine()
@@ -52,43 +52,48 @@ class LabCombine(LabBench):
 
     def combine(self,
                 mols: Sequence[Chem.Mol],
-                permute:bool=True,
-                combination_size:int=2,
+                permute: bool = True,
+                combination_size: int = 2,
                 **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
         """
         Combine all of ``mols`` with each other in combinations of ``combination_size``.
         Due to the way Monster works merging A with B may yield a different result to B with A.
         Hence the ``permute`` boolean argument.
         """  # extended at end of file.
+        iterator: Iterator
         if permute:
             iterator = itertools.permutations(map(binarize, mols), combination_size)
         else:
             iterator = itertools.combinations(map(binarize, mols), combination_size)
         df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
         df['outcome'] = df.apply(self.categorize, axis=1)
+        with rdBase.BlockLogs():
+            df['simple_smiles'] = df.unminimized_mol.apply(self.Victor.to_simple_smiles)
+        self.fix_intxns(df)
         return df
 
     def twoway_combine(self,
-                primary_mols: Sequence[Chem.Mol],
-                secondary_mols: Sequence[Chem.Mol],
-                combination_size:int=2,
-                **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
+                       primary_mols: Sequence[Chem.Mol],
+                       secondary_mols: Sequence[Chem.Mol],
+                       combination_size: int = 2,
+                       **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
         """
         Combine ``primary_mols`` with ``secondary_mols``.
         """
+        iterator: Iterator
         if combination_size == 2:
             iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols))
-        elif combination_size == 3:
-            extras = map(binarize, list(primary_mols) + list(secondary_mols))
         elif combination_size > 2:
-            extras = itertools.product(map(binarize, list(primary_mols) + list(secondary_mols)), repeat=combination_size - 2)
-            iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols), extras)
+            extras = map(binarize, list(primary_mols) + list(secondary_mols))
+            iterator = itertools.product(map(binarize, primary_mols), map(binarize, secondary_mols), extras,
+                                         repeat=combination_size - 2)
         else:
             raise ValueError(f'combination_size must be > 2 (given: {combination_size}')
         df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
         df['outcome'] = df.apply(self.categorize, axis=1)
         return df
 
+
 # prepend docstring to combine
-LabCombine.combine.__doc__ = LabBench.__call__.__doc__  + '\n\n' + LabCombine.combine.__doc__
-LabCombine.twoway_combine.__doc__ = LabBench.__call__.__doc__  + '\n\n' + LabCombine.twoway_combine.__doc__
+LabCombine.combine.__doc__ = LabBench.__call__.__doc__ + '\n\n' + LabCombine.combine.__doc__
+LabCombine.twoway_combine.__doc__ = LabBench.__call__.__doc__ + '\n\n' + LabCombine.twoway_combine.__doc__

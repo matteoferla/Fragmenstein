@@ -3,7 +3,8 @@ from ._place import LabPlace
 from ._base import binarize, unbinarize
 from ._place import MolPlacementInput, BinPlacementInput
 from ._extras import LabExtras
-class Laboratory(LabCombine, LabPlace, LabExtras):
+from ._score import LabScore
+class Laboratory(LabCombine, LabPlace, LabExtras, LabScore):
     """
     This class runs the combination or placement tasks of a list of molecules as subprocesses.
     The module used is ``pebble``, which is the same as ``multiprocessing`` but with a few more features.

@@ -8,10 +8,11 @@ class FragmensteinParserBase:
     See main module docstring for usage.
     """
 
-    subcommand_help = '''Actions: monster, victor, laboratory, utils
+    subcommand_help = '''Actions: monster, victor, laboratory, pipeline, utils
     '''
     monster_help = '''monster'''
     laboratory_help = '''laboratory'''
+    pipeline_help = '''pipeline'''
     victor_help = '''victor'''
     utils_help = '''utils'''
 
@@ -22,6 +23,8 @@ class FragmensteinParserBase:
         self._define_monster(monster_parser)
         laboratory_parser = subparsers.add_parser('laboratory', help=self.laboratory_help)
         self._define_laboratory(laboratory_parser)
+        pipeline_parser = subparsers.add_parser('pipeline', help=self.pipeline_help)
+        self._define_pipeline(pipeline_parser)
         victor_parser = subparsers.add_parser('victor', help=self.victor_help)
         self._define_victor(victor_parser)
         utils_parser = subparsers.add_parser('utils', help=self.utils_help)
@@ -35,6 +38,9 @@ class FragmensteinParserBase:
         args.func(args)
 
     def _define_laboratory(self, parser: argparse.ArgumentParser):
+        raise NotImplementedError('virtual method')
+
+    def _define_pipeline(self, parser: argparse.ArgumentParser):
         raise NotImplementedError('virtual method')
 
     def _define_victor(self, parser: argparse.ArgumentParser):

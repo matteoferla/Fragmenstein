@@ -2,9 +2,9 @@ import logging
 import pebble
 import operator
 from typing import (Any, Callable, Union, Iterator, Sequence, List, Dict)
-from collections import Counter
 import pandas as pd
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from ..monster import Monster
 from ..victor import Victor
 
@@ -55,6 +55,7 @@ class LabBench:
 
     # the ``outcome`` column in the pandas dataframe can have these values in order of niceness:
     category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'equally sized', 'deviant', 'acceptable']
+    Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
 
     def __init__(self, pdbblock: str,
                  covalent_resi: Union[int, str, None] = None,
@@ -66,7 +67,6 @@ class LabBench:
         self.init_options = '-ex1 -ex2 -no_optH false -mute all -ignore_unrecognized_res true -load_PDB_components false'
         self.raw_results = []
         self.ligand_resi = ligand_resi
-        self.Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
         self.run_plip = run_plip
         self.blacklist = []  # list of names to skip
         if not len(Victor.journal.handlers):
@@ -112,17 +112,20 @@ class LabBench:
             lambda row: - row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),
             axis=1)
         nan_to_list = lambda value: value if isinstance(value, list) else []
+        nan_to_mol = lambda m: m if isinstance(m, Chem.Mol) else Chem.Mol()
         df['disregarded'] = df.disregarded.apply(nan_to_list)  # str
         df['regarded'] = df.regarded.apply(nan_to_list)  # str
-        df['unminimized_mol'] = df.unmin_binary.apply(unbinarize)
-        df['minimized_mol'] = df.min_binary.apply(unbinarize)
+        df['unminimized_mol'] = df.unmin_binary.apply(unbinarize).apply(nan_to_mol)
+        df['minimized_mol'] = df.min_binary.apply(unbinarize).apply(nan_to_mol)
         df['hit_mols'] = df.hit_binaries.apply(lambda l: [unbinarize(b) for b in l] if isinstance(l, Sequence) else [])
         df['hit_names'] = df.hit_mols.apply(lambda v: [m.GetProp('_Name') for m in v])
         df['percent_hybrid'] = df.unminimized_mol.apply(self.percent_hybrid)
-        # if plipped fix nans
-        intxn_names = [c for c in df.columns if isinstance(c, tuple)]
-        for intxn_name in intxn_names:
-            df[intxn_name] = df[intxn_name].fillna(0).astype(int)
+        # if plipped fix nan interactions
+        self.fix_intxns(df)
+        # macrocyclics... yuck.
+        df['largest_ring'] = df.minimized_mol.apply(lambda mol: max([0] + list(map(len, mol.GetRingInfo().AtomRings()))))
+        df['N_HA'] = df.minimized_mol.apply(Chem.Mol.GetNumHeavyAtoms)
+        df['N_rotatable_bonds'] = df.minimized_mol.apply(AllChem.CalcNumRotatableBonds)
         return df
 
     def categorize(self,
@@ -229,3 +232,14 @@ class LabBench:
             return futures
         else:
             return self.get_completed(futures)
+
+    @staticmethod
+    def fix_intxns(df):
+        """
+        The interactions from PLIP will be columns with a list of tuples,
+        of the form ('hbond', 'LEU', 127),
+        _i.e._ interaction name, residue name and residue number.
+        """
+        intxn_names = [c for c in df.columns if isinstance(c, tuple)]
+        for intxn_name in intxn_names:
+            df[intxn_name] = df[intxn_name].fillna(0).astype(int)

@@ -8,3 +8,4 @@ from .MPro_combine import VictorCombineTests
 from .MPro_place import MProPlaceTester
 from .multivictor import MultivictorPlaceTests
 from .walton import WaltonTests
+from .lab import LabTests
