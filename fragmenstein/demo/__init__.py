@@ -1,4 +1,4 @@
-__all__ = ['TestSet', 'MPro', 'BaseMolDataset']
+__all__ = ['TestSet', 'MPro', 'Mac1', 'BaseMolDataset']
 
 
 
