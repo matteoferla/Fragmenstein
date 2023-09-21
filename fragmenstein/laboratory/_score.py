@@ -206,8 +206,8 @@ class LabScore:
             df = df.loc[df.outcome == 'acceptable'] \
                 .sort_values(penalty_col) \
                 .rename(columns={c: ':'.join(map(str, c)) for c in df.columns if isinstance(c, tuple)}) \
-                .reset_index()
-            df = df.loc[df.merger_rank < 5].copy()
+                .reset_index() \
+                .copy()
             # list of str to str w/ comma-separator
             df['ref_mols'] = df.hit_names.apply(lambda l: ','.join([v.replace(f'{target_name}-', '') for v in l]))
             df['washed_mol'] = df.minimized_mol.apply(fix)
@@ -224,8 +224,6 @@ class LabScore:
                         'hit_binaries',
                         'minimized_mol',
                         'hit_mols', 'unminimized_mol', 'hit_names')
-        nonempty = [c for c, v in (df[[c for c in df.columns if ':' in c]].sum() > 0).to_dict().items() if v]
-        extras: List[str] = [c for c in df.columns if c not in not_okay and ':' not in c] + nonempty
-        bad_columns = [x for x, v in df[extras].astype(float).isna().any().to_dict().items() if v]
-        assert not bad_columns, 'Some entries are not numeric'
+        good_columns = df.columns[~df.applymap(lambda x: not isinstance(x, (float, str))).any()]
+        extras: List[str] = [c for c in df.columns if c in good_columns and not c in not_okay]
         PandasTools.WriteSDF(df, out=filename, properties=extras, molColName='minimized_mol')

@@ -2,10 +2,11 @@ import unittest
 import subprocess
 import os
 
+import pandas as pd
+
 from fragmenstein import Victor
 from fragmenstein.cli import FragmensteinParser
-import pkg_resources
-from fragmenstein.demo import TestSet
+from fragmenstein import Laboratory
 import fragmenstein.demo.test_mols as mol_folder
 from fragmenstein.demo import Mac1
 from pathlib import Path
@@ -41,6 +42,7 @@ class CliTests(unittest.TestCase):
         pdb_filename = (Path(Victor.work_path) / 'test.pdb').absolute().as_posix()
         sd_filename = (Path(Victor.work_path) / 'test.sdf').absolute().as_posix()
         os.chdir(Victor.work_path)
+        print(  os.getcwd()  )
         # create the input files
         pdb_block = Mac1.get_template()
         hits = [Mac1.get_mol(f'diamond-{name}') for name in ['x0282_A', 'x0104_A', 'x0722_A']]  # , 'x0591_A', 'x0091_B'
@@ -52,9 +54,17 @@ class CliTests(unittest.TestCase):
         # run the pipeline
         parser = FragmensteinParser()
         parser(['pipeline',
-                '--hits', sd_filename,
+                '--input', sd_filename,
                 '--template', pdb_filename,
                 '--suffix', 'test',
                 '--sw_length', '5',
                 '--sw_databases', 'REAL-Database-22Q1.smi.anon'
                 ])
+
+    def zest_temp(self):
+        """
+        This was broken...
+        """
+        df_filename = (Path(Victor.work_path) / 'fragmenstein_placedtest.pkl.gz').absolute().as_posix()
+        all_placements = pd.read_pickle(df_filename)
+        Laboratory.export_sdf(df=all_placements)

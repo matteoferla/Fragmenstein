@@ -77,7 +77,7 @@ class FragmensteinParserPipeline:
         Victor.quick_reanimation = quick  # for the impatient
         Victor.error_to_catch = Exception  # stop the whole laboratory otherwise
 
-    def pipeline(self, args: argparse.Namespace) -> str:
+    def pipeline(self, args: argparse.Namespace):
         """
         Performs a pipeline run of fragmenstein:
         places the hits against themselves as a reference ("replace") to get a baseline score
@@ -115,19 +115,19 @@ class FragmensteinParserPipeline:
         max_tasks = settings['max_tasks']
         hitnames = [h.GetProp('_Name') for h in hits]
         all_names = list(map('-'.join, itertools.permutations(hitnames, settings['combination_size'])))
-        if max_tasks == 0 or max_tasks > len(all_names):
-            Laboratory.core_ops(hit_replacements, **settings)
-            exit()
         base_suffix = settings['suffix']
-        all_placements = pd.DataFrame()
-        letters = iter(string.ascii_uppercase)
-        for i in range(0, len(all_names) + max_tasks, max_tasks):
-            settings['suffix'] = base_suffix + next(letters)
-            placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
-            settings['blacklist'] += all_names[i:i + max_tasks]
-            all_placements = pd.concat([all_placements, placements], ignore_index=True)
+        if max_tasks == 0 or max_tasks > len(all_names):
+            all_placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
+        else:
+            all_placements = pd.DataFrame()
+            letters = iter(string.ascii_uppercase)
+            for i in range(0, len(all_names) + max_tasks, max_tasks):
+                settings['suffix'] = base_suffix + next(letters)
+                placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
+                settings['blacklist'] += all_names[i:i + max_tasks]
+                all_placements = pd.concat([all_placements, placements], ignore_index=True)
+            settings['suffix'] = base_suffix
         Laboratory.correct_weaklings(hit_replacements, all_placements)
-        settings['suffix'] = base_suffix
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
         Laboratory.score(all_placements, hit_replacements, **settings)
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
