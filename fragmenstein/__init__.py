@@ -31,11 +31,15 @@ try:
 except ImportError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
-
 try:
     from .laboratory import Laboratory, binarize, unbinarize
 except ImportError as err:
     warn(f'Laboratory unavailable —{err}.', category=ImportWarning)
+
+try:
+    from .openmm import OpenVictor, Fritz
+except ImportError as err:
+    warn(f'OpenVictor / Fritz unavailable —{err}.', category=ImportWarning)
 
 from .monster import Monster
 from .walton import Walton
