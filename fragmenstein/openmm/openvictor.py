@@ -14,7 +14,7 @@ class OpenVictor(Victor):
         self.fritz = Fritz(positioned_mol=self._get_preminimized_undummied_monster(),
                            pdb_block=self.apo_pdbblock,
                            resn=self.ligand_resn,
-                           restrained_atomnames=self._get_restraining_atom_indices(),
+                           restraining_atom_indices=self._get_restraining_atom_indices(),
                            restraint_k=self.settings.get('restraint_k', 1000),
                            mobile_radius=self.settings.get('mobile_radius', 8.0),
                            )

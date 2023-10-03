@@ -50,7 +50,7 @@ class Fritz:
                  resn: str = 'LIG',
                  resi: str = 1,
                  chain: str = 'X',
-                 restrained_atomnames: Sequence[str] = (),
+                 restraining_atom_indices: Sequence[str] = (),
                  restraint_k: float = 1000.0,
                  mobile_radius: float = 8.0,
                  ):
@@ -67,10 +67,10 @@ class Fritz:
                                              self.positioned_mol)  # this is Fritz's plonk —Not Victor unlike Igor
         tock: float = time.time()
         self.journal.debug(f'Holo structure made {tock - tick}')
-        self.simulation = self.create_simulation(restrained_atomnames=restrained_atomnames,
+        self.simulation = self.create_simulation(restraining_atom_indices=restraining_atom_indices,
                                                  restraint_k=restraint_k,
                                                  mobile_radius=mobile_radius)
-        self.unbound_simulation = self.create_simulation(restrained_atomnames=restrained_atomnames,
+        self.unbound_simulation = self.create_simulation(restraining_atom_indices=[],
                                                          restraint_k=0,
                                                          mobile_radius=mobile_radius)
         self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0) )
@@ -163,7 +163,7 @@ class Fritz:
 
     def create_simulation(self,
                           restraint_k: float = 1_000,
-                          restrained_atomnames: Sequence = (),
+                          restraining_atom_indices: Sequence[int] = (),
                           mobile_radius: float = 8.0,
                           forcefileds: Sequence[str] = ('amber14-all.xml', 'implicit/gbn2.xml')
                           ) -> mma.Simulation:
@@ -186,7 +186,7 @@ class Fritz:
                                                     constraints=mma.HBonds)
         # restrain (harmonic constrain) the ligand
         if restraint_k:
-            self.restrain(system, self.holo, k=restraint_k, atomnames=restrained_atomnames)
+            self.restrain(system, self.holo, k=restraint_k, atom_indices=restraining_atom_indices)
         integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
         simulation = mma.Simulation(self.holo.topology, system, integrator)
         simulation.context.setPositions(self.holo.positions)
@@ -196,7 +196,7 @@ class Fritz:
 
     def restrain(self, system: mm.System, pdb: Union[mma.PDBFile, mma.Modeller],
                  k: float = 1_000.0,
-                 atomnames: Sequence[str] = (),
+                 atom_indices: Sequence[int] = (),
                  **args):
         """
         This needs to be set before the simulation is created. I dont know why.
@@ -215,14 +215,24 @@ class Fritz:
         restraint.addPerParticleParameter('z0')
 
         # positions = simulation.context.getState(getPositions=True).getPositions()
+        # ## get offset
+        # The order seems to not be altered, so an offset works.
         hydrogen = mma.element.Element.getBySymbol('H')
-        atomnames: List[str] = [n.strip() for n in atomnames]
         for atom in topology.atoms():
-            if atom.element == hydrogen:
+            if atom.residue.name == self.resn:
+                offset = atom.index
+                break
+        else:
+            raise ValueError(f'{self.resn} missing')
+        for atom in topology.atoms():
+            if atom.residue.name != self.resn:
                 continue
-            if atomnames and atom.name not in atomnames:
+            elif atom.element == hydrogen:
                 continue
-            if atom.residue.name == 'LIG':
+            # atom.index is C-style sequential index, atom.id is PDB "index".
+            elif atom_indices and atom.index - offset not in atom_indices:
+                continue
+            else:
                 restraint.addParticle(atom.index, positions[atom.index])
         self.journal.debug(f'N particles restrained: {restraint.getNumParticles()}')
 
