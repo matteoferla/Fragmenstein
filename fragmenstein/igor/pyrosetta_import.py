@@ -32,7 +32,7 @@ class AttributeFilledMock:
 if util.find_spec('pyrosetta'):
     import pyrosetta
 else:
-    warn('PyRosetta is not installed. A mock object is loaded. Any calls will fail.', category=RuntimeWarning)
+    warn('PyRosetta is not installed. A mock object is loaded. Any Igor calls will fail.', category=RuntimeWarning)
     pyrosetta = AttributeFilledMock()
     sys.modules['pyrosetta'] = pyrosetta
 
