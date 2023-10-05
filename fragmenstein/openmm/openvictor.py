@@ -17,17 +17,22 @@ class OpenVictor(Victor):
             raise NotImplementedError('OpenVictor does not support covalent ligands')
         self.journal.debug(f'{self.long_name} - Starting system setup')
         self.mol = Chem.Mol(self.monster.positioned_mol)
+        restraint_k = self.settings.get('restraint_k', 1000.)
         self.fritz = Fritz(positioned_mol=self._get_preminimized_undummied_monster(),
                            pdb_block=self.apo_pdbblock,
                            resn=self.ligand_resn,
                            restraining_atom_indices=self._get_restraining_atom_indices(),
-                           restraint_k=self.settings.get('restraint_k', 1000),
+                           restraint_k=restraint_k,
                            mobile_radius=self.settings.get('mobile_radius', 8.0),
                            )
         self.unminimized_pdbblock = self.fritz.to_pdbblock()
         self._data: Dict = self.fritz.reanimate()
-        if not self.quick_reanimation and self._data['binding_dG'] > 0:
+        while not self.quick_reanimation and self._data['binding_dG'] > 0:
+            restraint_k = 2.
+            self.fritz.alter_restraint(restraint_k / 3.)
             self._data: Dict = self.fritz.reanimate()
+            self.journal.debug(f'{self.long_name} - restraints at {restraint_k}')
+        self._data['restraint_k'] = restraint_k
         self._data['origins'] = self.monster.origin_from_mol()
         self.minimized_pdbblock = self.fritz.to_pdbblock()
         self.minimized_mol = self.fritz.to_mol()

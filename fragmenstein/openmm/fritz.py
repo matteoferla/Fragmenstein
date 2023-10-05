@@ -51,7 +51,7 @@ class Fritz:
                  resn: str = 'LIG',
                  resi: str = 1,
                  chain: str = 'X',
-                 restraining_atom_indices: Sequence[str] = (),
+                 restraining_atom_indices: Sequence[int] = (),
                  restraint_k: float = 1000.0,
                  mobile_radius: float = 8.0,
                  ):
@@ -372,6 +372,18 @@ class Fritz:
             simulation.system.removeForce(fi)
             return True
         return False
+
+    def alter_restraint(self, new_k: float):
+        f: mm.Force = self.get_force_by_name('CustomExternalForce')
+        # get the index of the constant named _k_
+        for i in range(f.getNumGlobalParameters()):
+            if f.getGlobalParameterName(i) == 'k':
+                break
+        else:
+            raise ValueError
+        v = f.getGlobalParameterDefaultValue(i)
+        f.setGlobalParameterDefaultValue(i, new_k)
+        f.updateParametersInContext(self.simulation.context)
 
     def to_pdbhandle(self, filehandle: io.TextIOWrapper, simulation: Optional[mma.Simulation]=None):
         if simulation is None:
