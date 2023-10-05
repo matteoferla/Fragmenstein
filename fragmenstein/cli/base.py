@@ -17,6 +17,10 @@ class FragmensteinParserBase:
     utils_help = '''utils'''
 
     def __init__(self):
+        """
+        Defines the parser.
+        Calling executes it.
+        """
         self.parser = argparse.ArgumentParser(description=self.__doc__)
         subparsers = self.parser.add_subparsers(title='subcommands', help=self.subcommand_help)
         monster_parser = subparsers.add_parser('monster', help=self.monster_help)

@@ -15,7 +15,8 @@ singledispatchmethod>= 1.0  # backport for python 3.8
 matplotlib>=3.5.2  # optional
 smallworld-api>=1.1  # optional. MF authored this
 sqlitedict>= 2.0.0 # optional
-
+pandera>=0.17.2
+pandarallel>=1.6.5
 # ipywidgets 8 broke most widgets as of late 2022
 # `pymol2` is conda only and optional
 # `pyrosetta` has non-standard installation, see docs and `fragmenstein.igor.pyrosetta_import` for mock for RTD

@@ -1,5 +1,8 @@
 """
-This script runs mergers on a provided set of hits,
+This code recapitulates the pipeline command line,
+and is here to show what happens.
+
+It runs mergers on a provided set of hits,
 finds analogues in SmallWorld,
 places these and PLIP annotates them.
 

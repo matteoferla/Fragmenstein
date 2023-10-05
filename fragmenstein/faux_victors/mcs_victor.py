@@ -3,7 +3,11 @@ from .mcs_monster import MCSMerger
 from rdkit import Chem
 
 class Mictor(Victor):
-    # MCS hack
+    uses_pyrosetta = False
+    """
+    MCS hack.
+    This is used for benchmarking in the paper. Not for general use.
+    """
 
     def _calculate_combination_chem(self):
         """

@@ -16,7 +16,8 @@ class LabCombine(LabBench):
         This is the combination subprocess. The placement subprocess is ``place_subprocess``.
         They are very similar...
         """
-        pyrosetta.distributed.maybe_init(extra_options=self.init_options)
+        if self.Victor.uses_pyrosetta:
+            pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         tentative_name = 'UNKNOWN'
         try:
             hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]

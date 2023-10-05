@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from ..version import __version__
+
 __doc__ = """
 Command line interface to Fragmenstein.
 The the first argument to the command is one of the three option:
@@ -21,6 +22,12 @@ from .monster import FragmensteinParserMonster
 from .parser import FragmensteinParser
 from .base import FragmensteinParserBase
 
-if __name__ == '__main__':
+
+def main():
     FragmensteinParser.__doc__ = __doc__
-    FragmensteinParser()
+    # init configures the parser, calling it executes it
+    FragmensteinParser()()
+
+
+if __name__ == '__main__':
+    main()

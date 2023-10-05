@@ -21,6 +21,7 @@ class Wictor(Victor):
                        )
         wicky.combine()
     """
+    uses_pyrosetta = False
 
     def _calculate_combination_thermo(self):
         # override igor.

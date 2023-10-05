@@ -27,6 +27,7 @@ from ..monster import Monster   # will become Victor.Monster
 
 
 class _VictorBase:
+    uses_pyrosetta = True
     quick_reanimation = False  # thorugh reanimation?
     monster_average_position = False
     monster_throw_on_discard = False

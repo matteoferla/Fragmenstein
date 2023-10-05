@@ -6,6 +6,8 @@ from typing import List, Optional, Dict, Union, Callable
 import os, json, time
 
 class OpenVictor(Victor):
+    uses_pyrosetta = False
+
     def _calculate_combination_thermo(self):
         return self._calculate_thermo()
 

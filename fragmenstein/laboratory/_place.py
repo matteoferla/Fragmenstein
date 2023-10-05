@@ -46,7 +46,8 @@ class LabPlace(LabBench):
         """
         name: str = inputs['name']
         smiles: str = inputs['smiles']
-        pyrosetta.distributed.maybe_init(extra_options=self.init_options)
+        if self.Victor.uses_pyrosetta:
+            pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         try:
             binary_hits = inputs['binary_hits']
             hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
