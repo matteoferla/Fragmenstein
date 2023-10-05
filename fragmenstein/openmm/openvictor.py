@@ -3,10 +3,16 @@ from .fritz import Fritz
 from ..error import FragmensteinError
 from rdkit import Chem
 from typing import List, Optional, Dict, Union, Callable
-import os, json
+import os, json, time
 
 class OpenVictor(Victor):
     def _calculate_combination_thermo(self):
+        return self._calculate_thermo()
+
+    def _calculate_placement_thermo(self):
+        return self._calculate_thermo()
+
+    def _calculate_thermo(self):
         if self.is_covalent:
             raise NotImplementedError('OpenVictor does not support covalent ligands')
         self.journal.debug(f'{self.long_name} - Starting system setup')
@@ -20,15 +26,14 @@ class OpenVictor(Victor):
                            )
         self.unminimized_pdbblock = self.fritz.to_pdbblock()
         self._data: Dict = self.fritz.reanimate()
+        if not self.quick_reanimation and self._data['binding_dG'] > 0:
+            self._data: Dict = self.fritz.reanimate()
         self._data['origins'] = self.monster.origin_from_mol()
         self.minimized_pdbblock = self.fritz.to_pdbblock()
         self.minimized_mol = self.fritz.to_mol()
         self.checkpoint()
-
-    def _calculate_placement_thermo(self):
-        if self.is_covalent:
-            raise NotImplementedError('OpenVictor does not support covalent ligands')
-        pass
+        self.tock = time.time()
+        return self.summarize()
 
     def _get_restraining_atom_indices(self) -> List[int]:
         # Place has '_Stdev': 1.887379141862766e-15, '_Origin': '["x0395.9", "x0434.6"]', '_Max': 0.37818712299601354}
@@ -65,3 +70,49 @@ class OpenVictor(Victor):
         with open(os.path.join(self.work_path, self.long_name + '.minimised.json'), 'w') as w:
             json.dump(self._data, w)
 
+    def summarize(self):
+        if self.error_msg:
+            if self.monster is None:
+                N_constrained_atoms = float('nan')
+                N_unconstrained_atoms = float('nan')
+            elif self.monster.positioned_mol is None:
+                N_constrained_atoms = float('nan')
+                N_unconstrained_atoms = float('nan')
+            else:
+                N_constrained_atoms = self.constrained_atoms
+                N_unconstrained_atoms = self.unconstrained_heavy_atoms
+            return {'name': self.long_name,
+                    'smiles': self.smiles,
+                    'error': self.error_msg,
+                    'mode': self.merging_mode,
+                    '∆∆G': float('nan'),
+                    '∆G_bound': float('nan'),
+                    '∆G_unbound': float('nan'),
+                    'comRMSD': float('nan'),
+                    'N_constrained_atoms': N_constrained_atoms,
+                    'N_unconstrained_atoms': N_unconstrained_atoms,
+                    'runtime': self.tock - self.tick,
+                    'regarded': self.monster.matched,
+                    'disregarded': self.monster.unmatched
+                    }
+        else:
+            return {'name': self.long_name,
+                    'smiles': self.smiles,
+                    'error': self.error_msg,
+                    'mode': self.merging_mode,
+                    '∆∆G': self.energy_score.get('binding_dG', float('nan')),
+                    'comRMSD': self.mrmsd.mrmsd,
+                    'N_constrained_atoms': self.constrained_atoms,
+                    'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
+                    'runtime': self.tock - self.tick,
+                    'regarded': self.monster.matched,
+                    'disregarded': self.monster.unmatched,
+                    'origins': self._data['origins'],
+                    }
+
+    @property
+    def energy_score(self) -> Dict:
+        data = {k: v.value_in_unit(self.fritz.molar_energy_unit) for k, v in self._data.items()
+                                                                 if k not in ('minimized_pdb', 'origins')}
+        data['unit'] = self.fritz.molar_energy_unit
+        return data

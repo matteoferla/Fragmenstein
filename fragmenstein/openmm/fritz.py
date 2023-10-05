@@ -42,7 +42,8 @@ class Fritz:
         This might be called if bad configuration is done?
         """
         self.journal.critical('Fritz does not use PyRosetta... Why was this called?')
-        self.molar_energy_unit = mmu.kilocalorie_per_mole
+
+    molar_energy_unit = mmu.kilocalorie_per_mole
 
     def __init__(self,
                  positioned_mol: Chem.Mol,
