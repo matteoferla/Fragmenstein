@@ -34,6 +34,9 @@ class OpenVictor(Victor):
             self.journal.debug(f'{self.long_name} - restraints at {restraint_k}')
         self._data['restraint_k'] = restraint_k
         self._data['origins'] = self.monster.origin_from_mol()
+        self.energy_score = {k: v.value_in_unit(self.fritz.molar_energy_unit) for k, v in self._data.items()
+                                                                 if k not in ('minimized_pdb', 'origins')}
+        self.energy_score['unit'] = self.fritz.molar_energy_unit
         self.minimized_pdbblock = self.fritz.to_pdbblock()
         self.minimized_mol = self.fritz.to_mol()
         self.checkpoint()
@@ -114,10 +117,3 @@ class OpenVictor(Victor):
                     'disregarded': self.monster.unmatched,
                     'origins': self._data['origins'],
                     }
-
-    @property
-    def energy_score(self) -> Dict:
-        data = {k: v.value_in_unit(self.fritz.molar_energy_unit) for k, v in self._data.items()
-                                                                 if k not in ('minimized_pdb', 'origins')}
-        data['unit'] = self.fritz.molar_energy_unit
-        return data
