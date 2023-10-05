@@ -27,16 +27,17 @@ class OpenVictor(Victor):
                            )
         self.unminimized_pdbblock = self.fritz.to_pdbblock()
         self._data: Dict = self.fritz.reanimate()
-        while not self.quick_reanimation and self._data['binding_dG'] > 0:
+        while not self.quick_reanimation and self._data['binding_dG'] > 0 * self.fritz.molar_energy_unit:
             restraint_k = 2.
             self.fritz.alter_restraint(restraint_k / 3.)
             self._data: Dict = self.fritz.reanimate()
             self.journal.debug(f'{self.long_name} - restraints at {restraint_k}')
         self._data['restraint_k'] = restraint_k
         self._data['origins'] = self.monster.origin_from_mol()
-        self.energy_score = {k: v.value_in_unit(self.fritz.molar_energy_unit) for k, v in self._data.items()
+        self.energy_score = {k: v.value_in_unit(self.fritz.molar_energy_unit)
+                                    if hasattr(v, 'value_in_unit') else v for k, v in self._data.items()
                                                                  if k not in ('minimized_pdb', 'origins')}
-        self.energy_score['unit'] = self.fritz.molar_energy_unit
+        self.energy_score['unit'] = str(self.fritz.molar_energy_unit)
         self.minimized_pdbblock = self.fritz.to_pdbblock()
         self.minimized_mol = self.fritz.to_mol()
         self.checkpoint()
