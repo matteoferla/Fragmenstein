@@ -38,7 +38,8 @@ else:
 
 if not util.find_spec('pyrosetta'):
     warn('The minimisation part of this code uses pyrosetta, which has to be downloaded from ' +
-         'the Rosetta software site due to licencing. Without it only the classes Monster and Rectifier will work')
+         'the Rosetta software site due to licencing. Without it minimisation via PyRosetta is not possible. '+
+         'For openMM usage see OpenVictor.')
 
 if not util.find_spec('pymol2'):
     warn('The module pymol2 is optionally required (conda or apt-get installable).')
@@ -47,7 +48,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.13.2',
+    version='0.13.3',
     description='Merging, linking and placing compounds by stitching them together like a reanimated corpse',
     long_description=long_description,
     long_description_content_type='text/markdown',

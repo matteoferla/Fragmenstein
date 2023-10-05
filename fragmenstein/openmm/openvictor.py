@@ -40,6 +40,7 @@ class OpenVictor(Victor):
         self.energy_score['unit'] = str(self.fritz.molar_energy_unit)
         self.minimized_pdbblock = self.fritz.to_pdbblock()
         self.minimized_mol = self.fritz.to_mol()
+        self.mrmsd = self._calculate_rmsd()
         self.checkpoint()
         self.tock = time.time()
         return self.summarize()
@@ -118,3 +119,6 @@ class OpenVictor(Victor):
                     'disregarded': self.monster.unmatched,
                     'origins': self._data['origins'],
                     }
+
+    def _fix_minimized(self, *args, **kwargs):
+        raise NotImplementedError('OpenVictor does not support covalent ligands')
