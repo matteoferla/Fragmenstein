@@ -29,10 +29,11 @@ Fragmenstein: Merging, linking and placing compounds by stitching bound compound
 | Pipeline | [![colab demo](https://img.shields.io/badge/Run_full_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb) | &#10004;| Given a template and a some hits, <br>merge them <br>and place the most similar purchasable analogues from Enamine REAL |
 | Light | [![colab demo](https://img.shields.io/badge/Run_light_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_playground.ipynb) | &#10060;| Generate molecules and see how they merge<br>and how a placed compound fairs|
 
-![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
+![Ox](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/University_of_Oxford.svg/320px-University_of_Oxford.svg.png)
 
 For manuscript data see [manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
 For authors see [Authors](#authors)
+For command line interface see [Command line interface](#command-line-interface)
 
 ## Stitched molecules
 
@@ -56,7 +57,9 @@ There are four main classes —named after characters from the Fragmenstein book
 * `Victor` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
 * `Laboratory` does all the combinatorial operations with Victor (specific case)
 
-NB. In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work.
+NB. In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work and 
+alternative Victor classes need to be used, for example 
+`Wictor` (RDkit minimisation only), `OpenVictor (using OpenMM).
 
 Additionally, there are a few minor classes.
 
@@ -123,7 +126,7 @@ lab = Laboratory(pdbblock=pdbblock, covalent_resi=None)
 combinations:pd.DataFrame = lab.combine(hits, n_cores=28)
 ```
 
-## Place
+### Place
 Here is [an interactive example of placed molecules](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 
 It is rather tolerant to erroneous/excessive submissions (by automatically excluding them)
@@ -136,6 +139,33 @@ For example, note here that the benzene and the pyridine rings overlap, not the 
 
 <img src="images/position_over_mcs.jpg" width="300px">
 
+### RDkit only and OpenMM
+
+PyRosetta is needed for the pocket-centric minimisation.
+Two alternatives are available:
+
+* `Wictor` (without): stops at the RDKit minimisation
+* `OpenVictor` (with OpenMM): uses OpenMM to minimise in the protein
+
+Whereas the PyRosetta steps operate via Igor, OpenVictor uses Fritz.
+OpenMM is a lot slower than PyRosetta on CPU only,
+but is free, open source and potentially more accurate.
+
+Igor is a much larger class as it needs to disable rotamer sampling and other things,
+which is not an issue in OpenMM.
+
+A further detail is that openMM is already parallel,
+therefore when using with `Laboratory` request only one core.
+```python
+from fragmenstein import Laboratory, OpenVictor
+Laboratory.Victor = OpenVictor
+lab = Laboratory(pdbblock=MPro.get_template())
+combinations: pd.DataFrame = lab.combine(hits,
+                                         n_cores=1,  # 1 core unless $OPENMM_CPU_THREADS is set
+                                         timeout=600,  # 2 minutes
+                                         combination_size=2,  # pairwise
+                                         max_tasks=0)  # 0 is no chunking
+```
 ### Examples
 
 Monster:
@@ -179,6 +209,8 @@ To use SAR-COV-2 MPro as a test bed, the following may be helpful:
 * `fragemenstein.get_mpro_template()`, returns the PDB block (str) of MPro
 * `fragemenstein.get_mpro_molblock(xnumber)`, returns the mol block (str) of a MPro hit from Fragalysis
 * `fragemenstein.get_mpro_mol(xnumber)`, as above but returns a `Chem.Mol` instance.
+
+For the matched sets of derivative hits to reference hits see the [manuscript's data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data/blob/main/moonshot/mols/moonshot.json).
 
 ## Other features
 
@@ -237,7 +269,54 @@ are not encountered in other projects.
 ## Command line interface
 
 The strength of Fragmenstein is as a python module, but there is a command line interface.
+This allows different levels of usage.
+The top level is the `fragmestein pipeline`, which does the whole thing,
+namely it
 
+* place the reference hits against themselves and gets the PLIP interactions
+* combines the hits in given combination size, while skipping blacklisted named compounds.
+* searches in [SmallWorld](sw.docking.org) the top N mergers
+* places them and
+* ranks them based on a customisable multiobjective function, which takes into account the PLIP interactions
+     along with number of novel atoms (increase in risk & novelty).
+ 
+This in effect reflects the pipeline I commonly use.
+
+![pipeline](images/pipeline-01.png)
+
+usage: fragmenstein pipeline [-h] -t TEMPLATE -i INPUT [-o OUTPUT] [-r RANKING] [-c CUTOFF] [-q QUICK] [-d SW_DIST] [-l SW_LENGTH] [-b SW_DATABASES [SW_DATABASES ...]] [-s SUFFIX]
+                             [-n N_CORES] [-m COMBINATION_SIZE] [-k TOP_MERGERS] [-e TIMEOUT] [-x MAX_TASKS] [-z BLACKLIST] [-j WEIGHTS] [-v]
+
+```bash
+export N_CORES=$(cat /proc/cpuinfo | grep processor | wc -l);
+fragmenstein pipeline \
+                      --template reference.pdb \
+                      --hits filtered.sdf \
+                      --n_cores $(($N_CORES - 1)) \
+                      --suffix _pairs \
+                      --max_tasks 5000 \
+                      --sw_databases REAL-Database-22Q1.smi.anon MculeUltimate-20Q2.smi.anon \
+                      --combination_size 2 \
+                      --timeout 600;
+```
+* `template`: The template, preferably a polished PDB
+* `hits`: The hits in sdf format. These need to have unique names.
+* `output`: The output folder
+* `suffix`: The suffix for the output files. Note that due to `max_tasks` there will be multiple sequential files for some steps.
+* `quick`: Does not reattempt "reanimation" if it failed as the constraints are relaxed more and more the more deviation happens.
+* `blacklist`: A file with a lines for each molecule name to not perform (say `hitA–hitZ`)
+* `cutoff`: The joining cutoff in Ångström after which linkages will not be attempted (default is 5Å)
+* `sw_databases`: See SmallWold or the [SmallWorld API in Python](https://github.com/matteoferla/Python_SmallWorld_API)
+    for what datasets are available (e.g. 'Enamine-BB-Stock-Mar2022.smi.anon').
+* `sw_length`: How many analogues for each query to keep
+* `sw_dist`: The distance cutoff for the SmallWorld search
+* `max_tasks`: To avoid memory issues, the pipeline performs a number of tasks (controlled via `max_tasks`)
+    before processing them, to disable this use `--max_tasks 0`.
+* `weights`: This is a JSON file that controls the ranking
+
+
+
+### Specific cases
 ```bash
 fragmenstein monster combine -i hit1.mol hit2.mol >> combo.mol
 fragmenstein monster place -i hit1.mol hit2.mol -s 'CCO' >> placed.mol
@@ -255,9 +334,9 @@ fragmenstein laboratory combine -i hits.sdf -o output -d output.csv -s output.sd
  | Rachael Skyner      | discussion/editing/code |||
 | Stefan Gahbauer      | discussion              |||
 | Jenny Taylor         | PI                      | [WCHG](https://www.well.ox.ac.uk/people/jenny-taylor) | Wellcome Centre for Human Genetics, University of Oxford | [![https img shields io badge orcid 0000 0003 3602 5704 a6ce39 logo orcid](https://img.shields.io/badge/orcid-0000--0003--3602--5704-a6ce39?logo=orcid)](https://orcid.org/0000--0003--3602--5704)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Brian Marsden        | PI                      | [CMD](https://www.cmd.ox.ac.uk/team/brian-marsden)    | CMD, Oxford                                              | [![https img shields io badge orcid 0000 0002 1937 4091 a6ce39 logo orcid](https://img.shields.io/badge/orcid-0000--0002--1937--4091-a6ce39?logo=orcid)](https://orcid.org/0000--0002--1937--4091) [![https img shields io badge google scholar mCPM7bAAAAAJ success logo googlescholar](https://img.shields.io/badge/google--scholar-mCPM7bAAAAAJ-success?logo=googlescholar)](https://scholar.google.com/citations?user=mCPM7bAAAAAJ&hl=en) [![https img shields io twitter follow bmarsden19 label Follow logo twitter](https://img.shields.io/twitter/follow/bmarsden19?label=Follow&logo=twitter)](https://twitter.com/bmarsden19)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Charlotte Deane      | PI                      |||
 | Frank von Delft      | PI                      | [CMD](https://www.ndm.ox.ac.uk/team/frank-von-delft)  | Diamond Lightsource / CMD, Oxford                        | [![https img shields io badge orcid 0000 0003 0378 0017 a6ce39 logo orcid](https://img.shields.io/badge/orcid-0000--0003--0378--0017-a6ce39?logo=orcid)](https://orcid.org/0000--0003--0378--0017) [![https img shields io badge google scholar uZpTG1kAAAAJ success logo googlescholar](https://img.shields.io/badge/google--scholar-uZpTG1kAAAAJ-success?logo=googlescholar)](https://scholar.google.com/citations?user=uZpTG1kAAAAJ&hl=en) [![https img shields io twitter follow FrankvonDelft label Follow logo twitter](https://img.shields.io/twitter/follow/FrankvonDelft?label=Follow&logo=twitter)](https://twitter.com/FrankvonDelft)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Brian Marsden        | PI                      | [CMD](https://www.cmd.ox.ac.uk/team/brian-marsden)    | CMD, Oxford                                              | [![https img shields io badge orcid 0000 0002 1937 4091 a6ce39 logo orcid](https://img.shields.io/badge/orcid-0000--0002--1937--4091-a6ce39?logo=orcid)](https://orcid.org/0000--0002--1937--4091) [![https img shields io badge google scholar mCPM7bAAAAAJ success logo googlescholar](https://img.shields.io/badge/google--scholar-mCPM7bAAAAAJ-success?logo=googlescholar)](https://scholar.google.com/citations?user=mCPM7bAAAAAJ&hl=en) [![https img shields io twitter follow bmarsden19 label Follow logo twitter](https://img.shields.io/twitter/follow/bmarsden19?label=Follow&logo=twitter)](https://twitter.com/bmarsden19)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 
 ## See Also
