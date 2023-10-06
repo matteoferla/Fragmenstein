@@ -1,7 +1,7 @@
 from rdkit.Chem import rdFMCS
 from ..error import FragmensteinError
 from ..victor import Victor
-from rdkit import Chem
+from rdkit import Chem, Geometry
 from rdkit.Chem import AllChem
 
 
@@ -39,6 +39,17 @@ class Quicktor(Victor):
         Opening a PDB in RDKit is doable but gets exponentially slow with chain length
         """
         mol = Chem.Mol(self.monster.positioned_mol)
+        # ## Store xyz as properties
+        atom: Chem.Atom
+        conf: Chem.Conformer = mol.GetConformer()  # noqa
+        for atom in mol.GetAtoms():  # noqa
+            if atom.HasProp('_x'):
+                continue
+            xyz: Geometry.Point3D = conf.GetAtomPosition( atom.GetIdx() )  # noqa
+            atom.SetDoubleProp('_x', float(xyz.x))
+            atom.SetDoubleProp('_y', float(xyz.y))
+            atom.SetDoubleProp('_z', float(xyz.z))
+        # ## Minimise
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             if not self.monster.mmff_minimize(mol, allow_lax=False, ff_dist_thr=float('nan')):

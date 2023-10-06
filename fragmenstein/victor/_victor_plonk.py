@@ -71,7 +71,7 @@ class _VictorPlonk(_VictorJournal):
         mol = Chem.Mol(self.monster.positioned_mol)
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
-            self.monster.mmff_minimize(mol)
+            self.monster.mmff_minimize(mol,allow_lax=True)
         return AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
 
     def _plonk_monster_in_structure_minimal(self) -> str:

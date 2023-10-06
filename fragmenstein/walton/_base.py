@@ -80,7 +80,7 @@ class WaltonBase:
         self.monster.hits = list(map(AllChem.RemoveHs, self.mols))
         self.monster.combine(**combine_kwargs)
         if minimize:
-            self.monster.mmff_minimize()
+            self.monster.mmff_minimize(allow_lax=True)
         self.monster.store_origin_colors_atomically()
         self.merged = AllChem.RemoveHs(self.monster.positioned_mol)
         self.merged.SetProp('_color', color)

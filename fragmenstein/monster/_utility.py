@@ -344,13 +344,16 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             m = ff.Minimize()
             if m == -1:
                 self.journal.error('MMFF Minisation could not be started')
+                success = False
             elif m == 0:
                 self.journal.info('MMFF Minisation was successful')
+                success = True
             elif m == 1:
                 self.journal.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
                 success = False
             else:
                 self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+                success = False
         except RuntimeError as error:
             self.journal.info(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
             success = False

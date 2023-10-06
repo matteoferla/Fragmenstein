@@ -1,4 +1,4 @@
-import sys, functools
+import functools
 from typing import (Union, Iterator, Sequence, List)
 
 import pandas as pd
@@ -110,7 +110,7 @@ class LabPlace(LabBench):
 
         df = self(iterator=generator(), fun=self.place_subprocess, **kwargs)
         df['outcome'] = df.apply(functools.partial(self.categorize, size_tolerance=+50), axis=1)
-        df['unminimized_mol'] = df.unminimized_mol.fillna(Chem.Mol())
+        df['unminimized_mol'] = df.unminimized_mol.fillna(Chem.Mol())  # noqa
         self.fix_intxns(df)  # noqa its in extras
         return df
 
