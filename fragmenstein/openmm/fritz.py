@@ -226,31 +226,34 @@ class Fritz:
         # ## get offset
         # The order seems to not be altered, so an offset works.
         hydrogen = mma.element.Element.getBySymbol('H')
-        for atom in topology.atoms():
-            if atom.residue.name == self.resn:
-                offset = atom.index
+        mm_atom: mma.topology.Atom
+        rd_atom: Chem.Atom
+        for mm_atom in topology.atoms():
+            if mm_atom.residue.name == self.resn:
+                offset = mm_atom.index
                 break
         else:
             raise ValueError(f'{self.resn} missing')
-        for atom in topology.atoms():
-            if atom.residue.name != self.resn:
+        for mm_atom in topology.atoms():
+            if mm_atom.residue.name != self.resn:
                 continue
-            elif atom.element == hydrogen:
+            elif mm_atom.element == hydrogen:
                 continue
             # atom.index is C-style sequential index, atom.id is PDB "index".
-            elif atom_indices and atom.index - offset not in atom_indices:
+            elif atom_indices and mm_atom.index - offset not in atom_indices:
                 continue
-            elif atom.HasProp('_x'):
+            rd_atom: Chem.Atom = self.prepped_mol.GetAtomWithIdx(mm_atom.index - offset)
+            if rd_atom.HasProp('_x'):
                 # original atom positions
-                atomic_xyz: mmu.Quantity = mm.Vec3(atom.getProp('_x'),
-                                                   atom.getProp('_y'),
-                                                   atom.getProp('_z')) \
+                atomic_xyz: mmu.Quantity = mm.Vec3(rd_atom.getProp('_x'),
+                                                   rd_atom.getProp('_y'),
+                                                   rd_atom.getProp('_z')) \
                                            * mmu.angstrom
             else:
                 # Unlikely... but some hack may be at play. As these are added by `_get_preminimized_undummied_monster`
                 self.journal.debug('No _x property. Using position.')
-                atomic_xyz: mmu.Quantity = positions[atom.index]
-            restraint.addParticle(atom.index, atomic_xyz)
+                atomic_xyz: mmu.Quantity = positions[mm_atom.index]
+            restraint.addParticle(mm_atom.index, atomic_xyz)
         self.journal.debug(f'N particles restrained: {restraint.getNumParticles()}')
 
     @staticmethod
