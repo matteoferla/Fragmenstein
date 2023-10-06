@@ -245,9 +245,9 @@ class Fritz:
             rd_atom: Chem.Atom = self.prepped_mol.GetAtomWithIdx(mm_atom.index - offset)
             if rd_atom.HasProp('_x'):
                 # original atom positions
-                atomic_xyz: mmu.Quantity = mm.Vec3(rd_atom.GetProp('_x'),
-                                                   rd_atom.GetProp('_y'),
-                                                   rd_atom.GetProp('_z')) \
+                atomic_xyz: mmu.Quantity = mm.Vec3(float(rd_atom.GetDoubleProp('_x')),
+                                                   float(rd_atom.GetDoubleProp('_y')),
+                                                   float(rd_atom.GetDoubleProp('_z'))) \
                                            * mmu.angstrom
             else:
                 # Unlikely... but some hack may be at play. As these are added by `_get_preminimized_undummied_monster`
