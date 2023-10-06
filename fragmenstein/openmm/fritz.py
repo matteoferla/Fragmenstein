@@ -13,7 +13,7 @@ __citation__ = ""
 import logging
 from rdkit import Chem
 import numpy as np
-from typing import List, Union, Sequence, Tuple, Optional, Dict
+from typing import List, Union, Sequence, Tuple, Optional, Dict, Annotated
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import io, time
@@ -46,7 +46,7 @@ class Fritz:
     molar_energy_unit = mmu.kilocalorie_per_mole
 
     def __init__(self,
-                 positioned_mol: Chem.Mol,
+                 prepped_mol: Chem.Mol,
                  pdb_block: str,
                  resn: str = 'LIG',
                  resi: str = 1,
@@ -59,13 +59,16 @@ class Fritz:
         self.resn: str = resn.strip()
         self.resi: int = int(resi)
         self.chain: str = chain
+        # self.prepped_mol is the "initial" mol
         # Igor does not have this as parameterisation is external
-        self.positioned_mol: Chem.Mol = AllChem.AddHs(positioned_mol, addCoords=True)
-        self.correct_pdbinfo(mol=self.positioned_mol, resn=self.resn, resi=self.resi, chain=self.chain)
+        # self.prepped_mol is returned from `_get_preminimized_undummied_monster`
+        # so is technically not Victor.Monster.positioned_mol
+        self.prepped_mol: Chem.Mol = AllChem.AddHs(prepped_mol, addCoords=True)
+        self.correct_pdbinfo(mol=self.prepped_mol, resn=self.resn, resi=self.resi, chain=self.chain)
         # this is apo
         self.pdb_block: str = pdb_block
         self.holo: mma.Modeller = self.plonk(pdb_block,
-                                             self.positioned_mol)  # this is Fritz's plonk —Not Victor unlike Igor
+                                             self.prepped_mol)  # this is Fritz's plonk —Not Victor unlike Igor
         tock: float = time.time()
         self.journal.debug(f'Holo structure made {tock - tick}')
         self.simulation = self.create_simulation(restraining_atom_indices=restraining_atom_indices,
@@ -74,7 +77,7 @@ class Fritz:
         self.unbound_simulation = self.create_simulation(restraining_atom_indices=[],
                                                          restraint_k=0,
                                                          mobile_radius=mobile_radius)
-        self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0) )
+        self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0))
         tyck: float = time.time()
         self.journal.debug(f'Simulation created {tyck - tock}')
 
@@ -131,12 +134,13 @@ class Fritz:
         Plonk the ligand into the apo structure.
         """
         if mol is None:
-            mol = self.positioned_mol
+            mol = self.prepped_mol
         if isinstance(apo, str):  # PDB block
             apo: mma.PDBFile = self.pdbblock_to_PDB(apo)
         # make a copy:
         holo: mma.Modeller = mma.Modeller(apo.topology, apo.positions)
-        lig = OFFMolecule.from_rdkit(mol)
+        # kdkit AssignStereochemistryFrom3D previously applied
+        lig = OFFMolecule.from_rdkit(mol, allow_undefined_stereo=True)
         # minor corrections:
         # there is no need to fix via
         # lig_topo._chains[0]._residues[0].name = 'LIG'
@@ -172,7 +176,10 @@ class Fritz:
         Creates a simulation object with the ligand harmonically constrained and the distal parts of the protein frozen.
         """
         # set up forcefield
-        molecule = OFFMolecule.from_rdkit(self.positioned_mol)
+        ideal = Chem.Mol(self.prepped_mol)
+        ideal.RemoveAllConformers()
+        AllChem.EmbedMolecule(ideal, enforceChirality=True)
+        molecule = OFFMolecule.from_rdkit(ideal, allow_undefined_stereo=True)
         smirnoff = SMIRNOFFTemplateGenerator(molecules=molecule)
         forcefield = mma.ForceField(*forcefileds)
         forcefield.registerTemplateGenerator(smirnoff.generator)
@@ -233,8 +240,17 @@ class Fritz:
             # atom.index is C-style sequential index, atom.id is PDB "index".
             elif atom_indices and atom.index - offset not in atom_indices:
                 continue
+            elif atom.HasProp('_x'):
+                # original atom positions
+                atomic_xyz: mmu.Quantity = mm.Vec3(atom.getProp('_x'),
+                                                   atom.getProp('_y'),
+                                                   atom.getProp('_z')) \
+                                           * mmu.angstrom
             else:
-                restraint.addParticle(atom.index, positions[atom.index])
+                # Unlikely... but some hack may be at play. As these are added by `_get_preminimized_undummied_monster`
+                self.journal.debug('No _x property. Using position.')
+                atomic_xyz: mmu.Quantity = positions[atom.index]
+            restraint.addParticle(atom.index, atomic_xyz)
         self.journal.debug(f'N particles restrained: {restraint.getNumParticles()}')
 
     @staticmethod
@@ -321,14 +337,19 @@ class Fritz:
             positions[atom.index] = positions[atom.index] + amount
         simulation.context.setPositions(positions)
 
-    def reanimate(self) -> Dict[str, Union[mmu.Quantity, str]]:
+    def reanimate(self,
+                  tolerance=10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter),
+                  maxIterations: int=0
+                  ) -> Dict[str, Union[mmu.Quantity, str]]:
+        if isinstance(tolerance, (float, int)):
+            tolerance = float(tolerance) * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
         tick: float = time.time()
-        self.simulation.minimizeEnergy()
+        self.simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
         tock: float = time.time()
-        self.journal.debug(f'Reanimation! Minimisation of bound in {tock-tick}s')
-        self.unbound_simulation.minimizeEnergy()
+        self.journal.debug(f'Reanimation! Minimisation of bound in {tock - tick}s')
+        self.unbound_simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
         tyck: float = time.time()
-        self.journal.debug(f'Reanimation! Minimisation of unbound in {tyck-tock}s')
+        self.journal.debug(f'Reanimation! Minimisation of unbound in {tyck - tock}s')
         data: Dict[str, Union[mmu.Quantity, str]] = {
             **{f'{k}_bound': v for k, v in self.get_potentials(self.simulation).items()},
             **{f'{k}_unbound': v for k, v in self.get_potentials(self.unbound_simulation).items()},
@@ -338,8 +359,8 @@ class Fritz:
         return data
 
     def get_force_by_name(self,
-                              name: str,
-                              simulation: Optional[mma.Simulation]=None) -> mm.Force:
+                          name: str,
+                          simulation: Optional[mma.Simulation] = None) -> mm.Force:
         if simulation is None:
             simulation = self.simulation
         for f in simulation.system.getForces():
@@ -347,20 +368,20 @@ class Fritz:
                 return f
         raise ValueError(f'No force named {name}')
 
-    def get_potentials(self, simulation: Optional[mma.Simulation]=None):
+    def get_potentials(self, simulation: Optional[mma.Simulation] = None):
         if simulation is None:
             simulation = self.simulation
         potentials = {}
         potentials['total'] = simulation.context.getState(getEnergy=True).getPotentialEnergy()
         for force in simulation.system.getForces():
             force.setForceGroup(30)
-            potentials[force.getName()] = simulation.context\
-                                                    .getState(getEnergy=True, groups={30})\
-                                                    .getPotentialEnergy()
+            potentials[force.getName()] = simulation.context \
+                .getState(getEnergy=True, groups={30}) \
+                .getPotentialEnergy()
             force.setForceGroup(0)
         return potentials
 
-    def remove_potential_by_name(self, name: str, simulation: Optional[mma.Simulation]=None):
+    def remove_potential_by_name(self, name: str, simulation: Optional[mma.Simulation] = None):
         """
         This exists to help do ``.remove_potential_by_name('CustomExternalForce')``
         """
@@ -385,17 +406,17 @@ class Fritz:
         f.setGlobalParameterDefaultValue(i, new_k)
         f.updateParametersInContext(self.simulation.context)
 
-    def to_pdbhandle(self, filehandle: io.TextIOWrapper, simulation: Optional[mma.Simulation]=None):
+    def to_pdbhandle(self, filehandle: io.TextIOWrapper, simulation: Optional[mma.Simulation] = None):
         if simulation is None:
             simulation = self.simulation
         positions: mmu.Quantity = simulation.context.getState(getPositions=True).getPositions()
         mma.PDBFile.writeFile(simulation.topology, positions, filehandle)
 
-    def to_pdbfile(self, filename: str = 'fragmenstein.pdb', simulation: Optional[mma.Simulation]=None):
+    def to_pdbfile(self, filename: str = 'fragmenstein.pdb', simulation: Optional[mma.Simulation] = None):
         with open(filename, 'w') as fh:
             self.to_pdbhandle(fh, simulation)
 
-    def to_pdbblock(self, simulation: Optional[mma.Simulation]=None):
+    def to_pdbblock(self, simulation: Optional[mma.Simulation] = None):
         iostr = io.StringIO()
         self.to_pdbhandle(iostr, simulation)
         iostr.seek(0)
@@ -405,13 +426,13 @@ class Fritz:
         topo, positions = self.get_topo_pos(self.simulation)
         lig_vec3: List[mm.Vec3] = [positions[atom.index].value_in_unit(mmu.angstrom) for atom in
                                    self.simulation.topology.atoms() if atom.residue.name == self.resn]
-        n: int = self.positioned_mol.GetNumAtoms()
+        n: int = self.prepped_mol.GetNumAtoms()
         if n != len(lig_vec3):
             self.journal.critical('Number of atoms discrepancy!')
         conf = Chem.Conformer(n)
         for mol_i, v in enumerate(lig_vec3):
             conf.SetAtomPosition(mol_i, (v.x, v.y, v.z))
-        mol = Chem.Mol(self.positioned_mol)
+        mol = Chem.Mol(self.prepped_mol)
         mol.RemoveAllConformers()
         mol.AddConformer(conf)
         return mol
