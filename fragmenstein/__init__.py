@@ -32,7 +32,7 @@ except ImportError as err:
     warn(f'Victor (pipeline) unavailable —{err}.', category=ImportWarning)
 
 try:
-    from .laboratory import Laboratory, binarize, unbinarize
+    from .laboratory import Laboratory, binarize, unbinarize, place_input_validator
 except ImportError as err:
     warn(f'Laboratory unavailable —{err}.', category=ImportWarning)
 
@@ -51,3 +51,7 @@ from . import branding
 from .display import display_mols, MolNGLWidget
 from .error import FragmensteinError, DistanceError, ShoddyCodeError, PoisonError
 from .faux_victors import Wictor, Quicktor  # the rest are mostly experiments
+
+if __name__ == '__main__':
+    from .cli import main
+    main()
