@@ -105,8 +105,9 @@ class UniquenessMeter:
 
 
 class PenaltyMeter:
-    def __init__(self, weights):
+    def __init__(self, weights, nan_penalty=10):
         self.weights = weights
+        self.nan_penalty = nan_penalty
 
     def __call__(self, row):
         with contextlib.suppress(cli_default_settings['supressed_exceptions']):
@@ -117,10 +118,9 @@ class PenaltyMeter:
                 if col not in row.index:
                     warn(f'{col} column is missing from df')
                     continue
-                penalty += row[col] * w
+                penalty += row[col] * w if str(row[col]) != 'nan' else self.nan_penalty
             return penalty
         return float('nan')
-
 
 
 def butina_cluster(mol_list, cutoff=0.35):

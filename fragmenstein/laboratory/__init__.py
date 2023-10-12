@@ -4,6 +4,13 @@ from ._base import binarize, unbinarize
 from ._place import MolPlacementInput, BinPlacementInput
 from ._extras import LabExtras
 from ._score import LabScore
+try:
+    from .validator import place_input_validator
+except Exception as error:
+    from warnings import warn
+    warn(f'Supressed {error.__class__.__name__}: {error}')
+    place_input_validator = None
+
 class Laboratory(LabCombine, LabPlace, LabExtras, LabScore):
     """
     This class runs the combination or placement tasks of a list of molecules as subprocesses.

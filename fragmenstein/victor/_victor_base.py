@@ -18,6 +18,7 @@ from ..version import __version__
 
 import logging, warnings
 import re
+import os
 import time
 from typing import List, Union, Optional, Callable, Dict
 
@@ -33,7 +34,7 @@ class _VictorBase:
     monster_throw_on_discard = False
     monster_mmff_minisation = True
     constraint_function_type = 'FLAT_HARMONIC'
-    work_path = 'output'
+    work_path = os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output'),
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)
     # here for ease of subclassing
@@ -146,8 +147,7 @@ class _VictorBase:
         self.pose_fx = pose_fx
         self.random_seed = monster_random_seed
         self.settings = settings  # not used for now
-        if len(self.settings) > 0:
-            self.journal.critical('settings not used in this version of Victor')
+        self._process_settings()
         # ## Fill by place and combine differently
         self.long_name = 'ligand'
         self.smiles = None
@@ -187,3 +187,7 @@ class _VictorBase:
     @classmethod
     def slugify(cls, name: str):
         return re.sub(r'[\W_.-]+', '-', name)
+
+    def _process_settings(self):
+        if len(self.settings) > 0:  # True for subclasses... which override it
+            self.journal.critical('settings not used in this version of Victor')

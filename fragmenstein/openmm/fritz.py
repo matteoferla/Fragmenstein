@@ -186,18 +186,20 @@ class Fritz:
         # sort holo object which may have been tampered with...
         if isinstance(self.holo, mma.PDBFile):
             holo = mma.Modeller(self.holo.topology, self.holo.positions)
-        self.holo.addHydrogens(forcefield, pH=7.0)
+        else:
+            holo = self.holo
+        holo.addHydrogens(forcefield, pH=7.0)
         # set up system
-        system: mm.System = forcefield.createSystem(self.holo.topology,
+        system: mm.System = forcefield.createSystem(holo.topology,
                                                     nonbondedMethod=mma.NoCutoff,
                                                     nonbondedCutoff=1 * mmu.nanometer,
                                                     constraints=mma.HBonds)
         # restrain (harmonic constrain) the ligand
         if restraint_k:
-            self.restrain(system, self.holo, k=restraint_k, atom_indices=restraining_atom_indices)
+            self.restrain(system, holo, k=restraint_k, atom_indices=restraining_atom_indices)
         integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
-        simulation = mma.Simulation(self.holo.topology, system, integrator)
-        simulation.context.setPositions(self.holo.positions)
+        simulation = mma.Simulation(holo.topology, system, integrator)
+        simulation.context.setPositions(holo.positions)
         # freeze the distant parts of the protein
         self.freeze_distal(simulation, lig_resn=self.resn, radius=mobile_radius)
         return simulation
@@ -425,10 +427,12 @@ class Fritz:
         iostr.seek(0)
         return iostr.read()
 
-    def to_mol(self):
-        topo, positions = self.get_topo_pos(self.simulation)
+    def to_mol(self, simulation: Optional[mma.Simulation]=None):
+        if simulation is None:
+            simulation: mma.Simulation = self.simulation
+        topo, positions = self.get_topo_pos(simulation)
         lig_vec3: List[mm.Vec3] = [positions[atom.index].value_in_unit(mmu.angstrom) for atom in
-                                   self.simulation.topology.atoms() if atom.residue.name == self.resn]
+                                   simulation.topology.atoms() if atom.residue.name == self.resn]
         n: int = self.prepped_mol.GetNumAtoms()
         if n != len(lig_vec3):
             self.journal.critical('Number of atoms discrepancy!')
@@ -439,3 +443,23 @@ class Fritz:
         mol.RemoveAllConformers()
         mol.AddConformer(conf)
         return mol
+
+    @classmethod
+    def minimize_template(cls, apo_block: str):
+        pdb = Fritz.pdbblock_to_PDB(apo_block)
+        apo = mma.Modeller(pdb.topology, pdb.positions)
+        forcefield = mma.ForceField('amber14-all.xml', 'implicit/gbn2.xml')
+        apo.addHydrogens(forcefield, pH=7.0)
+        system: mm.System = forcefield.createSystem(apo.topology,
+                                                    nonbondedMethod=mma.NoCutoff,
+                                                    nonbondedCutoff=1 * mmu.nanometer,
+                                                    constraints=mma.HBonds)
+        integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
+        simulation = mma.Simulation(apo.topology, system, integrator)
+        simulation.context.setPositions(apo.positions)
+        simulation.minimizeEnergy()
+        positions: mmu.Quantity = simulation.context.getState(getPositions=True).getPositions()
+        iostr = io.StringIO()
+        mma.PDBFile.writeFile(simulation.topology, positions, iostr)
+        iostr.seek(0)
+        return iostr.read()

@@ -15,6 +15,7 @@ cli_default_settings = dict(
     max_tasks=int(os.environ.get('FRAGMENSTEIN_MAX_TASKS', 0)),
     timeout=int(os.environ.get('FRAGMENSTEIN_TIMEOUT', 240)),
     blacklist=os.environ.get('FRAGMENSTEIN_BLACKLIST', '').split(),
+    workfolder=os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output'),
     weights={"N_rotatable_bonds": 3,
              "\u2206\u2206G": 3,
              "interaction_uniqueness_metric": -20,

@@ -49,6 +49,9 @@ class OpenVictor(Victor):
         self.tock = time.time()
         return self.summarize()
 
+    def _process_settings(self):
+        pass
+
     def _get_restraining_atom_indices(self) -> List[int]:
         # Place has '_Stdev': 1.887379141862766e-15, '_Origin': '["x0395.9", "x0434.6"]', '_Max': 0.37818712299601354}
         # Combine has '_ori_i': 100, '_ori_name': 'x0395', '_x': 9.309, '_y': -5.402, '_z': 26.27
@@ -66,23 +69,27 @@ class OpenVictor(Victor):
                 pass
         return restrainables
 
-    def checkpoint(self):
-        if not self.settings.get('save_outputs', False):
+    def checkpoint(self, save_outputs: Optional[bool] = None):
+        if save_outputs is True:
+            pass
+        elif self.settings.get('save_outputs', False):
             return
         self.journal.debug(f'{self.long_name} - saving data to disk at {self.work_path}')
         self.make_output_folder()
-        with open(os.path.join(self.work_path, self.long_name + '.holo_unminimised.pdb'), 'w') as w:
+        with open(os.path.join(self.work_path, self.long_name, self.long_name + '.holo_unminimised.pdb'), 'w') as w:
             w.write(self.unminimized_pdbblock)
-        with open(os.path.join(self.work_path, self.long_name + '.holo_minimised.pdb'), 'w') as w:
+        with open(os.path.join(self.work_path, self.long_name, self.long_name + '.holo_minimised.pdb'), 'w') as w:
             w.write(self.minimized_pdbblock)
         for hit in self.hits:
-            Chem.MolToMolFile(hit, os.path.join(self.work_path, hit.GetProp('_Name') + '.mol'))
+            Chem.MolToMolFile(hit, os.path.join(self.work_path, self.long_name, hit.GetProp('_Name') + '.mol'))
         Chem.MolToMolFile(self.monster.positioned_mol,
-                          os.path.join(self.work_path, self.long_name + '.positioned.mol'))
+                          os.path.join(self.work_path, self.long_name, self.long_name + '.positioned.mol'))
+        Chem.MolToMolFile(self.fritz.prepped_mol,
+                          os.path.join(self.work_path, self.long_name, self.long_name + '.prepped.mol'))
         Chem.MolToMolFile(self.minimized_mol,
-                          os.path.join(self.work_path, self.long_name + '.minimised.mol'))
-        with open(os.path.join(self.work_path, self.long_name + '.minimised.json'), 'w') as w:
-            json.dump(self._data, w)
+                          os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.mol'))
+        with open(os.path.join(self.work_path, self.long_name, self.long_name + '.minimised.json'), 'w') as w:
+            json.dump({**self.energy_score, 'origins': self._data['origins']}, w)
 
     def summarize(self):
         if self.error_msg:
