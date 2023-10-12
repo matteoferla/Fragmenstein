@@ -129,7 +129,7 @@ class FragmensteinParserPipeline:
             Laboratory.Victor = Quicktor
         else:
             raise ValueError(f'Unknown victor: {choice}')
-        Laboratory.Victor.work_path = settings['workfolder'].get(cli_default_settings['workfolder'])
+        Laboratory.Victor.work_path = settings.get('workfolder', cli_default_settings['workfolder'])
         # ## Analyses start here
         # self
         hit_replacements: pd.DataFrame = Laboratory.replace_hits(**settings)
