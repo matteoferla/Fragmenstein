@@ -47,6 +47,12 @@ class FragmensteinParserPipeline:
             parser.add_argument('-s', '--suffix',
                                 help='Suffix for output files',
                                 default=cli_default_settings['suffix'])
+            parser.add_argument('--workfolder',
+                                help='Location to put the temp files',
+                                default=cli_default_settings['workfolder'])
+            parser.add_argument('--victor',
+                                help='Which victor to use: Victor, OpenVictor or Wictor',
+                                default='Victor')
             parser.add_argument('-n', '--n_cores', help='Number of cores',
                                 default=cli_default_settings['n_cores'],
                                 type=int)
@@ -109,6 +115,22 @@ class FragmensteinParserPipeline:
             pass  # impossible unless a copy-pasted block.
         else:
             settings['weights'] = cli_default_settings['weights']
+        choice = settings.get('victor', 'Victor').lower()
+        if choice == 'victor':
+            Laboratory.Victor = Victor
+        elif choice == 'openvictor':
+            from ..openmm.openvictor import OpenVictor
+            Laboratory.Victor = OpenVictor
+        elif choice == 'wictor':
+            from ..faux_victors import Wictor
+            Laboratory.Victor = Wictor
+        elif choice == 'quicktor':
+            from ..faux_victors import Quicktor
+            Laboratory.Victor = Quicktor
+        else:
+            raise ValueError(f'Unknown victor: {choice}')
+        Laboratory.Victor.work_path = settings['workfolder'].get(cli_default_settings['workfolder'])
+        # ## Analyses start here
         # self
         hit_replacements: pd.DataFrame = Laboratory.replace_hits(**settings)
         # run
