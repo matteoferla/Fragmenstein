@@ -34,7 +34,7 @@ class _VictorBase:
     monster_throw_on_discard = False
     monster_mmff_minisation = True
     constraint_function_type = 'FLAT_HARMONIC'
-    work_path = os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output'),
+    work_path = os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output')
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)
     # here for ease of subclassing
