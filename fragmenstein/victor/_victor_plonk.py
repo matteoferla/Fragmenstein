@@ -29,7 +29,7 @@ class _VictorPlonk(_VictorJournal):
             cx = self.params.pad_name(self.params.CONNECT[0].atom_name)
             # TODO the SG connection is hardcoded.
             return f'LINK         SG  {self.covalent_resn} {p_chain} {p_resi: >3}                ' + \
-                   f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n'
+                f'{cx} {self.ligand_resn} {l_chain} {l_resi: >3}     1555   1555  1.8\n'
         else:
             return ''
 
@@ -71,7 +71,10 @@ class _VictorPlonk(_VictorJournal):
         mol = Chem.Mol(self.monster.positioned_mol)
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
-            self.monster.mmff_minimize(mol,allow_lax=True)
+            self.monster.mmff_minimize(mol,
+                                       ff_dist_thr=float(self.settings.get('ff_dist_thr', 5.)),
+                                       ff_constraint=int(self.settings.get('ff_constraint', 10)),
+                                       allow_lax=True)
         return AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
 
     def _plonk_monster_in_structure_minimal(self) -> str:
@@ -83,7 +86,8 @@ class _VictorPlonk(_VictorJournal):
         """
         # ----- load
         mol = self._get_preminimized_undummied_monster()
-        pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms, ligname=self.ligand_resn)
+        pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms,
+                                   ligname=self.ligand_resn)
         moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
         # ------- covalent fix
         if self.is_covalent:
@@ -124,7 +128,6 @@ class _VictorPlonk(_VictorJournal):
         missing = sorted(set(string.ascii_uppercase).difference(chains))
         return f'1{missing[0]}'
 
-
     def _plonk_monster_in_structure_raw(self):
         """
         Plonks the molecule in the structure without using pymol.
@@ -160,5 +163,3 @@ class _VictorPlonk(_VictorJournal):
             pdbblock = pymol.cmd.get_pdbstr('*')
             pymol.cmd.delete('*')
         return self._get_LINK_record() + pdbblock
-
-

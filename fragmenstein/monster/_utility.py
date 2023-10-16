@@ -56,7 +56,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             followup_placed = cls.positioned_mol  # noqa it's not a class but an instance
         if hits is None:  # instance
             assert hasattr(cls, '__class__'), 'if called as a classmethod the list of hits need to be provided.'
-            hits = cls.hits # noqa it's not a class but an instance
+            hits = cls.hits  # noqa it's not a class but an instance
         for i in range(followup_placed.GetNumAtoms()):
             assert followup_placed.GetAtomWithIdx(i).GetSymbol() == followup_moved.GetAtomWithIdx(
                 i).GetSymbol(), 'The atoms order is changed.'
@@ -144,8 +144,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
                     origin.append([])
                 else:
                     origin.append(json.loads(x))
-            elif atom.HasProp('_ori_name'): # single name.
-                origin.append([atom.GetProp('_ori_name')+'.'+atom.GetProp('_ori_i')])
+            elif atom.HasProp('_ori_name'):  # single name.
+                origin.append([atom.GetProp('_ori_name') + '.' + atom.GetProp('_ori_i')])
             else:
                 origin.append([])
         return origin
@@ -283,9 +283,9 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             display(x)
 
     def mmff_minimize(self, mol: Optional[Chem.Mol] = None,
-                      ff_dist_thr: float = 2.,
-                      ff_constraint:int=10,
-                      allow_lax:bool=True) -> bool:
+                      ff_dist_thr: float = 5.,
+                      ff_constraint: int = 10,
+                      allow_lax: bool = True) -> bool:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_dist_thr Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
@@ -293,8 +293,13 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         :param mol: opt. mol. modified in place.
         :param ff_dist_thr: Distance threshold (Å) for atomic positions mapped to hits for  MMFF constrains.
                             if NaN then fixed point constraints (no movement) are used.
-
+        :param ff_constraint: Force constant for MMFF constraints.
+        :allow_lax: If True and the minimisation fails, the constraints are halved and the minimisation is rerun.
         :return: None
+
+        Note that most methods calling this via Victor
+        now use its ``.settings['ff_dist_thr']`` and ``.settings['ff_constraint']``
+        and do not use the defaults.
         """
         success = True
         if mol is None and self.positioned_mol is None:
@@ -324,7 +329,7 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
         restrained = []
         novels = list(mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)))
         if len(novels) == 0 and fixed_mode:
-            self.journal.warning('No novel atoms found in fixed_mode (ff_dist_thr == NaN), '+\
+            self.journal.warning('No novel atoms found in fixed_mode (ff_dist_thr == NaN), ' + \
                                  'this is probably a mistake')
             return True  # nothing to do
         for atom in novels:
@@ -361,10 +366,10 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             # no need to align nothing could have moved
             return success
         if not success and allow_lax:
-            success:bool = self.mmff_minimize(mol,
-                                              ff_dist_thr=ff_dist_thr//2,
-                                              ff_constraint=ff_constraint//2,
-                                              allow_lax=False)
+            success: bool = self.mmff_minimize(mol,
+                                               ff_dist_thr=ff_dist_thr / 2,
+                                               ff_constraint=ff_constraint // 2,
+                                               allow_lax=False)
         # deprotect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
@@ -404,8 +409,8 @@ class _MonsterUtil(_MonsterCommunal, GPM, _MonsterUtilCompare):
             warn(f'{err.__class__.__name__}: {err} (It is generally due to bad sanitisation)')
             return float('nan')
 
-    def _get_substructure_from_idxs(self, mol:Chem.Mol, atomIdx_list: List[int]) -> \
-                                    Tuple[Union[Chem.Mol, Chem.Mol],Dict[int,int] ]:
+    def _get_substructure_from_idxs(self, mol: Chem.Mol, atomIdx_list: List[int]) -> \
+            Tuple[Union[Chem.Mol, Chem.Mol], Dict[int, int]]:
         '''
         Given a molecule, extract the substructure molecule given selected atom idxs.
         :param mol:

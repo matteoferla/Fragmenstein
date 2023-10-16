@@ -60,7 +60,10 @@ class Wictor(Victor):
         self.params.comments.append('Generated via Fragmenstein')
         mol = Chem.Mol(self.monster.positioned_mol)
         # allow_lax reduces the constraints if it fails.
-        successful: bool = self.monster.mmff_minimize(mol, allow_lax=False)
+        successful: bool = self.monster.mmff_minimize(mol,
+                                                      ff_dist_thr=float(self.settings.get('ff_dist_thr', 5.)),
+                                                      ff_constraint=int(self.settings.get('ff_constraint', 10)),
+                                                      allow_lax=False)
         self.minimized_mol: Chem.Mol = mol
         self.minimized_pdbblock: str = self._plonk_monster_in_structure()
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
@@ -68,4 +71,3 @@ class Wictor(Victor):
         self.mrmsd: mRMSD = self._calculate_rmsd()
         # save to disc
         self._checkpoint_charlie()
-

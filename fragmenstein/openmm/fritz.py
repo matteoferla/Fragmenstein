@@ -83,10 +83,10 @@ class Fritz:
                                                      restraining_atom_indices=[],
                                                      restraint_k=0)
         self.ideal_ligand_simulation = self.create_simulation(model=self.rdkit_to_openMM(self.ideal_mol),
-                                                       restraining_atom_indices=[],
-                                                       restraint_k=0
-                                                       )
-        #self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0))
+                                                              restraining_atom_indices=[],
+                                                              restraint_k=0,
+                                                              frozen=False)
+        # self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0))
         tyck: float = time.time()
         self.journal.debug(f'Simulation created {tyck - tock}')
 
@@ -163,7 +163,7 @@ class Fritz:
         # convert and merge
         lig_topo: mma.Topology = OFFTopology.from_molecules([lig]).to_openmm()
         lig_pos: mmu.Quantity = lig.conformers[0].to_openmm()
-        return mma.Modeller(lig_topo, lig_pos) # noqa mmu.Quantity is okay
+        return mma.Modeller(lig_topo, lig_pos)  # noqa mmu.Quantity is okay
 
     @staticmethod
     def pdbblock_to_PDB(pdb_block: str) -> mma.PDBFile:
@@ -404,16 +404,17 @@ class Fritz:
         self.ideal_ligand_simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
         tyck: float = time.time()
         self.journal.debug(f'Reanimation! Minimisation of unbound in {tyck - tock}s')
+        # sort data...
         data: Dict[str, Union[mmu.Quantity, str]] = {
             **{f'{k}_bound': v for k, v in self.get_potentials(self.simulation).items()},
             **{f'{k}_apo': v for k, v in self.get_potentials(self.apo_simulation).items()},
             **{f'{k}_ideal': v for k, v in self.get_potentials(self.ideal_ligand_simulation).items()},
             'minimized_pdb': self.to_pdbblock()  # self.simulation by default
         }
-        for k in data:
+        for k in list(data.keys()):
             if '_bound' in k:
                 term = k.replace('_bound', '')
-                data[f'{term}_unbound'] = data[f'{term}_apo'] + data[f'{term}_ideal']
+                data[f'{term}_unbound'] = data.get(f'{term}_apo', 0) + data.get(f'{term}_ideal', 0)
         data['binding_dG'] = data['total_bound'] - data['total_unbound'] - data['CustomExternalForce_bound']
         return data
 

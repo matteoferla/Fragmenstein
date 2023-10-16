@@ -32,8 +32,14 @@ class _VictorPlace(_VictorCommon):
         # ## Store
         # self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, extra_ligand_constraint)
         def prepare_args_for_placement():
-            self._prepare_args_for_placement(smiles, long_name, merging_mode, atomnames, custom_map, extra_ligand_constraint)
-        self._safely_do(execute=prepare_args_for_placement, resolve=self._resolve, reject=self._reject)
+            self._prepare_args_for_placement(smiles,
+                                             long_name,
+                                             merging_mode,
+                                             atomnames,
+                                             custom_map,
+                                             extra_ligand_constraint)
+        if self.uses_pyrosetta:
+            self._safely_do(execute=prepare_args_for_placement, resolve=self._resolve, reject=self._reject)
         # ## Analyse
         self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
         return self
