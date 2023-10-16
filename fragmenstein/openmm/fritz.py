@@ -10,6 +10,7 @@ __date__ = "2022 A.D."
 __license__ = "MIT"
 __citation__ = ""
 
+import functools
 import logging
 from rdkit import Chem
 import numpy as np
@@ -46,8 +47,6 @@ class Fritz:
         """
         self.journal.critical('Fritz does not use PyRosetta... Why was this called?')
 
-
-
     def __init__(self,
                  prepped_mol: Chem.Mol,
                  pdb_block: str,
@@ -75,17 +74,21 @@ class Fritz:
         tock: float = time.time()
         self.journal.debug(f'Holo structure made {tock - tick}')
         self.neighboring_res_idxs: List[int] = []  # computed later
-        self.simulation = self.create_simulation(restraining_atom_indices=restraining_atom_indices,
+        self.forcefield: mma.ForceField = self.create_forcefield()
+        self.simulation = self.create_simulation(model=self.holo,
+                                                 restraining_atom_indices=restraining_atom_indices,
                                                  restraint_k=restraint_k,
                                                  mobile_radius=mobile_radius)
-        self.unbound_simulation = self.create_simulation(restraining_atom_indices=[],
-                                                         restraint_k=0,
-                                                         mobile_radius=mobile_radius)
-        self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0))
+        self.apo_simulation = self.create_simulation(model=self.pdbblock_to_PDB(self.pdb_block),
+                                                     restraining_atom_indices=[],
+                                                     restraint_k=0)
+        self.ideal_ligand_simulation = self.create_simulation(model=self.rdkit_to_openMM(self.ideal_mol),
+                                                       restraining_atom_indices=[],
+                                                       restraint_k=0
+                                                       )
+        #self.shift_ligand(self.unbound_simulation, mm.Vec3(1_000, 0, 0))
         tyck: float = time.time()
         self.journal.debug(f'Simulation created {tyck - tock}')
-
-    from collections import defaultdict
 
     @staticmethod
     def correct_pdbinfo(mol: Chem.Mol, resn: str, resi: int, chain: str):
@@ -143,7 +146,12 @@ class Fritz:
             apo: mma.PDBFile = self.pdbblock_to_PDB(apo)
         # make a copy:
         holo: mma.Modeller = mma.Modeller(apo.topology, apo.positions)
-        # kdkit AssignStereochemistryFrom3D previously applied
+        lig: mma.Modeller = self.rdkit_to_openMM(mol)
+        holo.add(lig.topology, lig.positions)  # noqa mmu.Quantity is okay
+        return holo
+
+    def rdkit_to_openMM(self, mol: Chem.Mol) -> mma.Modeller:
+        # rdkit AssignStereochemistryFrom3D previously applied
         lig = OFFMolecule.from_rdkit(mol, allow_undefined_stereo=True)
         # minor corrections:
         # there is no need to fix via
@@ -155,8 +163,7 @@ class Fritz:
         # convert and merge
         lig_topo: mma.Topology = OFFTopology.from_molecules([lig]).to_openmm()
         lig_pos: mmu.Quantity = lig.conformers[0].to_openmm()
-        holo.add(lig_topo, lig_pos)  # noqa mmu.Quantity is okay
-        return holo
+        return mma.Modeller(lig_topo, lig_pos) # noqa mmu.Quantity is okay
 
     @staticmethod
     def pdbblock_to_PDB(pdb_block: str) -> mma.PDBFile:
@@ -170,47 +177,61 @@ class Fritz:
         pdb = mma.PDBFile(iostr)
         return pdb
 
-    def create_simulation(self,
-                          restraint_k: float = 1_000,
-                          restraining_atom_indices: Sequence[int] = (),
-                          mobile_radius: float = 8.0,
-                          frozen: bool = True,
-                          forcefield_names: Optional[Sequence[str]] = None,
-                          ) -> mma.Simulation:
-        """
-        Creates a simulation object with the ligand harmonically constrained and the distal parts of the protein frozen.
-        """
-        # set up forcefield
-        ideal = Chem.Mol(self.prepped_mol)
-        ideal.RemoveAllConformers()
-        AllChem.EmbedMolecule(ideal, enforceChirality=True)
-        molecule = OFFMolecule.from_rdkit(ideal, allow_undefined_stereo=True)
+    def create_forcefield(self, forcefield_names: Optional[Sequence[str]] = None) -> mma.ForceField:
+        """set up forcefield"""
+        molecule = OFFMolecule.from_rdkit(self.ideal_mol, allow_undefined_stereo=True)
         smirnoff = SMIRNOFFTemplateGenerator(molecules=molecule)
         if forcefield_names is None:
             forcefield_names = self.forcefield_names
         forcefield = mma.ForceField(*forcefield_names)
         forcefield.registerTemplateGenerator(smirnoff.generator)
-        # sort holo object which may have been tampered with...
-        if isinstance(self.holo, mma.PDBFile):
-            holo = mma.Modeller(self.holo.topology, self.holo.positions)
+        return forcefield
+
+    @functools.cached_property
+    def ideal_mol(self):
+        ideal = Chem.Mol(self.prepped_mol)
+        ideal.RemoveAllConformers()
+        AllChem.EmbedMolecule(ideal, enforceChirality=True)
+        return ideal
+
+    def create_simulation(self,
+                          model: Union[mma.PDBFile, mma.Modeller, None] = None,
+                          restraint_k: float = 1_000,
+                          restraining_atom_indices: Sequence[int] = (),
+                          mobile_radius: float = 8.0,
+                          frozen: bool = True,
+                          ) -> mma.Simulation:
+        """
+        Creates a simulation object with the ligand harmonically constrained and the distal parts of the protein frozen.
+        """
+        # deal with model
+        if isinstance(model, mma.Modeller):
+            pass
+        elif isinstance(model, mma.PDBFile):
+            model = mma.Modeller(model.topology, model.positions)
+        elif isinstance(self.holo, mma.PDBFile):
+            model = mma.Modeller(self.holo.topology, self.holo.positions)
         else:
-            holo = self.holo
-        holo.addHydrogens(forcefield, pH=7.0)
+            model = self.holo
+        # add Hydrogens
+        model.addHydrogens(self.forcefield, pH=7.0)
         # set up system
-        system: mm.System = forcefield.createSystem(holo.topology,
-                                                    nonbondedMethod=mma.NoCutoff,
-                                                    nonbondedCutoff=1 * mmu.nanometer,
-                                                    constraints=mma.HBonds)
+        system: mm.System = self.forcefield.createSystem(model.topology,
+                                                         nonbondedMethod=mma.NoCutoff,
+                                                         nonbondedCutoff=1 * mmu.nanometer,
+                                                         constraints=mma.HBonds)
         # restrain (harmonic constrain) the ligand
         if restraint_k:
-            self.restrain(system, holo, k=restraint_k, atom_indices=restraining_atom_indices)
+            self.restrain(system, model, k=restraint_k, atom_indices=restraining_atom_indices)
         integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
-        simulation = mma.Simulation(holo.topology, system, integrator)
-        simulation.context.setPositions(holo.positions)
+        simulation = mma.Simulation(model.topology, system, integrator)
+        simulation.context.setPositions(model.positions)
         # freeze the distant parts of the protein
-        if frozen and len(self.neighboring_res_idxs) > 0:
+        if frozen and len(self.neighboring_res_idxs) == 0:
             self.journal.debug('Freezing...')
-            self.neighboring_res_idxs: List[int] = self.freeze_distal(simulation, lig_resn=self.resn, radius=mobile_radius)
+            self.neighboring_res_idxs: List[int] = self.freeze_distal(simulation,
+                                                                      lig_resn=self.resn,
+                                                                      radius=mobile_radius)
             self.journal.debug(f'Frozen all bar {self.neighboring_res_idxs}')
         elif frozen:
             self.journal.debug('Freezing prespecified')
@@ -371,7 +392,7 @@ class Fritz:
 
     def reanimate(self,
                   tolerance=10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter),
-                  maxIterations: int=0
+                  maxIterations: int = 0
                   ) -> Dict[str, Union[mmu.Quantity, str]]:
         if isinstance(tolerance, (float, int)):
             tolerance = float(tolerance) * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
@@ -379,14 +400,20 @@ class Fritz:
         self.simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
         tock: float = time.time()
         self.journal.debug(f'Reanimation! Minimisation of bound in {tock - tick}s')
-        self.unbound_simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
+        self.apo_simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
+        self.ideal_ligand_simulation.minimizeEnergy(tolerance=tolerance, maxIterations=int(maxIterations))
         tyck: float = time.time()
         self.journal.debug(f'Reanimation! Minimisation of unbound in {tyck - tock}s')
         data: Dict[str, Union[mmu.Quantity, str]] = {
             **{f'{k}_bound': v for k, v in self.get_potentials(self.simulation).items()},
-            **{f'{k}_unbound': v for k, v in self.get_potentials(self.unbound_simulation).items()},
+            **{f'{k}_apo': v for k, v in self.get_potentials(self.apo_simulation).items()},
+            **{f'{k}_ideal': v for k, v in self.get_potentials(self.ideal_ligand_simulation).items()},
             'minimized_pdb': self.to_pdbblock()  # self.simulation by default
         }
+        for k in data:
+            if '_bound' in k:
+                term = k.replace('_bound', '')
+                data[f'{term}_unbound'] = data[f'{term}_apo'] + data[f'{term}_ideal']
         data['binding_dG'] = data['total_bound'] - data['total_unbound'] - data['CustomExternalForce_bound']
         return data
 
@@ -455,7 +482,7 @@ class Fritz:
         iostr.seek(0)
         return iostr.read()
 
-    def to_mol(self, simulation: Optional[mma.Simulation]=None):
+    def to_mol(self, simulation: Optional[mma.Simulation] = None):
         if simulation is None:
             simulation: mma.Simulation = self.simulation
         topo, positions = self.get_topo_pos(simulation)
@@ -494,3 +521,17 @@ class Fritz:
         mma.PDBFile.writeFile(simulation.topology, positions, iostr)
         iostr.seek(0)
         return iostr.read()
+
+    def get_unfrozen_pymol_selection(self):
+        """
+        This is a pymol selection string.
+        It acts by residue index only as Chain is being weird:
+        `r.chain.id` is `''`, but ought to be `'A'`.
+        (Index is 0-based, id is PDB-based w/ gaps and all)
+        """
+        t, p = self.get_topo_pos(self.simulation)
+        _sele = []
+        for r in t.residues():
+            if r.index in self.neighboring_res_idxs:
+                _sele.append(str(r.id))
+        return 'resi ' + '+'.join(_sele)
