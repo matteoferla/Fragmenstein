@@ -38,8 +38,7 @@ class _VictorPlace(_VictorCommon):
                                              atomnames,
                                              custom_map,
                                              extra_ligand_constraint)
-        if self.uses_pyrosetta:
-            self._safely_do(execute=prepare_args_for_placement, resolve=self._resolve, reject=self._reject)
+        self._safely_do(execute=prepare_args_for_placement, resolve=self._resolve, reject=self._reject)
         # ## Analyse
         self._safely_do(execute=self._calculate_placement, resolve=self._resolve, reject=self._reject)
         return self
@@ -93,10 +92,11 @@ class _VictorPlace(_VictorCommon):
         if custom_map:
             self.custom_map = custom_map
         # make params
-        self.journal.debug(f'{self.long_name} - Starting parameterisation')
-        self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
-        # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
-        # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
+        if self.uses_pyrosetta:
+            self.journal.debug(f'{self.long_name} - Starting parameterisation')
+            self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
+            # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
+            # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
 
     def _calculate_placement_chem(self):
         '''
