@@ -17,9 +17,10 @@ from typing import List, Union, Sequence, Tuple, Optional, Dict, Annotated
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import io, time
-from openff.toolkit.topology import Molecule as OFFMolecule  # nomenclature idea copied from FEGrow
-from openff.toolkit.topology import Topology as OFFTopology
-from openmmforcefields.generators import SMIRNOFFTemplateGenerator
+# nomenclature idea copied from FEGrow:
+from openff.toolkit.topology import Molecule as OFFMolecule  # noqa
+from openff.toolkit.topology import Topology as OFFTopology  # noqa
+from openmmforcefields.generators import SMIRNOFFTemplateGenerator  # noqa
 import openmm as mm
 import openmm.app as mma
 import openmm.unit as mmu
@@ -36,6 +37,8 @@ class Fritz:
     The two assistants are utterly different and share no attributes.
     """
     journal = logging.getLogger('Fragmenstein')
+    forcefield_names = ('amber14-all.xml', 'implicit/gbn2.xml')
+    molar_energy_unit = mmu.kilocalorie_per_mole
 
     def init_pyrosetta(self):
         """
@@ -43,7 +46,7 @@ class Fritz:
         """
         self.journal.critical('Fritz does not use PyRosetta... Why was this called?')
 
-    molar_energy_unit = mmu.kilocalorie_per_mole
+
 
     def __init__(self,
                  prepped_mol: Chem.Mol,
@@ -71,6 +74,7 @@ class Fritz:
                                              self.prepped_mol)  # this is Fritz's plonk —Not Victor unlike Igor
         tock: float = time.time()
         self.journal.debug(f'Holo structure made {tock - tick}')
+        self.neighboring_res_idxs: List[int] = []  # computed later
         self.simulation = self.create_simulation(restraining_atom_indices=restraining_atom_indices,
                                                  restraint_k=restraint_k,
                                                  mobile_radius=mobile_radius)
@@ -170,7 +174,8 @@ class Fritz:
                           restraint_k: float = 1_000,
                           restraining_atom_indices: Sequence[int] = (),
                           mobile_radius: float = 8.0,
-                          forcefileds: Sequence[str] = ('amber14-all.xml', 'implicit/gbn2.xml')
+                          frozen: bool = True,
+                          forcefield_names: Optional[Sequence[str]] = None,
                           ) -> mma.Simulation:
         """
         Creates a simulation object with the ligand harmonically constrained and the distal parts of the protein frozen.
@@ -181,7 +186,9 @@ class Fritz:
         AllChem.EmbedMolecule(ideal, enforceChirality=True)
         molecule = OFFMolecule.from_rdkit(ideal, allow_undefined_stereo=True)
         smirnoff = SMIRNOFFTemplateGenerator(molecules=molecule)
-        forcefield = mma.ForceField(*forcefileds)
+        if forcefield_names is None:
+            forcefield_names = self.forcefield_names
+        forcefield = mma.ForceField(*forcefield_names)
         forcefield.registerTemplateGenerator(smirnoff.generator)
         # sort holo object which may have been tampered with...
         if isinstance(self.holo, mma.PDBFile):
@@ -201,7 +208,16 @@ class Fritz:
         simulation = mma.Simulation(holo.topology, system, integrator)
         simulation.context.setPositions(holo.positions)
         # freeze the distant parts of the protein
-        self.freeze_distal(simulation, lig_resn=self.resn, radius=mobile_radius)
+        if frozen and len(self.neighboring_res_idxs) > 0:
+            self.journal.debug('Freezing...')
+            self.neighboring_res_idxs: List[int] = self.freeze_distal(simulation, lig_resn=self.resn, radius=mobile_radius)
+            self.journal.debug(f'Frozen all bar {self.neighboring_res_idxs}')
+        elif frozen:
+            self.journal.debug('Freezing prespecified')
+            self.freeze(simulation=simulation,
+                        unfrozen_resn_idxs=self.neighboring_res_idxs)
+        else:
+            self.journal.debug('No freezing')
         return simulation
 
     def restrain(self, system: mm.System, pdb: Union[mma.PDBFile, mma.Modeller],
@@ -302,16 +318,27 @@ class Fritz:
                                      self.distance(positions[atom.index], ligand_center, mmu.angstrom) <= radius})
         self.journal.info(f'unfrozen: {len(neighbors)} residues')
         ex_neighbors: List[int] = neighbors + [ligand_residue.index]
-        # ## Freeze
+        self.freeze(simulation=simulation, unfrozen_resn_idxs=ex_neighbors)
+        return ex_neighbors
+
+    def freeze(self, simulation: mma.Simulation, unfrozen_resn_idxs: List[int]):
+        """
+        Freeze the distal parts of the protein,
+        ie. the residues that are not in `unfrozen_resn_idxs`
+        This is called by `freeze_distal`.
+        """
+        positions: mmu.Quantity
+        topology: mma.topology.Topology
+        topology, positions = self.get_topo_pos(simulation)
         # freezing by setting mass to zero
         n = 0
         for atom in topology.atoms():
-            if atom.residue.index not in ex_neighbors:
+            if atom.residue.index not in unfrozen_resn_idxs:
                 simulation.system.setParticleMass(atom.index, 0. * mmu.amu)  # Dalton
             else:
                 n += 1
         self.journal.info(f'{n} atoms were not frozen')
-        return ex_neighbors
+        return unfrozen_resn_idxs
 
     @staticmethod
     def get_centroid(residue: mma.topology.Residue, positions: mmu.Quantity) -> mmu.Quantity:
@@ -400,6 +427,7 @@ class Fritz:
         return False
 
     def alter_restraint(self, new_k: float):
+        self.journal.warning('`alter_restraint` is experimental and may not work.')
         f: mm.Force = self.get_force_by_name('CustomExternalForce')
         # get the index of the constant named _k_
         for i in range(f.getNumGlobalParameters()):
@@ -445,10 +473,13 @@ class Fritz:
         return mol
 
     @classmethod
-    def minimize_template(cls, apo_block: str):
+    def minimize_template(cls, apo_block: str,
+                          forcefield_names: Optional[Sequence[str]] = None):
         pdb = Fritz.pdbblock_to_PDB(apo_block)
         apo = mma.Modeller(pdb.topology, pdb.positions)
-        forcefield = mma.ForceField('amber14-all.xml', 'implicit/gbn2.xml')
+        if forcefield_names is None:
+            forcefield_names = cls.forcefield_names
+        forcefield = mma.ForceField(*forcefield_names)
         apo.addHydrogens(forcefield, pH=7.0)
         system: mm.System = forcefield.createSystem(apo.topology,
                                                     nonbondedMethod=mma.NoCutoff,
