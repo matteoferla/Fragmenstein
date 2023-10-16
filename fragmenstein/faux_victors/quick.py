@@ -1,3 +1,5 @@
+import functools
+
 from rdkit.Chem import rdFMCS
 from ..error import FragmensteinError
 from ..victor import Victor
@@ -31,8 +33,8 @@ class Quicktor(Victor):
                                         'ringMatchesRingOnly': True}]
         self.monster_mmff_minisation = True  # as is default. Repeated for emphasis.
 
-
-    def _get_preminimized_undummied_monster(self) -> Chem.Mol:
+    @functools.cached_property
+    def preminimized_undummied_mol(self) -> Chem.Mol:
         """
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.

@@ -2,6 +2,7 @@ from ..victor import Victor
 from .fritz import Fritz
 from ..error import FragmensteinError
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from typing import List, Optional, Dict, Union, Callable
 import os, json, time
 
@@ -18,11 +19,11 @@ class OpenVictor(Victor):
         if self.is_covalent:
             raise NotImplementedError('OpenVictor does not support covalent ligands')
         self.journal.debug(f'{self.long_name} - Starting system setup')
-        self.mol = Chem.Mol(self.monster.positioned_mol)
+        self.mol = AllChem.AddHs(self.monster.positioned_mol, addCoords=True)
         restraint_k = self.settings.get('restraint_k', 1000.)
         tolerance = self.settings.get('tolerance', 10.)  # 10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
         maxIterations = self.settings.get('maxIterations', 0)
-        self.fritz = Fritz(prepped_mol=self._get_preminimized_undummied_monster(),
+        self.fritz = Fritz(prepped_mol=self.preminimized_undummied_mol,
                            pdb_block=self.apo_pdbblock,
                            resn=self.ligand_resn,
                            restraining_atom_indices=self._get_restraining_atom_indices(),

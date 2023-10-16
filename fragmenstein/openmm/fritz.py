@@ -63,7 +63,7 @@ class Fritz:
         self.chain: str = chain
         # self.prepped_mol is the "initial" mol
         # Igor does not have this as parameterisation is external
-        # self.prepped_mol is returned from `_get_preminimized_undummied_monster`
+        # self.prepped_mol is returned from `preminimized_undummied_mol`
         # so is technically not Victor.Monster.positioned_mol
         self.prepped_mol: Chem.Mol = AllChem.AddHs(prepped_mol, addCoords=True)
         self.correct_pdbinfo(mol=self.prepped_mol, resn=self.resn, resi=self.resi, chain=self.chain)
@@ -189,7 +189,7 @@ class Fritz:
 
     @functools.cached_property
     def ideal_mol(self):
-        ideal = Chem.Mol(self.prepped_mol)
+        ideal = AllChem.AddHs(self.prepped_mol)
         ideal.RemoveAllConformers()
         AllChem.EmbedMolecule(ideal, enforceChirality=True)
         return ideal
@@ -289,7 +289,7 @@ class Fritz:
                                                    float(rd_atom.GetDoubleProp('_z'))) \
                                            * mmu.angstrom
             else:
-                # Unlikely... but some hack may be at play. As these are added by `_get_preminimized_undummied_monster`
+                # Unlikely... but some hack may be at play. As these are added by `preminimized_undummied_mol`
                 self.journal.debug('No _x property. Using position.')
                 atomic_xyz: mmu.Quantity = positions[mm_atom.index]
             restraint.addParticle(mm_atom.index, atomic_xyz)
@@ -415,7 +415,7 @@ class Fritz:
             if '_bound' in k:
                 term = k.replace('_bound', '')
                 data[f'{term}_unbound'] = data.get(f'{term}_apo', 0) + data.get(f'{term}_ideal', 0)
-        data['binding_dG'] = data['total_bound'] - data['total_unbound'] - data['CustomExternalForce_bound']
+        data['binding_dG'] = data['total_bound'] - data['total_unbound'] - data.get('CustomExternalForce_bound', 0.)
         return data
 
     def get_force_by_name(self,

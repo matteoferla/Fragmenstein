@@ -1,4 +1,4 @@
-import re, string
+import re, string, functools
 from typing import Optional, Set
 
 from rdkit import Chem
@@ -62,7 +62,8 @@ class _VictorPlonk(_VictorJournal):
             # _plonk_monster_in_structure_raw does no corrections.
             return self._plonk_monster_in_structure_minimal()
 
-    def _get_preminimized_undummied_monster(self) -> Chem.Mol:
+    @functools.cached_property
+    def preminimized_undummied_mol(self) -> Chem.Mol:
         """
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.
@@ -85,7 +86,7 @@ class _VictorPlonk(_VictorJournal):
         :return:
         """
         # ----- load
-        mol = self._get_preminimized_undummied_monster()
+        mol = self.preminimized_undummied_mol
         pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms,
                                    ligname=self.ligand_resn)
         moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))
@@ -136,7 +137,7 @@ class _VictorPlonk(_VictorJournal):
 
         :return:
         """
-        mol = self._get_preminimized_undummied_monster()
+        mol = self.preminimized_undummied_mol
         mol_block = Chem.MolToPDBBlock(mol)
         return '\n'.join([self._get_LINK_record().strip(),
                           self.apo_pdbblock.strip(),
@@ -151,7 +152,7 @@ class _VictorPlonk(_VictorJournal):
         :return:
         """
         import pymol2
-        mol = self._get_preminimized_undummied_monster()
+        mol = self.preminimized_undummied_mol
         with pymol2.PyMOL() as pymol:
             pymol.cmd.read_pdbstr(self.apo_pdbblock, 'apo')
             pos_mol = Chem.MolToPDBBlock(mol)
