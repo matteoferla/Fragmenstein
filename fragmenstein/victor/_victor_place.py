@@ -110,11 +110,13 @@ class _VictorPlace(_VictorCommon):
         # ***** PARAMS & CONSTRAINT *******
         self.journal.info(f'{self.long_name} - Starting work')
         self._log_warnings()
-
-        self.mol = self.params.mol
+        if self.uses_pyrosetta:
+            # self.params from _prepare_args_for_placement
+            self.mol = self.params.mol
+        else:
+            self.mol = Chem.MolFromSmiles(self.smiles)
         self._log_warnings()
         # get constraint
-
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
         self._log_warnings()
         # ***** FRAGMENSTEIN Monster *******
