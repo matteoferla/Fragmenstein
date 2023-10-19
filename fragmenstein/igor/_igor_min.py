@@ -321,7 +321,7 @@ class _IgorMin(_IgorBase):
         scorefxn(self.pose)
         sfxd = self.detailed_scores(self.pose, lig_pos)
         return {'holo_ref2015': scorefxn(self.pose),
-                'ligand_ref2015': sfxd,
+                'bound': sfxd,
                 **self.score_split()}
 
     @classmethod

@@ -1086,7 +1086,7 @@ class _MonsterRing(_MonsterJoinNeigh):
         # original
         originality = [p == BondProvenance.ORIGINAL for p in provenances]
         if sum(originality) == 3:
-            self.journal.warning('Triangle from original present. Kept, unless rectifiers is set to not tolerate')
+            self.journal.debug('Triangle from original present. Kept, unless rectifiers is set to not tolerate')
         # length
         BL = partial(Chem.rdMolTransforms.GetBondLength, conf=mol.GetConformer())
         lengths = [BL(iAtomId=b.GetBeginAtomIdx(), jAtomId=b.GetEndAtomIdx()) for b in bonds]

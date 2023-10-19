@@ -174,8 +174,8 @@ class _VictorBase:
         self.reference_mol = None  # filled only for validate
         # buffers etc.
         self._warned = []
-        self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
-                             'unbound_ref2015': {'total_score': float('nan')}}
+        self.energy_score = {'bound': {'total_score': float('nan')},
+                             'unbound': {'total_score': float('nan')}}
         self.mrmsd = mRMSD.mock()
         self.ddG = float('nan')
         # for debug purposes
@@ -189,5 +189,5 @@ class _VictorBase:
         return re.sub(r'[\W_.-]+', '-', name)
 
     def _process_settings(self):
-        if len(self.settings) > 0:  # True for subclasses... which override it
-            self.journal.critical('settings not used in this version of Victor')
+        # what settings are valid?
+        pass

@@ -54,9 +54,10 @@ class Quicktor(Victor):
         # ## Minimise
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
-            if not self.monster.mmff_minimize(mol, allow_lax=False, ff_dist_thr=float('nan')):
+            min_result = self.monster.mmff_minimize(mol, allow_lax=False, ff_max_displacement=float('nan'))
+            if not min_result.success:
                 raise FragmensteinError('Could not preminize')
-            ddG = self.monster.MMFF_score(mol, delta=True)
+            ddG = min_result.delta
             if ddG > 100:
                 raise FragmensteinError('Poor preminization')
-        return AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
+        return AllChem.DeleteSubstructs(min_result.mol, Chem.MolFromSmiles('*'))

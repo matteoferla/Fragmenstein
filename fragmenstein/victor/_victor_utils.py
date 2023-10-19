@@ -57,7 +57,7 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
         lig_chem.SetProp('_Name', 'docked')
         Chem.MolToMolFile(lig_chem, f'{self.work_path}/{self.long_name}/{self.long_name}.docked.mol')
         return lig_chem
-        # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound_ref2015']['total_score'])
+        # print(pyrosetta.get_fa_scorefxn()(docked) - v.energy_score['unbound']['total_score'])
 
     def summarize(self):
         if self.error_msg:
@@ -89,10 +89,10 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                     'smiles': self.smiles,
                     'error': self.error_msg,
                     'mode': self.merging_mode,
-                    '∆∆G': self.energy_score['ligand_ref2015']['total_score'] - \
-                           self.energy_score['unbound_ref2015']['total_score'],
-                    '∆G_bound': self.energy_score['ligand_ref2015']['total_score'],
-                    '∆G_unbound': self.energy_score['unbound_ref2015']['total_score'],
+                    '∆∆G': self.energy_score['bound']['total_score'] - \
+                           self.energy_score['unbound']['total_score'],
+                    '∆G_bound': self.energy_score['bound']['total_score'],
+                    '∆G_unbound': self.energy_score['unbound']['total_score'],
                     'comRMSD': self.mrmsd.mrmsd,
                     'N_constrained_atoms': self.constrained_atoms,
                     'N_unconstrained_atoms': self.unconstrained_heavy_atoms,
@@ -463,8 +463,8 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
             # victor._fix_minimized adds to igor.mol_from_pose
             self.minimized_mol = self._fix_minimized()
         else:
-            self.energy_score = {'ligand_ref2015': {'total_score': float('nan')},
-                                 'unbound_ref2015': {'total_score': float('nan')}}
+            self.energy_score = {'bound': {'total_score': float('nan')},
+                                 'unbound': {'total_score': float('nan')}}
 
             self.journal.info(f'{self.long_name} - no min json')
         minmol = os.path.join(folder, f'{self.long_name}.minimised.mol')

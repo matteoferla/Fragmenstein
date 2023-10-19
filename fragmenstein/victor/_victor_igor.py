@@ -23,7 +23,7 @@ class _VictorIgor(_VictorStore):
             ligand = self.igor.mol_from_pose(add_dummy=add_dummy)
         new_ligand: Chem.Mol = combine_for_bondorder(self.params.mol, ligand)
         # self.journal.warning(f'{self.long_name} - Rosetta ring closure failed: +infinity kcal/mol penalty')
-        # self.energy_score['ligand_ref2015']['total_score'] = float('inf')
+        # self.energy_score['bound']['total_score'] = float('inf')
         return new_ligand
 
     def quick_reanimate(self) -> float:
@@ -37,8 +37,8 @@ class _VictorIgor(_VictorStore):
         self.igor.coordinate_constraint = 10.
         self.igor.minimize(cycles=5, default_coord_constraint=False)
         self.energy_score = self.calculate_score()
-        dG_bound = self.energy_score['ligand_ref2015']['total_score']
-        dG_unbound = self.energy_score['unbound_ref2015']['total_score']
+        dG_bound = self.energy_score['bound']['total_score']
+        dG_unbound = self.energy_score['unbound']['total_score']
         ddG = dG_bound - dG_unbound
         return ddG
 
@@ -61,8 +61,8 @@ class _VictorIgor(_VictorStore):
             self.journal.debug(f'{self.long_name} - Igor minimising')
             self.igor.minimize(default_coord_constraint=False)
             self.energy_score = self.calculate_score()
-            dG_bound = self.energy_score['ligand_ref2015']['total_score']
-            dG_unbound = self.energy_score['unbound_ref2015']['total_score']
+            dG_bound = self.energy_score['bound']['total_score']
+            dG_unbound = self.energy_score['unbound']['total_score']
             ddG = dG_bound - dG_unbound
             if ddG > 0:
                 self.igor.coordinate_constraint /= 2
@@ -97,7 +97,7 @@ class _VictorIgor(_VictorStore):
 
     def calculate_score(self):
         return {**self.igor.ligand_score(),
-                'unbound_ref2015': self.igor.detailed_scores(self.unbound_pose, 1)}
+                'unbound': self.igor.detailed_scores(self.unbound_pose, 1)}
 
     @property
     def constrained_atoms(self) -> int:

@@ -3,6 +3,8 @@ from ..victor import Victor
 from ..m_rmsd import mRMSD
 import os, json
 from rdkit_to_params import Params
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 
 class Wictor(Victor):
@@ -22,6 +24,9 @@ class Wictor(Victor):
         wicky.combine()
     """
     uses_pyrosetta = False
+
+    def _process_settings(self):
+        self.journal.debug('Valid settings: ff_max_displacement, ff_constraint=1, ff_max_iterations')
 
     def _calculate_combination_thermo(self):
         # override igor.
@@ -60,14 +65,28 @@ class Wictor(Victor):
         self.params.comments.append('Generated via Fragmenstein')
         mol = Chem.Mol(self.monster.positioned_mol)
         # allow_lax reduces the constraints if it fails.
-        successful: bool = self.monster.mmff_minimize(mol,
-                                                      ff_dist_thr=float(self.settings.get('ff_dist_thr', 5.)),
-                                                      ff_constraint=int(self.settings.get('ff_constraint', 10)),
-                                                      allow_lax=False)
-        self.minimized_mol: Chem.Mol = mol
-        self.minimized_pdbblock: str = self._plonk_monster_in_structure()
+        neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5.)
+        min_result = self.monster.mmff_minimize(mol,
+                                                neighborhood=neighborhood,
+                                                ff_max_displacement=float(self.settings.get('ff_max_displacement', 0.)),
+                                                ff_constraint=int(self.settings.get('ff_constraint', 10)),
+                                                ff_max_iterations=int(self.settings.get('ff_max_iterations', 200)),
+                                                allow_lax=False)
+        self.minimized_mol: Chem.Mol = min_result.mol
+        self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.minimized_mol)
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
-        self.ddG: float = self.monster.MMFF_score(self.minimized_mol, delta=True)
+        # recalculating:
+        ideal: Chem.Mol = self.monster.make_ideal_mol(ff_minimise=bool(self.settings.get('ff_minimise_ideal', False)))
+        ideal_E: float = ideal.GetProp('Energy')
+        AllChem.SanitizeMol(neighborhood)
+        hydroneighborhood = Chem.AddHs(neighborhood, addCoords=True)
+        holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, hydroneighborhood), delta=False)
+        apo_E = self.monster.MMFF_score(hydroneighborhood, delta=False)
+        self.energy_score['bound'] = dict(total_score=holo_E, unit='kcal/mol')
+        self.energy_score['unbound'] = dict(total_score=apo_E + ideal_E, unit='kcal/mol')
+        self.energy_score['apo'] = dict(total_score=apo_E, unit='kcal/mol')
+        self.energy_score['ideal'] = dict(total_score=ideal_E, unit='kcal/mol')
+        self.ddG: float = holo_E - apo_E - ideal_E
         self.mrmsd: mRMSD = self._calculate_rmsd()
         # save to disc
         self._checkpoint_charlie()

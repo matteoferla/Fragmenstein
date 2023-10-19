@@ -40,6 +40,7 @@ class Fritz:
     journal = logging.getLogger('Fragmenstein')
     forcefield_names = ('amber14-all.xml', 'implicit/gbn2.xml')
     molar_energy_unit = mmu.kilocalorie_per_mole
+    integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
 
     def init_pyrosetta(self):
         """
@@ -223,8 +224,7 @@ class Fritz:
         # restrain (harmonic constrain) the ligand
         if restraint_k:
             self.restrain(system, model, k=restraint_k, atom_indices=restraining_atom_indices)
-        integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
-        simulation = mma.Simulation(model.topology, system, integrator)
+        simulation = mma.Simulation(model.topology, system, self.integrator)
         simulation.context.setPositions(model.positions)
         # freeze the distant parts of the protein
         if frozen and len(self.neighboring_res_idxs) == 0:
@@ -513,8 +513,7 @@ class Fritz:
                                                     nonbondedMethod=mma.NoCutoff,
                                                     nonbondedCutoff=1 * mmu.nanometer,
                                                     constraints=mma.HBonds)
-        integrator = mm.LangevinMiddleIntegrator(300 * mmu.kelvin, 1 / mmu.picosecond, 0.004 * mmu.picoseconds)
-        simulation = mma.Simulation(apo.topology, system, integrator)
+        simulation = mma.Simulation(apo.topology, system, cls.integrator)
         simulation.context.setPositions(apo.positions)
         simulation.minimizeEnergy()
         positions: mmu.Quantity = simulation.context.getState(getPositions=True).getPositions()

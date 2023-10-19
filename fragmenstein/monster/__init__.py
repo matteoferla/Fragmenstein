@@ -44,12 +44,12 @@ from .mcs_mapping import IndexMap, SpecialCompareAtoms, ExtendedFMCSMode, transm
 # ---  Monster ---------------------------------------------------------------------------------------------------------
 
 from ._communal import _MonsterCommunal
-from ._utility import _MonsterUtil  # Adds extras, not called by place/combine
+from ._ff import _MonsterFF  # _MonsterFF extends _MonsterUtil
 from ._combine import _MonsterCombine  # inherits _MonsterCommunal adds the combine method
 from ._place import _MonsterPlace  # inherits _MonsterCommunal adds the combine method
 
 
-class Monster(_MonsterUtil, _MonsterPlace, _MonsterCombine):
+class Monster(_MonsterFF, _MonsterPlace, _MonsterCombine):
     """
     This creates a stitched together monster.
     For initilialisation for either placing or combining, it needs a list of hits (rdkit.Chem.Mol).
