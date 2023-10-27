@@ -290,7 +290,10 @@ usage: fragmenstein pipeline [-h] -t TEMPLATE -i INPUT [-o OUTPUT] [-r RANKING] 
                              [-n N_CORES] [-m COMBINATION_SIZE] [-k TOP_MERGERS] [-e TIMEOUT] [-x MAX_TASKS] [-z BLACKLIST] [-j WEIGHTS] [-v]
 
 ```bash
+# `--n_cores` sets number of cores you want to use, this simply is to get the number of cores:
 export N_CORES=$(cat /proc/cpuinfo | grep processor | wc -l);
+
+# run
 fragmenstein pipeline \
                       --template reference.pdb \
                       --hits filtered.sdf \
