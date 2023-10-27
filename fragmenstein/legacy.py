@@ -18,7 +18,7 @@ if sys.version_info.major != 3 or sys.version_info.minor < 8:
     typing.TypedDict = TypedDict  # noqa
     typing.Literal = Literal  # noqa
     typing.overload = overload  # noqa
-if sys.version_info.major != 3 or sys.version_info.minor < 11:
+if sys.version_info.major != 3 or sys.version_info.minor < 12:
     # Unpack allows clean annotation of **kwargs!
     from typing_extensions import Unpack, NotRequired
     # this was only "recently" added... if you get an error: upgrade package typing_extensions
