@@ -26,7 +26,7 @@ class Wictor(Victor):
     uses_pyrosetta = False
 
     def _process_settings(self):
-        self.journal.debug('Valid settings: ff_max_displacement, ff_constraint=1, ff_max_iterations')
+        self.journal.debug('Valid settings.py: ff_max_displacement, ff_constraint=1, ff_max_iterations')
 
     def _calculate_combination_thermo(self):
         # override igor.
@@ -64,28 +64,36 @@ class Wictor(Victor):
         self.params.comments.clear()
         self.params.comments.append('Generated via Fragmenstein')
         mol = Chem.Mol(self.monster.positioned_mol)
-        # allow_lax reduces the constraints if it fails.
-        neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5.)
+        if self.settings['ff_use_neighborhood']: # default True
+            neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=self.settings['ff_neighborhood'])
+        else:
+            neighborhood = None
+        # allow_lax reduces the constraints if it fails
         min_result = self.monster.mmff_minimize(mol,
                                                 neighborhood=neighborhood,
-                                                ff_max_displacement=float(self.settings.get('ff_max_displacement', 0.)),
-                                                ff_constraint=int(self.settings.get('ff_constraint', 10)),
-                                                ff_max_iterations=int(self.settings.get('ff_max_iterations', 200)),
-                                                allow_lax=False)
+                                                ff_max_displacement=float(self.settings['ff_max_displacement']), # def 0
+                                                ff_constraint=int(self.settings['ff_constraint']), # def 10
+                                                ff_max_iterations=int(self.settings['ff_max_iterations']), # def 200
+                                                allow_lax=True)
         self.minimized_mol: Chem.Mol = min_result.mol
         self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.minimized_mol)
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
         # recalculating:
-        ideal: Chem.Mol = self.monster.make_ideal_mol(ff_minimise=bool(self.settings.get('ff_minimise_ideal', False)))
-        ideal_E: float = ideal.GetProp('Energy')
+        # min_result.ideal is with ff_minimise_ideal True
+        ideal: Chem.Mol = self.monster.make_ideal_mol(ff_minimise=bool(self.settings['ff_minimise_ideal']))
+        ideal_E: float = ideal.GetDoubleProp('Energy')
+        ligand_E: float = self.minimized_mol.GetDoubleProp('Energy')
+        # The holo needs recalculating as I don't want the constraints
         AllChem.SanitizeMol(neighborhood)
         hydroneighborhood = Chem.AddHs(neighborhood, addCoords=True)
         holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, hydroneighborhood), delta=False)
         apo_E = self.monster.MMFF_score(hydroneighborhood, delta=False)
+        # store data:
         self.energy_score['bound'] = dict(total_score=holo_E, unit='kcal/mol')
         self.energy_score['unbound'] = dict(total_score=apo_E + ideal_E, unit='kcal/mol')
         self.energy_score['apo'] = dict(total_score=apo_E, unit='kcal/mol')
         self.energy_score['ideal'] = dict(total_score=ideal_E, unit='kcal/mol')
+        self.energy_score['insitu'] = dict(total_score=ligand_E, unit='kcal/mol')
         self.ddG: float = holo_E - apo_E - ideal_E
         self.mrmsd: mRMSD = self._calculate_rmsd()
         # save to disc

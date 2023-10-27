@@ -20,15 +20,15 @@ class OpenVictor(Victor):
             raise NotImplementedError('OpenVictor does not support covalent ligands')
         self.journal.debug(f'{self.long_name} - Starting system setup')
         self.mol = AllChem.AddHs(self.monster.positioned_mol, addCoords=True)
-        restraint_k = self.settings.get('restraint_k', 1000.)
-        tolerance = self.settings.get('tolerance', 10.)  # 10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
-        maxIterations = self.settings.get('maxIterations', 0)
+        restraint_k = self.settings['mm_restraint_k'] # default 1000.
+        tolerance = self.settings['mm_tolerance']  # 10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
+        maxIterations = self.settings['mm_max_iterations'] # 0 is infinite
         self.fritz = Fritz(prepped_mol=self.preminimized_undummied_mol,
                            pdb_block=self.apo_pdbblock,
                            resn=self.ligand_resn,
                            restraining_atom_indices=self._get_restraining_atom_indices(),
                            restraint_k=restraint_k,
-                           mobile_radius=self.settings.get('mobile_radius', 8.0),
+                           mobile_radius=self.settings['mm_mobile_radius'],
                            )
         self.unminimized_pdbblock = self.fritz.to_pdbblock()
         self._data: Dict = self.fritz.reanimate(tolerance=tolerance, maxIterations=maxIterations)

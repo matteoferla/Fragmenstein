@@ -193,7 +193,7 @@ class _IgorMin(_IgorBase):
         movemap = self._get_movemap()
         relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, cycles)
         if use_mod_script:
-            # this is insanely slow with cartesian settings on...
+            # this is insanely slow with cartesian settings.py on...
             v = pyrosetta.rosetta.std.vector_std_string(['repeat %%nrepeats%%',
                                                          f'coord_cst_weight {weight}',
                                                          'scale:fa_rep 0.092',

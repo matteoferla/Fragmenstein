@@ -72,7 +72,10 @@ class _VictorPlonk(_VictorJournal):
         mol = Chem.Mol(self.monster.positioned_mol)
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
-            neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5.)
+            if self.settings.get('ff_use_neighborhood', True):
+                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5.)
+            else:
+                neighborhood = None
             min_result = self.monster.mmff_minimize(mol,
                                                     neighborhood=neighborhood,
                                                     ff_max_displacement=float(self.settings.get('ff_max_displacement', 0.)),

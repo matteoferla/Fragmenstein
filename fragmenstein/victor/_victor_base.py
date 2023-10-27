@@ -25,16 +25,19 @@ from typing import List, Union, Optional, Callable, Dict
 from rdkit import Chem
 from ..m_rmsd import mRMSD
 from ..monster import Monster   # will become Victor.Monster
+from ..settings import default_settings, default_settings_yaml
 
 
 class _VictorBase:
     uses_pyrosetta = True
     quick_reanimation = False  # thorugh reanimation?
-    monster_average_position = False
-    monster_throw_on_discard = False
-    monster_mmff_minisation = True
+    # These will be depraecated
+    monster_average_position = default_settings['monster_average_position']  # default False
+    monster_throw_on_discard = default_settings['monster_throw_on_discard']  # default False
+    monster_mmff_minisation = default_settings['ff_minisation']  # default True
+    # These will likely stay
     constraint_function_type = 'FLAT_HARMONIC'
-    work_path = os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output')
+    work_path = default_settings['work_path']
     journal = logging.getLogger('Fragmenstein')
     journal.setLevel(logging.DEBUG)
     # here for ease of subclassing
@@ -146,7 +149,7 @@ class _VictorBase:
         self.extra_constraint = extra_protein_constraint
         self.pose_fx = pose_fx
         self.random_seed = monster_random_seed
-        self.settings = settings  # not used for now
+        self.settings = {**default_settings, **settings}
         self._process_settings()
         # ## Fill by place and combine differently
         self.long_name = 'ligand'
@@ -189,5 +192,7 @@ class _VictorBase:
         return re.sub(r'[\W_.-]+', '-', name)
 
     def _process_settings(self):
-        # what settings are valid?
+        # what settings.py are valid?
         pass
+
+_VictorBase.__init__.__doc__ += '\n Some arguments can be defined externally: \n'+default_settings_yaml

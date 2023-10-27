@@ -23,7 +23,7 @@ class _MonsterBase:
     dummy_symbol = '*'
     dummy = Chem.MolFromSmiles(dummy_symbol)  #: The virtual atom where the targets attaches
 
-    # settings...
+    # settings.py...
     atoms_in_bridge_cutoff = 2
     # atoms_in_bridge_cutoff is how many bridge atoms can be deleted?
     # (0 = preserves norbornane, 1 = preserves adamantane)

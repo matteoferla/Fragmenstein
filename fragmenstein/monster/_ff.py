@@ -12,8 +12,9 @@ import numpy.typing as npt
 class MinizationOutcome:
     success: bool
     mol: Chem.Mol
-    dG_pre: float = float('nan')
-    dG_post: float = float('nan')
+    ideal: Chem.Mol
+    U_pre: float = float('nan')
+    U_post: float = float('nan')
     delta: float = float('nan')
 
 
@@ -25,6 +26,7 @@ class _MonsterFF(_MonsterUtil):
                       ff_max_displacement: float = 0.,
                       ff_constraint: int = 10,
                       ff_max_iterations: int=200,
+                      ff_cutoff: float = 100.,
                       allow_lax: bool = True) -> MinizationOutcome:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_max_displacement Å.
@@ -36,11 +38,12 @@ class _MonsterFF(_MonsterUtil):
                             if NaN then fixed point constraints (no movement) are used.
                             This is passed as maxDispl to MMFFAddPositionConstraint.
         :param ff_constraint: Force constant for MMFF constraints.
+        :param ff_cutoff: kcal/mol diff value to consider a failed minimisation.
         :param allow_lax: If True and the minimisation fails, the constraints are halved and the minimisation is rerun.
         :return: None
 
         Note that most methods calling this via Victor
-        now use its ``.settings['ff_max_displacement']`` and ``.settings['ff_constraint']``
+        now use its ``.settings.py['ff_max_displacement']`` and ``.settings.py['ff_constraint']``
         and do not use the defaults.
         """
         # ## input fixes
@@ -53,12 +56,18 @@ class _MonsterFF(_MonsterUtil):
         # ## prep
         success: bool
         fixed_mode = str(ff_max_displacement).lower() == 'nan'
+        mol = Chem.Mol(mol)
+        # protect
+        for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
+            atom.SetAtomicNum(8)
         combo, fixed_idxs = self._prep_combined(mol, neighborhood)
+        ideal: Chem.Mol = self.make_ideal_mol(mol, ff_minimise=True)
+        ideal_E: float = ideal.GetDoubleProp('Energy')
         # ## Start FF
         p = AllChem.MMFFGetMoleculeProperties(combo, 'MMFF94')
         if p is None:
             self.journal.error(f'MMFF cannot work on a molecule that has errors!')
-            return MinizationOutcome(success=False, mol=mol)
+            return MinizationOutcome(success=False, mol=mol, ideal=ideal)
         ff = AllChem.MMFFGetMoleculeForceField(combo, p, ignoreInterfragInteractions=False)
         # restrain
         restrained = []
@@ -67,11 +76,11 @@ class _MonsterFF(_MonsterUtil):
         # weird corner case
         if len(conserved) == mol.GetNumAtoms() and fixed_mode:
             ff.Initialize()
-            dG: float = ff.CalcEnergy()
+            dU: float = ff.CalcEnergy()
             self.journal.warning('No novel atoms found in fixed_mode (ff_max_displacement == NaN), ' + \
                                  'this is probably a mistake')
             # nothing to do...
-            return MinizationOutcome(success=True, mol=mol, dG_post=dG, dG_pre=dG, delta=0)
+            return MinizationOutcome(success=True, mol=mol, ideal=ideal, U_post=dU, U_pre=dU, delta=0)
         # constrain or freeze
         for atom in conserved:
             i = atom.GetIdx()
@@ -96,6 +105,7 @@ class _MonsterFF(_MonsterUtil):
             dG_pre = ff.CalcEnergy()
             dG_post = dG_pre
             previous_dG = float('inf')
+            # this is a bit of a hack, but it works to make sure its not a flipped plateau-like local minima
             while previous_dG - dG_post > 0.5:
                 previous_dG = dG_post
                 m = ff.Minimize(maxIts=ff_max_iterations)
@@ -116,7 +126,14 @@ class _MonsterFF(_MonsterUtil):
                 success = False
         except RuntimeError as error:
             self.journal.info(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
-            return MinizationOutcome(success=False, mol=mol)
+            return MinizationOutcome(success=False, mol=mol, ideal=ideal)
+        # extract
+        new_mol = self.extract_from_neighborhood(combo)
+        ligand_E: float = self.MMFF_score(new_mol, delta=False)
+        new_mol.SetDoubleProp('Energy', ligand_E)
+        # check
+        if ligand_E - ideal_E > abs(ff_cutoff):
+            success = False  # damn
         if not success and allow_lax:
             self.journal.debug(f'MMFF minimisation failed, trying again with lax constraint {ff_constraint // 5}')
             return self.mmff_minimize(mol,
@@ -124,8 +141,7 @@ class _MonsterFF(_MonsterUtil):
                                       ff_max_displacement=ff_max_displacement,
                                       ff_constraint=ff_constraint // 5,
                                       allow_lax=False)
-        # extract & deprotect
-        new_mol = Chem.GetMolFrags(combo, asMols=True)[0]
+        # deprotect
         for atom in new_mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(0)
         # prevent drift:
@@ -136,8 +152,9 @@ class _MonsterFF(_MonsterUtil):
                            )
         return MinizationOutcome(success=success,
                                  mol=new_mol,
-                                 dG_post=dG_post,
-                                 dG_pre=dG_pre,
+                                 ideal=ideal,
+                                 U_post=dG_post,
+                                 U_pre=dG_pre,
                                  delta=dG_post - dG_pre)
 
     def _prep_combined(self, mol, neighborhood) -> Tuple[Chem.Mol, List[int]]:
@@ -264,10 +281,14 @@ class _MonsterFF(_MonsterUtil):
         neighbor_idxs: List[int] = self.get_close_indices(self.positioned_mol, protein, cutoff)
         neighborhood: Chem.Mol = self.extract_atoms(protein, neighbor_idxs)
         self.journal.debug(f'{cutoff}Å Neighborhood has {neighborhood.GetNumAtoms()} atoms')
-        return self.extract_atoms(protein, neighbor_idxs)
+        for atom in neighborhood.GetAtoms():
+            atom.SetBoolProp('IsNeighborhood', True)
+        return neighborhood
 
-    def make_ideal_mol(self, ff_minimise: False) -> Chem.Mol:
-        ideal = Chem.Mol(self.positioned_mol)
+    def make_ideal_mol(self, mol: Optional[Chem.Mol]=None, ff_minimise: bool=False) -> Chem.Mol:
+        if mol is None:
+            mol = self.positioned_mol
+        ideal = Chem.Mol(mol)
         ideal.SetDoubleProp('Energy', float('nan'))
         AllChem.EmbedMolecule(ideal)
         p = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
@@ -278,3 +299,12 @@ class _MonsterFF(_MonsterUtil):
         energy = ff.CalcEnergy()
         ideal.SetDoubleProp('Energy', energy)
         return ideal
+
+    def extract_from_neighborhood(self, mol: Chem.Mol) -> Chem.Mol:
+        rwmol = Chem.RWMol(mol)
+        rwmol.BeginBatchEdit()
+        for atom in rwmol.GetAtoms():
+            if atom.HasProp('IsNeighborhood'):
+                rwmol.RemoveAtom(atom.GetIdx())
+        rwmol.CommitBatchEdit()
+        return Chem.GetMolFrags(rwmol.GetMol(), asMols=True)[0]

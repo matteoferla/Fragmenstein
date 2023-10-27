@@ -14,4 +14,5 @@ typing_extensions==4.2.0  # backport for python 3.7
 singledispatchmethod== 1.0  # backport for python 3.8
 matplotlib==3.5.2  # optional
 smallworld-api==1.1  # optional. MF authored this
-sqlitedict== 2.0.0 # optional
+sqlitedict==2.0.0 # optional
+pyyaml==6.0
