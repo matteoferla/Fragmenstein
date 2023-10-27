@@ -31,9 +31,11 @@ Fragmenstein: Merging, linking and placing compounds by stitching bound compound
 
 ![Ox](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/University_of_Oxford.svg/320px-University_of_Oxford.svg.png)
 
-For manuscript data see [manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
-For authors see [Authors](#authors)
-For command line interface see [Command line interface](#command-line-interface)
+Quick links:
+
+* For manuscript data see [manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
+* For authors see [Authors](#authors)
+* For command line interface see [Command line interface](#command-line-interface)
 
 ## Stitched molecules
 
