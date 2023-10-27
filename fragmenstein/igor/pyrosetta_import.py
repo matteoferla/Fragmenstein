@@ -24,7 +24,8 @@ class AttributeFilledMock:
         return self
 
     def __call__(self, *args, **kargs):
-        warn('This call does nothing as PyRosetta is not installed', category=RuntimeWarning)
+        warn(message='This call does nothing as PyRosetta is not installed',
+             category=RuntimeWarning)
         return self
 
 # ======================================================================================================================
@@ -32,7 +33,8 @@ class AttributeFilledMock:
 if util.find_spec('pyrosetta'):
     import pyrosetta
 else:
-    warn('PyRosetta is not installed. A mock object is loaded. Any Igor calls will fail.', category=RuntimeWarning)
+    warn(message='PyRosetta is not installed. A mock object is loaded. Any Igor calls will fail.',
+         category=RuntimeWarning)
     pyrosetta = AttributeFilledMock()
     sys.modules['pyrosetta'] = pyrosetta
 

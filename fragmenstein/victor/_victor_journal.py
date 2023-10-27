@@ -4,6 +4,7 @@ import logging, sys, os, re, requests, unicodedata
 from rdkit import Chem
 from rdkit.rdBase import WrapLogs, LogToPythonLogger
 from rdkit_to_params import Params
+from types import ModuleType
 
 
 
@@ -92,7 +93,9 @@ class _VictorJournal(_VictorSafety):
         if cls._rosetta_captured:
             return
         import pyrosetta
-        pyrosetta.logging_support.set_logging_sink()
+        if isinstance(pyrosetta, ModuleType): # it is not a mock
+            # this is not self.no_pyrosetta because the latter might be incorrect.
+            pyrosetta.logging_support.set_logging_sink()
         logger = logging.getLogger("rosetta")
         logger.setLevel(logging.DEBUG)
         logger.handlers = cls.journal.handlers
