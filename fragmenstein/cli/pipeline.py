@@ -1,4 +1,6 @@
 import argparse, os, json, itertools, string
+import contextlib
+
 from rdkit import Chem
 from .._cli_defaults import cli_default_settings
 from .base import set_verbose
@@ -145,9 +147,10 @@ class FragmensteinParserPipeline:
             letters = iter(string.ascii_uppercase)
             for i in range(0, len(all_names) + max_tasks, max_tasks):
                 settings['suffix'] = base_suffix + next(letters)
-                placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
+                with contextlib.suppress(Exception):
+                    placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
+                    all_placements = pd.concat([all_placements, placements], ignore_index=True)
                 settings['blacklist'] += all_names[i:i + max_tasks]
-                all_placements = pd.concat([all_placements, placements], ignore_index=True)
             settings['suffix'] = base_suffix
         Laboratory.correct_weaklings(hit_replacements, all_placements)
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')

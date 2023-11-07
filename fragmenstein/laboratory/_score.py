@@ -155,8 +155,6 @@ class LabScore:
     def score(cls,
               placements,
               hit_replacements,
-              suffix,
-              hits,
               weights,
               **settings):
         """
@@ -164,6 +162,7 @@ class LabScore:
         A real Pythonic usage would be to address the individual components.
         """
         # tanimoto
+        hits: List[Chem.Mol] = hit_replacements.hit_mols.apply(operator.itemgetter(0)).to_list()
         get_similarity = GetRowSimilarity(hits)
         placements['max_hit_Tanimoto'] = placements.apply(get_similarity, axis=1)
         # properties

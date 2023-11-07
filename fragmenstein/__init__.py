@@ -51,6 +51,7 @@ from . import branding
 from .display import display_mols, MolNGLWidget
 from .error import FragmensteinError, DistanceError, ShoddyCodeError, PoisonError
 from .faux_victors import Wictor, Quicktor  # the rest are mostly experiments
+from .settings import default_settings, cli_default_settings
 
 if __name__ == '__main__':
     from .cli import main
