@@ -276,9 +276,11 @@ class _MonsterFF(_MonsterUtil):
         pasteboard.AddConformer(pasteboard_conf)
         return pasteboard.GetMol()
 
-    def get_neighborhood(self, apo_block: str, cutoff: float) -> Chem.Mol:
+    def get_neighborhood(self, apo_block: str, cutoff: float, mol: Optional[Chem.Mol] = None) -> Chem.Mol:
+        if mol is None:
+            mol = self.positioned_mol
         protein: Chem.Mol = Chem.MolFromPDBBlock(apo_block)
-        neighbor_idxs: List[int] = self.get_close_indices(self.positioned_mol, protein, cutoff)
+        neighbor_idxs: List[int] = self.get_close_indices(mol, protein, cutoff)
         neighborhood: Chem.Mol = self.extract_atoms(protein, neighbor_idxs)
         self.journal.debug(f'{cutoff}Å Neighborhood has {neighborhood.GetNumAtoms()} atoms')
         for atom in neighborhood.GetAtoms():
