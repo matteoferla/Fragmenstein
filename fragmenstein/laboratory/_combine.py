@@ -69,7 +69,11 @@ class LabCombine(LabBench):
         df = self(iterator=iterator, fun=self.combine_subprocess, **kwargs)
         df['outcome'] = df.apply(self.categorize, axis=1)
         with rdBase.BlockLogs():
-            df['simple_smiles'] = df.unminimized_mol.apply(self.Victor.to_simple_smiles)
+            if 'unmin_binary' in df.columns:
+                # doing at the binary level in case it failed
+                df['simple_smiles'] = df.unmin_binary.apply(unbinarize)\
+                                                     .apply(lambda m: m if m else Chem.Mol()) \
+                                                     .apply(self.Victor.to_simple_smiles)
         self.fix_intxns(df)
         return df
 
