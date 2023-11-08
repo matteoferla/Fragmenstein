@@ -157,5 +157,5 @@ class FragmensteinParserPipeline:
         Laboratory.score(all_placements, hit_replacements, **settings)
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
         all_placements.to_csv(f'fragmenstein_placed{base_suffix}.csv')
-        PandasTools.WriteSDF(all_placements, f'fragmenstein_placed{base_suffix}.sdf')
+        #PandasTools.WriteSDF(all_placements, f'fragmenstein_placed{base_suffix}.sdf')
         Laboratory.export_sdf(df=all_placements)

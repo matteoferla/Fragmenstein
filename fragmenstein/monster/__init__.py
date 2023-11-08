@@ -39,6 +39,7 @@ from .positional_mapping import GPM
 from .bond_provenance import BondProvenance
 from .unmerge_mapper import Unmerge
 from .mcs_mapping import IndexMap, SpecialCompareAtoms, ExtendedFMCSMode, transmute_FindMCS_parameters
+from ._ff import MinizationOutcome
 
 
 # ---  Monster ---------------------------------------------------------------------------------------------------------

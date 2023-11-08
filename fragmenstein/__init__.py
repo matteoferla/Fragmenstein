@@ -41,7 +41,7 @@ try:
 except ImportError as err:
     warn(f'OpenVictor / Fritz unavailable —{err}.', category=ImportWarning)
 
-from .monster import Monster
+from .monster import Monster, MinizationOutcome
 from .walton import Walton
 from molecular_rectifier import Rectifier
 from .m_rmsd import mRMSD

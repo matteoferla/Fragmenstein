@@ -153,9 +153,9 @@ class LabScore:
 
     @classmethod
     def score(cls,
-              placements,
-              hit_replacements,
-              weights,
+              placements: pd.DataFrame,
+              hit_replacements: pd.DataFrame,
+              weights: dict,
               **settings):
         """
         This is very much a method for the CLI.
@@ -223,6 +223,6 @@ class LabScore:
                         'hit_binaries',
                         'minimized_mol',
                         'hit_mols', 'unminimized_mol', 'hit_names')
-        good_columns = df.columns[~df.applymap(lambda x: not isinstance(x, (float, str))).any()]
+        good_columns = df.columns[~df.map(lambda x: not isinstance(x, (float, str))).any()]
         extras: List[str] = [c for c in df.columns if c in good_columns and not c in not_okay]
         PandasTools.WriteSDF(df, out=filename, properties=extras, molColName='minimized_mol')
