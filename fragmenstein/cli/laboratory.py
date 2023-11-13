@@ -17,6 +17,9 @@ class FragmensteinParserLaboratory:
         parser.add_argument('-s', '--sdf-outfile', default='output.sdf', help='sdf output file')
         parser.add_argument('-c', '--cores', default=1, type=int, help='number of cores to use')
         parser.add_argument('-p', '--run-plip', default=False, type=bool, help='Run PLIP?')
+        parser.add_argument('--victor',
+                            help='Which victor to use: Victor, OpenVictor or Wictor',
+                            default='Victor')
 
     def _define_laboratory(self, parser: argparse.ArgumentParser):
         """fragmenstein laboratory combine -i hits.sdf -o out.sdf
@@ -37,6 +40,22 @@ class FragmensteinParserLaboratory:
     def gather(self, args: argparse.Namespace) -> Tuple[Laboratory, List[Chem.Mol]]:
         set_verbose(args.verbose)
         Igor.init_pyrosetta()
+        # victor or wictor? copypasted from pipeline....
+        choice = args.get('victor', 'Victor').lower()
+        if choice == 'victor':
+            Laboratory.Victor = Victor
+        elif choice == 'openvictor':
+            from ..openmm.openvictor import OpenVictor
+            Laboratory.Victor = OpenVictor
+        elif choice == 'wictor':
+            from ..faux_victors import Wictor
+            Laboratory.Victor = Wictor
+        elif choice == 'quicktor':
+            from ..faux_victors import Quicktor
+            Laboratory.Victor = Quicktor
+        else:
+            raise ValueError(f'Unknown victor: {choice}')
+        # laboratory
         lab = Laboratory(pdbblock=open(args.template).read(), run_plip=bool(args.run_plip))
         with Chem.SDMolSupplier(args.input) as suppl:
             mols = list(suppl)
