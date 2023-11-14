@@ -41,8 +41,9 @@ class FragmensteinParserLaboratory:
         set_verbose(args.verbose)
         Igor.init_pyrosetta()
         # victor or wictor? copypasted from pipeline....
-        choice = args.get('victor', 'Victor').lower()
+        choice = args.victor.lower()
         if choice == 'victor':
+            from .victor import Victor
             Laboratory.Victor = Victor
         elif choice == 'openvictor':
             from ..openmm.openvictor import OpenVictor
