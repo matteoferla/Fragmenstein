@@ -55,7 +55,8 @@ class _MonsterPlace(_MonsterBlend):
         """
         if not mol.HasProp('_Name'):
             mol.SetProp('_Name', 'followup')
-        assert not any([mol.GetProp('_Name') == h.GetProp('_Name') for h in self.hits]), 'Placement has the same name as a hit!'
+        assert not any([mol.GetProp('_Name') == h.GetProp('_Name') for h in self.hits]), \
+            'Placement has the same name as a hit!'
         self.initial_mol, self.attachment = self._parse_mol_for_place(mol, attachment)
         custom_map = self.fix_custom_map(custom_map)
         if enforce_warhead_mapping and self.attachment:

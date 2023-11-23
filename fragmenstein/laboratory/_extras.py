@@ -49,7 +49,7 @@ class LabExtras:
                        filename: str = f'fragmenstein.sdf',
                        acceptable_only=True,
                        sort_values: str = cli_default_settings['ranking'],
-                       name_col:str='name',
+                       name_col: str = 'name',
                        mol_col='minimized_mol'):
         if acceptable_only:
             df = df.loc[(df.outcome == 'acceptable')]
@@ -84,15 +84,15 @@ class LabExtras:
 
     @classmethod
     def _combine_ops(cls,
-              hits,
-              pdbblock,
-              suffix: str = cli_default_settings['suffix'],
-              n_cores: int = cli_default_settings['n_cores'],
-              combination_size: int = cli_default_settings['combination_size'],
-              timeout: int = cli_default_settings['timeout'],
-              max_tasks: int = cli_default_settings['max_tasks'],
-              blacklist: List[str] = cli_default_settings['blacklist'],
-              **settings) -> pd.DataFrame:
+                     hits,
+                     pdbblock,
+                     suffix: str = cli_default_settings['suffix'],
+                     n_cores: int = cli_default_settings['n_cores'],
+                     combination_size: int = cli_default_settings['combination_size'],
+                     timeout: int = cli_default_settings['timeout'],
+                     max_tasks: int = cli_default_settings['max_tasks'],
+                     blacklist: List[str] = cli_default_settings['blacklist'],
+                     **settings) -> pd.DataFrame:
         """
         One of the operations of ``core_ops``.
         A thin wrapper around ``combine``.
@@ -112,10 +112,10 @@ class LabExtras:
 
     @classmethod
     def sw_search(cls, combinations: pd.DataFrame, suffix: str,
-               sw_dist: int, sw_length: int, top_mergers: int,
-               ranking: str, sw_db: str, ranking_ascending: Optional[bool] = None,
-               sws: Optional=None,
-               **setting) -> pd.DataFrame:
+                  sw_dist: int, sw_length: int, top_mergers: int,
+                  ranking: str, sw_db: str, ranking_ascending: Optional[bool] = None,
+                  sws: Optional = None,
+                  **setting) -> pd.DataFrame:
         if ranking_ascending is None:
             ranking_ascending = False if ranking in ('LE', 'N_interactions') else True
         queries = combinations.sort_values(ranking, ascending=ranking_ascending) \
@@ -127,10 +127,10 @@ class LabExtras:
             from smallworld_api import SmallWorld
             sws = SmallWorld()
         analogs = sws.search_many(queries.simple_smiles.to_list(),
-                                   dist=sw_dist,
-                                   length=sw_length,
-                                   db=sw_db,
-                                   tolerated_exceptions=Exception)
+                                  dist=sw_dist,
+                                  length=sw_length,
+                                  db=sw_db,
+                                  tolerated_exceptions=Exception)
         print(f'Found {len(analogs)} analogues')
         # query_index was added clientside to keep track!
         analogs['catalogue'] = sw_db
@@ -196,7 +196,14 @@ class LabExtras:
         target_df.loc[worseness_mask, 'outcome'] = 'weaker'
 
     @classmethod
-    def replace_hits(cls, pdbblock, hits, n_cores, timeout, suffix, **settings):
+    def replace_hits(cls,
+                     pdbblock:str,
+                     hits: List[Chem.Mol],
+                     n_cores=1,
+                     timeout=600,
+                     suffix: str = '',
+                     run_plip: bool = True,
+                     **settings):
         """
         Redock, but place => replace.
         Ie. score the hits.
@@ -204,8 +211,8 @@ class LabExtras:
         This is not called by ``core_ops``.
         """
         # place themselves for a ∆∆G score
-        lab = cls(pdbblock=pdbblock, covalent_resi=None, run_plip=True)
-        selfies = pd.DataFrame([dict(name=hit.GetProp('_Name'),
+        lab = cls(pdbblock=pdbblock, covalent_resi=None, run_plip=run_plip)
+        selfies = pd.DataFrame([dict(name=hit.GetProp('_Name') + '_replaced',
                                      hits=[hit],
                                      smiles=Chem.MolToSmiles(hit)
                                      ) for hit in hits])
@@ -214,5 +221,4 @@ class LabExtras:
         replacements['bleached_name'] = replacements['name']
         replacements['name'] = replacements.hit_mols.apply(lambda ms: ms[0].GetProp('_Name'))
         replacements.to_pickle(f'fragmenstein_hit_replacements{suffix}.pkl.gz')
-        # replacements.to_csv(f'fragmenstein_hit_replacements{suffix}.csv')
         return replacements

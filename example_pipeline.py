@@ -96,8 +96,10 @@ def config_parser():
 
 # ------------------------------------------------------
 
-def replace_hits(pdbblock, hits, n_cores, timeout, suffix, **settings):
+def replace_hits(pdbblock, hits, n_cores: int=-1, timeout:int=600, suffix='', **settings):
     # place themselves for a ∆∆G score
+    if n_cores == -1:
+        n_cores = os.cpu_count()
     lab = Laboratory(pdbblock=pdbblock, covalent_resi=None, run_plip=True)
     selfies = pd.DataFrame([dict(name=hit.GetProp('_Name'),
                                  hits=[hit],
@@ -106,7 +108,7 @@ def replace_hits(pdbblock, hits, n_cores, timeout, suffix, **settings):
     replacements: pd.DataFrame = lab.place(place_input_validator(selfies), n_cores=n_cores, timeout=timeout)
     fix_intxns(replacements)
     replacements['bleached_name'] = replacements['name']
-    replacements['name'] = replacements.hit_mols.apply(lambda ms: ms[0].GetProp('_Name'))
+    replacements['name'] = replacements.hit_mols.apply(lambda ms: ms[0].GetProp('_Name')+'_replaced')
     replacements.to_pickle(f'fragmenstein_hit_replacements{suffix}.pkl.gz')
     # replacements.to_csv(f'fragmenstein_hit_replacements{suffix}.csv')
     return replacements

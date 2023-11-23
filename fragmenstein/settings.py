@@ -56,4 +56,4 @@ for variable in os.environ:
             # there should be some kind of check here if a CLI variable is called within Python.
             warn(f'Environment variable {variable} is not a valid setting and will likely be ignored')
         key_type = type(default_settings.get(key, ''))
-        default_settings[key] = type(os.environ[variable])
+        default_settings[key] = key_type(os.environ[variable])

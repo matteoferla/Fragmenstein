@@ -69,6 +69,9 @@ class _MonsterFF(_MonsterUtil):
             self.journal.error(f'MMFF cannot work on a molecule that has errors!')
             return MinizationOutcome(success=False, mol=mol, ideal=ideal)
         ff = AllChem.MMFFGetMoleculeForceField(combo, p, ignoreInterfragInteractions=False)
+        if ff is None:
+            return MinizationOutcome(success=False, mol=mol, ideal=ideal,
+                                     U_post=float('nan'), U_pre=float('nan'), delta=0)
         # restrain
         restrained = []
         # mol not combo here:

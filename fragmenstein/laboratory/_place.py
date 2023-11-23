@@ -110,7 +110,10 @@ class LabPlace(LabBench):
 
         df = self(iterator=generator(), fun=self.place_subprocess, **kwargs)
         df['outcome'] = df.apply(functools.partial(self.categorize, size_tolerance=+50), axis=1)
-        df['unminimized_mol'] = df.unminimized_mol.fillna(Chem.Mol())  # noqa
+        if 'unminimized_mol' in df.columns:
+            df['unminimized_mol'] = df.unminimized_mol.fillna(Chem.Mol()) # noqa
+        else:
+            self.Victor.journal.critical('No unminimized_mol column (unsupported Victor?)')
         self.fix_intxns(df)  # noqa its in extras
         return df
 
