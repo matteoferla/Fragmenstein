@@ -219,6 +219,6 @@ class LabExtras:
         replacements: pd.DataFrame = lab.place(place_input_validator(selfies), n_cores=n_cores, timeout=timeout)
         cls.fix_intxns(replacements)
         replacements['bleached_name'] = replacements['name']
-        replacements['name'] = replacements.hit_mols.apply(lambda ms: ms[0].GetProp('_Name'))
+        replacements['name'] = replacements.hit_mols.apply(lambda hits: hits[0].GetProp('_Name') if hits else '')
         replacements.to_pickle(f'fragmenstein_hit_replacements{suffix}.pkl.gz')
         return replacements

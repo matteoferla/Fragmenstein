@@ -114,6 +114,7 @@ class LabPlace(LabBench):
             df['unminimized_mol'] = df.unminimized_mol.fillna(Chem.Mol()) # noqa
         else:
             self.Victor.journal.critical('No unminimized_mol column (unsupported Victor?)')
+            return df
         self.fix_intxns(df)  # noqa its in extras
         return df
 
