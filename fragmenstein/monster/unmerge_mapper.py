@@ -477,6 +477,9 @@ class Unmerge(GPM):
         :param mapping:
         :return:
         """
+        if mol.GetNumConformers() == 0:
+            log.warning('No conformer for molecule choice (this should not happen except for dirty templates)')
+            return 9999
         d = self.measure_map(mol, mapping)
         # return np.linalg.norm(d - 1.5)/(d.size*0.5) # 1.5 ang
         return sum(d > cutoff_distance)

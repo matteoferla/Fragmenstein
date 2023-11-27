@@ -118,15 +118,21 @@ class LabExtras:
                   **setting) -> pd.DataFrame:
         if ranking_ascending is None:
             ranking_ascending = False if ranking in ('LE', 'N_interactions') else True
+        smiles_col: str
+        for smiles_col in ['simple_smiles', 'SMILES', 'smiles', 'smile']:
+            if smiles_col in combinations.columns:
+                break
+        else:
+            raise ValueError(f'No smiles column in {combinations.columns}')
         queries = combinations.sort_values(ranking, ascending=ranking_ascending) \
             .loc[(combinations.outcome == 'acceptable')] \
-            .drop_duplicates('simple_smiles') \
+            .drop_duplicates(smiles_col) \
             .reset_index() \
             .head(top_mergers)
         if sws is None:
             from smallworld_api import SmallWorld
             sws = SmallWorld()
-        analogs = sws.search_many(queries.simple_smiles.to_list(),
+        analogs = sws.search_many(queries['smiles_col'].to_list(),
                                   dist=sw_dist,
                                   length=sw_length,
                                   db=sw_db,
