@@ -6,6 +6,7 @@ from warnings import warn
 from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
+from ..error import FragmensteinError
 
 
 @dataclass
@@ -298,6 +299,8 @@ class _MonsterFF(_MonsterUtil):
         AllChem.EmbedMolecule(ideal)
         p = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
         ff = AllChem.MMFFGetMoleculeForceField(ideal, p)
+        if ff is None:
+            raise FragmensteinError('Ideal compound failed. Something is wrong with the SMILES')
         ff.Initialize()
         if ff_minimise:
             ff.Minimize()
