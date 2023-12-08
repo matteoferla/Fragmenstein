@@ -51,6 +51,7 @@ class _IgorMin(_IgorBase):
         if pose is None:
             pose = self.pose
         holo: Chem.Mol = Chem.MolFromPDBBlock(self.pose2str(pose), proximityBonding=False, removeHs=False)
+        assert holo is not None, 'Molecule too horrendous to load.'
         # resn is not stored in the Igor object so we get it from the pose
         ligand_resn = pose.residue(self.ligand_residue[0]).name3()
         # if the above differs from `Victor.ligand_resn` it is a problem though but as I cannot fathom why it would be

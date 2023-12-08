@@ -54,7 +54,7 @@ class _VictorPlonk(_VictorJournal):
         return mol
 
     def _plonk_monster_in_structure(self, prepped_mol: Optional[Chem.Mol]=None, use_pymol=False):
-        self._correct_ligand_info()
+        prepped_mol = self._correct_ligand_info(prepped_mol)
         self.journal.debug(f'{self.long_name} - placing monster in structure')
         if use_pymol:
             return self._plonk_monster_in_structure_pymol()
