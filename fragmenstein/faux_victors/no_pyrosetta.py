@@ -58,7 +58,7 @@ class Wictor(Victor):
 
     def post_monster_step(self):
         # this is a black overridable methods that will be the last thing called
-        self.params = Params.from_mol(self.monster.positioned_mol, name=self.ligand_resn, generic=False)
+        self.params = Params.from_mol(self.monster.positioned_mol, name=self.ligand_resn, generic=True)
         self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
         self.params.comments.clear()
