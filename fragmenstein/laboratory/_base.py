@@ -1,6 +1,7 @@
 import logging
 import pebble
 import operator
+import os
 from typing import (Any, Callable, Union, Iterator, Sequence, List, Dict)
 import pandas as pd
 from rdkit import Chem
@@ -208,7 +209,7 @@ class LabBench:
     def __call__(self,
                  iterator: Iterator,
                  fun: Callable,
-                 n_cores: int = 4,
+                 n_cores: int = -1,
                  timeout: int = 240,
                  max_tasks: int = 0,  # 0 mean infinity
                  asynchronous: bool = False
@@ -222,6 +223,9 @@ class LabBench:
         def max_out(inner_iterator, maximum: int):
             for i, item in zip(range(maximum), inner_iterator):
                 yield item
+
+        if n_cores <= 0:
+            n_cores = os.cpu_count() -n_cores
 
         if max_tasks > 0:
             iterator = max_out(iterator, max_tasks)
