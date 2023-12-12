@@ -57,7 +57,7 @@ class _MonsterFF(_MonsterUtil):
         # ## prep
         success: bool
         fixed_mode = str(ff_max_displacement).lower() == 'nan'
-        mol = Chem.Mol(mol)
+        mol = AllChem.AddHs(mol, addCoords=True)
         # protect
         for atom in mol.GetAtomsMatchingQuery(Chem.rdqueries.HasPropQueryAtom('_IsDummy')):
             atom.SetAtomicNum(8)
@@ -108,9 +108,10 @@ class _MonsterFF(_MonsterUtil):
         try:
             dG_pre = ff.CalcEnergy()
             dG_post = dG_pre
-            previous_dG = float('inf')
+            previous_dG = 0.
+            m = -1
             # this is a bit of a hack, but it works to make sure its not a flipped plateau-like local minima
-            while previous_dG - dG_post > 0.5:
+            while previous_dG == 0. or previous_dG - dG_post > 0.5:
                 previous_dG = dG_post
                 m = ff.Minimize(maxIts=ff_max_iterations)
                 dG_post = ff.CalcEnergy()
@@ -177,7 +178,7 @@ class _MonsterFF(_MonsterUtil):
         else:
             combo = Chem.Mol(mol)
             fixed_idxs: List[int] = []
-        self.journal.debug(f'Combined molecule has {combo.GetNumAtoms()} atoms, {fixed_idxs} fixed')
+        self.journal.debug(f'Combined molecule (ligand+neighbourhood) has {combo.GetNumAtoms()} atoms, {fixed_idxs} fixed')
         return combo, fixed_idxs
 
     def MMFF_score(self, mol: Optional[Chem.Mol] = None, delta: bool = False, mode: str = 'MMFF') -> float:
@@ -289,6 +290,7 @@ class _MonsterFF(_MonsterUtil):
         self.journal.debug(f'{cutoff}Å Neighborhood has {neighborhood.GetNumAtoms()} atoms')
         for atom in neighborhood.GetAtoms():
             atom.SetBoolProp('IsNeighborhood', True)
+        AllChem.SanitizeMol(neighborhood, catchErrors=True)
         return neighborhood
 
     def make_ideal_mol(self, mol: Optional[Chem.Mol]=None, ff_minimise: bool=False) -> Chem.Mol:
@@ -315,4 +317,5 @@ class _MonsterFF(_MonsterUtil):
             if atom.HasProp('IsNeighborhood'):
                 rwmol.RemoveAtom(atom.GetIdx())
         rwmol.CommitBatchEdit()
-        return Chem.GetMolFrags(rwmol.GetMol(), asMols=True)[0]
+        new_mol = Chem.GetMolFrags(rwmol.GetMol(), asMols=True)[0]
+        return AllChem.RemoveHs(new_mol)

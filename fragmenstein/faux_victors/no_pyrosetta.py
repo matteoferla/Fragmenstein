@@ -81,13 +81,18 @@ class Wictor(Victor):
         # recalculating:
         # min_result.ideal is with ff_minimise_ideal True
         ideal: Chem.Mol = self.monster.make_ideal_mol(ff_minimise=bool(self.settings['ff_minimise_ideal']))
-        ideal_E: float = ideal.GetDoubleProp('Energy')
-        ligand_E: float = self.minimized_mol.GetDoubleProp('Energy')
-        # The holo needs recalculating as I don't want the constraints
         AllChem.SanitizeMol(neighborhood)
         hydroneighborhood = Chem.AddHs(neighborhood, addCoords=True)
-        holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, hydroneighborhood), delta=False)
-        apo_E = self.monster.MMFF_score(hydroneighborhood, delta=False)
+        ideal_E: float = float('nan')
+        ligand_E: float = float('nan')
+        holo_E: float = float('nan')
+        apo_E: float = float('nan')
+        if 'Energy' in self.minimized_mol.GetPropNames():
+            ideal_E = ideal.GetDoubleProp('Energy')
+            ligand_E = self.minimized_mol.GetDoubleProp('Energy')
+            # The holo needs recalculating as I don't want the constraints
+            holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, hydroneighborhood), delta=False)
+            apo_E = self.monster.MMFF_score(hydroneighborhood, delta=False)
         # store data:
         self.energy_score['bound'] = dict(total_score=holo_E, unit='kcal/mol')
         self.energy_score['unbound'] = dict(total_score=apo_E + ideal_E, unit='kcal/mol')

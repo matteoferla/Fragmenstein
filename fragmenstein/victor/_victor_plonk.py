@@ -45,7 +45,8 @@ class _VictorPlonk(_VictorJournal):
         for atom in mol.GetAtoms():
             info = atom.GetPDBResidueInfo()
             if info is None:
-                raise ValueError(f'The atom #{atom.GetIdx()} has no PDB information in RDKit')
+                self.journal.warning(f'The atom #{atom.GetIdx()} has no PDB information in RDKit')
+                continue
             info.SetResidueNumber(int(l_resi))
             info.SetChainId(l_chain)
             info.SetIsHeteroAtom(True)

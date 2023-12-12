@@ -183,7 +183,7 @@ class MCSMerger(Monster):
         largest_frag = sorted(AllChem.GetMolFrags(AllChem.RemoveHs(self.rectified), asMols=True),
                               key=lambda mol: mol.GetNumHeavyAtoms(),
                               reverse=True)[0]
-        hydroed = AllChem.AddHs(largest_frag)
+        hydroed = AllChem.AddHs(largest_frag, addCoords=True)
         AllChem.EmbedMolecule(hydroed)
         for atom in hydroed.GetAtoms():
             if not atom.HasProp('provenance'):

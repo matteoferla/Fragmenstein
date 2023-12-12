@@ -63,7 +63,7 @@ class WaltonBase:
         for name, smiles in name2smiles.items():
             mol = Chem.MolFromSmiles(smiles)
             if add_Hs:
-                mol = AllChem.AddHs(mol)
+                mol = AllChem.AddHs(mol, addCoords=True)
             AllChem.EmbedMolecule(mol)
             mol.SetProp('_Name', name)
             mols.append(mol)

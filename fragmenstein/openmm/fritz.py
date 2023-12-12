@@ -190,7 +190,7 @@ class Fritz:
 
     @functools.cached_property
     def ideal_mol(self):
-        ideal = AllChem.AddHs(self.prepped_mol)
+        ideal = AllChem.AddHs(self.prepped_mol, addCoords=True)
         ideal.RemoveAllConformers()
         AllChem.EmbedMolecule(ideal, enforceChirality=True)
         return ideal
