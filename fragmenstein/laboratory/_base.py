@@ -62,6 +62,7 @@ class LabBench:
                  covalent_resi: Union[int, str, None] = None,
                  ligand_resi: Union[str, None]=None,
                  run_plip: bool=False,
+                 **settings # for Victor
                  ):
         self.pdbblock = pdbblock
         self.covalent_resi = covalent_resi
@@ -70,6 +71,7 @@ class LabBench:
         self.ligand_resi = ligand_resi
         self.run_plip = run_plip
         self.blacklist = []  # list of names to skip
+        self.settings = settings
         if not len(Victor.journal.handlers):
             Victor.enable_stdout(logging.CRITICAL)
 

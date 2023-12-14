@@ -176,7 +176,7 @@ class LabExtras:
         :return:
         """
         # faux PDB block to trick the safeguards against bad PDB blocks/filenames
-        temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')))
+        temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')), **cls.settings)
         temp.monster.positioned_mol = row.unminimized_merger
         temp.minimized_mol = row.minimized_merger
         return temp.migrate_sw_origins(row)

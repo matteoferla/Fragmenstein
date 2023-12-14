@@ -32,6 +32,7 @@ class LabCombine(LabBench):
                                  ligand_resi=self.ligand_resi,
                                  covalent_resi=self.covalent_resi,
                                  # a random residue is **still** required for the constaint ref atom.
+                                 **self.settings
                                  )
             victor.monster_throw_on_discard = True
             victor.monster.throw_on_discard = True

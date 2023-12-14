@@ -199,7 +199,7 @@ class _MonsterFF(_MonsterUtil):
         if mol is None:
             mol = self.positioned_mol
         try:
-            mol = Chem.Mol(mol)  # copy!
+            mol = AllChem.AddHs(mol)  # copy!
             if mode == 'UFF':
                 ff = AllChem.UFFGetMoleculeForceField(mol)
             elif mode == 'MMFF':

@@ -58,6 +58,7 @@ class LabPlace(LabBench):
                             ligand_resn='LIG',
                             ligand_resi=self.ligand_resi,
                             covalent_resi=self.covalent_resi,
+                            **self.settings
                             )
             victor.place(smiles, long_name=name)
             result: dict = {**dict(inputs), **victor.summarize()}
