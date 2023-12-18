@@ -39,14 +39,16 @@ class _VictorPlonk(_VictorJournal):
         If none provided it assumed self.monster.positioned_mol
         Correcting the serial unfortunately does not do anything.
         """
+        i = 0
         if mol is None:
             mol = self.monster.positioned_mol
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()  # TODO improve ligand_resi
         for atom in mol.GetAtoms():
             info = atom.GetPDBResidueInfo()
             if info is None:
+                i += 1
                 self.journal.warning(f'The atom #{atom.GetIdx()} has no PDB information in RDKit')
-                continue
+                info = Chem.AtomPDBResidueInfo(atomName=f'X{i: <3}')
             info.SetResidueNumber(int(l_resi))
             info.SetChainId(l_chain)
             info.SetIsHeteroAtom(True)
