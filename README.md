@@ -24,10 +24,12 @@ Fragmenstein: Merging, linking and placing compounds by stitching bound compound
 [![ codeclimate issues matteoferla Fragmenstein](https://img.shields.io/codeclimate/issues/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 [![ codeclimate tech-debt matteoferla Fragmenstein](https://img.shields.io/codeclimate/tech-debt/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 
-| Name | Colab Link | PyRosetta | Description |
-| :--- | :--- | :---: | :--- |
-| Pipeline | [![colab demo](https://img.shields.io/badge/Run_full_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb) | &#10004;| Given a template and a some hits, <br>merge them <br>and place the most similar purchasable analogues from Enamine REAL |
-| Light | [![colab demo](https://img.shields.io/badge/Run_light_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_playground.ipynb) | &#10060;| Generate molecules and see how they merge<br>and how a placed compound fairs|
+| Name                   | Colab Link                                                                                                                                                                                                     | PyRosetta | Description |
+|:-----------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :---: | :--- |
+| Light                  | [![colab demo](https://img.shields.io/badge/Run_light_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_playground.ipynb)  | &#10060;| Generate molecules and see how they merge<br>and how a placed compound fairs|
+| Pipeline w/o Pyrosetta | [![colab demo](https://img.shields.io/badge/Run_full_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein_Wictor.ipynb) | &#10004;| Given a template and a some hits, <br>merge them <br>and place the most similar purchasable analogues from Enamine REAL |
+| Pipeline w/ PyRosetta  | [![colab demo](https://img.shields.io/badge/Run_full_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb) | &#10004;| Given a template and a some hits, <br>merge them <br>and place the most similar purchasable analogues from Enamine REAL |
+
 
 ![Ox](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/University_of_Oxford.svg/320px-University_of_Oxford.svg.png)
 
