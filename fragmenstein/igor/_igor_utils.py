@@ -162,11 +162,19 @@ class _IgorUtils(_IgorBase):
                 shutil.copyfileobj(r.raw, f)
 
     @classmethod
-    def relax_with_ED(cls, pose, ccp4_file: str, constraint_file: Optional[str] = None) -> None:
+    def relax_with_ED(cls, pose,
+                      ccp4_file: str,
+                      constraint_file: Optional[str] = None,
+                      constraint_weights=(30, 20, 10),
+                      cycles: int = 5
+                      ) -> pyrosetta.Pose:
         """
         Relaxes ``pose`` based on the ccp4 electron density map provided. See ``download_map`` to download one.
+
         :param pose:
         :param ccp4_file: download map from ePDB
+        :param constraint_weights: weights for the constraints First run with high weights, then lower.
+        :param cycles: number of cycles
         :return: Relaxes pose in place
         """
         scorefxnED = pyrosetta.get_fa_scorefxn()
@@ -175,21 +183,70 @@ class _IgorUtils(_IgorBase):
         sdsm.apply(pose)
         ## Set ED constraint
         elec_dens_fast = pyrosetta.rosetta.core.scoring.ScoreType.elec_dens_fast
-        scorefxnED.set_weight(elec_dens_fast, 30)
-        ## Set generic constraints
-        if constraint_file:
-            stm = pyrosetta.rosetta.core.scoring.ScoreTypeManager()
-            for contype_name in ("atom_pair_constraint", "angle_constraint", "dihedral_constraint"):
-                contype = stm.score_type_from_name(contype_name)
-                scorefxnED.set_weight(contype, 5)
-            setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
-            setup.constraint_file(constraint_file)
-            setup.apply(pose)
+        scorefxnED.set_weight(elec_dens_fast, constraint_weights[0])
         ## Relax
         for w in (30, 20, 10):
-            scorefxnED.set_weight(elec_dens_fast, w)
-            relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxnED, 5)
+            cls.fix_scorefxn_weights(scorefxn=scorefxnED,
+                                     elec_dens_fast=w,
+                                     atom_pair_constraint=w,
+                                     angle_constraint=w,
+                                     dihedral_constraint=w)
+            relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxnED, cycles)
             relax.apply(pose)
+        return pose
+
+    @classmethod
+    def add_constraint_file(cls, pose: pyrosetta.Pose, constraint_file: str):
+        """
+        Add a constraint file to the pose.
+
+        :param pose:
+        :param constraint_file:
+        :return:
+        """
+        stm = pyrosetta.rosetta.core.scoring.ScoreTypeManager()
+        setup = pyrosetta.rosetta.protocols.constraint_movers.ConstraintSetMover()
+        setup.constraint_file(constraint_file)
+        setup.apply(pose)
+
+    @classmethod
+    def fix_scorefxn_weights(cls, scorefxn, **constraint_weights):
+        for contype_name, weight in constraint_weights.items():
+            contype = stm.score_type_from_name(contype_name)
+            scorefxn.set_weight(contype, weight)
+
+    @classmethod
+    def tethered_relax(cls,
+                       original: pyrosetta.Pose,
+                      constraint_weight: float=5,
+                      cycles: int=15,
+                      relax_to_start_coords:bool=True) -> pyrosetta.Pose:
+        """
+        Relax by constraining the original pose.
+
+        :param original: the pose to relax, but makes a copy
+        :param constraint_weight: the weight of the constraints
+                                (`coordinate_constraint`, `angle_constraint`, `atom_pair_constraint`)
+        :param cycles: number of cycles
+        :param relax_to_start_coords: relax to the start coords or not
+        :return: the relaxed pose
+
+        ``relax_to_start_coords`` is the same as ``constraint_weight=0`` if the original pose has no custom constraints
+        """
+        pose: pyrosetta.Pose = original.clone()
+        # configure constraints
+        scorefxn: pr_scoring.ScoreFunction = pyrosetta.get_fa_scorefxn()
+        scorefxn.set_weight(pr_scoring.ScoreType.coordinate_constraint, constraint_weight)
+        scorefxn.set_weight(pr_scoring.ScoreType.angle_constraint, constraint_weight)
+        scorefxn.set_weight(pr_scoring.ScoreType.atom_pair_constraint, constraint_weight)
+        pyrosetta.rosetta.basic.options.set_boolean_option('relax:constrain_relax_to_start_coords', relax_to_start_coords)
+        pyrosetta.rosetta.basic.options.set_boolean_option('relax:coord_constrain_sidechains', relax_to_start_coords)
+        # set up the relax sampler
+        pyrosetta.rosetta.protocols.relax.FastRelax.register_options()
+        relax = pyrosetta.rosetta.protocols.relax.FastRelax(scorefxn, cycles)
+        relax.constrain_relax_to_start_coords(relax_to_start_coords)
+        relax.apply(pose)
+        return pose
 
     @staticmethod
     def init_pyrosetta():

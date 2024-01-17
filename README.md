@@ -292,12 +292,16 @@ usage: fragmenstein pipeline [-h] -t TEMPLATE -i INPUT [-o OUTPUT] [-r RANKING] 
                              [-n N_CORES] [-m COMBINATION_SIZE] [-k TOP_MERGERS] [-e TIMEOUT] [-x MAX_TASKS] [-z BLACKLIST] [-j WEIGHTS] [-v]
 
 ```bash
+# n_cores is optional and set to all cores by default. Here is doing something fancier, for sake of example.
 # `--n_cores` sets number of cores you want to use, this simply is to get the number of cores:
 export N_CORES=$(cat /proc/cpuinfo | grep processor | wc -l);
 
+# make template
+fragmenstein utils minimize --template holo_protein.pdb --constraint_weight 10 --cycles 15 --output minimised.pdb -first
+
 # run
 fragmenstein pipeline \
-                      --template reference.pdb \
+                      --template minimised.pdb \
                       --hits filtered.sdf \
                       --n_cores $(($N_CORES - 1)) \
                       --suffix _pairs \
@@ -306,7 +310,11 @@ fragmenstein pipeline \
                       --combination_size 2 \
                       --timeout 600;
 ```
-* `template`: The template, preferably a polished PDB
+The values for the pipeline command are:
+
+* `template`: The template, a polished PDB. The template must not contain a ligand in the site of interest,
+                as Fragmenstein accepts other ligands (e.g. metals, cofactors etc.)
+                and it is best to use a PyRosetta minimised template (i.e. one that has been through the ringer already).
 * `hits`: The hits in sdf format. These need to have unique names.
 * `output`: The output folder
 * `suffix`: The suffix for the output files. Note that due to `max_tasks` there will be multiple sequential files for some steps.
@@ -321,7 +329,7 @@ fragmenstein pipeline \
     before processing them, to disable this use `--max_tasks 0`.
 * `weights`: This is a JSON file that controls the ranking
 
-
+This will minimise the first chain only stripping waters and heterogens
 
 ### Specific cases
 ```bash

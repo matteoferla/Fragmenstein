@@ -18,8 +18,11 @@ extract the mol files (with covalent atom if present) in an output folder (`-o <
 NB. Please no spaces in the filenames. If spaces are present quote/double-quote the fle path.
 """.strip()
 
-from .monster import FragmensteinParserMonster
+
 from .parser import FragmensteinParser
+
+# imported solely for ease of subclassing by the user:
+from .monster import FragmensteinParserMonster
 from .base import FragmensteinParserBase
 
 

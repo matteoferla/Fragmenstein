@@ -43,6 +43,11 @@ class LabExtras:
             else:
                 return cls.error_classifications['UNCLASSIFIED']
 
+    # these are properties of the dataframe that will be kept if present when saving to sdf
+    default_sdf_properties = ['regarded', 'smiles', '∆∆G', '∆G_bound', '∆G_unbound',
+                                         'comRMSD', 'N_constrained_atoms', 'N_unconstrained_atoms', 'runtime',
+                                         'LE', 'outcome',
+                                         'percent_hybrid']
     @classmethod
     def convert_to_sdf(self,
                        df: pd.DataFrame,
@@ -54,15 +59,12 @@ class LabExtras:
         if acceptable_only:
             df = df.loc[(df.outcome == 'acceptable')]
         short = df.sort_values(sort_values).reset_index().drop_duplicates(name_col)
-
+        valid_keys: List[str] = [k for k in self.default_sdf_properties if k in short.columns]
         PandasTools.WriteSDF(df=short,
                              out=filename,
                              molColName=mol_col,
                              idName=name_col,
-                             properties=['regarded', 'smiles', '∆∆G', '∆G_bound', '∆G_unbound',
-                                         'comRMSD', 'N_constrained_atoms', 'N_unconstrained_atoms', 'runtime',
-                                         'LE', 'outcome',
-                                         'percent_hybrid']
+                             properties=valid_keys
                              )
 
     # ---------- CLI --------------------------------------------
