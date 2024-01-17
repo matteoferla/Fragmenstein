@@ -130,13 +130,17 @@ class LabExtras:
             .reset_index() \
             .head(top_mergers)
         if sws is None:
-            from smallworld_api import SmallWorld
+            from smallworld_api import SmallWorld, NoMatchError
             sws = SmallWorld()
-        analogs = sws.search_many(queries['smiles_col'].to_list(),
-                                  dist=sw_dist,
-                                  length=sw_length,
-                                  db=sw_db,
-                                  tolerated_exceptions=Exception)
+        try:
+            analogs = sws.search_many(queries['smiles_col'].to_list(),
+                                      dist=sw_dist,
+                                      length=sw_length,
+                                      db=sw_db,
+                                      tolerated_exceptions=Exception)
+        except NoMatchError as error:
+            print(f'Found no analogues. Consider changing `sw_dist` (distance by N of mismatches)')
+            return pd.DataFrame()
         print(f'Found {len(analogs)} analogues')
         # query_index was added clientside to keep track!
         analogs['catalogue'] = sw_db
@@ -212,7 +216,7 @@ class LabExtras:
                      **settings):
         """
         Redock, but place => replace.
-        Ie. score the hits.
+        Id est score the hits.
 
         This is not called by ``core_ops``.
         """

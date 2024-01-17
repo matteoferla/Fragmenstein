@@ -34,7 +34,7 @@ class _IgorInit(_IgorBase):
 
         :param pose: pose.
         :param constraint_file: filename
-        :param ligand_residue: ligand -see class docstring
+        :param ligand_residue: ligands -see class docstring
         :param key_residues: multiple entries -see class docstring
         """
         self.pose = pose  #: pyrosetta.Pose
@@ -93,7 +93,15 @@ class _IgorInit(_IgorBase):
 
     # ============= Private methods for init ===========================================================================
 
-    def _parse_residue(self, residue: Union[int, str, Tuple[int, str], pyrosetta.Vector1]):
+    def _parse_residue(self, residue: Union[int, str, Tuple[int, str], pyrosetta.Vector1]) -> List[int]:
+        """
+        Parse a residue into a list of pose residue indices.
+        This will be called to fill ``self.ligand_residue`` and ``self.key_residues``.
+
+        :param residue: residue to parse
+        :type residue: Union[int, str, Tuple[int, str], pyrosetta.Vector1]
+        :return: list of pose residue indices
+        """
         parsed: List[int] = []
         if residue is None:
             ## assuming it is LIG then.
@@ -131,12 +139,18 @@ class _IgorInit(_IgorBase):
         else:
             raise ValueError(f'No idea what {residue} is.')
         parsed = [p for p in parsed if p != 0]
-        assert len(parsed), f'There is no {residue} in pose'
+        assert len(parsed), (f'There is no {residue} in pose. '+
+                            'This can happen if user provided PDB residues not exist or '+
+                             'are invalid (Calpha only, no density etc). Suggestion: check `victor.covalent_resi`.')
         return parsed
 
     def _parse_key_residues(self,
                             key_residues: Union[None, Sequence[Union[int, str, Tuple[int, str]]],
                                                 pyrosetta.Vector1]):
+        """
+        Parse a list of residues into a list of pose residue indices that will be filling ``self.key_residues``.
+        Does not include the ligand residue(s).
+        """
         parsed: List[int] = []
         residue = self.pose.residue(self.ligand_residue[0])
         if key_residues is None and residue.n_current_residue_connections():
