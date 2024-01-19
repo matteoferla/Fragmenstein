@@ -1,5 +1,26 @@
 # Fragmenstein
+
+## Stitched molecules
 Fragmenstein: Merging, linking and placing compounds by stitching bound compounds together like a reanimated corpse.
+
+Fragmenstein can perform two different tasks:
+
+* **Combine** hits (merging and linking) based on their atomic overlap
+* **Place** a given followup molecule based on one or more parent hits
+
+NB. Whereas docking uses pre-generates comformers and finds the best pose that best matches the parent (if set-up to do so),
+Fragmenstein creates a monstrous comformer from the parent(s) and then minimises it, optionally in the protein.
+Hence why we call it a 'placement' not docking tool.
+
+## Quick links:
+
+* For manuscript data see [manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
+* For authors see [Authors](#authors)
+* For command line interface see [Command line interface](#command-line-interface)
+
+
+
+![overview](images/overview.png)
 
 [![Documentation Status](https://readthedocs.org/projects/fragmenstein/badge/?version=latest)](https://fragmenstein.readthedocs.io/en/latest/?badge=latest)
 [![ github forks matteoferla Fragmenstein?label=Fork&style=social](https://img.shields.io/github/forks/matteoferla/Fragmenstein?label=Fork&style=social&logo=github)](https://github.com/matteoferla/Fragmenstein)
@@ -24,6 +45,8 @@ Fragmenstein: Merging, linking and placing compounds by stitching bound compound
 [![ codeclimate issues matteoferla Fragmenstein](https://img.shields.io/codeclimate/issues/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 [![ codeclimate tech-debt matteoferla Fragmenstein](https://img.shields.io/codeclimate/tech-debt/matteoferla/Fragmenstein?logo=codeclimate)](https://codeclimate.com/github/matteoferla/Fragmenstein)
 
+Example of multiple applications: [![](https://img.shields.io/youtube/views/kieDWYkzmiE)](https://www.youtube.com/watch?v=kieDWYkzmiE)
+
 | Name                   | Colab Link                                                                                                                                                                                                     | PyRosetta | Description |
 |:-----------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :---: | :--- |
 | Light                  | [![colab demo](https://img.shields.io/badge/Run_light_demo-fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_playground.ipynb)  | &#10060;| Generate molecules and see how they merge<br>and how a placed compound fairs|
@@ -33,26 +56,14 @@ Fragmenstein: Merging, linking and placing compounds by stitching bound compound
 
 ![Ox](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/University_of_Oxford.svg/320px-University_of_Oxford.svg.png)
 
-Quick links:
 
-* For manuscript data see [manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
-* For authors see [Authors](#authors)
-* For command line interface see [Command line interface](#command-line-interface)
 
-## Stitched molecules
 
-Fragmenstein can perform two different tasks.
-
-* **Combine** hits
-* **Place** a given followup molecule (SMILES) based on series of hits
-
-![overview](images/overview.png)
+## Classes
 
 Like Frankenstein's creation it may violate the laws of chemistry.
 Trigonal planar topologies may be tetrahedral, bonds unnaturally long _etc._
 This monstrosity is therefore then energy minimised with strong constraints within the protein.
-
-## Classes
 
 There are four main classes —named after characters from the Fragmenstein book and movies:
 
