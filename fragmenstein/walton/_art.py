@@ -3,9 +3,7 @@ from io import StringIO
 from typing import (Dict, TYPE_CHECKING)
 import sys
 
-import nglview as nv
-from ..display import MolNGLWidget
-
+from ..display import MolNGLWidget  # nglview or a mock
 from IPython.display import display
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
@@ -54,7 +52,7 @@ class WaltonArt(WaltonBase):
         template = f'<div style="float: left; padding: 10px;">{inner}</div>'
         return "\n".join(template.format(**self._get_mol_details(mol)) for mol in self.mols + [self.merged] if mol)
 
-    def to_nglview(self) -> nv.NGLWidget:
+    def to_nglview(self) -> MolNGLWidget:
         """`
         generates a NGLWidget (``IPython.display.display`` will show it)
         with the compounds and the merged if present.
@@ -67,7 +65,7 @@ class WaltonArt(WaltonBase):
             view.add_mol(mol)
         return view
 
-    def refresh_nglview(self, view: nv.NGLWidget, *others:Chem.Mol) -> None:
+    def refresh_nglview(self, view: MolNGLWidget, *others:Chem.Mol) -> None:
         """
         In Walton altering hits manually does not have an effect on the NGLWidget,
         but altering hits has no bad juju unlike Monster where altering the `.mols` can have a detrimental effect,

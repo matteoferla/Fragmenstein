@@ -29,11 +29,11 @@ if sys.version_info.major != 3 or sys.version_info.minor < 12:
 
 # NGLView has been broken for a while. This is a hack to ignore it.
 # the issue stems from widgets 7 to 8.
-try:
-    import nglview
-except Exception as err:
-    from unittest.mock import MagicMock
-    import sys
-
-    sys.modules['nglview'] = MagicMock()
-    sys.modules['nglview.component'] = MagicMock()
+# try:
+#     import nglview
+# except Exception as err:
+#     from unittest.mock import MagicMock
+#     import sys
+#
+#     sys.modules['nglview'] = MagicMock()
+#     sys.modules['nglview.component'] = MagicMock()
