@@ -4,6 +4,7 @@ from rdkit_to_params import Params
 from ..monster import Monster
 from ..igor import Igor
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from functools import singledispatchmethod
 
 class _VictorPlace(_VictorCommon):
@@ -94,7 +95,10 @@ class _VictorPlace(_VictorCommon):
         # make params
         if self.uses_pyrosetta:
             self.journal.debug(f'{self.long_name} - Starting parameterisation')
-            self.params = Params.from_smiles(self.smiles, name=self.ligand_resn, generic=False, atomnames=self.atomnames)
+            self.params = Params.from_smiles(self.smiles,
+                                             name=self.ligand_resn,
+                                             generic=False,
+                                             atomnames=self.atomnames)
             # self.journal.warning(f'{self.long_name} - CHI HAS BEEN DISABLED')
             # self.params.CHI.data = []  # Chi is fixed, but older version. should probably check version
 
@@ -114,7 +118,8 @@ class _VictorPlace(_VictorCommon):
             # self.params from _prepare_args_for_placement
             self.mol = self.params.mol
         else:
-            self.mol = Chem.MolFromSmiles(self.smiles)
+            # `self.params.mol` adds hydrogens and atoms names
+            self.mol = AllChem.AddHs(Chem.MolFromSmiles(self.smiles))
         self._log_warnings()
         # get constraint
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None

@@ -1,21 +1,8 @@
-from IPython.display import display
-from rdkit import Chem
-from rdkit.Chem import rdFMCS, AllChem, Draw, rdMolAlign
-from rdkit import Geometry
-from typing import (Any, Callable, ClassVar, ForwardRef, Generic, Optional, Tuple, Type, TypeVar, Union, AbstractSet,
-                    ByteString, Container, ContextManager, Hashable, ItemsView, Iterable, Iterator, KeysView, Mapping,
-                    MappingView, MutableMapping, MutableSequence, MutableSet, Sequence, Sized, ValuesView, Awaitable,
-                    AsyncIterator, AsyncIterable, Coroutine, Collection, AsyncGenerator, AsyncContextManager,
-                    Reversible, SupportsAbs, SupportsBytes, SupportsComplex, SupportsFloat, SupportsInt, SupportsRound,
-                    ChainMap, Counter, Deque, Dict, DefaultDict, List, OrderedDict, Set, FrozenSet, NamedTuple,
-                    Generator, AnyStr, cast, get_type_hints, NewType, no_type_check, no_type_check_decorator, NoReturn,
-                    overload, Text, TYPE_CHECKING)
-import nglview as nv
-from io import StringIO
-from fragmenstein import Monster
-from fragmenstein.branding import divergent_colors
-
+from typing import (Tuple, Union, Dict)
 import numpy as np
+from rdkit import Chem
+from rdkit import Geometry
+from rdkit.Chem import rdFMCS, AllChem, rdMolAlign
 
 from ._base import WaltonBase
 

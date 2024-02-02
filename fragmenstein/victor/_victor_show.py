@@ -10,7 +10,7 @@ from rdkit import Chem
 import os, re
 from typing import (Optional)
 from ._victor_common import _VictorCommon
-from ..display import ComponentViewer, MolNGLWidget
+from ..display import ComponentViewer, MolNGLWidget  # real or mock. MolNGLWidget is a subclass of NGLWidget
 
 class _VictorShow(_VictorCommon):
     # partial move out of utility module
@@ -22,9 +22,9 @@ class _VictorShow(_VictorCommon):
         To override the colours:
         The colours will be those in the ``Chem.Mol``'s property ``_color`` if present.
 
-        Returns -> nv.NGLWidget
+        Returns -> nv.NGLWidget subclass
         """
-        view, legend = self.monster._to_nglview_and_legend(show_positioned_mol=False)
+        view, legend = self.monster.to_nglview(show_positioned_mol=False)
         for molblock in (self.minimized_pdbblock, self.unminimized_pdbblock):
             if molblock is None:
                 continue

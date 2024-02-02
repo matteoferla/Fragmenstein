@@ -76,7 +76,7 @@ class _VictorPlonk(_VictorJournal):
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             if self.settings.get('ff_use_neighborhood', True):
-                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5.)
+                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5., addHs=True)
             else:
                 neighborhood = None
             min_result = self.monster.mmff_minimize(mol,

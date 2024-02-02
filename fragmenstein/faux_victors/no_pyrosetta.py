@@ -6,7 +6,6 @@ from rdkit_to_params import Params
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-
 class Wictor(Victor):
     """
     This Victor does not call Igor
@@ -30,11 +29,15 @@ class Wictor(Victor):
 
     def _calculate_combination_thermo(self):
         # override igor.
-        pass
+        self._calculate_thermo_common()
+        # save to disc
+        self._checkpoint_charlie()
 
     def _calculate_placement_thermo(self):
         # override igor.
-        pass
+        self._calculate_thermo_common()
+        # save to disc
+        self._checkpoint_charlie()
 
     def _checkpoint_charlie(self):
         # making folder.
@@ -56,50 +59,63 @@ class Wictor(Victor):
                        'RMSDs': self.mrmsd.rmsds}, w)
         self._log_warnings()
 
-    def post_monster_step(self):
+    def _calculate_thermo_common(self):
+        """
+        This method is common to both combination and placement and is unique to Wictor
+        as both ``_calculate_combination_thermo`` and ``_calculate_placement_thermo`` are overridden
+        and do the same here.
+        """
         # this is a black overridable methods that will be the last thing called
-        self.params = Params.from_mol(self.monster.positioned_mol, name=self.ligand_resn, generic=True)
+        # `_correct_ligand_info` requires this info
+        self.monster.positioned_mol = AllChem.AddHs(self.monster.positioned_mol)
+        self.mol = self.monster.positioned_mol
+        self.params = Params.from_mol(self.mol, name=self.ligand_resn, generic=True)
         self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
         self.params.comments.clear()
         self.params.comments.append('Generated via Fragmenstein')
-        mol = Chem.Mol(self.monster.positioned_mol)
-        if self.settings['ff_use_neighborhood']: # default True
-            neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=self.settings['ff_neighborhood'])
+        if self.settings['ff_use_neighborhood']:  # default True
+            neighborhood = self.monster.get_neighborhood(self.apo_pdbblock,
+                                                         cutoff=self.settings['ff_neighborhood'],
+                                                         addHs=True)
         else:
             neighborhood = None
         # allow_lax reduces the constraints if it fails
-        min_result = self.monster.mmff_minimize(mol,
+        min_result = self.monster.mmff_minimize(self.mol,
                                                 neighborhood=neighborhood,
                                                 ff_max_displacement=float(self.settings['ff_max_displacement']), # def 0
                                                 ff_constraint=int(self.settings['ff_constraint']), # def 10
                                                 ff_max_iterations=int(self.settings['ff_max_iterations']), # def 200
                                                 allow_lax=True)
         self.minimized_mol: Chem.Mol = min_result.mol
-        self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.minimized_mol)
+        self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.mol)
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
         # recalculating:
         # min_result.ideal is with ff_minimise_ideal True
         ideal: Chem.Mol = self.monster.make_ideal_mol(ff_minimise=bool(self.settings['ff_minimise_ideal']))
-        AllChem.SanitizeMol(neighborhood)
-        hydroneighborhood = Chem.AddHs(neighborhood, addCoords=True)
+        if neighborhood: # option ``ff_use_neighborhood`` is False. Why one would do this?
+            AllChem.SanitizeMol(neighborhood)
         ideal_E: float = float('nan')
         ligand_E: float = float('nan')
         holo_E: float = float('nan')
         apo_E: float = float('nan')
-        if 'Energy' in self.minimized_mol.GetPropNames():
+        if 'Energy' not in self.minimized_mol.GetPropNames():
+            self.ddG = float('nan')
+            self.mrmsd: mRMSD = self._calculate_rmsd()
+        elif neighborhood is None:
+            ideal_E = ideal.GetDoubleProp('Energy')
+            ligand_E = self.minimized_mol.GetDoubleProp('Energy')
+        else:
             ideal_E = ideal.GetDoubleProp('Energy')
             ligand_E = self.minimized_mol.GetDoubleProp('Energy')
             # The holo needs recalculating as I don't want the constraints
-            holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, hydroneighborhood), delta=False)
-            apo_E = self.monster.MMFF_score(hydroneighborhood, delta=False)
+            holo_E = self.monster.MMFF_score(Chem.CombineMols(self.minimized_mol, neighborhood), delta=False)
+            apo_E = self.monster.MMFF_score(neighborhood, delta=False)
         # store data:
+        self.energy_score['ideal'] = dict(total_score=ideal_E, unit='kcal/mol')
+        self.energy_score['insitu'] = dict(total_score=ligand_E, unit='kcal/mol')
         self.energy_score['bound'] = dict(total_score=holo_E, unit='kcal/mol')
         self.energy_score['unbound'] = dict(total_score=apo_E + ideal_E, unit='kcal/mol')
         self.energy_score['apo'] = dict(total_score=apo_E, unit='kcal/mol')
-        self.energy_score['ideal'] = dict(total_score=ideal_E, unit='kcal/mol')
-        self.energy_score['insitu'] = dict(total_score=ligand_E, unit='kcal/mol')
         self.ddG: float = holo_E - apo_E - ideal_E
         self.mrmsd: mRMSD = self._calculate_rmsd()
-        # save to disc
-        self._checkpoint_charlie()

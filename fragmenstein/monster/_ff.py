@@ -281,12 +281,18 @@ class _MonsterFF(_MonsterUtil):
         pasteboard.AddConformer(pasteboard_conf)
         return pasteboard.GetMol()
 
-    def get_neighborhood(self, apo_block: str, cutoff: float, mol: Optional[Chem.Mol] = None) -> Chem.Mol:
+    def get_neighborhood(self, apo_block: str, cutoff: float, mol: Optional[Chem.Mol] = None, addHs=True) -> Chem.Mol:
+        """
+        Get the neighborhood of the protein from the apo_block around the cutoff of the mol.
+        Note: The atoms will have a prop ``IsNeighborhood`` which is used after it is combined.
+        """
         if mol is None:
             mol = self.positioned_mol
         protein: Chem.Mol = Chem.MolFromPDBBlock(apo_block)
         neighbor_idxs: List[int] = self.get_close_indices(mol, protein, cutoff)
         neighborhood: Chem.Mol = self.extract_atoms(protein, neighbor_idxs)
+        if addHs:
+            neighborhood = AllChem.AddHs(neighborhood, addCoords=True)
         self.journal.debug(f'{cutoff}Å Neighborhood has {neighborhood.GetNumAtoms()} atoms')
         for atom in neighborhood.GetAtoms():
             atom.SetBoolProp('IsNeighborhood', True)
@@ -310,12 +316,18 @@ class _MonsterFF(_MonsterUtil):
         ideal.SetDoubleProp('Energy', energy)
         return ideal
 
-    def extract_from_neighborhood(self, mol: Chem.Mol) -> Chem.Mol:
-        rwmol = Chem.RWMol(mol)
+    def extract_from_neighborhood(self, system: Chem.Mol) -> Chem.Mol:
+        """
+        Given a system of a neighbourhood + ligand extract everything that is not marked ``IsNeighborhood``.
+        """
+        rwmol = Chem.RWMol(system)
         rwmol.BeginBatchEdit()
         for atom in rwmol.GetAtoms():
             if atom.HasProp('IsNeighborhood'):
                 rwmol.RemoveAtom(atom.GetIdx())
         rwmol.CommitBatchEdit()
-        new_mol = Chem.GetMolFrags(rwmol.GetMol(), asMols=True)[0]
-        return AllChem.RemoveHs(new_mol)
+        # isNeighborhood encompasses Hs... but just in case:
+        # this warning happened: 'WARNING: not removing hydrogen atom without neighbors'
+        # I have not seen it since, but I got a report of it
+        new_mol = sorted(Chem.GetMolFrags(rwmol.GetMol(), asMols=True), key=Chem.Mol.GetNumAtoms, reverse=True)[0]
+        return new_mol

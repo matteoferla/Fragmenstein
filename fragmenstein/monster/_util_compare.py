@@ -1,5 +1,4 @@
 from IPython.display import SVG, display, HTML
-import nglview as nv
 from rdkit import Chem
 from rdkit.Chem import Draw, AllChem
 from ..branding import divergent_colors
@@ -154,7 +153,7 @@ class _MonsterUtilCompare:
                     ni -= 1
         return new_custom_map
 
-    def _to_nglview_and_legend(self, show_positioned_mol:False) -> Tuple[nv.NGLWidget, str]:
+    def to_nglview(self, show_positioned_mol:False) -> Tuple[MolNGLWidget, str]:
         """
         This is called by both ``Monster.to_nglview`` and ``Victor.to_nglview``
         The color can be dictated by the optional private property ``_color``,
@@ -172,10 +171,9 @@ class _MonsterUtilCompare:
         if show_positioned_mol and self.positioned_mol:
             view.add_mol(colorValue='white', mol=self.positioned_mol)
             legend += f'<span>positioned followup (in white)</span> '
-
         return view, legend
 
-    def to_nglview(self, print_legend: bool = False) -> MolNGLWidget:
+    def to_nglview_and_legend(self, print_legend: bool = False) -> MolNGLWidget:
         """
         This is not the same method as in Victor.
         generates a NGLWidget (``IPython.display.display`` will show it)
@@ -185,7 +183,7 @@ class _MonsterUtilCompare:
 
         Returns -> nv.NGLWidget
         """
-        view, legend = self._to_nglview_and_legend(show_positioned_mol=True)
+        view, legend = self.to_nglview(show_positioned_mol=True)
         if print_legend:
             display(HTML(legend))
         # async madness: disabled for now.
