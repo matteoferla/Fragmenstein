@@ -1,6 +1,7 @@
 from ._utility import _MonsterUtil
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdqueries, rdMolAlign
+from rdkit import ForceField as FF
 from typing import Optional, List, Union, Tuple, Dict
 from warnings import warn
 from dataclasses import dataclass
@@ -151,8 +152,8 @@ class _MonsterFF(_MonsterUtil):
             atom.SetAtomicNum(0)
         # prevent drift:
         #rdMolAlign.AlignMol(new_mol, mol, atomMap=list(zip(restrained, restrained)))
-        self.journal.info(f'MMFF minimisation: {dG_pre:.2f} -> {dG_post:.2f} kcal/mol '\
-                           f'w/ {rdMolAlign.CalcRMS(new_mol, mol)}Å RMSD at '\
+        self.journal.info(f'MMFF minimisation: {dG_pre:.2f} -> {dG_post:.2f} kcal/mol ' +
+                           f'w/ {rdMolAlign.CalcRMS(new_mol, mol)}Å RMSD at ' +
                            f'max displacement={ff_max_displacement} & constraint={ff_constraint}'
                            )
         return MinizationOutcome(success=success,
@@ -291,6 +292,7 @@ class _MonsterFF(_MonsterUtil):
         protein: Chem.Mol = Chem.MolFromPDBBlock(apo_block)
         neighbor_idxs: List[int] = self.get_close_indices(mol, protein, cutoff)
         neighborhood: Chem.Mol = self.extract_atoms(protein, neighbor_idxs)
+        AllChem.SanitizeMol(neighborhood, catchErrors=True)
         if addHs:
             neighborhood = AllChem.AddHs(neighborhood, addCoords=True)
         self.journal.debug(f'{cutoff}Å Neighborhood has {neighborhood.GetNumAtoms()} atoms')
@@ -305,7 +307,7 @@ class _MonsterFF(_MonsterUtil):
         ideal = Chem.Mol(mol)
         ideal.SetDoubleProp('Energy', float('nan'))
         AllChem.EmbedMolecule(ideal)
-        p = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
+        p: FF.MMFFMolProperties = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
         ff = AllChem.MMFFGetMoleculeForceField(ideal, p)
         if ff is None:
             raise FragmensteinError('Ideal compound failed. Something is wrong with the SMILES')

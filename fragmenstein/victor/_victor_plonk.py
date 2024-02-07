@@ -6,6 +6,7 @@ from rdkit.Chem import AllChem
 from rdkit_to_params import Params, Constraints
 from ._victor_journal import _VictorJournal
 from .minimalPDB import MinimalPDBParser
+from ..monster._ff import MinizationOutcome
 
 
 class _VictorPlonk(_VictorJournal):
@@ -66,25 +67,37 @@ class _VictorPlonk(_VictorJournal):
             return self._plonk_monster_in_structure_minimal(prepped_mol)
 
     @functools.cached_property
-    def preminimized_undummied_mol(self) -> Chem.Mol:
+    def preminimized_mol(self) -> Chem.Mol:
         """
+        This cached property is the preminimised molecule.
+        It extracts the neighbourhood (``monster.get_neighborhood``) and
+        minimises the molecule (``monster.mmff_minimize``)
+
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.
-        Opening a PDB in RDKit is doable but gets exponentially slow with chain length
         """
         mol = Chem.Mol(self.monster.positioned_mol)
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             if self.settings.get('ff_use_neighborhood', True):
-                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=5., addHs=True)
+                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=self.settings['ff_neighborhood'], addHs=True)
             else:
                 neighborhood = None
-            min_result = self.monster.mmff_minimize(mol,
+            # ff_max_displacement = float('nan') for fixed mode
+            min_result: MinizationOutcome = self.monster.mmff_minimize(mol,
                                                     neighborhood=neighborhood,
                                                     ff_max_displacement=float(self.settings.get('ff_max_displacement', 0.)),
                                                     ff_constraint=int(self.settings.get('ff_constraint', 10)),
                                                     allow_lax=True)
-        return AllChem.DeleteSubstructs(min_result.mol, Chem.MolFromSmiles('*'))
+            return min_result.mol
+
+
+    @functools.cached_property
+    def preminimized_undummied_mol(self) -> Chem.Mol:
+        """
+        See ``preminimized_mol``. This strips the dummy atoms from the preminimised molecule.
+        """
+        return AllChem.DeleteSubstructs(self.preminimized_mol, Chem.MolFromSmiles('*'))
 
     def _plonk_monster_in_structure_minimal(self, prepped_mol: Optional[Chem.Mol]=None) -> str:
         """
