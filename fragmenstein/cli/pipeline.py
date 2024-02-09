@@ -10,6 +10,24 @@ from ..victor import Victor
 import pandas as pd
 from rdkit.Chem import PandasTools
 
+class InfiniteAlphabet:
+    def __init__(self):
+        self.counter = -1  # Start before 'A'
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        self.counter += 1
+        result = ""
+        n = self.counter
+        while True:
+            n, remainder = divmod(n, 26)
+            result = chr(65 + remainder) + result
+            if n == 0:
+                break
+        return result
+
 class FragmensteinParserPipeline:
     def _define_pipeline(self, parser: argparse.ArgumentParser):
             """fragmenstein pipeline -i hits.sdf -o out.sdf -t template.pdb
@@ -144,7 +162,7 @@ class FragmensteinParserPipeline:
             all_placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
         else:
             all_placements = pd.DataFrame()
-            letters = iter(string.ascii_uppercase)
+            letters = InfiniteAlphabet()
             for i in range(0, len(all_names) + max_tasks, max_tasks):
                 settings['suffix'] = base_suffix + next(letters)
                 with contextlib.suppress(Exception):
