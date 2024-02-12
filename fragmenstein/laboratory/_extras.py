@@ -114,28 +114,41 @@ class LabExtras:
 
     @classmethod
     def sw_search(cls, combinations: pd.DataFrame, suffix: str,
-                  sw_dist: int, sw_length: int, top_mergers: int,
-                  ranking: str, sw_db: str, ranking_ascending: Optional[bool] = None,
-                  sws: Optional = None,
+                  sw_dist: int, sw_length: int,
+                  sw_db: str,
+                  top_mergers: int=1_000,
+                  ranking: Optional[str] = None, ranking_ascending: Optional[bool] = None,
+                  sws: Optional = None,  # override smallworld api settings...
                   **setting) -> pd.DataFrame:
-        if ranking_ascending is None:
+        """
+        One of the operations of ``core_ops``.
+        A thin wrapper around ``SmallWorld().search_many``.
+        It will search for analogues in SmallWorld.
+        To not go overboard ``top_mergers`` should probably not be greater than 1000 as a 1,000 calls is abusing it.
+        If ranking is None then it assumed sorted.
+        """
+        if ranking is None:
+            queries = combinations
+        elif ranking_ascending is None:
             ranking_ascending = False if ranking in ('LE', 'N_interactions') else True
+            queries = combinations.sort_values(ranking, ascending=ranking_ascending)
+        else:
+            queries = combinations.sort_values(ranking, ascending=ranking_ascending)
         smiles_col: str
         for smiles_col in ['simple_smiles', 'SMILES', 'smiles', 'smile']:
             if smiles_col in combinations.columns:
                 break
         else:
             raise ValueError(f'No smiles column in {combinations.columns}')
-        queries = combinations.sort_values(ranking, ascending=ranking_ascending) \
-            .loc[(combinations.outcome == 'acceptable')] \
-            .drop_duplicates(smiles_col) \
-            .reset_index() \
-            .head(top_mergers)
+        queries.loc[(combinations.outcome == 'acceptable')] \
+                .drop_duplicates(smiles_col) \
+                .reset_index() \
+                .head(top_mergers)
         if sws is None:
             from smallworld_api import SmallWorld, NoMatchError
             sws = SmallWorld()
         try:
-            analogs = sws.search_many(queries['smiles_col'].to_list(),
+            analogs = sws.search_many(queries[smiles_col].to_list(),
                                       dist=sw_dist,
                                       length=sw_length,
                                       db=sw_db,
@@ -195,6 +208,8 @@ class LabExtras:
         then the outcome is changed to ``weaker``.
         """
         # just in case...
+        if 'hit_mols' not in target_df.columns:
+            return
         target_df['hit_names'] = target_df.hit_mols \
             .apply(lambda v: v if isinstance(v, list) else []) \
             .apply(lambda v: [m.GetProp('_Name') for m in v])
