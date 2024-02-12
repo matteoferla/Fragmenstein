@@ -1,4 +1,4 @@
-import argparse, os, json, itertools, string
+import argparse, os, json, itertools
 import contextlib
 
 from rdkit import Chem
@@ -170,7 +170,6 @@ class FragmensteinParserPipeline:
                     all_placements = pd.concat([all_placements, placements], ignore_index=True)
                 settings['blacklist'] += all_names[i:i + max_tasks]
             settings['suffix'] = base_suffix
-        Laboratory.correct_weaklings(hit_replacements, all_placements)
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
         Laboratory.score(all_placements, hit_replacements, **settings)
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
