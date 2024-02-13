@@ -76,6 +76,7 @@ class LabExtras:
         uncat_analogs: List[pd.DataFrame] = []
         for sw_db in sw_databases:
             s = cls.sw_search(combinations, sw_db=sw_db, **settings)
+            s = s.loc[~s.hits.isna()]
             if len(s):
                 uncat_analogs.append(s)
         assert uncat_analogs, 'No analogues were found!'
@@ -161,12 +162,12 @@ class LabExtras:
         analogs['catalogue'] = sw_db
         analogs['query_name'] = analogs.query_index.map(queries.name.to_dict())
         analogs['hits'] = analogs.query_index.map(queries.hit_mols.to_dict())
-        analogs['hit_names'] = analogs.hits.apply(lambda m: [mm.GetProp('_Name') for mm in m])
+        analogs['hit_names'] = analogs.loc[~analogs.hits.isna()].hits.apply(lambda m: [mm.GetProp('_Name') for mm in m])
         analogs['minimized_merger'] = analogs.query_index.map(queries.minimized_mol.to_dict())
         analogs['unminimized_merger'] = analogs.query_index.map(queries.unminimized_mol.to_dict())
         analogs['name'] = analogs['id'] + ':' + analogs['query_name']
         analogs['smiles'] = analogs.hitSmiles.str.split(expand=True)[0]
-        analogs['custom_map'] = analogs.apply(cls.get_custom_map, axis=1)
+        analogs['custom_map'] = analogs.loc[~analogs.hits.isna()].apply(cls.get_custom_map, axis=1)
         analogs.to_pickle(f'fragmenstein_analogues{suffix}.{sw_db}.pkl.gz')
         return analogs
 
@@ -195,7 +196,10 @@ class LabExtras:
         :return:
         """
         # faux PDB block to trick the safeguards against bad PDB blocks/filenames
-        temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')), **cls.settings)
+        if hasattr(cls, 'settings'):
+            temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')), **cls.settings)
+        else:
+            temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')))
         temp.monster.positioned_mol = row.unminimized_merger
         temp.minimized_mol = row.minimized_merger
         return temp.migrate_sw_origins(row)
