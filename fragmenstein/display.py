@@ -2,15 +2,26 @@ from typing import Sequence
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from IPython.display import display
+from unittest.mock import Mock
+
+DISPLAYMODE = 'rdkit'
 try:
     # Optional. See docstring in .ngl_display for more.
     from .ngl_display import MolNGLWidget, nv, ComponentViewer
     NGLWidget = nv.NGLWidget
+    DISPLAYMODE = 'ngl'
 except Exception as error:
-    from unittest.mock import Mock
     MolNGLWidget = Mock(name='MolNGLWidget')
     ComponentViewer = Mock(name='nglview.component.ComponentViewer')
     NGLWidget = Mock(name='nglview.NGLWidget')
+
+try:
+    from .mol3d_display import patched_3Dmol_view
+    # monkey_patch is a function that needs to be called but it is attached as a cls method to py3Dmol.view
+    # which for clarity is rebranded as ``patched_3Dmol_view``
+    DISPLAYMODE = 'py3Dmol'
+except Exception as error:
+    patched_3Dmol_view = Mock(name='py3Dmol.view')
 
 
 def display_mols(mols: Sequence[Chem.Mol],

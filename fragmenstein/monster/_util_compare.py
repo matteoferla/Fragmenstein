@@ -3,10 +3,10 @@ from rdkit import Chem
 from rdkit.Chem import Draw, AllChem
 from ..branding import divergent_colors
 from functools import singledispatchmethod
-from typing import Tuple, List, Dict, Optional
+from typing import Tuple, List, Dict, Optional, Union
 from io import StringIO
 import re
-from ..display import MolNGLWidget
+from ..display import MolNGLWidget, patched_3Dmol_view, DISPLAYMODE
 
 
 def draw(mol, color_map, x=200, y=200, **kwargs):
@@ -153,7 +153,7 @@ class _MonsterUtilCompare:
                     ni -= 1
         return new_custom_map
 
-    def to_nglview(self, show_positioned_mol:False) -> Tuple[MolNGLWidget, str]:
+    def to_nglview(self, show_positioned_mol:False) -> MolNGLWidget:
         """
         This is called by both ``Monster.to_nglview`` and ``Victor.to_nglview``
         The color can be dictated by the optional private property ``_color``,
@@ -161,19 +161,37 @@ class _MonsterUtilCompare:
 
         :return:
         """
-        color_series = iter(divergent_colors[len(self.hits)])
-        legend = ''
+        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
         view = MolNGLWidget()
         for mol in self.hits:
             colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
             view.add_mol(colorValue=colorValue, mol=mol)
+        if show_positioned_mol and self.positioned_mol:  # noqa .positioned_mol is added later
+            view.add_mol(colorValue='white', mol=self.positioned_mol)  # noqa .positioned_mol is added later
+        return view
+
+    def to_3Dmol(self, show_positioned_mol:bool = False, *args, **kwargs) -> patched_3Dmol_view:
+        view = patched_3Dmol_view(*args, **kwargs)
+        view.monkey_patch()
+        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
+        for mol in self.hits: # noqa .hits is added later
+            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
+            view.add_mol(carbon_color=colorValue, mol=mol)
+        if show_positioned_mol and self.positioned_mol:  # noqa .positioned_mol is added later
+            view.add_mol(carbon_color='white', mol=self.positioned_mol)  # noqa .positioned_mol is added later
+        return view
+
+    def get_legend(self, show_positioned_mol:False) -> str:
+        legend = ''
+        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
+        for mol in self.hits:
+            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
             legend += f'<span style="color: {colorValue}">{mol.GetProp("_Name")}</span> '
         if show_positioned_mol and self.positioned_mol:
-            view.add_mol(colorValue='white', mol=self.positioned_mol)
             legend += f'<span>positioned followup (in white)</span> '
-        return view, legend
+        return legend
 
-    def to_nglview_and_legend(self, print_legend: bool = False) -> MolNGLWidget:
+    def show(self, print_legend: bool = False, viewer_mode=DISPLAYMODE) -> Tuple[Union[MolNGLWidget,patched_3Dmol_view], str]:
         """
         This is not the same method as in Victor.
         generates a NGLWidget (``IPython.display.display`` will show it)
@@ -183,10 +201,19 @@ class _MonsterUtilCompare:
 
         Returns -> nv.NGLWidget
         """
-        view, legend = self.to_nglview(show_positioned_mol=True)
+        if viewer_mode == 'ngl':
+            view = self.to_nglview(show_positioned_mol=True)
+        elif viewer_mode == 'py3Dmol':
+            pass
+        elif viewer_mode == 'rdkit':
+            view = self.to_3Dmol(show_positioned_mol=True)
+        else:
+            raise ValueError(f'viewer_mode {viewer_mode} not recognized')
+
+        legend = self.get_legend(show_positioned_mol=True)
         if print_legend:
             display(HTML(legend))
         # async madness: disabled for now.
         # view.center(f'[{self.ligand_resn}]')
-        return view
+        return view, legend
 

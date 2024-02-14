@@ -10,7 +10,8 @@ from rdkit import Chem
 import os, re
 from typing import (Optional)
 from ._victor_common import _VictorCommon
-from ..display import ComponentViewer, MolNGLWidget  # real or mock. MolNGLWidget is a subclass of NGLWidget
+from ..display import MolNGLWidget, patched_3Dmol_view, DISPLAYMODE  # real or mock
+# # MolNGLWidget is a subclass of NGLWidget while patched_3Dmol_view is py3Dmol.view but with monkey-patches
 
 class _VictorShow(_VictorCommon):
     # partial move out of utility module
@@ -24,7 +25,7 @@ class _VictorShow(_VictorCommon):
 
         Returns -> nv.NGLWidget subclass
         """
-        view, legend = self.monster.to_nglview(show_positioned_mol=False)
+        view = self.monster.to_nglview(show_positioned_mol=False)
         for molblock in (self.minimized_pdbblock, self.unminimized_pdbblock):
             if molblock is None:
                 continue
@@ -34,7 +35,6 @@ class _VictorShow(_VictorCommon):
                                     sele=f'[{self.ligand_resn}]')
             # force it.
             comp.update_ball_and_stick(colorValue='white', multipleBond=True)
-            legend += ' Fragmenstein monster (white)'
             view._js(f"""const comp = this.stage.compList[{len(self.hits)}]
                                  const target_sele = new NGL.Selection('[{self.ligand_resn}]');
                                  const radius = 5;
@@ -48,10 +48,21 @@ class _VictorShow(_VictorCommon):
             break
         else:
             pass
-        if print_legend:
-            display(HTML(legend))
         # async madness: disabled for now.
         # view.center(f'[{self.ligand_resn}]')
+        if print_legend:
+            legend = self.monster.get_legend(show_positioned_mol=False)
+            legend += ' Fragmenstein monster (white)'
+            display(HTML(legend))
+        return view
+
+    def to_3Dmol(self, print_legend: bool = False) -> patched_3Dmol_view:
+        view = self.monster.to_3Dmol(show_positioned_mol=False)
+        view.add_template(self.apo_pdbblock)
+        if print_legend:
+            legend = self.monster.get_legend(show_positioned_mol=False)
+            legend += ' Fragmenstein monster (white)'
+            display(HTML(legend))
         return view
 
 
