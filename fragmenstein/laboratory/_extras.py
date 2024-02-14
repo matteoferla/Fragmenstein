@@ -154,6 +154,9 @@ class LabExtras:
                                       length=sw_length,
                                       db=sw_db,
                                       tolerated_exceptions=Exception)
+            analogs.to_pickle(f'fragmenstein_analogues{suffix}.{sw_db}.pkl.gz')
+            invalid = analogs.qrySmiles.astype(str).isin(['None', 'nan', ''])
+            analogs = analogs.loc[~invalid]
         except NoMatchError as error:
             print(f'Found no analogues. Consider changing `sw_dist` (distance by N of mismatches)')
             return pd.DataFrame()
@@ -162,12 +165,13 @@ class LabExtras:
         analogs['catalogue'] = sw_db
         analogs['query_name'] = analogs.query_index.map(queries.name.to_dict())
         analogs['hits'] = analogs.query_index.map(queries.hit_mols.to_dict())
-        analogs['hit_names'] = analogs.loc[~analogs.hits.isna()].hits.apply(lambda m: [mm.GetProp('_Name') for mm in m])
+        analogs = analogs.loc[~analogs.hits.isna()]  # not sure how this is possible, but can happen?
+        analogs['hit_names'] = analogs.hits.apply(lambda m: [mm.GetProp('_Name') for mm in m])
         analogs['minimized_merger'] = analogs.query_index.map(queries.minimized_mol.to_dict())
         analogs['unminimized_merger'] = analogs.query_index.map(queries.unminimized_mol.to_dict())
         analogs['name'] = analogs['id'] + ':' + analogs['query_name']
         analogs['smiles'] = analogs.hitSmiles.str.split(expand=True)[0]
-        analogs['custom_map'] = analogs.loc[~analogs.hits.isna()].apply(cls.get_custom_map, axis=1)
+        analogs['custom_map'] = analogs.apply(cls.get_custom_map, axis=1)
         analogs.to_pickle(f'fragmenstein_analogues{suffix}.{sw_db}.pkl.gz')
         return analogs
 
@@ -195,14 +199,18 @@ class LabExtras:
         :param row: SW pd.Series (or dict)
         :return:
         """
-        # faux PDB block to trick the safeguards against bad PDB blocks/filenames
-        if hasattr(cls, 'settings'):
-            temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')), **cls.settings)
-        else:
-            temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')))
-        temp.monster.positioned_mol = row.unminimized_merger
-        temp.minimized_mol = row.minimized_merger
-        return temp.migrate_sw_origins(row)
+        try:
+            # faux PDB block to trick the safeguards against bad PDB blocks/filenames
+            if hasattr(cls, 'settings'):
+                temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')), **cls.settings)
+            else:
+                temp = cls.Victor(row.hits, pdb_block=Chem.MolToPDBBlock(Chem.MolFromFASTA('A')))
+            temp.monster.positioned_mol = row.unminimized_merger
+            temp.minimized_mol = row.minimized_merger
+            return temp.migrate_sw_origins(row)
+        except Exception as error:
+            cls.Victor.journal.warn(f'{error.__class__.__name__} {error}')
+            return {}
 
     @classmethod
     def correct_weaklings(cls, hit_replacements: pd.DataFrame, target_df: pd.DataFrame):
