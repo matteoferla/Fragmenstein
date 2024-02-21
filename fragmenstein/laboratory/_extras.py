@@ -110,7 +110,7 @@ class LabExtras:
                                                  max_tasks=max_tasks)
         combinations.to_pickle(f'fragmenstein_mergers{suffix}.pkl.gz')
         combinations.to_csv(f'fragmenstein_mergers{suffix}.csv')
-        print(tick - time.time())
+        cls.Victor.journal.info(f'Combination {time.time() - tick} s')
         return combinations
 
     @classmethod

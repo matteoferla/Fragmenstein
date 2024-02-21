@@ -1,13 +1,12 @@
 from __future__ import annotations
 from io import StringIO
-from typing import (Dict, TYPE_CHECKING)
+from typing import Dict, TYPE_CHECKING, Tuple, Union, List, Optional, Any
 import sys
 
-from ..display import MolNGLWidget  # nglview or a mock
+from ..display import MolNGLWidget, DISPLAYMODE, py3Dmol_monkey_patch, patched_3Dmol_view  # real or a mock
 from IPython.display import display
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
-
 from ._base import WaltonBase
 
 
@@ -31,8 +30,8 @@ class WaltonArt(WaltonBase):
             return '「 no name 」'
 
     def _get_mol_color(self, mol: Chem.Mol) -> str:  # noqa
-        if mol.HasProp('_color'):
-            return mol.GetProp('_color')
+        if mol.HasProp('color'):
+            return mol.GetProp('color')
         else:
             return 'gray'
 
@@ -52,12 +51,15 @@ class WaltonArt(WaltonBase):
         template = f'<div style="float: left; padding: 10px;">{inner}</div>'
         return "\n".join(template.format(**self._get_mol_details(mol)) for mol in self.mols + [self.merged] if mol)
 
+    # ## 3D --------------------------------------------
+
     def to_nglview(self) -> MolNGLWidget:
         """`
         generates a NGLWidget (``IPython.display.display`` will show it)
         with the compounds and the merged if present.
         The colours will be those in the ``Chem.Mol``'s property ``_color``.
         """
+        self.monster.journal('This function is deprecated, use show instead')
         view = MolNGLWidget()
         for mol in self.mols + [self.merged]:
             if not mol:  # self.merged is empty
@@ -83,8 +85,16 @@ class WaltonArt(WaltonBase):
 
     def show3d(self) -> None:
         """
-        Shows the structures in 2d and 3d.
+        Shows the structures both in 2d and 3d. Which is weird. Hence the deprecation.
         """
-        view = self.to_nglview()
-        display(self)  # 2d mol
-        display(view)
+        self.monster.journal.warn('show3d is deprecated, use show instead')
+        display(self)
+        self.show()
+        
+    def show(self, to_display: bool = False, show_positioned_mol:bool=True, viewer_mode=DISPLAYMODE) \
+                                                                -> Tuple[Union[MolNGLWidget,patched_3Dmol_view], str]:
+        """
+        Shows the structures in 3d and behaves like ``Monster.show``
+        display(self)  will show in 2d molecules...
+        """
+        return self.monster.show(to_display=to_display, show_positioned_mol=show_positioned_mol, viewer_mode=viewer_mode)

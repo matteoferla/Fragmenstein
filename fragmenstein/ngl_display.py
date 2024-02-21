@@ -13,6 +13,7 @@ from rdkit import Chem
 import nglview as nv
 from nglview.component import ComponentViewer
 from io import StringIO
+import warnings
 
 class MolNGLWidget(nv.NGLWidget):
     """
@@ -35,7 +36,7 @@ class MolNGLWidget(nv.NGLWidget):
 
     """
 
-    def add_mol(self, mol: Chem.Mol, colorValue: str = '') -> ComponentViewer:
+    def add_mol(self, mol: Chem.Mol, carbon_color: str = '', colorValue:str='') -> ComponentViewer:
         """
         Add a rdkit.Chem to an NGLWidget.
         This function is used by Walton and Monster
@@ -44,6 +45,9 @@ class MolNGLWidget(nv.NGLWidget):
         :param colorValue: if blank, the color in the property _color is used.
         :return:
         """
+        if carbon_color:
+            # this is to standardise the color names with py3Dmol
+            colorValue = carbon_color
         if not mol:
             raise ValueError('Provided mol is None: ' + \
                              'if user manual tinkering happened, please run monster.fix_hits')
@@ -53,8 +57,8 @@ class MolNGLWidget(nv.NGLWidget):
                                                    ext='pdb'
                                                    )
         comp.remove_ball_and_stick()
-        if not colorValue and mol.HasProp('_color'):
-            colorValue = mol.GetProp('_color')
+        if not colorValue and mol.HasProp('color'):
+            colorValue = mol.GetProp('color')
         if colorValue:
             comp.add_representation('ball+stick', colorValue=colorValue, multipleBond=True)
         else:

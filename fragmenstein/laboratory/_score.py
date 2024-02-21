@@ -170,22 +170,26 @@ class LabScore:
         # macrocyclics... yuck.
         placements['largest_ring'] = m.apply(lambda mol: max([0] + list(map(len, mol.GetRingInfo().AtomRings()))))
         # interactions
-        cls.fix_intxns(placements)
-        tally_hit_intxns = HitIntxnTallier(hit_replacements)
-        hit_checks = placements.apply(tally_hit_intxns, axis=1)
-        placements['N_interactions_kept'] = hit_checks.apply(operator.itemgetter(0))  # .fillna(0).astype(int)
-        placements['N_interactions_lost'] = hit_checks.apply(operator.itemgetter(1))  # .fillna(99).astype(int)
-        intxn_names = [c for c in placements.columns if isinstance(c, tuple)]
-        tallies = placements[intxn_names].sum()
-        ratioed = UniquenessMeter(tallies, intxn_names, k=0.5)
-        placements['interaction_uniqueness_metric'] = placements.apply(ratioed, axis=1)
-        placements['N_interactions'] = placements.apply(ratioed.tally_interactions, axis=1)
-        placements['PAINSes'] = placements.minimized_mol.apply(get_pains)
-        placements['N_PAINS'] = placements.PAINSes.apply(len)
-        placements['UFF_Gibbs'] = placements.minimized_mol.apply(UFF_Gibbs)
-        placements['strain_per_HA'] = placements.UFF_Gibbs / (placements.N_HA + 0.0001)
-        penalize = PenaltyMeter(weights)
-        placements['ad_hoc_penalty'] = placements.apply(penalize, axis=1)
+        with contextlib.suppress(cli_default_settings['supressed_exceptions']):
+            cls.fix_intxns(placements)
+            tally_hit_intxns = HitIntxnTallier(hit_replacements)
+            hit_checks = placements.apply(tally_hit_intxns, axis=1)
+            placements['N_interactions_kept'] = hit_checks.apply(operator.itemgetter(0))  # .fillna(0).astype(int)
+            placements['N_interactions_lost'] = hit_checks.apply(operator.itemgetter(1))  # .fillna(99).astype(int)
+            intxn_names = [c for c in placements.columns if isinstance(c, tuple)]
+            tallies = placements[intxn_names].sum()
+            ratioed = UniquenessMeter(tallies, intxn_names, k=0.5)
+            placements['interaction_uniqueness_metric'] = placements.apply(ratioed, axis=1)
+            placements['N_interactions'] = placements.apply(ratioed.tally_interactions, axis=1)
+        with contextlib.suppress(cli_default_settings['supressed_exceptions']):
+            placements['PAINSes'] = placements.minimized_mol.apply(get_pains)
+            placements['N_PAINS'] = placements.PAINSes.apply(len)
+        with contextlib.suppress(cli_default_settings['supressed_exceptions']):
+            placements['UFF_Gibbs'] = placements.minimized_mol.apply(UFF_Gibbs)
+            placements['strain_per_HA'] = placements.UFF_Gibbs / (placements.N_HA + 0.0001)
+        with contextlib.suppress(cli_default_settings['supressed_exceptions']):
+            penalize = PenaltyMeter(weights)
+            placements['ad_hoc_penalty'] = placements.apply(penalize, axis=1)
         with contextlib.suppress(cli_default_settings['supressed_exceptions']):
             placements['cluster'] = butina_cluster(m.to_list())
 

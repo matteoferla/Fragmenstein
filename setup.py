@@ -1,3 +1,6 @@
+version = '0.15.0'
+
+
 from setuptools import setup, find_packages
 from warnings import warn
 from importlib import util
@@ -15,7 +18,7 @@ else:
 
     Documentation in [GitHub](https://github.com/matteoferla/Fragmenstein).
 
-    [![colab demo](https://img.shields.io/badge/Run--demo--in--colab-colab_fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab_fragmenstein.ipynb)
+    [![colab demo](https://img.shields.io/badge/Run--demo--in--colab-colab_fragmenstein.ipynb-f9ab00?logo=googlecolab)](https://colab.research.google.com/github/matteoferla/Fragmenstein/blob/master/colab-notebooks/colab_fragmenstein.ipynb)
 
     ![Ox](https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/132px-University_of_Oxford.svg.png)
     '''
@@ -48,7 +51,7 @@ if not util.find_spec('pymol2'):
 
 setup(
     name='Fragmenstein',
-    version='0.14.8',
+    version=version,
     description='Merging, linking and placing compounds by stitching them together like a reanimated corpse',
     long_description=long_description,
     long_description_content_type='text/markdown',

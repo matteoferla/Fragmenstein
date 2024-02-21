@@ -29,12 +29,12 @@ def draw(mol, color_map, x=200, y=200, **kwargs):
     display(SVG(d.GetDrawingText()))
 
 
-
 def get_idx(name, origin, default=None):
     rex = re.match(name + '\.(\d+)', origin)
     if rex:
         return int(rex.group(1))
     return default
+
 
 class _MonsterUtilCompare:
 
@@ -50,7 +50,7 @@ class _MonsterUtilCompare:
         colors = divergent_colors[n_colors]
         mapped_idxs = [i for i, m in enumerate(origins) if m]
         followup_color_map = dict(zip(mapped_idxs, colors))
-        positioned_name:str = self.positioned_mol.GetProp('_Name')
+        positioned_name: str = self.positioned_mol.GetProp('_Name')
         color_maps[positioned_name] = followup_color_map
         # -------------- hits ------------------
         for mol in self.hits:
@@ -77,17 +77,16 @@ class _MonsterUtilCompare:
         for hit in self.hits:  #:Chem.Mol
             name = hit.GetProp('_Name')
             for atom in hit.GetAtoms():  #: Chem.Atom
-                atom.SetProp('_color', '#FFFFFF')  # white
+                atom.SetProp('color', '#FFFFFF')  # white
             if name not in color_maps:
                 continue
             for i in color_maps[name]:
-                hit.GetAtomWithIdx(i % 100).SetProp('_color', color_maps[name][i])
+                hit.GetAtomWithIdx(i % 100).SetProp('color', color_maps[name][i])
         followup_map = color_maps[self.positioned_mol.GetProp('_Name')]
         for atom in self.positioned_mol.GetAtoms():  #: Chem.Atom
-            atom.SetProp('_color', '#FFFFFF')  # white
+            atom.SetProp('color', '#FFFFFF')  # white
         for i in followup_map:
-            self.positioned_mol.GetAtomWithIdx(i).SetProp('_color', followup_map[i])
-
+            self.positioned_mol.GetAtomWithIdx(i).SetProp('color', followup_map[i])
 
     def show_comparison(self, *args, **kwargs):
         """"
@@ -107,12 +106,12 @@ class _MonsterUtilCompare:
             color_map = color_maps[name]
             print(f'hit {name}')  # legit print, not a debug scar
             draw(mol, color_map, 300, 300, **kwargs)
-        print('Followup') # legit print, not a debug scar
+        print('Followup')  # legit print, not a debug scar
         followup_color_map = color_maps[self.positioned_mol.GetProp('_Name')]
         draw(self.positioned_mol, followup_color_map, 300, 300)
 
-
-    def convert_origins_to_custom_map(self, mol: Optional[Chem.Mol]=None, forbiddance=True) -> Dict[str, Dict[int, int]]:
+    def convert_origins_to_custom_map(self, mol: Optional[Chem.Mol] = None, forbiddance=True) -> Dict[
+        str, Dict[int, int]]:
         """
         The origins stored in the followup differ in format from the custom_map.
         The former is a list of lists of hit_name+atom_index,
@@ -127,7 +126,7 @@ class _MonsterUtilCompare:
         """
         custom_map: Dict[str, Dict[int, int]] = {hit.GetProp('_Name'): {} for hit in self.hits}
         # `origins_from_mol` uses self.positioned_mol by default... what if it is not set?
-        origins:List[List[str]] = self.origin_from_mol(mol)  # noqa It is in utility
+        origins: List[List[str]] = self.origin_from_mol(mol)  # noqa It is in utility
         for fi, ori in enumerate(origins):
             for origin in ori:
                 reg = re.search('(.*)\.(\d+)', str(origin))
@@ -153,67 +152,86 @@ class _MonsterUtilCompare:
                     ni -= 1
         return new_custom_map
 
-    def to_nglview(self, show_positioned_mol:False) -> MolNGLWidget:
+    def to_nglview(self, show_positioned_mol: False, *args, **kwargs) -> MolNGLWidget:
         """
+        User: you probably want to use show() instead... unless you have both ngl and py3Dmol installed.
+
         This is called by both ``Monster.to_nglview`` and ``Victor.to_nglview``
         The color can be dictated by the optional private property ``_color``,
         which may have been assigned by ``walton.color_in()`` or the user.
 
+        The ``args`` and ``kwargs`` do nothing
+
         :return:
         """
-        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
+
         view = MolNGLWidget()
-        for mol in self.hits:
-            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
-            view.add_mol(colorValue=colorValue, mol=mol)
-        if show_positioned_mol and self.positioned_mol:  # noqa .positioned_mol is added later
-            view.add_mol(colorValue='white', mol=self.positioned_mol)  # noqa .positioned_mol is added later
+        self._add_mols_to_viewer(view, show_positioned_mol, *args, **kwargs)
         return view
 
-    def to_3Dmol(self, show_positioned_mol:bool = False, *args, **kwargs) -> patched_3Dmol_view:
+    def to_3Dmol(self, show_positioned_mol: bool = True, *args, **kwargs) -> patched_3Dmol_view:
+        """
+        User: you probably want to use show() instead... unless you have both ngl and py3Dmol installed.
+
+        This is called by both ``Monster.to_3Dmol`` and ``Victor.to_3Dmol``
+
+        The ``args`` and ``kwargs`` do nothing
+        """
         view = patched_3Dmol_view(*args, **kwargs)
         view.monkey_patch()
-        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
-        for mol in self.hits: # noqa .hits is added later
-            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
-            view.add_mol(carbon_color=colorValue, mol=mol)
-        if show_positioned_mol and self.positioned_mol:  # noqa .positioned_mol is added later
-            view.add_mol(carbon_color='white', mol=self.positioned_mol)  # noqa .positioned_mol is added later
+        self._add_mols_to_viewer(view, show_positioned_mol, *args, **kwargs)
         return view
 
-    def get_legend(self, show_positioned_mol:False) -> str:
+    def _add_mols_to_viewer(self, view, show_positioned_mol: bool = True, *args, **kwargs):
+        """
+        NGL / py3Dmol viewer agnostic (add_mol does carbon_color -> colorValue for NGL)
+
+        The ``args`` and ``kwargs`` do nothing
+        """
+        color_series = iter(divergent_colors[len(self.hits) + 1])  # noqa .hits is added later
+        fejoa = next(color_series)  # fagmenstein branding colour
+        for mol in self.hits:  # noqa .hits is added later
+            carbon_color = next(color_series) if not mol.HasProp('color') else mol.GetProp('color')
+            view.add_mol(carbon_color=carbon_color, mol=mol)
+        if show_positioned_mol and self.positioned_mol:  # noqa .positioned_mol is added later
+            view.add_mol(carbon_color=fejoa, mol=self.positioned_mol)  # noqa .positioned_mol is added later
+
+    def get_legend(self, show_positioned_mol: bool = True) -> str:
         legend = ''
-        color_series = iter(divergent_colors[len(self.hits)])  # noqa .hits is added later
+        color_series = iter(divergent_colors[len(self.hits) + 1])  # noqa .hits is added later
+        fejoa = next(color_series)  # fagmenstein branding colour
         for mol in self.hits:
-            colorValue = next(color_series) if not mol.HasProp('_color') else mol.GetProp('_color')
-            legend += f'<span style="color: {colorValue}">{mol.GetProp("_Name")}</span> '
+            carbon_color = next(color_series) if not mol.HasProp('color') else mol.GetProp('color')
+            legend += f'<span style="color: {carbon_color}">{mol.GetProp("_Name")}</span> '
         if show_positioned_mol and self.positioned_mol:
-            legend += f'<span>positioned followup (in white)</span> '
+            legend += f'<span style="color: {fejoa}">positioned followup (Fragmenstein green)</span> '
         return legend
 
-    def show(self, print_legend: bool = False, viewer_mode=DISPLAYMODE) -> Tuple[Union[MolNGLWidget,patched_3Dmol_view], str]:
+    def show(self, to_display: bool = False, show_positioned_mol: bool = True, viewer_mode=DISPLAYMODE) \
+            -> Tuple[Union[MolNGLWidget, patched_3Dmol_view], str]:
         """
-        This is not the same method as in Victor.
-        generates a NGLWidget (``IPython.display.display`` will show it)
-        with the compounds and the merged if present.
+        generates a ``NGLWidget`` or a ``py3Dmol.view`` depending on ``viewer_mode``,
+        which is set by default to what's installed.
+        With the compounds and the merger if present.
         To override the colours:
         The colours will be those in the ``Chem.Mol``'s property ``_color`` if present.
+        
+        to_display if True will display the legend and the viewer.
+        (``IPython.display.display`` will show them too)
 
         Returns -> nv.NGLWidget
         """
         if viewer_mode == 'ngl':
-            view = self.to_nglview(show_positioned_mol=True)
+            view = self.to_nglview(show_positioned_mol=show_positioned_mol)
         elif viewer_mode == 'py3Dmol':
-            pass
+            view = self.to_3Dmol(show_positioned_mol=show_positioned_mol)
         elif viewer_mode == 'rdkit':
-            view = self.to_3Dmol(show_positioned_mol=True)
+            view = self.to_3Dmol(show_positioned_mol=show_positioned_mol)
         else:
             raise ValueError(f'viewer_mode {viewer_mode} not recognized')
 
-        legend = self.get_legend(show_positioned_mol=True)
-        if print_legend:
+        legend = self.get_legend(show_positioned_mol=show_positioned_mol)
+        if to_display:
             display(HTML(legend))
-        # async madness: disabled for now.
-        # view.center(f'[{self.ligand_resn}]')
+            display(view)
         return view, legend
-

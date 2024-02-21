@@ -35,7 +35,7 @@ class Walton(WaltonAdvMove, WaltonArt, WaltonPolygon):
         demo = Walton.from_smiles(resorcinol='c1ccc(O)cc1O', eugenol='Oc1ccc(cc1OC)CC=C') # create instance
         demo.superpose_by_map({(0,1):{4:0, 3:1, 2:2}})  # superpose molecules by atom indices
         demo()  # merge (Fragmenstein's Monster)
-        demo.show3d()  # show 2d, names and 3d
+        demo.show()  # show 2d, names and 3d
 
     The latter is equivalent to:
 

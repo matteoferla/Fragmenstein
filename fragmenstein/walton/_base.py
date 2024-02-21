@@ -48,7 +48,7 @@ class WaltonBase:
             return
         color_scale = self.color_scales[len(self.mols)]
         for mol, color in zip(self.mols, color_scale):
-            mol.SetProp('_color', color)
+            mol.SetProp('color', color)
 
     @classmethod
     def from_smiles(cls,
@@ -83,7 +83,7 @@ class WaltonBase:
             self.monster.positioned_mol = self.monster.mmff_minimize(allow_lax=True).mol
         self.monster.store_origin_colors_atomically()
         self.merged = AllChem.RemoveHs(self.monster.positioned_mol)
-        self.merged.SetProp('_color', color)
+        self.merged.SetProp('color', color)
         return self.merged
 
     def duplicate(self, mol_idx: int):

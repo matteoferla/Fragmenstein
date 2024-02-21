@@ -17,11 +17,13 @@ except Exception as error:
 
 try:
     from .mol3d_display import patched_3Dmol_view
+    from .mol3d_display import monkey_patch as py3Dmol_monkey_patch
     # monkey_patch is a function that needs to be called but it is attached as a cls method to py3Dmol.view
     # which for clarity is rebranded as ``patched_3Dmol_view``
     DISPLAYMODE = 'py3Dmol'
 except Exception as error:
     patched_3Dmol_view = Mock(name='py3Dmol.view')
+    py3Dmol_monkey_patch = Mock(name='py3Dmol.view.monkey_patch')
 
 
 def display_mols(mols: Sequence[Chem.Mol],
@@ -40,8 +42,8 @@ def display_mols(mols: Sequence[Chem.Mol],
         AllChem.Compute2DCoords(mol)
     dopts = Draw.rdMolDraw2D.MolDrawOptions()  # noqa
     dopts.addAtomIndices = True
-    hex_map = {atom.GetIdx(): atom.GetProp('_color') for atom in mol.GetAtoms()
-               if atom.HasProp('_color') and atom.GetProp('_color')}
+    hex_map = {atom.GetIdx(): atom.GetProp('color') for atom in mol.GetAtoms()
+               if atom.HasProp('color') and atom.GetProp('color')}
     rgb_map = {i: ColorConverter().to_rgb(n) for i, n in hex_map.items()}
     dopts.highlightAtomColors= list(rgb_map.values())
     dopts.highlightAtoms= list(rgb_map.keys())
