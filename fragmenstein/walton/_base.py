@@ -5,12 +5,13 @@ from rdkit.Chem import AllChem
 
 from ..monster import Monster
 from ..branding import divergent_colors
+from ..display import color_in
 
 # courtesy of .legacy
 from functools import singledispatchmethod
 
 class WaltonBase:
-    color_scales = divergent_colors
+    color_scales = divergent_colors  # NO LONGER USABLE TODO: remove
 
     def __init__(self,
                  mols: List[Chem.Mol],
@@ -30,7 +31,7 @@ class WaltonBase:
         for idx, mol in enumerate(self.mols):
             mol.SetIntProp('_mol_index', idx)
         # assign color:
-        self.color_in()
+        color_in(self.mols, skip_feija=True)
         # ## superposed
         self.superposed: bool = superposed
         # ## Computed
@@ -38,17 +39,17 @@ class WaltonBase:
         # the hits will be passed again on call:
         self.monster = Monster(list(map(AllChem.RemoveHs, self.mols)))
 
-    def color_in(self):
+    def color_in(self, skip_feija=False):
         """
-        assigns a _color property to a mol based on color_scales of correct length
+        assigns a color property to a mol based on color_scales of correct length
+
+        The first colour is the Fragmenstein colour (feijoa). Setting `color_in(False)` will skip it,
+        allowing it to be used later on.
 
         Gets called by ``__init__`` and ``duplicate``.
         """
-        if len(self.mols) == 0:
-            return
-        color_scale = self.color_scales[len(self.mols)]
-        for mol, color in zip(self.mols, color_scale):
-            mol.SetProp('color', color)
+        self.monster.journal.warning('color_in as a Walton method is deprecated. Use the global color_in')
+        color_in(self.mols, skip_feija=skip_feija)
 
     @classmethod
     def from_smiles(cls,
@@ -92,7 +93,7 @@ class WaltonBase:
         And fix colours.
         """
         self.mols.append(Chem.Mol(self.get_mol(mol_idx)))
-        self.color_in()
+        color_in(self.mols, skip_feija=True)
 
     @singledispatchmethod
     def get_mol(self, mol_idx: int) -> Chem.Mol:

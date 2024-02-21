@@ -59,7 +59,7 @@ def _add_mol(self, mol, name=None, carbon_color: Optional[str] = None, opacity=1
     molblock: str = Chem.MolToMolBlock(mol)
     self.add_model(molblock, 'mol', name=name, **kwargs)
     # `.setStyle({'stick':{}})` will work, but I wanted the args to be explicit as I forget them.
-    if carbon_color is None or carbon_color == 'default':
+    if carbon_color == 'default':
         self.setStyle({'model': -1, }, {'stick': {'colorscheme': 'default', 'opacity': opacity}})
     elif not isinstance(carbon_color, str):
         raise ValueError(f'No idea what is carbon_color={carbon_color}')
@@ -67,6 +67,9 @@ def _add_mol(self, mol, name=None, carbon_color: Optional[str] = None, opacity=1
         self.setStyle({'model': -1, }, {'stick': {'colorscheme': carbon_color, 'opacity': opacity}})
     elif '#' not in carbon_color:
         self.setStyle({'model': -1, }, {'stick': {'colorscheme': f'{carbon_color}Carbon', 'opacity': opacity}})
+    elif carbon_color == 'prop' or carbon_color is None:
+        color = mol.GetProp('color')
+        self.setStyle({'model': -1, }, {'stick': {'colorscheme': f'{color}Carbon', 'opacity': opacity}})
     else:
         # this will not work on an update which runs off updatejs
         self.startjs += f'''\n

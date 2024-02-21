@@ -3,6 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 from IPython.display import display
 from unittest.mock import Mock
+from typing import List
 
 DISPLAYMODE = 'rdkit'
 try:
@@ -24,6 +25,29 @@ try:
 except Exception as error:
     patched_3Dmol_view = Mock(name='py3Dmol.view')
     py3Dmol_monkey_patch = Mock(name='py3Dmol.view.monkey_patch')
+from .branding import divergent_colors
+
+
+def color_in(mols: List[Chem.Mol], color_scale=None, skip_feija=False):
+    """
+    assigns a color property to a mol based on color_scales of correct length
+
+    In the `divergent_colors` first colour is the Fragmenstein colour (feijoa). Setting `color_in(False)` will skip it,
+    allowing it to be used later on.
+    """
+    n_mols = len(mols)
+    if n_mols == 0:
+        return
+    if color_scale is None and skip_feija:
+        color_scale = divergent_colors[n_mols + int(skip_feija)][1:]
+    elif color_scale is None:
+        color_scale = divergent_colors[n_mols]
+    elif len(color_scale) < n_mols:
+        raise ValueError(f'color_scale is too short for {n_mols} mols.')
+    else:
+        pass
+    for mol, color in zip(mols, color_scale):
+        mol.SetProp('color', color)
 
 
 def display_mols(mols: Sequence[Chem.Mol],

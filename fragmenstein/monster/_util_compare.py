@@ -204,7 +204,7 @@ class _MonsterUtilCompare:
             carbon_color = next(color_series) if not mol.HasProp('color') else mol.GetProp('color')
             legend += f'<span style="color: {carbon_color}">{mol.GetProp("_Name")}</span> '
         if show_positioned_mol and self.positioned_mol:
-            legend += f'<span style="color: {fejoa}">positioned followup (Fragmenstein green)</span> '
+            legend += f'<span style="color: {fejoa}">positioned derivative (Fragmenstein green)</span> '
         return legend
 
     def show(self, to_display: bool = False, show_positioned_mol: bool = True, viewer_mode=DISPLAYMODE) \

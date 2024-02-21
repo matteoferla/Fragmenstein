@@ -48,7 +48,7 @@ from .m_rmsd import mRMSD
 from .mpro import MProVictor
 from .mpro import data as mpro_data
 from .branding import divergent_colors, feijoa
-from .display import display_mols, MolNGLWidget, patched_3Dmol_view, py3Dmol_monkey_patch
+from .display import display_mols, MolNGLWidget, patched_3Dmol_view, py3Dmol_monkey_patch, color_in, DISPLAYMODE
 from .error import FragmensteinError, DistanceError, ShoddyCodeError, PoisonError
 from .faux_victors import Wictor, Quicktor  # the rest are mostly experiments
 from .settings import default_settings, cli_default_settings
