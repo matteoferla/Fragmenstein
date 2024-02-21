@@ -19,3 +19,5 @@ The colours are based on "branding" by default. But can be overridden via Mol pr
 py3Dmol has been altered to accept hex colours (cf. https://blog.matteoferla.com/2024/01/custom-carbon-colours-in-py3dmol.html)
 
 In Walton there is a problem that if a compound is altered, the viewer is not updated.
+
+However, given that this is a minor detail and py3Dmol does not work in a lot of cases, this will not be inestigated further.
