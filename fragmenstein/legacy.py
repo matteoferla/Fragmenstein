@@ -26,6 +26,11 @@ if sys.version_info.major != 3 or sys.version_info.minor < 12:
     typing.Unpack = Unpack
     typing.NotRequired = NotRequired
 
+import pandas as pd
+# cf https://github.com/matteoferla/Fragmenstein/issues/47
+# pandas > 2.1.0 while RDKit < 2023.9.6
+if hasattr(pd.io.formats.printing, 'get_adjustment') and not hasattr(pd.io.formats.format, 'get_adjustment'):
+    pd.io.formats.format.get_adjustment = pd.io.formats.printing.get_adjustment
 
 # NGLView has been broken for a while. This is a hack to ignore it.
 # the issue stems from widgets 7 to 8.

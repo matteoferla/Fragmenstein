@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from typing import Dict
 def get_versions() -> Dict[str, str]:
