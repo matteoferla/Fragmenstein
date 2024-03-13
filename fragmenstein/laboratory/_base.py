@@ -7,14 +7,20 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from ..monster import Monster
-from ..victor import Victor
+from ..victor import Victor as RealVictor  # to avoid confusion
 
 # not needed for binarize... but just in case user is not using them...
 Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
 
 def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
-    # this is convoluted as None is a common error outcome with RDKit
-    # so making it less cryptic
+    """
+    Wrapper for ``mol.ToBinary(propertyFlags=0b00010111)``, but with safeguards in case it's not a valid Chem.Mol.
+    This is convoluted as None is a common error outcome with RDKit
+    So making it less cryptic
+
+    Note that it will return an empty Chem.Mol binary if it fails, not raise an error
+    That kind of check is for the subprocesses
+    """
     if isinstance(mol, bytes):
         return mol   # messed up. it was bytes.
     elif not isinstance(mol, Chem.Mol): # likely None
@@ -38,6 +44,9 @@ def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
 
 
 def unbinarize(bin: bytes, ignore_errors:bool=True) -> Union[Chem.Mol, None]:
+    """
+    This is just a wrapper for ``Chem.Mol(bin)``, with safeguards in case it's not a bytes.
+    """
     exception = Exception if ignore_errors else ()
     if isinstance(bin, Chem.Mol):  # lol
         return bin
@@ -56,7 +65,7 @@ class LabBench:
 
     # the ``outcome`` column in the pandas dataframe can have these values in order of niceness:
     category_labels = ['crashed', 'too distant', 'timeout', 'unstable', 'equally sized', 'deviant', 'acceptable']
-    Victor = Victor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
+    Victor = RealVictor  # So it can be swapped for a subclass w/o the need to subclass Laboratory
 
     def __init__(self, pdbblock: str,
                  covalent_resi: Union[int, str, None] = None,
@@ -72,8 +81,12 @@ class LabBench:
         self.run_plip = run_plip
         self.blacklist = []  # list of names to skip
         self.settings = settings
-        if not len(Victor.journal.handlers):
-            Victor.enable_stdout(logging.CRITICAL)
+        self.journal = self.Victor.journal
+        if not len(self.journal.handlers):
+            self.Victor.enable_stdout(logging.CRITICAL)
+        # I honestly cannot understand the cause
+        # but the class attribute is not changed in the instance when it's passed to multiprocessing
+        self.Victor = self.__class__.Victor
 
     # keep it just in case: (not called within class as that would require `self.__class__.binarize`)
     binarize: Callable[[Chem.Mol, bool], bytes] = staticmethod(binarize)
@@ -93,7 +106,7 @@ class LabBench:
                 result = next(result_iter)
                 self.raw_results.append(result)
             except TimeoutError as error:
-                Victor.journal.error("Function took longer than %d seconds" % error.args[1])
+                self.journal.error("Function took longer than %d seconds" % error.args[1])
                 self.raw_results.append({'error': 'TimeoutError', 'name': ''})
             except StopIteration as error:
                 # it would be nice having a mock entry with the expected values...
@@ -104,12 +117,12 @@ class LabBench:
                 self.raw_results.append({'error': 'KeyboardInterrupt', 'name': ''})
                 break
             except Exception as error:
-                Victor.journal.error(f'{error.__class__.__name__}: {error}')
+                self.journal.error(f'{error.__class__.__name__}: {error}')
                 self.raw_results.append({'error': error.__class__.__name__, 'name': ''})
         # list of dict to dataframe
         df = pd.DataFrame(self.raw_results)
         if not len(df) or '∆∆G' not in df.columns:
-            Victor.journal.critical('No results were found. Returning an empty dataframe.')
+            self.journal.critical('No results were found. Returning an empty dataframe.')
             return df
         df['LE'] = df.apply(
             lambda row: - row['∆∆G'] / (row.N_constrained_atoms + row.N_unconstrained_atoms),

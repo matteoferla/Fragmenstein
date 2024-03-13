@@ -20,12 +20,16 @@ class LabCombine(LabBench):
             pyrosetta.distributed.maybe_init(extra_options=self.init_options)
         tentative_name = 'UNKNOWN'
         try:
+            # this works if monster.fix_hits is not neeeded
             hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
             assert len(hits) > 0, 'No valid hits!'
-            tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
-            if tentative_name in self.blacklist:
-                raise ValueError(f'{tentative_name} is blacklisted')
+            assert all([hit.GetNumAtoms() > 0 for hit in hits]), 'Some hits have no atoms!'
+            if all([mol.HasProp('_Name') for mol in hits]):
+                tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
+                if tentative_name in self.blacklist:
+                    raise ValueError(f'{tentative_name} is blacklisted')
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
+            self.journal.debug(f'Using {self.Victor.__name__}')
             victor = self.Victor(hits=hits,
                                  pdb_block=self.pdbblock,
                                  ligand_resn='LIG',
@@ -34,6 +38,10 @@ class LabCombine(LabBench):
                                  # a random residue is **still** required for the constaint ref atom.
                                  **self.settings
                                  )
+            # the names may have been fixed by ``monster.fix_hits``
+            tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
+            if tentative_name in self.blacklist:
+                raise ValueError(f'{tentative_name} is blacklisted')
             victor.monster_throw_on_discard = True
             victor.monster.throw_on_discard = True
             victor.combine()

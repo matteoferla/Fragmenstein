@@ -1,23 +1,18 @@
-from rdkit.ML.Cluster import Butina
-from rdkit.Chem import rdMolDescriptors as rdmd
-from rdkit.Chem import Descriptors
-
-from typing import List, Dict, Any, Optional
-import operator, os, re, logging, random, time, argparse, string, itertools, json, contextlib, requests
+import contextlib
+import operator
+from typing import List
 from warnings import warn
-from ..monster import Monster
+
 import pandas as pd
-import pandera.typing as pdt
-from pandarallel import pandarallel
-from smallworld_api import SmallWorld
-
-
-from rdkit import Chem, rdBase, DataStructs
-from rdkit.Chem import AllChem, Draw, PandasTools, BRICS
-from rdkit.Chem.Draw import IPythonConsole
+from rdkit import Chem, DataStructs
+from rdkit.Chem import AllChem, PandasTools
 from rdkit.Chem import rdFingerprintGenerator as rdfpg
+from rdkit.Chem import rdMolDescriptors as rdmd
 from rdkit.Chem.rdfiltercatalog import FilterCatalogParams, FilterCatalog, FilterCatalogEntry
+from rdkit.ML.Cluster import Butina
+
 from .._cli_defaults import cli_default_settings
+from ..monster import Monster
 
 # ----- Scoring -----------------------------------
 params = FilterCatalogParams()

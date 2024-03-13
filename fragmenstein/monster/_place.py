@@ -35,7 +35,8 @@ class _MonsterPlace(_MonsterBlend):
               attachment: Optional[Chem.Mol] = None,
               custom_map: Optional[Dict[str, Dict[int, int]]] = None,
               merging_mode: str = 'expansion',
-              enforce_warhead_mapping:bool=True):
+              enforce_warhead_mapping:bool=True,
+              primary_name=None):
         """
         Positioned a given mol based on the hits. (Main entrypoint)
         accepts the argument `merging_mode`, by default it is "expansion",
@@ -51,6 +52,7 @@ class _MonsterPlace(_MonsterBlend):
         :param attachment: This the SG of the cysteine if covalent
         :param custom_map: Dict of hit_name to Dict of hit_idx to followup_idx
         :param merging_mode:
+        :param primary_name: override the name of the primary hit if merging_mode is 'expansion'
         :return:
         """
         if not mol.HasProp('_Name'):
@@ -81,7 +83,7 @@ class _MonsterPlace(_MonsterBlend):
         elif merging_mode == 'none':
             self.no_blending()
         elif merging_mode == 'expansion':
-            self.by_expansion()
+            self.by_expansion(primary_name)
         else:
             valid_modes = ('full', 'partial', 'none', 'none_permissive', 'off', 'expansion')
             raise ValueError(

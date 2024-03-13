@@ -53,6 +53,7 @@ class LabPlace(LabBench):
             hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
             assert len(hits) > 0, 'No valid hits!'
             # `self.Victor` is likely `Victor` but the user may have switched for a subclass, cf. `VictorMock`...
+            self.journal.debug(f'Using {self.Victor.__name__}')
             victor = self.Victor(hits=hits,
                             pdb_block=self.pdbblock,
                             ligand_resn='LIG',
