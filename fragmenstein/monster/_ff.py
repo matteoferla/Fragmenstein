@@ -94,6 +94,9 @@ class _MonsterFF(_MonsterUtil):
                 continue
             elif fixed_mode:
                 ff.AddFixedPoint(i)
+            elif (atom.GetProp('_isRing') if atom.HasProp('_isRing') else False):
+                # be 5-fold more lax with rings
+                ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint/2)
             else:
                 # https://github.com/rdkit/rdkit/blob/115317f43e3bdfd73673ca0e4c6b4035aa26a034/Code/ForceField/UFF/PositionConstraint.cpp#L35
                 ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint)

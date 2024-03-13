@@ -151,24 +151,25 @@ class _VictorBase:
         self.random_seed = monster_random_seed
         self.settings = {**default_settings, **settings}
         self._process_settings()
+        # this is readied in case user wants to change it:
+        self.monster = self.Monster(hits,
+                                    average_position=self.monster_average_position,
+                                    random_seed=self.random_seed)
         # ## Fill by place and combine differently
-        self.long_name = 'ligand'
+        self.long_name: str = 'ligand'
         self.smiles = None
         # ## Filled by place
-        self.merging_mode = "none_permissive"
+        self.merging_mode = "not_set"
         self.custom_map = {}  # this will be fixed in monster by `.fix_custom_map`
         # ## Filled by combine
         self.joining_cutoff = None
         # ## Calculated
         self.is_covalent = None
-        self.params = None
-        self.mol = None
-        self.constraint = None
+        self.params = None  # this will be the rdkit_to_params.Params instance
+        self.mol = None   # this will be the unminimised mol
+        self.constraint = None  # Rosetta string-form constraint defs
         self.modifications = {}
         self.unminimized_pdbblock = None
-        self.monster = self.Monster(hits,
-                                    average_position=self.monster_average_position,
-                                    random_seed=self.random_seed)
         self.monster.throw_on_discard = self.monster_throw_on_discard
         self.igor = None
         self.unbound_pose = None
@@ -176,7 +177,7 @@ class _VictorBase:
         self.minimized_mol = None
         self.reference_mol = None  # filled only for validate
         # buffers etc.
-        self._warned = []
+        self._warned = warnings.catch_warnings()  # new one will be made. here for clarify
         self.energy_score = {'bound': {'total_score': float('nan')},
                              'unbound': {'total_score': float('nan')}}
         self.mrmsd = mRMSD.mock()

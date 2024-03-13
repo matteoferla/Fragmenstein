@@ -114,8 +114,10 @@ class _VictorPlace(_VictorCommon):
         # ***** PARAMS & CONSTRAINT *******
         self.journal.info(f'{self.long_name} - Starting work')
         self._log_warnings()
+        # self.mol will be replaced by the output of self.monster.positioned_mol
         if self.uses_pyrosetta:
             # self.params from _prepare_args_for_placement
+            # Don't worry: the coordinates will be ignored.
             self.mol = self.params.mol
         else:
             # `self.params.mol` adds hydrogens and atoms names
@@ -133,6 +135,7 @@ class _VictorPlace(_VictorCommon):
                            merging_mode=self.merging_mode,
                            custom_map=self.custom_map)
         self.post_monster_step()  # empty overridable
+        self.mol = self.monster.positioned_mol
         self.journal.debug(f'{self.long_name} - Tried {len(self.monster.mol_options)} combinations')
 
     def _calculate_placement_thermo(self):

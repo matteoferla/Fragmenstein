@@ -19,7 +19,8 @@ class OpenVictor(Victor):
         if self.is_covalent:
             raise NotImplementedError('OpenVictor does not support covalent ligands')
         self.journal.debug(f'{self.long_name} - Starting system setup')
-        self.mol = AllChem.AddHs(self.monster.positioned_mol, addCoords=True)
+        # in _calculate_*_chem this was set:
+        # self.mol = self.monster.positioned_mol
         restraint_k = self.settings['mm_restraint_k'] # default 1000.
         tolerance = self.settings['mm_tolerance']  # 10 * mmu.kilocalorie_per_mole / (mmu.nano * mmu.meter)
         maxIterations = self.settings['mm_max_iterations'] # 0 is infinite

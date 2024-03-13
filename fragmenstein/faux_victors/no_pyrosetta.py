@@ -65,10 +65,9 @@ class Wictor(Victor):
         as both ``_calculate_combination_thermo`` and ``_calculate_placement_thermo`` are overridden
         and do the same here.
         """
-        # this is a black overridable methods that will be the last thing called
-        # `_correct_ligand_info` requires this info
-        self.monster.positioned_mol = AllChem.AddHs(self.monster.positioned_mol)
-        self.mol = self.monster.positioned_mol
+        # in _calculate_*_chem this was set:
+        # self.mol = self.monster.positioned_mol
+        # I need to assign atom names and stuff still:
         self.params = Params.from_mol(self.mol, name=self.ligand_resn, generic=True)
         self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
@@ -88,7 +87,7 @@ class Wictor(Victor):
                                                 ff_max_iterations=int(self.settings['ff_max_iterations']), # def 200
                                                 allow_lax=True)
         self.minimized_mol: Chem.Mol = min_result.mol
-        self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.mol)
+        self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.minimized_mol)
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
         # recalculating:
         # min_result.ideal is with ff_minimise_ideal True

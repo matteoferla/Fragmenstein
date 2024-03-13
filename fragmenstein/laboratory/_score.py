@@ -122,6 +122,15 @@ class PenaltyMeter:
             return penalty
         return float('nan')
 
+    def make_weighted_df(self, df) -> pd.DataFrame:
+        """
+        Inspect whether the weights make sense
+        """
+        weighted = pd.DataFrame({k: df[k] * w for k, w in self.weights.items()})
+        weighted['total'] = df.apply(self, axis=1)
+        weighted.sort_values('total')
+        return weighted
+
 
 def butina_cluster(mol_list, cutoff=0.35):
     # https://github.com/PatWalters/workshop/blob/master/clustering/taylor_butina.ipynb

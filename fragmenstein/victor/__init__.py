@@ -96,8 +96,8 @@ class Victor(_VictorUtils, _VictorValidate, _VictorCombine, _VictorPlace):
     :vartype minimized_mol: Mol
     :ivar minimized_pdbblock:
     :vartype minimized_pdbblock: str
-    :ivar mmerging_mode:
-    :vartype mmerging_mode: str
+    :ivar merging_mode:
+    :vartype mmrging_mode: str
     :ivar modifications:
     :vartype modifications: dict
     :ivar mol:

@@ -37,12 +37,14 @@ class _VictorPlonk(_VictorJournal):
     def _correct_ligand_info(self, mol: Optional[Chem.Mol] = None) -> Chem.Mol:
         """
         Corrects in place the given mol based on self.ligand_resi.
-        If none provided it assumed self.monster.positioned_mol
+        If none provided it assumes ``self.mol`` (which in most cases is ``self.monster.positioned_mol``)
         Correcting the serial unfortunately does not do anything.
+
+        Called by ``._plonk_monster_in_structure_minimal`` (a route of ``._plonk_monster_in_structure``)
         """
         i = 0
         if mol is None:
-            mol = self.monster.positioned_mol
+            mol = self.mol
         l_resi, l_chain = re.match('(\d+)(\D?)', str(self.ligand_resi)).groups()  # TODO improve ligand_resi
         for atom in mol.GetAtoms():
             info = atom.GetPDBResidueInfo()
@@ -58,7 +60,14 @@ class _VictorPlonk(_VictorJournal):
         return mol
 
     def _plonk_monster_in_structure(self, prepped_mol: Optional[Chem.Mol]=None, use_pymol=False):
-        prepped_mol = self._correct_ligand_info(prepped_mol)
+        """
+        Plonks the molecule in the structure. This is most likely self.mol
+        ``_correct_ligand_info`` will accept Chem.Mol or None (it will use self.mol).
+        As the preminimisation is all that happens in Wictor, the prepped_mol is passed.
+        """
+        # this is in place on ``prepped_mol`` or ``self.mol`` (None case).
+        # Passing its returned value to prepped_mol will result in minimisation being skipped (as its prepped already)
+        self._correct_ligand_info(prepped_mol)
         self.journal.debug(f'{self.long_name} - placing monster in structure')
         if use_pymol:
             return self._plonk_monster_in_structure_pymol()
@@ -76,7 +85,7 @@ class _VictorPlonk(_VictorJournal):
         This method is called by the plonking into structure methods.
         Not "positioning" as intended by ``monster`` is done.
         """
-        mol = Chem.Mol(self.monster.positioned_mol)
+        mol = Chem.Mol(self.mol)
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             if self.settings.get('ff_use_neighborhood', True):
@@ -107,7 +116,10 @@ class _VictorPlonk(_VictorJournal):
         :return:
         """
         # ----- load
-        mol = self.preminimized_undummied_mol if prepped_mol is None else AllChem.DeleteSubstructs(prepped_mol, Chem.MolFromSmiles('*'))
+        if prepped_mol is None:
+            mol = self.preminimized_undummied_mol
+        else:  # this was passed by the user, fixing dummies just in case
+            mol = AllChem.DeleteSubstructs(prepped_mol, Chem.MolFromSmiles('*'))
         pdbdata = MinimalPDBParser(self.apo_pdbblock, remove_other_hetatms=self.remove_other_hetatms,
                                    ligname=self.ligand_resn)
         moldata = MinimalPDBParser(Chem.MolToPDBBlock(mol))

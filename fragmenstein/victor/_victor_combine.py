@@ -113,7 +113,7 @@ class _VictorCombine(_VictorCommon):
         # paramterise
         self.journal.debug(f'{self.long_name} - Starting parameterisation')
         # ``Params.load_mol`` does a few things: ``from_mol``, the ``polish_mol`` ad then ``convert_mol``.
-        # here it is split up.
+        # here it is split up for clarity mostly
         self.params = Params.from_mol(self.mol, name=self.ligand_resn, generic=False)
         self.params.NAME = self.ligand_resn  # force it.
         self.params.polish_mol()
@@ -134,7 +134,7 @@ class _VictorCombine(_VictorCommon):
         # self.params.CHI.data = []  # TODO check if chi fix is okay
         self._log_warnings()
         self.post_params_step()  # empty overridable
-        self.mmerging_mode = 'full' #TODO: check if this is intended
+        self.merging_mode = 'full'
         self.unminimized_pdbblock = self._plonk_monster_in_structure()
         params_file, holo_file, constraint_file = self._save_prerequisites()
         self.unbound_pose = self.params.test()
