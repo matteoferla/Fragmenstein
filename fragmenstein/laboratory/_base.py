@@ -170,7 +170,7 @@ class LabBench:
             return 'too distant'
         elif 'TimeoutError' in row.error:
             return 'timeout'
-        elif is_filled(row.error):
+        elif is_filled(row.error) or str(row['∆∆G']) == 'nan':
             return 'crashed'
         elif max(map(operator.methodcaller('GetNumHeavyAtoms'), row.hit_mols)) - size_tolerance  \
                 >= row.unminimized_mol.GetNumHeavyAtoms():
