@@ -9,7 +9,6 @@ import numpy as np
 import numpy.typing as npt
 from ..error import FragmensteinError
 
-
 @dataclass
 class MinizationOutcome:
     success: bool
@@ -203,7 +202,7 @@ class _MonsterFF(_MonsterUtil):
         if mol is None:
             mol = self.positioned_mol
         try:
-            mol = AllChem.AddHs(mol)  # copy!
+            mol = AllChem.AddHs(mol, addCoords=True)  # copy!
             if mode == 'UFF':
                 ff = AllChem.UFFGetMoleculeForceField(mol)
             elif mode == 'MMFF':

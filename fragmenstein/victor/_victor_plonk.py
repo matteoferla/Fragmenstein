@@ -89,7 +89,9 @@ class _VictorPlonk(_VictorJournal):
         if self.monster_mmff_minisation:
             self.journal.debug(f'{self.long_name} - pre-minimising monster (MMFF)')
             if self.settings.get('ff_use_neighborhood', True):
-                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock, cutoff=self.settings['ff_neighborhood'], addHs=True)
+                neighborhood = self.monster.get_neighborhood(self.apo_pdbblock,
+                                                             cutoff=self.settings['ff_neighborhood'],
+                                                             addHs=True)
             else:
                 neighborhood = None
             # ff_max_displacement = float('nan') for fixed mode

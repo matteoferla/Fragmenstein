@@ -7,6 +7,7 @@ This is inherited by both place and combine via _MonsterMerge
 ########################################################################################################################
 
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from rdkit.Geometry.rdGeometry import Point3D
 from typing import Tuple, List, Dict, Optional, Union
 import numpy as np
@@ -23,7 +24,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
 
         :param mol_A:
         :param mol_B:
-        :return:
+        :return:Ï
         """
         # get closets atoms
         combo: Chem.RWMol

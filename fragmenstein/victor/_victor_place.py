@@ -121,7 +121,7 @@ class _VictorPlace(_VictorCommon):
             self.mol = self.params.mol
         else:
             # `self.params.mol` adds hydrogens and atoms names
-            self.mol = AllChem.AddHs(Chem.MolFromSmiles(self.smiles))
+            self.mol = AllChem.AddHs(Chem.MolFromSmiles(self.smiles), addCoords=True)
         self._log_warnings()
         # get constraint
         attachment = self._get_attachment_from_pdbblock() if self.is_covalent else None
