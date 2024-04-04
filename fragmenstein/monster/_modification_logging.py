@@ -11,6 +11,7 @@ import json
 from rdkit import Chem
 from ._base import _MonsterBase
 from typing import List
+from typing import Dict
 
 class _MonsterTracker(_MonsterBase):
     """
@@ -30,9 +31,12 @@ class _MonsterTracker(_MonsterBase):
 
 
     def keep_copies(self, mols: List[Chem.Mol], label=None):
-        for i, mol in enumerate(mols):
-            copy = Chem.Mol(mol)
-            if label is None:
+        if isinstance(mols, Dict):
+            iterator = mols.items()
+        else:
+            iterator = enumerate(mols)
+        for i, mol in iterator:
+            if label is None and isinstance(mols, List):
                 this_label = f'Mol#{len(self.modifications)}'
             else:
                 this_label = f'{label}#{i}'
