@@ -51,7 +51,7 @@ class AccountableBRICS:
         name = mol.GetProp('_Name')
         index = mol.GetIntProp('decompose_index')
         for atom in mol.GetAtoms():
-            atom.SetProp('ori_name', name)
+            atom.SetProp('ori_name', str(name))
             atom.SetIntProp('ori_i', atom.GetIdx())
         fragments = list(BRICS.BRICSDecompose(mol, keepNonLeafNodes=False, returnMols=True))
         # label

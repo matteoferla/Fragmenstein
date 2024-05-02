@@ -67,7 +67,7 @@ class _MonsterRing(_MonsterJoinNeigh):
             center_idxs.append(c)
             central = mol.GetAtomWithIdx(c)
             name = mol.GetProp('_Name') if mol.HasProp('_Name') else '???'
-            central.SetProp('_ori_name', name),
+            central.SetProp('_ori_name', str(name)),
             # get data for storage
             for i in atomset:
                 old2center[i].append(c)
@@ -977,7 +977,7 @@ class _MonsterRing(_MonsterJoinNeigh):
                 # ---- reset variables ---------
                 for part in frags:
                     mol = Chem.CombineMols(mol, part)
-                    mol.SetProp('_Name', name)
+                    mol.SetProp('_Name', str(name))
                 frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
                 n = len(frags)
             if is_rw:

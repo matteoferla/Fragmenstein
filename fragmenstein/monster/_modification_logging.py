@@ -22,7 +22,7 @@ class _MonsterTracker(_MonsterBase):
         copy = Chem.Mol(mol)
         if label is None:
             label = f'Mol#{len(self.modifications)}'
-        copy.SetProp('_Name', label)
+        copy.SetProp('_Name', str(label))
         if label not in self.modifications:
             self.modifications[label] = copy
         else:

@@ -43,7 +43,7 @@ class _MonsterChimera(_MonsterMap):
                     stdev = chimera.GetAtomWithIdx(scaff_ai).GetDoubleProp('_Stdev')
                     newatom.SetDoubleProp('_Stdev', stdev)
                     origin = chimera.GetAtomWithIdx(scaff_ai).GetProp('_Origin')
-                    newatom.SetProp('_Origin', origin)
+                    newatom.SetProp('_Origin', str(origin))
                     chimera.ReplaceAtom(scaff_ai, newatom)
                     if diff_valance > 0:
                         chimera.GetAtomWithIdx(scaff_ai).SetFormalCharge(diff_valance)
@@ -114,7 +114,7 @@ class _MonsterChimera(_MonsterMap):
                     stdev = c_atom.GetDoubleProp('_Stdev')
                     origin = c_atom.GetProp('_Origin')
                     p_atom.SetDoubleProp('_Stdev', stdev)
-                    p_atom.SetProp('_Origin', origin)
+                    p_atom.SetProp('_Origin', str(origin))
                 pconf.SetAtomPosition(i, chimera_conf.GetAtomPosition(ci))
             else:
                 uniques.add(i)

@@ -156,7 +156,7 @@ class _MonsterBase:
         for i, atom in enumerate(mol.GetAtoms()):
             pos = conf.GetAtomPosition(i)
             atom.SetIntProp('_ori_i', i)
-            atom.SetProp('_ori_name', name)
+            atom.SetProp('_ori_name', str(name))
             atom.SetDoubleProp('_x', pos.x)
             atom.SetDoubleProp('_y', pos.y)
             atom.SetDoubleProp('_z', pos.z)

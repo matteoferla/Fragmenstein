@@ -422,7 +422,7 @@ class mRMSD:
                 # thank you human.
                 continue
             hit_name, idx = re.match(r'(.*)\.(\d+)', origin).groups()
-            atom.SetProp('_ori_name', hit_name)
+            atom.SetProp('_ori_name', str(hit_name))
             if hit_name not in hitdex:
                 return
             ref_conf = hitdex[hit_name].GetConformer()

@@ -62,7 +62,7 @@ class _IgorMin(_IgorBase):
         # store PDB atom names as molFileAlias
         for a in ligand.GetAtoms():
             name = a.GetPDBResidueInfo().GetName()
-            a.SetProp('molFileAlias', name)
+            a.SetProp('molFileAlias', str(a))
         # done. Bond order fixed later
         return ligand
 

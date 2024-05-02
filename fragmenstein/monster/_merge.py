@@ -75,7 +75,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
             else:
                 new_name = self._get_combined_name(scaffold, fragmentanda)
                 scaffold = rdmolops.CombineMols(scaffold, fragmentanda)
-                scaffold.SetProp('_Name', new_name)
+                scaffold.SetProp('_Name', str(new_name))
         return scaffold
 
 
@@ -111,7 +111,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
                                         other_attachments=other_attachments,
                                         other_attachment_details=other_attachment_details)
         new_name = self._get_combined_name(scaffold, fragmentanda)
-        scaffold.SetProp('_Name', new_name)
+        scaffold.SetProp('_Name', str(new_name))
         self.keep_copy(scaffold, 'pair_merged')
         return scaffold
 
@@ -159,7 +159,7 @@ class _MonsterMerge(_MonsterJoinNeigh, GPM):
             sn = sa.GetSymbol()
             fn = fragmentanda.GetAtomWithIdx(fi).GetSymbol()
             if sn != fn:
-                sa.SetProp('_AltSymbol', fn)
+                sa.SetProp('_AltSymbol', str(fn))
         # prepare.
         uniques = set(range(fragmentanda.GetNumAtoms())) - set(A2B_mapping.values())
         categories = self._categorize(fragmentanda, uniques)
