@@ -48,6 +48,8 @@ class MinimalPDBParser:
 
     def parse(self, block:str) -> None:
         # ---- parse -----------------------------------------
+        if block.find('\n') == -1:
+            raise ValueError(f'No newline found in block: Is {block} a filename?')
         def starts_with(xrow, name): return xrow.find(name) == 0
 
         for row in block.split('\n'):

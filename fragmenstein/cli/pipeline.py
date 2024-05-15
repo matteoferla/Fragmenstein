@@ -156,7 +156,7 @@ class FragmensteinParserPipeline:
         # run
         max_tasks = settings['max_tasks']
         hitnames = [h.GetProp('_Name') for h in hits]
-        all_permutation_names = itertools.permutations(hitnames, settings['combination_size'])
+        all_permutation_names = list(itertools.permutations(hitnames, settings['combination_size']))
         base_suffix = settings['suffix']
         if max_tasks == 0 or max_tasks > len(all_permutation_names):
             all_placements: pd.DataFrame = Laboratory.core_ops(hit_replacements,

@@ -11,7 +11,7 @@ from ..igor import pyrosetta  # this may be pyrosetta or a mock for Sphinx in RT
 
 class LabCombine(LabBench):
 
-    def combine_subprocess(self, binary_hits: List[bytes]):
+    def combine_subprocess(self, binary_hits: List[bytes]) -> dict:
         """
         This is the combination subprocess. The placement subprocess is ``place_subprocess``.
         They are very similar...
@@ -21,8 +21,10 @@ class LabCombine(LabBench):
         tentative_name = 'UNKNOWN'
         try:
             # this works if monster.fix_hits is not neeeded
-            hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit]
-            assert len(hits) > 0, 'No valid hits!'
+            self.journal.debug(f'Combining {len(binary_hits)} hits')
+            assert all([isinstance(hit, bytes) for hit in binary_hits]), 'Not all binary_hits are binary'
+            hits: List[Chem.Mol] = [hit for hit in map(unbinarize, binary_hits) if hit is not None]
+            assert len(hits) > 0, f'No valid hits ({len(binary_hits)} provided)'
             assert all([hit.GetNumAtoms() > 0 for hit in hits]), 'Some hits have no atoms!'
             if all([mol.HasProp('_Name') for mol in hits]):
                 tentative_name = '-'.join([mol.GetProp('_Name') for mol in hits])
@@ -116,7 +118,7 @@ class LabCombine(LabBench):
 
         def generator():
             for hits in hit_combinations:
-                yield {'binary_hits': [binarize(m) for m in hits]}
+                yield [binarize(m) for m in hits]
 
         df = self(iterator=generator(), fun=self.combine_subprocess, **kwargs)
         df['outcome'] = df.apply(self.categorize, axis=1)
