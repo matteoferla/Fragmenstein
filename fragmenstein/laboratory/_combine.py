@@ -107,6 +107,21 @@ class LabCombine(LabBench):
         df['outcome'] = df.apply(self.categorize, axis=1)
         return df
 
+    def serial_combine(self,
+              hit_combinations: Sequence[Sequence[Chem.Mol]],
+              **kwargs) -> Union[pebble.ProcessMapFuture, pd.DataFrame]:
+        """
+        This is akin to the way place works (table with hits)
+        """  # extended at end of file.
+
+        def generator():
+            for hits in hit_combinations:
+                yield {'binary_hits': [binarize(m) for m in hits]}
+
+        df = self(iterator=generator(), fun=self.combine_subprocess, **kwargs)
+        df['outcome'] = df.apply(self.categorize, axis=1)
+        return df
+
 
 # prepend docstring to combine
 LabCombine.combine.__doc__ = LabBench.__call__.__doc__ + '\n\n' + LabCombine.combine.__doc__

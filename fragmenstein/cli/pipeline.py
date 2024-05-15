@@ -156,22 +156,30 @@ class FragmensteinParserPipeline:
         # run
         max_tasks = settings['max_tasks']
         hitnames = [h.GetProp('_Name') for h in hits]
-        all_names = list(map('-'.join, itertools.permutations(hitnames, settings['combination_size'])))
+        all_permutation_names = itertools.permutations(hitnames, settings['combination_size'])
         base_suffix = settings['suffix']
-        if max_tasks == 0 or max_tasks > len(all_names):
-            all_placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
+        if max_tasks == 0 or max_tasks > len(all_permutation_names):
+            all_placements: pd.DataFrame = Laboratory.core_ops(hit_replacements,
+                                                               hit_name_combinations=all_permutation_names,
+                                                               **settings)
         else:
             all_placements = pd.DataFrame()
             letters = InfiniteAlphabet()
-            for i in range(0, len(all_names) + max_tasks, max_tasks):
+            # [lst[i:i + n] for i in range(0, len(lst), n)]
+            for i in range(0, len(all_permutation_names) + max_tasks, max_tasks):
+                current_permutation_names = all_permutation_names[i:i + max_tasks]
+
                 settings['suffix'] = base_suffix + next(letters)
                 with contextlib.suppress(Exception):
-                    placements: pd.DataFrame = Laboratory.core_ops(hit_replacements, **settings)
-                    all_placements = pd.concat([all_placements, placements], ignore_index=True)
-                settings['blacklist'] += all_names[i:i + max_tasks]
+                    placements: pd.DataFrame = Laboratory.core_ops(hit_replacements,
+                                                                   hit_name_combinations=current_permutation_names,
+                                                                   **settings)
+                    all_placements = pd.concat([all_placements, placements], ignore_index=True).copy()
             settings['suffix'] = base_suffix
+        all_placements = all_placements.copy()
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
         Laboratory.score(all_placements, hit_replacements, **settings)
+        all_placements = all_placements.copy()
         all_placements.to_pickle(f'fragmenstein_placed{base_suffix}.pkl.gz')
         all_placements.to_csv(f'fragmenstein_placed{base_suffix}.csv')
         #PandasTools.WriteSDF(all_placements, f'fragmenstein_placed{base_suffix}.sdf')

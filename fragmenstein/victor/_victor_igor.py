@@ -106,7 +106,9 @@ class _VictorIgor(_VictorStore):
         :return:
         """
         try:
-            conn = sum([o != [] for o in self.monster.origin_from_mol(self.monster.positioned_mol)])
+            origins = self.monster.origin_from_mol(self.monster.positioned_mol)
+            conn = sum([len(o) > 0 and atom.GetSymbol() != 'H' for o, atom in
+                          zip(origins, self.monster.positioned_mol.GetAtoms())])
         except KeyboardInterrupt as err:
             raise err
         except Exception as err:
@@ -118,7 +120,7 @@ class _VictorIgor(_VictorStore):
     def unconstrained_heavy_atoms(self) -> int:
         try:
             origins = self.monster.origin_from_mol(self.monster.positioned_mol)
-            unconn = sum([o == [] and atom.GetSymbol() != 'H' for o, atom in
+            unconn = sum([len(o) == 0 and atom.GetSymbol() != 'H' for o, atom in
                           zip(origins, self.monster.positioned_mol.GetAtoms())])
         except KeyboardInterrupt as err:
             raise err

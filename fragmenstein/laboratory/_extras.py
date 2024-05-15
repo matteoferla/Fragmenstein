@@ -4,7 +4,7 @@ from rdkit.Chem import PandasTools
 from .validator import place_input_validator
 from .._cli_defaults import cli_default_settings
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Sequence
 
 
 class LabExtras:
@@ -88,10 +88,10 @@ class LabExtras:
     @classmethod
     def _combine_ops(cls,
                      hits,
+                     hit_name_combinations: Sequence[Sequence[str]],
                      pdbblock,
                      suffix: str = cli_default_settings['suffix'],
                      n_cores: int = cli_default_settings['n_cores'],
-                     combination_size: int = cli_default_settings['combination_size'],
                      timeout: int = cli_default_settings['timeout'],
                      max_tasks: int = cli_default_settings['max_tasks'],
                      blacklist: List[str] = cli_default_settings['blacklist'],
@@ -103,10 +103,11 @@ class LabExtras:
         lab = cls(pdbblock=pdbblock, covalent_resi=None)  # noqa it's inherited later
         lab.blacklist = blacklist
         tick = time.time()
-        combinations: pd.DataFrame = lab.combine(hits,  # noqa it's inherited later
+        hitdex = {hit.GetProp('_Name'): hit for hit in hits}
+        hit_combinations = [list(map(hitdex.get, hit_name_combo)) for hit_name_combo in hit_name_combinations]
+        combinations: pd.DataFrame = lab.serial_combine(hit_combinations,  # noqa it's inherited later
                                                  n_cores=n_cores,
                                                  timeout=timeout,
-                                                 combination_size=combination_size,
                                                  max_tasks=max_tasks)
         combinations.to_pickle(f'fragmenstein_mergers{suffix}.pkl.gz')
         combinations.to_csv(f'fragmenstein_mergers{suffix}.csv')
