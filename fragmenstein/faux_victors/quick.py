@@ -60,4 +60,6 @@ class Quicktor(Victor):
             ddG = min_result.delta
             if ddG > 100:
                 raise FragmensteinError('Poor preminization')
-        return AllChem.DeleteSubstructs(min_result.mol, Chem.MolFromSmiles('*'))
+            return AllChem.DeleteSubstructs(min_result.mol, Chem.MolFromSmiles('*'))
+        else:
+            return AllChem.DeleteSubstructs(mol, Chem.MolFromSmiles('*'))
