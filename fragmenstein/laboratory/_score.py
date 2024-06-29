@@ -165,6 +165,9 @@ class LabScore:
         This is very much a method for the CLI.
         A real Pythonic usage would be to address the individual components.
         """
+        if 'minimized_mol' not in placements.columns:
+            cls.Victor.journal.critical('No minimized_mol column')
+            return placements
         # tanimoto
         hits: List[Chem.Mol] = hit_replacements.hit_mols.apply(operator.itemgetter(0)).to_list()
         get_similarity = GetRowSimilarity(hits)
