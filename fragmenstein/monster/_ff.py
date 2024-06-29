@@ -81,7 +81,7 @@ class _MonsterFF(_MonsterUtil):
         if len(conserved) == mol.GetNumAtoms() and fixed_mode:
             ff.Initialize()
             dU: float = ff.CalcEnergy()
-            self.journal.warning('No novel atoms found in fixed_mode (ff_max_displacement == NaN), ' + \
+            self.journal.info('No novel atoms found in fixed_mode (ff_max_displacement == NaN), ' + \
                                  'this is probably a mistake')
             # nothing to do...
             return MinizationOutcome(success=True, mol=mol, ideal=ideal, U_post=dU, U_pre=dU, delta=0)
