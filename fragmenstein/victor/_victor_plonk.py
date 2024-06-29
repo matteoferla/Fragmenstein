@@ -101,6 +101,8 @@ class _VictorPlonk(_VictorJournal):
                                                     ff_constraint=int(self.settings.get('ff_constraint', 10)),
                                                     allow_lax=True)
             return min_result.mol
+        else:
+            return mol
 
 
     @functools.cached_property
