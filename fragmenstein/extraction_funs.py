@@ -97,7 +97,16 @@ def combine_for_bondorder(template: Chem.Mol, target: Chem.Mol) -> Chem.Mol:
         for prop, value in target_atom.GetPropsAsDict().items():
             if new_atom.HasProp(prop):
                 continue
-            new_atom.SetProp(prop, value)
+            elif isinstance(value, bool):
+                new_atom.SetBoolProp(prop, value)
+            elif isinstance(value, int):
+                new_atom.SetIntProp(prop, value)
+            elif isinstance(value, float):
+                new_atom.SetDoubleProp(prop, value)
+            elif isinstance(value, str):
+                new_atom.SetProp(prop, value)
+            else:
+                pass
     return new
 
 
