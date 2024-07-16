@@ -155,6 +155,8 @@ class _VictorBase:
         self.monster = self.Monster(hits,
                                     average_position=self.monster_average_position,
                                     random_seed=self.random_seed)
+        self.monster.throw_on_discard = self.monster_throw_on_discard
+        self.monster.linker_element = self.settings.get('linker_element', 'N')
         # ## Fill by place and combine differently
         self.long_name: str = 'ligand'
         self.smiles = None
@@ -170,7 +172,6 @@ class _VictorBase:
         self.constraint = None  # Rosetta string-form constraint defs
         self.modifications = {}
         self.unminimized_pdbblock = None
-        self.monster.throw_on_discard = self.monster_throw_on_discard
         self.igor = None
         self.unbound_pose = None
         self.minimized_pdbblock = None

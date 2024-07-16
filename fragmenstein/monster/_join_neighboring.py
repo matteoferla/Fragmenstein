@@ -7,6 +7,7 @@ This is inherited by both place and combine via _MonsterMerge
 ########################################################################################################################
 
 from rdkit import Chem
+from rdkit.Chem import GetPeriodicTable
 from rdkit.Chem import AllChem
 from rdkit.Geometry.rdGeometry import Point3D
 from typing import Tuple, List, Dict, Optional, Union
@@ -28,7 +29,7 @@ class _MonsterJoinNeigh(_MonsterCommunal):
         """
         # get closets atoms
         combo: Chem.RWMol
-        candidates = List[Tuple[int, int, float]]
+        candidates: List[Tuple[int, int, float]]
         combo, candidates = self._find_all_closest(mol_A, mol_B)  # _find_all_closest is in communal
         anchor_A, anchor_B, distance = candidates[0]
         mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=True)
@@ -36,6 +37,15 @@ class _MonsterJoinNeigh(_MonsterCommunal):
             mol = self._join_atoms(combo, anchor_A, anchor_B, distance, linking=False)
         mol.SetProp('_Name', mol_A.GetProp('_Name') + '~' + mol_B.GetProp('_Name'))
         return mol
+
+    @property
+    def linker_atom_zahl(self):
+        """
+        Getter for linker_atom_zahl
+        To change set ``linker_element`` class property.
+        """
+        periodic_table = GetPeriodicTable()
+        return periodic_table.GetAtomicNumber(self.linker_element)
 
 
     def _join_atoms(self,
@@ -107,9 +117,9 @@ class _MonsterJoinNeigh(_MonsterCommunal):
             for i in range(n_new):
                 # make oxygen the first and last bridging atom.
                 if i == 0 and combo.GetAtomWithIdx(anchor_A).GetSymbol() == 'C':
-                    new_atomic = 8
+                    new_atomic = self.linker_atom_zahl
                 elif i > 2 and i == n_new -1 and combo.GetAtomWithIdx(anchor_B).GetSymbol() == 'C':
-                    new_atomic = 8
+                    new_atomic = self.linker_atom_zahl
                 else:
                     new_atomic = 6
                 idx = combo.AddAtom(Chem.Atom(new_atomic))

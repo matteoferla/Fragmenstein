@@ -16,6 +16,7 @@ cli_default_settings = dict(
     timeout=int(os.environ.get('FRAGMENSTEIN_TIMEOUT', 240)),
     blacklist=os.environ.get('FRAGMENSTEIN_BLACKLIST', '').split(),
     workfolder=os.environ.get('FRAGMENSTEIN_WORKFOLDER', 'output'),
+    linker_element=os.environ.get('FRAGMENSTEIN_LINKER_ELEMENT', 'O'),
     weights={"N_rotatable_bonds": 1,
              "\u2206\u2206G": 1,
              "interaction_uniqueness_metric": -5,

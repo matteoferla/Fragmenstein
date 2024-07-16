@@ -21,3 +21,11 @@ Namely, if the passed atom is True the penalty is added to the distance.
 The joining is done by the private method `_join_atoms`, which will add atoms in a line.
 The distance between two atoms added is 1.22 as when minimised they will be in a zip-zap.
 Currently, the added linker is a hydrocarbon.
+
+### Linker atom
+
+In version prior to 1.1 the first linker atom was oxygen, this was changed to N.
+
+The identity is controlled by the class attribute `linker_atom` in Monster,
+or the Victor argument `linker_atom` (or via env variable `FRAMENSTEIN_LINKER_ATOM`).
+Element-specific atomic radii are not considered, so changing to tellurium will behave as if it were oxygen.

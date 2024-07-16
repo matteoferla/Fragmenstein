@@ -153,6 +153,18 @@ class Internals(unittest.TestCase):
         vicky.apo_pdbblock = Mac1.get_template()
         print(vicky._get_empty_resi())
 
+    def test_linker_atom(self):
+        methane = Chem.MolFromSmiles('C')
+        AllChem.EmbedMolecule(methane)
+        ammonia = Chem.MolFromSmiles('N')
+        AllChem.EmbedMolecule(ammonia)
+        self.translate(ammonia, x=5)
+        monster = Monster([methane, ammonia])
+        monster.linker_element = 'B'
+        monster.combine(keep_all=True, joining_cutoff=5)
+        smiles = Chem.MolToSmiles(AllChem.RemoveAllHs(monster.positioned_mol))
+        self.assertEqual(smiles, 'CBCCN')
+
 
 
     # def test_doubleconstraint(self):
