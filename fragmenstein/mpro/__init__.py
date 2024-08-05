@@ -110,7 +110,7 @@ class MProVictor(Victor):
     def from_postera_row(cls, row: pd.Series, results:Optional=None):
         if row.fragments == 'x0072' or str(row.fragments) == 'nan':
             # these are not hit inspired.
-            cls.journal.error(f'No valid inspiration hits for {row.CID}.')
+            cls.journal.error(f'No valid parent hits for {row.CID}.')
             return None
         elif results and row.CID in results:
             cls.journal.info(f'{row.CID} has already been done.')

@@ -28,7 +28,7 @@ class MProPlaceTester(unittest.TestCase):
         self.assertEqual(victor.error_msg, '', victor.error_msg)
         self.assertIsNotNone(victor.minimized_mol, 'Failed minimisation')
         msg = f'x1249 is the red herring, prediction: {victor.monster.unmatched} discarded, ' + \
-              f'while x0305 and x0692 are the true inspirations. kept: {victor.monster.matched}'
+              f'while x0305 and x0692 are the true parents. kept: {victor.monster.matched}'
         self.assertIn('x1249', victor.monster.unmatched, msg)
         self.assertIn('x0305', victor.monster.matched, msg)
 
@@ -37,7 +37,7 @@ class MProPlaceTester(unittest.TestCase):
     def untest_nasty(self):  # without the test_ word this will not run.
         """
         The human suggested a lot of novel groups.
-        'x0540' is a really odd inspiration. Three atoms are conserved. the rest aren't.
+        'x0540' is a really odd parent. Three atoms are conserved. the rest aren't.
 
         Like the red herring this is impossible.
         :return:

@@ -393,7 +393,7 @@ class Unmerge(GPM):
             for neigh in atom.GetNeighbors():
                 ni = neigh.GetIdx()
                 if ni in possible_map:
-                    pass  # assuming the inspiration compound was not janky
+                    pass  # assuming the parent compound was not janky
                 elif ni in combined_map:
                     separation = self.get_inter_distance(other, combined, unoffset_o, combined_map[ni])
                     # removing the distance cutoff is a bad idea as the next atoms along with be stretched

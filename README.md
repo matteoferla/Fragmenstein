@@ -67,7 +67,7 @@ This monstrosity is therefore then energy minimised with strong constraints with
 
 There are four main classes —named after characters from the Fragmenstein book and movies:
 
-* `Monster` makes the stitched together molecules indepent of the protein — [documentation](documentation/monster/monster.md)
+* `Monster` makes the stitched together molecules indepently of the protein — [documentation](documentation/monster/monster.md)
 * `Igor` uses PyRosetta to minimise in the protein the fragmenstein monster followup — [documentation](documentation/igor.md)
 * `Victor` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](documentation/victor.md)
 * `Laboratory` does all the combinatorial operations with Victor (specific case)
@@ -270,17 +270,6 @@ The `PYROSETTA_USERNAME` and `PYROSETTA_PASSWORD` are environment variables,
 which should not be shared publicly (i.e. store them as private environmental variables
 in your target application).
 
-
-## Origin
-
-> See [Fragmenstein and COVID moonshot](documentation/covid.md).
-
-Fragmenstein was created to see how reasonable are the molecules of fragment mergers submitted
-in [the COVID moonshot project](https://discuss.postera.ai/c/covid), because after all the underlying method is 
-fragment based screening.
-[This dataset](https://github.com/postera-ai/COVID_moonshot_submissions) has some unique peculiarities that potentially
-are not encountered in other projects.
-
 ## Command line interface
 
 The strength of Fragmenstein is as a python module, but there is a command line interface.
@@ -350,6 +339,15 @@ fragmenstein victor combine -i hit1.mol hit2.mol -t protein.pdb -o output >> com
 fragmenstein victor combine -i hit1.mol hit2.mol -s 'NCO' -n molname -t protein.pdb -o output >> placed.mol
 fragmenstein laboratory combine -i hits.sdf -o output -d output.csv -s output.sdf -c 24
 ```
+## History
+
+> See [Fragmenstein and COVID moonshot](documentation/covid.md).
+
+Fragmenstein was created to see how reasonable are the molecules of fragment mergers submitted
+in [the COVID moonshot project](https://discuss.postera.ai/c/covid), because after all the underlying method is 
+fragment based screening.
+[This dataset](https://github.com/postera-ai/COVID_moonshot_submissions) has some unique peculiarities that potentially
+are not encountered in other projects.
 
 ## Authors
 

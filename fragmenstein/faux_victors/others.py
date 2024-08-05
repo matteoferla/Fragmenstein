@@ -81,7 +81,7 @@ class SingleVictor(Victor):
         self.monster.hits = self.hits
         origins: List[List[str]] = self.monster.origin_from_mol()
         single_origins = [
-            [inspiration for inspiration in atomic if keeper_name in inspiration] if isinstance(atomic, list) else []
+            [parent for parent in atomic if keeper_name in parent] if isinstance(atomic, list) else []
             for atomic in origins]
         self.monster.positioned_mol.SetProp('_true_origins', json.dumps(origins))
         self.monster.positioned_mol.SetProp('_Origins', json.dumps(single_origins))

@@ -185,7 +185,7 @@ class LabBench:
     def percent_hybrid(self, mol: Chem.Mol) -> float:
         """
         Given the origins how much of the molecule is solely from the second hit?
-        It's the ratio of the number of atoms from the second hit to the total number of atoms with an inspiration.
+        It's the ratio of the number of atoms from the second hit to the total number of atoms with an parent.
         Do note that monster has the dynamic attributes, ``.percent_common`` and ``.num_common``.
         This is how-much and how-many of the molecule is common to both hits.
         This metric is not in Monster but in the Laboratory, making it handy for overriding.
@@ -210,9 +210,9 @@ class LabBench:
         hit_names = [[ori_name.split('.')[0] for ori_name in atomic if ori_name] if atomic else [] for atomic in origins]
         flat_names = [name for atomic in hit_names for name in atomic]
         names = set(flat_names)
-        if len(names) == 0:  # no inspirations
+        if len(names) == 0:  # no parents
             return float('nan')
-        elif len(names) == 1:  # one inspirations
+        elif len(names) == 1:  # one parents
             return 0.
         # hit to number of atoms with only that hit as origin
         single_origin: Dict[str, int] = {name: sum([name in atomic for atomic in hit_names if len(atomic) == len(names) - 1]) for name in names}

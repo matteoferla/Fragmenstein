@@ -9,7 +9,7 @@ from fragmenstein import Victor
 class MultiVictorPlacement():
     """
     MultiVictorPlacement is a class to execute multiple times victor.place over the same smile using different seeds.
-    The idea is to be able to do something more like docking for those cases in which the inspirational hits do not
+    The idea is to be able to do something more like docking for those cases in which the parent hits do not
     explain an important part of the molecule
     """
 

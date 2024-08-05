@@ -217,7 +217,7 @@ class LabExtras:
     def correct_weaklings(cls, hit_replacements: pd.DataFrame, target_df: pd.DataFrame):
         """
         Some hits are weaker than the original fragment.
-        If compounds in ``target_df`` are weaker than the inspiration in ``hit_replacements``,
+        If compounds in ``target_df`` are weaker than the parent in ``hit_replacements``,
         then the outcome is changed to ``weaker``.
         """
         # just in case...

@@ -8,10 +8,10 @@ class AccountableBRICS:
     """
     BRICS decomposition that remembers where stuff came from.
 
-    This stores the original inspiration as an isotope label
+    This stores the original parent as an isotope label
     It is potentially dangerous as dummy atom isotope number plays a role too.
     No property is kept however, so it is the only working solution.
-    The attachment atom is labelled in the built molecule with `bridging_atom` which contains its inspiration's name
+    The attachment atom is labelled in the built molecule with `bridging_atom` which contains its parent's name
 
     ... code-block:: python
         decomposer = AccountableBRICS(hits)
@@ -82,11 +82,11 @@ class AccountableBRICS:
                 self.info['too_small'] += 1
                 continue
             accepted += 1
-            inspirations: List[Chem.Mol] = self.get_inspirations(built)
+            parents: List[Chem.Mol] = self.get_parents(built)
             results.append({'name': f'build#{len(results)}',  # required by Laboratory
                             'built_molecule': built,
                             'smiles': Chem.MolToSmiles(built),  # required by Laboratory
-                            'hits': inspirations,
+                            'hits': parents,
                             })
             if accepted >= max_mergers:
                 self.info['max_reached'] = True
@@ -98,15 +98,15 @@ class AccountableBRICS:
     def median(self):
         return np.median(list(map(Chem.Mol.GetNumHeavyAtoms, self.hits.values())))
 
-    def get_inspirations(self, built: Chem.Mol) -> List[Chem.Mol]:
-        inspirations: List[Chem.Mol] = []
+    def get_parents(self, built: Chem.Mol) -> List[Chem.Mol]:
+        parents: List[Chem.Mol] = []
         atom: Chem.Atom
         for atom in built.GetAtomsMatchingQuery(AllChem.IsotopeGreaterQueryAtom(0)):
             i = atom.GetIsotope()
             if i not in self.hits:
                 self.info['missing'].append(i)
                 continue
-            inspirations.append(self.hits[i])
+            parents.append(self.hits[i])
             atom.SetIsotope(0)
             atom.SetProp('bridging_atom', self.hits[i].GetProp('_Name'))
-        return sorted(inspirations, key=Chem.Mol.GetNumHeavyAtoms, reverse=True)
+        return sorted(parents, key=Chem.Mol.GetNumHeavyAtoms, reverse=True)

@@ -254,7 +254,7 @@ class _VictorUtils(_VictorShow):  # _VictorCommon -> _VictorShow
                      proximityBonding: bool = False,
                      throw_on_error:bool=False) -> Dict[str, Chem.Mol]:
         """
-         A key requirement for Monster is a separate mol file for the inspiration hits.
+         A key requirement for Monster is a separate mol file for the parent hits.
         This is however often a pdb. This converts.
         `igor.mol_from_pose()` is similar but works on a pose. `_fix_minimized()` calls ``mol_from_pose``
         and ``copy_bonds_by_atomnames`` which does not destroy pdbinfo.
