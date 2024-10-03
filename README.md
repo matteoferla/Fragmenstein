@@ -1,3 +1,5 @@
+from fragmenstein.laboratory.validator import hits_check
+
 # Fragmenstein
 
 ## Stitched molecules
@@ -98,7 +100,8 @@ Monster:
 
 ```python
 from fragmenstein import Monster
-monster = Monster(hits=[hits_a, hit_b])
+hits: List[Chem.Mol] = ... # 1 or more RDKit.Chem.Mol, sanitised, w/ conformer, preferably without explicit Hs
+monster = Monster(hits=hits)
 monster.combine()
 monster.positioned_mol #: RDKit.Chem.Mol
 ```
@@ -110,7 +113,8 @@ from fragmenstein import Victor
 import pyrosetta
 pyrosetta.init( extra_options='-no_optH false -mute all -ex1 -ex2 -ignore_unrecognized_res false -load_PDB_components false -ignore_waters false')
 
-victor = Victor(hits=[hits_a, hit_b], 
+hits: List[Chem.Mol] = ...
+victor = Victor(hits=hits, # List of 1 or more RDKit.Chem.Mol
                 pdb_filename='foo.pdb',  # or pdb_block='ATOM 1 MET ...'
                 covalent_resi=1) # if not covalent, just put the first residue or something.
 victor.combine()
@@ -122,7 +126,7 @@ Igor.init_pyrosetta()
 ```
 
 The two seem similar, but Victor places with Monster and minimises with Igor.
-As a result it has energy scores
+As a result it has ∆G_bind energy score (difference between holo minus apo+ligand Gibbs free energy predictions):
 
     victor.ddG
     
@@ -130,13 +134,15 @@ Fragmenstein is not really a docking algorithm as it does not find the pose with
 within a given volume.
 Consequently, it is a method to find how **faithful** is a given followup to the hits provided.
 Hence the minimised pose should be assessed by the RMSD metric or similar
-and the ∆∆G score used solely as a cutoff —lower than zero.
+and the ∆G_bind score used solely as a cutoff —lower than zero.
 
 For a large number of combination:
 
 ```python
 from fragmenstein import Laboratory
 
+pdbblock: str = ... # a PDB block
+hits: List[Chem.Mol] = ... # 1 or more RDKit.Chem.Mol
 lab = Laboratory(pdbblock=pdbblock, covalent_resi=None)
 combinations:pd.DataFrame = lab.combine(hits, n_cores=28)
 ```
@@ -174,6 +180,7 @@ therefore when using with `Laboratory` request only one core.
 ```python
 from fragmenstein import Laboratory, OpenVictor
 Laboratory.Victor = OpenVictor
+
 lab = Laboratory(pdbblock=MPro.get_template())
 combinations: pd.DataFrame = lab.combine(hits,
                                          n_cores=1,  # 1 core unless $OPENMM_CPU_THREADS is set
@@ -187,8 +194,12 @@ Monster:
 
 ```python
 from fragmenstein import Monster
-monster = Monster(hits=[hits_a, hit_b])
-monster.place_smiles('CCO')
+from typing import Sequence
+
+hits: Sequence[Chem.Mol] = ...
+smiles : str = 'CCO'
+monster = Monster(hits=hits)
+monster.place_smiles(smiles)
 monster.positioned_mol
 ```
     
@@ -196,10 +207,13 @@ Victor:
 
 ```python
 from fragmenstein import Victor, Igor
-    Igor.init_pyrosetta()
-    victor = Victor(hits=[hits_a, hit_b], pdb_filename='foo.pdb')
-    victor.place('CCO')
-    victor.minimized_mol
+
+hits: Sequence[Chem.Mol] = ...
+smiles : str = 'CCO'
+Igor.init_pyrosetta()
+victor = Victor(hits=hits, pdb_filename='foo.pdb')
+victor.place('CCO')
+victor.minimized_mol
 ```
     
 For a lengthier example see [example notes](documentation/example.md) 
@@ -213,6 +227,7 @@ Some demo data is provided in the `demo` submodule.
 from fragmenstein.demo import MPro, Mac1
 
 pdbblock: str = Mac1.get_template()
+hitname: str = ...
 for hitname in Mac1.get_hit_list():
     Mac1.get_hit(hitname)
     ...
