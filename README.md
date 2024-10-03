@@ -354,6 +354,20 @@ fragmenstein victor combine -i hit1.mol hit2.mol -t protein.pdb -o output >> com
 fragmenstein victor combine -i hit1.mol hit2.mol -s 'NCO' -n molname -t protein.pdb -o output >> placed.mol
 fragmenstein laboratory combine -i hits.sdf -o output -d output.csv -s output.sdf -c 24
 ```
+## Synergy with other tools
+
+* [Molecular Rectifier](https://github.com/matteoferla/molecular_rectifier) is used to correct the mistakes in the merged molecules,
+   and is usable for other algorithms, especially de novo design via denoising diffusion probabilistic models
+  (cf [blogpost discussion for the latter](https://www.blopig.com/blog/2024/09/out-of-the-box-rdkit-valid-is-an-imperfect-metric-a-review-of-the-kekulizeexception-and-nitrogen-protonation-to-correct-this/))
+* Fragmenstein combine route does not check if a compound is purchasable. Above NextMove Software SmallWorld is used
+  ([SmallWorld hosted by John Irwin](sw.docking.org)) to find the top N analogues,
+  via [an API](https://github.com/matteoferla/Python_SmallWorld_API).
+* In [Arthorian Quest](https://github.com/matteoferla/Arthorian-Quest), a parent combound is coverted with ease into an ambiguous SMARTS pattern, 
+  catalogue compounds are searched with NextMove Software's Arthor ([hosted by John Irwin](arthor.docking.org)) and then placed with Fragmenstein.
+* Steph Wills's [fragment network merges repo](https://github.com/stephwills/fragment_network_merges)
+    enumerates superstructures of two parent hits from catalogue and places them with Fragmenstein.
+* [SynDirElla](https://github.com/kate-fie/syndirella) performs a retrosynthesis of a compound, enumerates close analogues of the synthons and places their combinations
+
 ## History
 
 > See [Fragmenstein and COVID moonshot](documentation/covid.md).
@@ -380,9 +394,7 @@ are not encountered in other projects.
 
 ## See Also
 
-* ChemRXiv preprint — TBA
-* Steph Wills's [fragment network merges repo](https://github.com/stephwills/fragment_network_merges)
-    contains useful filtering algorithms
+* ChemRXiv preprint — https://chemrxiv.org/engage/chemrxiv/article-details/65d751ab9138d23161b7ea38
 * Fragmenstein is used in Schuller et. al. 2021
     [![SCHULLER et al](https://img.shields.io/badge/doi-10.1126%2Fsciadv.abf8711-fcb426)](https://doi.org/10.1126%2Fsciadv.abf8711)
 * Figures for the upcoming manuscript are in a separate
