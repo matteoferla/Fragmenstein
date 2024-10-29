@@ -259,7 +259,15 @@ Python 3.6 or above. Install from pipy
 
 > :warning: PyRosetta no longer runs on CentOS 7 due to old kernel headers (cf. [blog post](https://blog.matteoferla.com/2022/11/glibc-236-vs-centos-7-tale-of-failure.html)).
 
-Pyrosetta requires a password to be downloaded (academic licence) obtained by https://els2.comotion.uw.edu/product/pyrosetta. 
+Modern way:
+
+```bash
+pip install pyrosetta-installer 
+python -c 'import pyrosetta_installer; pyrosetta_installer.install_pyrosetta()'```
+
+Details from former way:
+
+Pyrosetta used to require a password to be downloaded (academic licence) obtained by https://els2.comotion.uw.edu/product/pyrosetta. 
 This is a different licence from the Rosetta one. The username of the Rosetta binaries is formatted variant of "academic user", 
 while the PyRosetta is the name of a researcher whose name bares an important concept in protein folding,
 like boltzmann + constant (but is not that). 
