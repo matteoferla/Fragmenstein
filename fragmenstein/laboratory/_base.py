@@ -37,8 +37,6 @@ def binarize(mol:Chem.Mol, ignore_errors:bool=True) -> bytes:
         return mol.ToBinary(propertyFlags=0b00010111)    # noqa it's an instance.
     except KeyboardInterrupt as err:
         raise err
-    except KeyboardInterrupt as err:
-        raise err
     except exception as error:
         return Chem.Mol().ToBinary(propertyFlags=0b00010111)  # noqa
 
