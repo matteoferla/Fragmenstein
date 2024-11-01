@@ -1,4 +1,56 @@
 # Examples
+Place a SMILES pattern according to one or more parent hits with `Monster` (no minimisation).
+
+```python
+from fragmenstein import Monster
+from typing import Sequence
+
+hits: Sequence[Chem.Mol] = ...
+smiles : str = 'CCO'
+monster = Monster(hits=hits)
+monster.place_smiles(smiles)
+monster.positioned_mol
+```
+
+Victor:
+
+```python
+from fragmenstein import Victor, Igor
+
+hits: Sequence[Chem.Mol] = ...
+smiles : str = 'CCO'
+Igor.init_pyrosetta()
+victor = Victor(hits=hits, pdb_filename='foo.pdb')
+victor.place('CCO')
+victor.minimized_mol
+```
+
+For a lengthier example see [example notes](documentation/example.md) 
+or [documentation](https://fragmenstein.readthedocs.io/en/latest/).
+
+### Demo data
+
+Some demo data is provided in the `demo` submodule.
+
+```python
+from fragmenstein.demo import MPro, Mac1
+
+pdbblock: str = Mac1.get_template()
+hitname: str = ...
+for hitname in Mac1.get_hit_list():
+Mac1.get_hit(hitname)
+...
+```
+
+To use SAR-COV-2 MPro as a test bed, the following may be helpful:
+
+* `fragmenstein.MProVictor`, a derived class (of `Victor`), with various presents specific for MPro.
+* `fragemenstein.get_mpro_template()`, returns the PDB block (str) of MPro
+* `fragemenstein.get_mpro_molblock(xnumber)`, returns the mol block (str) of a MPro hit from Fragalysis
+* `fragemenstein.get_mpro_mol(xnumber)`, as above but returns a `Chem.Mol` instance.
+
+For the matched sets of derivative hits to reference hits see the [manuscript's data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data/blob/main/moonshot/mols/moonshot.json).
+
 
 ## Config
 Victor is the main entrypoint to the module.
