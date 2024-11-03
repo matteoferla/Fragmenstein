@@ -76,7 +76,7 @@ def convert_write(markdown_filename, new_filename):
 
     def fix_md_link(match: re.Match) -> str:
         link = match['link']
-        if '../' in link or 'documentation/' in link or 'notes/' in link or 'images/' in link:
+        if any([parent in link for parent in ('../', 'documentation/', 'further-detail/', 'notes/', 'images/')]):
             pass
         elif 'documentation' in markdown_filename:  # sibling file
             link = 'doc_' + link
@@ -84,9 +84,11 @@ def convert_write(markdown_filename, new_filename):
             link = 'note_' + link
         link = link.replace('../', '')
         link = re.sub(r'^images/', '_static/', link)
+        link = re.sub(r'^documentation/further-detail/', 'extra_', link)
         link = re.sub(r'^documentation/notes/', 'note_', link)
         link = re.sub(r'^documentation/', 'doc_', link)
         link = re.sub(r'^notes/', 'note_', link)
+        link = re.sub(r'^further-detail/', 'extra_', link)
         link = re.sub(r'\.md$', '.html', link)
         return f"[{match['label']}]({link})"
 
@@ -100,6 +102,7 @@ convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.md')
 new_files = {'discussion': [], 'notes': []}
 definitions = (('documentation', 'doc_', 'discussion'),
                ('documentation/notes', 'note_', 'notes'),
+               ('documentation/further-detail', 'extra_'),
                ('documentation/monster', 'doc_', 'discussion'))
 for folder, prefix, pagename in definitions:
     for filename in os.listdir(os.path.join(repo_base_path, folder)):

@@ -146,7 +146,7 @@ I (regretfully) opted for ∆∆G.
 
 ## History
 
-> See [Fragmenstein and COVID moonshot](covid.md).
+> See [Fragmenstein and COVID moonshot](further-detail/covid.md).
 
 Fragmenstein was created to see how reasonable are the molecules of fragment mergers submitted
 in [the COVID moonshot project](https://discuss.postera.ai/c/covid), because after all the underlying method is 
@@ -156,6 +156,6 @@ are not encountered in other projects.
 
 ## Other features
 
-* [Covalent hits](documentation/covalents.md)
-* [Logging](documentation/logging_and_debugging.md)
+* [Covalent hits](further-detail/covalents.md)
+* [Logging](further-detail/logging_and_debugging.md)
 

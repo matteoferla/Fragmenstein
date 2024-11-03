@@ -26,9 +26,22 @@ Alternatively, I used [Arthor](arthor.docking.org) via [Arthorian-Quest](https:/
 by making an ambiguous SMARTS pattern and explore what analogues work,
 or see what Reaxys suggests I do and try and fix the nasty bits.
 
+## Polycyclic compounds
+
+MCule has more building blocks with 3 fused ring systems than Enamine.
+
+One thing to keep an eye out for is whether Hückel's rule is satisfied.
+Whereas a cata-fused system is likely aromatic if the two joined rings where aromatic
+(with a caveat for pyrrolic vs pyridinic nitrogens), with peri-fused systems it is always true.
+
+However, such large aromatic systems are hard to make,
+likely fluorescent (i.e. assay interference),
+may intercalate DNA,
+and their rigidity might make them bad binders in a dynamic system, so best avoided.
+
 ## Angles
 
-A problem that sometimes arises is that the angles are not right,
+A problem that sometimes arises is that the angles are not right
 when linking two arenes.
 
 * Do they need to be aromatic? Or would a greasy 3D compound work, like norbornane?

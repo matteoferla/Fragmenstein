@@ -1,4 +1,42 @@
 # Examples
+
+## View
+First and formost, when using the module in a notebook, it is best to use the `view` method to see the results.
+Fragmenstein has a helper function to monkey patch `py3Dmol` to make it easier to use.
+It also has a nglview helper function, but that module has stopped working with the latest JupyterLab.
+
+```python
+import py3Dmol
+from fragmenstein import Victor, Igor
+from fragmenstein.display import py3Dmol_monkey_patch, divergent_colors
+
+hit1: Chem.Mol = ...
+smiles: str = ...
+template: str = Path(...).read_text()
+name: str = ...
+
+Igor.init_pyrosetta()
+vicky = Victor([hit1], pdb_block=template)
+vicky.place(smiles, long_name=name)
+
+colors = divergent_colors[3]
+view = py3Dmol.view()
+py3Dmol_monkey_patch(view)
+for i, mol in enumerate(vicky.hits):
+    color = colors[i+1]
+    view.add_mol(carbon_color=color, mol=mol, opacity=0.7)
+# show the minimised:
+view.add_mol(carbon_color=colors[0], mol=vicky.minimized_mol, opacity=1) #name='LIG', 
+# show the unmimised
+view.add_mol(carbon_color=colors[0], mol=vicky.monster.positioned_mol, opacity=1) #name='LIG', 
+view.add_template(template)
+print(vicky.summarize())
+#view.zoomTo({'resn':'LIG'})
+view.zoomTo()
+view.show()
+```
+
+## Monster
 Place a SMILES pattern according to one or more parent hits with `Monster` (no minimisation).
 
 ```python
@@ -383,7 +421,7 @@ victor.place(similarity_results.smiles) # to place.
 ## Michelanglo
 To make an interactive page in [Michelanglo](https://michelanglo.sgc.ox.ac.uk/), like [this example](https://michelanglo.sgc.ox.ac.uk/r/fragmenstein).
 one can use the [michelanglo_api](https://github.com/matteoferla/MichelaNGLo-api) (pip name is `michelanglo-api`).
-The data is stored in a github repo. For a detailed example see [pipeline](pipeline.md).
+The data is stored in a github repo. For a detailed example see [pipeline](further-detail/pipeline.md).
 
 First, make sure to keep the results of the operations
 

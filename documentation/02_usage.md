@@ -5,8 +5,8 @@
 There are four main classes —named after characters from the Fragmenstein book and movies:
 
 * `Monster` makes the stitched together molecules indepently of the protein — [documentation](monster/monster.md)
-* `Igor` uses PyRosetta to minimise in the protein the fragmenstein monster followup — [documentation](igor.md)
-* `Victor` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](victor.md)
+* `Igor` uses PyRosetta to minimise in the protein the fragmenstein monster followup — [documentation](further-detail/igor.md)
+* `Victor` is a pipeline that calls the parts, with several features, such as warhead switching —[documentation](further-detail/victor.md)
 * `Laboratory` does all the combinatorial operations with Victor (specific case)
 
 NB. In the absence of `pyrosetta` (which requires an academic licence), all bar ``Igor`` work and 
@@ -16,7 +16,7 @@ alternative Victor classes need to be used, for example
 Additionally, there are a few minor classes.
 
 One of these is ``mRMSD``, a multiple RMSD variant which does not superpose/align and bases which atoms 
-to use on coordinates —[documentation](mrmsd.md)
+to use on coordinates —[documentation](further-detail/mrmsd.md)
 
 The class `Walton` performs geometric manipulations of compounds, to set them up to demonstrate
 features of Fragmenstein (like captain Walton, it does not partake in the plot, but is key to the narration)
@@ -28,7 +28,7 @@ There are two module hosted elsewhere:
 
 ### Combine
 It can also merge and link fragment hits by itself and find the best scoring mergers.
-For details about linking see [linking notes](linking.md).
+For details about linking see [linking notes](further-detail/linking.md).
 It uses the same overlapping position clustering, but also has a decent amount of impossible/uncommon chemistry prevention.
 
 Monster:
@@ -87,7 +87,7 @@ Here is [an interactive example of placed molecules](https://michelanglo.sgc.ox.
 
 It is rather tolerant to erroneous/excessive submissions (by automatically excluding them)
 and can energy minimise strained conformations.
-![summary](images/new_summary.jpg)
+![summary](../images/new_summary.jpg)
 
 Three mapping approaches were tested, but the key is that hits are pairwise mapped to each other by means 
 of one-to-one atom matching based upon position as opposed to similarity which is easily led astray. 

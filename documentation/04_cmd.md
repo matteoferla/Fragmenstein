@@ -47,7 +47,7 @@ Command:
 
 ## Monster combine
 
-See [workings.md](workings.md) for details.
+See [workings.md](01_workings.md) for details.
 
 Example:
 
@@ -67,7 +67,7 @@ Usage:
 
 ## Monster place
 
-See [workings.md](workings.md) for details.
+See [workings.md](01_workings.md) for details.
 
 Example:
 
@@ -90,7 +90,7 @@ Usage:
 ## Victor combine
 
     
-See [workings.md](workings.md) and [victor.md](victor.md) for details.
+See [workings.md](01_workings.md) and [victor.md](further-detail/victor.md) for details.
 
 Example:
 
@@ -115,7 +115,7 @@ Usage:
 ## Victor place
 
     
-See [workings.md](workings.md) and [victor.md](victor.md) for details.
+See [workings.md](01_workings.md) and [victor.md](further-detail/victor.md) for details.
 
 Example:
 
@@ -142,7 +142,7 @@ Usage:
 
 ## Laboratory and pipeline subcommands
 
-See [workings.md](workings.md) and [pipeline.md](pipeline.md) for details.
+See [workings.md](01_workings.md) and [pipeline.md](further-detail/pipeline.md) for details.
 
 For laboratory and pipeline subcommands, the number of cores can be set.
 When not specified, the number of core of the machine is used, this is NOT the number of available cores.
@@ -287,7 +287,7 @@ Usage:
  
 This in effect reflects the pipeline I commonly use.
 
-![pipeline](images/pipeline-01.png)
+![pipeline](../images/pipeline-01.png)
 
 The values for the pipeline command are:
 
@@ -316,7 +316,7 @@ To avoid having too many arguments, some default values can be set via environme
 
 A yaml file can be set in `$FRAGMENSTEIN_SETTINGS`,
 
-The defaults can be seen in [settings.py](https://github.com/matteoferla/Fragmenstein/blob/9a026434dd27275c1b1f13b102b2e31e4c2b59ae/fragmenstein/settings.py)
+The defaults can be seen in [settings.py](../fragmenstein/settings.py)
 
 In the yaml the values are lowercase, while as environment variables they are uppercase prefixed with `FRAGMENSTEIN_`.
 
