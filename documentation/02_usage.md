@@ -138,3 +138,12 @@ There are some empty methods aimed at easier subclassing:
 * `Victor.pre_igor_step` - called in the `Victor._calculate_*_thermo` methods before the `Igor` setup is started
 * `Victor.pose_mod_step` - called in the `Victor._calculate_*_thermo` methods after the pose in loaded, an alternative to `pose_fx`
 * `Victor.post_igor_step` - called in the `Victor._calculate_*_thermo` methods after the `Igor` minimisation is finished
+
+## E-amide isomerism
+
+The static method `Monster.inspect_amide_torsions` called on a Chem.Mol will return a list of the amide torsions.
+This is because some mergers do result in cis (E) amides, which are not ideal.
+By default, the MMFF forcefield will penalise exocyclic cis-amides.
+There is a setting, `ff_prevent_cis` (as env `$FRAGMENSTEIN_FF_PREVENT_CIS`),
+which when set to `false` will disable the addition of a penalty against cis-amides to the MMFF forcefield
+when `Monster.mmff_minimize` is called.
