@@ -1,7 +1,6 @@
 from ._utility import _MonsterUtil
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdqueries, rdMolAlign
-from rdkit import ForceField as FF
+from rdkit.Chem import AllChem, rdqueries, rdMolAlign, rdMolTransforms
 from typing import Optional, List, Union, Tuple, Dict
 from warnings import warn
 from dataclasses import dataclass
@@ -28,7 +27,9 @@ class _MonsterFF(_MonsterUtil):
                       ff_constraint: int = 10,
                       ff_max_iterations: int=200,
                       ff_cutoff: float = 100.,
-                      allow_lax: bool = True) -> MinizationOutcome:
+                      allow_lax: bool = True,
+                      prevent_cis: bool = True,
+                      ) -> MinizationOutcome:
         """
         Minimises a mol, or self.positioned_mol if not provided, with MMFF constrained to ff_max_displacement Å.
         Gets called by Victor if the flag .monster_mmff_minimisation is true during PDB template construction.
@@ -44,7 +45,7 @@ class _MonsterFF(_MonsterUtil):
         :return: None
 
         Note that most methods calling this via Victor
-        now use its ``.settings.py['ff_max_displacement']`` and ``.settings.py['ff_constraint']``
+        now use its ``.settings['ff_max_displacement']`` and ``.settings['ff_constraint']``
         and do not use the defaults.
         """
         # ## input fixes
@@ -65,73 +66,39 @@ class _MonsterFF(_MonsterUtil):
         ideal: Chem.Mol = self.make_ideal_mol(mol, ff_minimise=True)
         ideal_E: float = ideal.GetDoubleProp('Energy')
         # ## Start FF
-        p = AllChem.MMFFGetMoleculeProperties(combo, 'MMFF94')
+        p: AllChem.MMFFMolProperties = AllChem.MMFFGetMoleculeProperties(combo, 'MMFF94')
         if p is None:
             self.journal.error(f'MMFF cannot work on a molecule that has errors!')
             return MinizationOutcome(success=False, mol=mol, ideal=ideal)
-        ff = AllChem.MMFFGetMoleculeForceField(combo, p, ignoreInterfragInteractions=False)
+        ff: AllChem.ForceField = AllChem.MMFFGetMoleculeForceField(combo, p, ignoreInterfragInteractions=False)
         if ff is None:
             return MinizationOutcome(success=False, mol=mol, ideal=ideal,
                                      U_post=float('nan'), U_pre=float('nan'), delta=0)
         # restrain
-        restrained = []
         # mol not combo here:
-        conserved: List[Chem.Atom] = list(mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)))
+        conserved: List[Chem.Atom] = self._get_conserved_for_ff_step(mol)
         # weird corner case
         if len(conserved) == mol.GetNumAtoms() and fixed_mode:
             ff.Initialize()
-            dU: float = ff.CalcEnergy()
+            dU: float = ff.CalcEnergy()  # noqa internal energy
             self.journal.info('No novel atoms found in fixed_mode (ff_max_displacement == NaN), ' + \
                                  'this is probably a mistake')
             # nothing to do...
             return MinizationOutcome(success=True, mol=mol, ideal=ideal, U_post=dU, U_pre=dU, delta=0)
         # constrain or freeze
-        for atom in conserved:
-            i = atom.GetIdx()
-            if atom.GetAtomicNum() == 1:
-                # let hydrogens move
-                continue
-            elif fixed_mode:
-                ff.AddFixedPoint(i)
-            elif (atom.GetProp('_isRing') if atom.HasProp('_isRing') else False):
-                # be 5-fold more lax with rings
-                ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint/2)
-            else:
-                # https://github.com/rdkit/rdkit/blob/115317f43e3bdfd73673ca0e4c6b4035aa26a034/Code/ForceField/UFF/PositionConstraint.cpp#L35
-                ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint)
-            restrained.append(i)
-        # constrain dummy atoms
-        for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_IsDummy')):
-            i = atom.GetIdx()
-            ff.MMFFAddPositionConstraint(i, maxDispl=0, forceConstant=ff_constraint * 5)
-            restrained.append(i)
-        for i in fixed_idxs:  # neighborhood is frozen
-            ff.AddFixedPoint(i)
+        restrained = self._add_constraint_to_ff_step(mol=mol,
+                                                     ff=ff,
+                                                     conserved=conserved,
+                                                     fixed_mode=fixed_mode,
+                                                     fixed_idxs=fixed_idxs,
+                                                     ff_constraint=ff_constraint,
+                                                     ff_max_displacement=ff_max_displacement,
+                                                     prevent_cis=prevent_cis)
         # ## Minimize
         try:
-            dG_pre = ff.CalcEnergy()
-            dG_post = dG_pre
-            previous_dG = 0.
-            m = -1
-            # this is a bit of a hack, but it works to make sure its not a flipped plateau-like local minima
-            while previous_dG == 0. or previous_dG - dG_post > 0.5:
-                previous_dG = dG_post
-                m = ff.Minimize(maxIts=ff_max_iterations)
-                dG_post = ff.CalcEnergy()
-                if m == -1:
-                    break
-            if m == -1:
-                self.journal.error('MMFF Minisation could not be started')
-                success = False
-            elif m == 0:
-                self.journal.info('MMFF Minisation was successful')
-                success = True
-            elif m == 1:
-                self.journal.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
-                success = False
-            else:
-                self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
-                success = False
+            success, dG_pre, dG_post = self._classified_ff_minimize_step(mol=mol,
+                                                                         ff=ff,
+                                                                         ff_max_iterations=ff_max_iterations)
         except RuntimeError as error:
             self.journal.info(f'MMFF minimisation failed {error.__class__.__name__}: {error}')
             return MinizationOutcome(success=False, mol=mol, ideal=ideal)
@@ -164,6 +131,152 @@ class _MonsterFF(_MonsterUtil):
                                  U_post=dG_post,
                                  U_pre=dG_pre,
                                  delta=dG_post - dG_pre)
+
+    def _get_conserved_for_ff_step(self, mol) -> List[Chem.Atom]:
+        # list(mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_Novel', negate=True)))
+        conserved: List[Chem.Atom] = []
+        atom: Chem.Atom
+        for atom in mol.GetAtoms():
+            if atom.GetAtomicNum() == 1:  # hydrogen
+                pass
+            elif atom.HasProp('_Novel') and atom.GetBoolProp('_Novel'):
+                pass
+            elif atom.HasProp('_x') or \
+                    (atom.HasProp('_Origin') and atom.GetProp('_Origin') != 'none'):
+                conserved.append(atom)
+            else:
+                pass
+        return conserved
+
+
+
+    def _add_constraint_to_ff_step(self, mol: Chem.Mol,
+                                   ff: AllChem.ForceField, conserved: List[Chem.Atom],
+                                   fixed_mode: bool, fixed_idxs: List[int],
+                             ff_constraint, ff_max_displacement, prevent_cis) -> List[int]:
+        """
+        See ``mmff_minimize`` for details.
+        """
+        restrained = []
+        atom: Chem.Atom
+        for atom in conserved:
+            i = atom.GetIdx()
+            if atom.GetAtomicNum() == 1:
+                # let hydrogens move
+                continue
+            elif fixed_mode:
+                atom.SetProp('_MMFF', 'fixed')
+                ff.AddFixedPoint(i)
+            elif (atom.GetProp('_isRing') if atom.HasProp('_isRing') else False):
+                # be 2-fold more lax with rings
+                atom.SetProp('_MMFF', 'ring')
+                ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint/2)
+            else:
+                # https://github.com/rdkit/rdkit/blob/115317f43e3bdfd73673ca0e4c6b4035aa26a034/Code/ForceField/UFF/PositionConstraint.cpp#L35
+                atom.SetProp('_MMFF', 'atom')
+                ff.MMFFAddPositionConstraint(i, maxDispl=ff_max_displacement, forceConstant=ff_constraint)
+            restrained.append(i)
+        # constrain dummy atoms
+        atom: Chem.Atom
+        for atom in mol.GetAtomsMatchingQuery(rdqueries.HasPropQueryAtom('_IsDummy')):
+            i = atom.GetIdx()
+            atom.SetProp('_MMFF', 'dummy')
+            ff.MMFFAddPositionConstraint(i, maxDispl=0, forceConstant=ff_constraint * 5)
+            restrained.append(i)
+        for i in fixed_idxs:  # neighborhood is frozen
+            ff.AddFixedPoint(i)
+        self._add_ff_amide_correction(mol, ff, ff_constraint, prevent_cis)
+        return restrained
+
+    def inspect_amide_torsions(self, mol):
+        """
+        The most noticeable torsions are the amide ones.
+        This is to describe what is happening.
+        """
+        amidelike = Chem.MolFromSmarts('*C(=[O,S,N])[N,O]*')
+        conf = mol.GetConformer()
+        for cprime, calpha, pendant, hetero, descendant in mol.GetSubstructMatches(amidelike):
+            print('torsions',
+                  rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, pendant, hetero),
+                  rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, hetero, descendant))
+            print('angles',
+                  rdMolTransforms.GetAngleDeg(conf, cprime, calpha, pendant),
+                  rdMolTransforms.GetAngleDeg(conf, calpha, hetero, descendant)
+                  )
+
+    def _add_ff_amide_correction(self, mol: Chem.Mol, ff: AllChem.ForceField, forceConstant: float, prevent_cis: bool):
+        """
+        The amides are normally fixed by the normalisation... but not always,
+        especially when the constraints are forcing mad things.
+        This really drives it home.
+        """
+
+        conf = mol.GetConformer()
+        amidelike = Chem.MolFromSmarts('*[C!R](=[O,S,N])[N,O]*')
+        for cprime, calpha, pendant, hetero, descendant in mol.GetSubstructMatches(amidelike):
+            n_hydrogens_hetero = sum([neigh.GetAtomicNum() == 1 for neigh in mol.GetAtomWithIdx(hetero).GetNeighbors()])
+            descendant_is_hydro = mol.GetAtomWithIdx(descendant).GetAtomicNum() == 1
+            hetero_is_oxy = mol.GetAtomWithIdx(hetero).GetAtomicNum() == 8
+            for idxs in [(cprime, calpha, pendant, hetero), (cprime, calpha, hetero, descendant)]:
+                omega = rdMolTransforms.GetDihedralDeg(conf, *idxs)
+                is_cis = abs(omega) < 90
+                if hetero_is_oxy and idxs[3] == descendant:
+                    continue  # the substituent on an ester is free to rotate
+                if hetero_is_oxy:
+                    is_cis = False  # cis ester is a no.
+                elif prevent_cis and descendant_is_hydro and n_hydrogens_hetero == 1:
+                    # secondary amide but we have hydrogen here
+                    is_cis = True  # the hydrogen is cis
+                elif prevent_cis and n_hydrogens_hetero == 1:
+                    # secondary amide, ought to be trans
+                    is_cis = False
+                else:
+                    pass
+                    # prevent_cis = False or
+                    # primary and tertiary amides = does not matter
+                if is_cis:
+                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-5,
+                                                maxDihedralDeg=+5, forceConstant=forceConstant)
+                elif omega <= -90:  # trans and negative angle (default)
+                    # the sign "should" not matter, but I think it does funny things
+                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-185,
+                                                maxDihedralDeg=-175, forceConstant=forceConstant)
+                else:  # trans and positive angle
+                    # does this even happen?
+                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=175,
+                                                maxDihedralDeg=185, forceConstant=forceConstant)
+                for idxs in [(cprime, calpha, pendant), (calpha, hetero, descendant)]:
+                    ff.MMFFAddAngleConstraint(*idxs, relative=False, minAngleDeg=110, maxAngleDeg=130,
+                                              forceConstant=forceConstant)
+
+    def _classified_ff_minimize_step(self, mol: Chem.Mol, ff: AllChem.ForceField, ff_max_iterations: int) -> Tuple[bool, float, float]:
+        """
+        See ``mmff_minimize`` for details.
+        """
+        dG_pre = ff.CalcEnergy()  # noqa although yes Gibbs is uppercase, but this is actually U, internal energy
+        dG_post = dG_pre  # noqa
+        previous_dG = 0.  # noqa
+        m = -1
+        # this is a bit of a hack, but it works to make sure it's not a flipped plateau-like local minima
+        while previous_dG == 0. or previous_dG - dG_post > 0.5:
+            previous_dG = dG_post
+            m = ff.Minimize(maxIts=ff_max_iterations)
+            dG_post = ff.CalcEnergy()
+            if m == -1:
+                break
+        if m == -1:
+            self.journal.error('MMFF Minisation could not be started')
+            success = False
+        elif m == 0:
+            self.journal.info('MMFF Minisation was successful')
+            success = True
+        elif m == 1:
+            self.journal.info('MMFF Minisation was run, but the minimisation was not unsuccessful')
+            success = False
+        else:
+            self.journal.critical("Iä! Iä! Cthulhu fhtagn! Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn")
+            success = False
+        return success, dG_pre, dG_post
 
     def _prep_combined(self, mol, neighborhood) -> Tuple[Chem.Mol, List[int]]:
         # ## protect (DummyMasker could be used here)
@@ -309,7 +422,7 @@ class _MonsterFF(_MonsterUtil):
         ideal = Chem.Mol(mol)
         ideal.SetDoubleProp('Energy', float('nan'))
         AllChem.EmbedMolecule(ideal)
-        p: FF.MMFFMolProperties = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
+        p: AllChem.MMFFMolProperties = AllChem.MMFFGetMoleculeProperties(ideal, 'MMFF94')
         ff = AllChem.MMFFGetMoleculeForceField(ideal, p)
         if ff is None:
             raise FragmensteinError('Ideal compound failed. Something is wrong with the SMILES')

@@ -99,7 +99,9 @@ class _VictorPlonk(_VictorJournal):
                                                     neighborhood=neighborhood,
                                                     ff_max_displacement=float(self.settings.get('ff_max_displacement', 0.)),
                                                     ff_constraint=int(self.settings.get('ff_constraint', 10)),
-                                                    allow_lax=True)
+                                                   allow_lax=bool(self.settings['ff_prevent_cis']),
+                                                   prevent_cis=bool( self.settings['ff_prevent_cis'])
+                                                   )
             return min_result.mol
         else:
             return mol

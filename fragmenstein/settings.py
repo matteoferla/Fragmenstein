@@ -9,9 +9,9 @@ default_settings_yaml = """
 
 # General settings
 work_path: output
-monster_average_position: False
-monster_throw_on_discard: False
-ff_minisation: True
+monster_average_position: false
+monster_throw_on_discard: false
+ff_minisation: true
 
 # During the RDKit minisation, how much lee-way to give an atom before it gets penalised.
 ff_max_displacement: 0.1
@@ -23,11 +23,13 @@ ff_constraint: 5.
 ff_max_iterations: 200
 
 # During the RDKit minisation, use the neighbourhood to constrain the molecule.
-ff_use_neighborhood: True
+ff_use_neighborhood: true
 ff_neighborhood: 6.0
+ff_allow_lax: true
+ff_prevent_cis: true
 
 # For Wictor, weird things happen if True
-ff_minimise_ideal: False
+ff_minimise_ideal: false
 
 # OpenMM settings
 mm_restraint_k: 1000.0

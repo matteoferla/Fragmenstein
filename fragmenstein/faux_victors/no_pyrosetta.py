@@ -85,7 +85,9 @@ class Wictor(Victor):
                                                 ff_max_displacement=float(self.settings['ff_max_displacement']), # def 0
                                                 ff_constraint=int(self.settings['ff_constraint']), # def 10
                                                 ff_max_iterations=int(self.settings['ff_max_iterations']), # def 200
-                                                allow_lax=True)
+                                                allow_lax=bool(self.settings['ff_prevent_cis']), # true
+                                                prevent_cis=bool(self.settings['ff_prevent_cis']), # true
+                                                )
         self.minimized_mol: Chem.Mol = min_result.mol
         self.minimized_pdbblock: str = self._plonk_monster_in_structure(prepped_mol=self.minimized_mol)
         # The ddG is how strained the molecule is out of the protein... not the drop from binding.
