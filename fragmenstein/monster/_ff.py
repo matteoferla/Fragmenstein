@@ -195,21 +195,24 @@ class _MonsterFF(_MonsterUtil):
         """
         pass
 
-    def inspect_amide_torsions(self, mol):
+    @staticmethod
+    def inspect_amide_torsions(mol):
         """
         The most noticeable torsions are the amide ones.
         This is to describe what is happening.
         """
         amidelike = Chem.MolFromSmarts('*C(=[O,S,N])[N,O]*')
         conf = mol.GetConformer()
+        idx2symbol = lambda idx: f'[{mol.GetAtomWithIdx(idx).GetSymbol()}:{idx}]'
         for cprime, calpha, pendant, hetero, descendant in mol.GetSubstructMatches(amidelike):
-            print('torsions',
-                  rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, pendant, hetero),
-                  rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, hetero, descendant))
-            print('angles',
-                  rdMolTransforms.GetAngleDeg(conf, cprime, calpha, pendant),
-                  rdMolTransforms.GetAngleDeg(conf, calpha, hetero, descendant)
-                  )
+            print(f'Torsion {idx2symbol(cprime)}-{idx2symbol(calpha)}(=-{idx2symbol(pendant)})-{idx2symbol(hetero)} = ',
+                  round(rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, pendant, hetero), 1) )
+            print(f'Torsion {idx2symbol(cprime)}-{idx2symbol(calpha)}-{idx2symbol(hetero)}-{idx2symbol(descendant)} = ',
+                  round(rdMolTransforms.GetDihedralDeg(conf, cprime, calpha, hetero, descendant), 1) )
+            print(f'angles {idx2symbol(cprime)}-{idx2symbol(calpha)}(=-{idx2symbol(pendant)}) = ',
+                  round(rdMolTransforms.GetAngleDeg(conf, cprime, calpha, pendant), 1) )
+            print(f'angles {idx2symbol(cprime)}-{idx2symbol(calpha)}{idx2symbol(descendant)} = ',
+                  round(rdMolTransforms.GetAngleDeg(conf, calpha, hetero, descendant), 1) )
 
     def _add_ff_amide_correction(self, mol: Chem.Mol, ff: AllChem.ForceField, forceConstant: float, prevent_cis: bool):
         """
