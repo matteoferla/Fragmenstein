@@ -123,3 +123,18 @@ combinations: pd.DataFrame = lab.combine(hits,
                                      combination_size=2,  # pairwise
                                      max_tasks=0)  # 0 is no chunking
 ```
+
+## Subclassing
+
+`Laboratory` uses `Victor`, but uses a class attribute `.Victor` pointing to the `Victor` class,
+when running. Likewise, `Victor` has `.Monster`. There is no `Igor` equivalent as the Igor calls by Victor 
+are far from generic.
+
+There are some empty methods aimed at easier subclassing:
+
+* `Monster.post_ff_addition_step` —called after the MMFF forcefield is added in the `Monster.mmff_minimize` method
+* `Victor.post_monster_step` -called in the `Victor._calculate_*_chem` methods after the `Monster` is stitched together
+* `Victor.post_params_step` - called in the `Victor._calculate_*_thermo` methods after the `Params` are added
+* `Victor.pre_igor_step` - called in the `Victor._calculate_*_thermo` methods before the `Igor` setup is started
+* `Victor.pose_mod_step` - called in the `Victor._calculate_*_thermo` methods after the pose in loaded, an alternative to `pose_fx`
+* `Victor.post_igor_step` - called in the `Victor._calculate_*_thermo` methods after the `Igor` minimisation is finished

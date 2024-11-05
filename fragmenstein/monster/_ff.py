@@ -186,7 +186,14 @@ class _MonsterFF(_MonsterUtil):
         for i in fixed_idxs:  # neighborhood is frozen
             ff.AddFixedPoint(i)
         self._add_ff_amide_correction(mol, ff, ff_constraint, prevent_cis)
+        self.post_ff_addition_step(mol, ff)
         return restrained
+
+    def post_ff_addition_step(self, mol: Chem.Mol, ff: AllChem.ForceField):
+        """
+        THis is an empty method for user created subclasses to add their own constraints to the MMFF minimisation.
+        """
+        pass
 
     def inspect_amide_torsions(self, mol):
         """
