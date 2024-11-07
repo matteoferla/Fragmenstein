@@ -1,3 +1,5 @@
+from fragmenstein import Laboratory
+
 # Pythonic usage
 
 ### Classes
@@ -61,9 +63,8 @@ Igor.init_pyrosetta()
 ```
 
 The two seem similar, but Victor places with Monster and minimises with Igor.
-As a result it has ∆G_bind energy score (difference between holo minus apo+ligand Gibbs free energy predictions):
-
-victor.ddG
+As a result it has ∆G_bind energy score (difference between holo minus apo+ligand Gibbs free energy predictions)
+(`victor.ddG`).
 
 Fragmenstein is not really a docking algorithm as it does not find the pose with the **lowest energy** 
 within a given volume.
@@ -124,20 +125,197 @@ combinations: pd.DataFrame = lab.combine(hits,
                                      max_tasks=0)  # 0 is no chunking
 ```
 
-## Subclassing
+## Score
 
-`Laboratory` uses `Victor`, but uses a class attribute `.Victor` pointing to the `Victor` class,
-when running. Likewise, `Victor` has `.Monster`. There is no `Igor` equivalent as the Igor calls by Victor 
-are far from generic.
+The ∆Gbind and RMSD do go in tandem —if something is bad it is bad for both—,
+but for ranking of valid compounds more is needed.
+Firstly, ∆Gbind is misled by high number of unconserved (novel) atoms.
+Secondly, it does not reflect how many interactions are kept.
+Thirdly, it favours larger compounds (cf. ligand efficiency discussion).
 
-There are some empty methods aimed at easier subclassing:
+Therefore, there is a multiparametric penalty score (negative = good) calculated based on
+arbitrary weights and called `ad_hoc_penalty` in the output pd.DataFrame.
 
-* `Monster.post_ff_addition_step` —called after the MMFF forcefield is added in the `Monster.mmff_minimize` method
-* `Victor.post_monster_step` -called in the `Victor._calculate_*_chem` methods after the `Monster` is stitched together
-* `Victor.post_params_step` - called in the `Victor._calculate_*_thermo` methods after the `Params` are added
-* `Victor.pre_igor_step` - called in the `Victor._calculate_*_thermo` methods before the `Igor` setup is started
-* `Victor.pose_mod_step` - called in the `Victor._calculate_*_thermo` methods after the pose in loaded, an alternative to `pose_fx`
-* `Victor.post_igor_step` - called in the `Victor._calculate_*_thermo` methods after the `Igor` minimisation is finished
+```python
+import pandas as pd
+from fragmenstein import Laboratory, unbinarize, cli_default_settings
+import warnings, operator
+from rdkit import rdBase
+
+# ## Weights
+# let's arbitrarily set the weights
+weights = cli_default_settings['weights']
+# thi is a probability scaled sum of the interactions: unique interactions will give bigger numbers
+weights['interaction_uniqueness_metric'] = -0. # formerly -5
+weights['N_interactions_lost'] = 5
+weights['N_unconstrained_atoms'] = 0.5
+
+# ## DataFrames
+# placement results of the frag-hits 'redocked':
+hit_replacements: pd.DataFrame = ...  
+# let's pretend someone one has lost the list of hits, not ideal, but it happens
+# getting the after going through the cycle
+hits = hit_replacements.hit_binaries.apply(operator.itemgetter(0)).apply(unbinarize).to_list()
+df: pd.DataFrame = ... # results
+
+# ## Score
+with rdBase.BlockLogs():  # suppresses RDKit warnings
+    Laboratory.score(df, hit_replacements,
+                     suffix='_manual', hits=hits, weights=weights
+                     )
+
+df = df.sort_values('ad_hoc_penalty').reset_index(drop=True).copy()
+```
+
+The `cluster` column is a Butina clustering of Tanimoto distances by Morgan fingerprints (cutoff=0.35 by default).
+
+If the frag-hits were spread out, no kinetic data is available, the target is a protein-protein interaction,
+then clustering by interactions and picking the best within each is a good idea. See below.
+
+## Interactions
+
+Victor uses PLIP to predict interactions between the protein and the ligand.
+(See installation for note on issues with this).
+
+```python
+vicky = Victor(hits=hits, pdb_filename='receptor.pdb')
+itxns: Dict[Tuple[str, str, int]] = victor.get_plip_interactions()
+```
+In Laboratory wrapper:
+
+```python
+lab = Laboratory(pdbblock=pdbblock, run_plip=True)
+```
+
+The key is a tuple of interaction type (str), residue type (str) and PDB residue index (int).
+This can be a bit ugly when exporting to CSV:
+
+```python
+import pandas as pd
+
+placed: pd.DataFrame = ...
+joined_cols = {col: ':'.join(map(str, col)) for col in placed.columns.to_list() if
+               isinstance(col, tuple) and placed[col].sum() > 0}
+other_keepers = ['name', 'smiles', 'ad_hoc_penalty', '∆∆G', 'comRMSD', 'hit_names', 'cluster', 'N_interactions',
+                'N_constrained_atoms', 'N_unconstrained_atoms', 'N_interactions_kept', 'N_interactions_lost',
+                'interaction_uniqueness_metric', 'max_hit_Tanimoto', 'N_PAINS', 'strain_per_HA', 'MW', 'HAC',
+                'percent_hybrid', 'largest_ring', 'N_rotatable_bonds']
+placed.loc[(placed.ad_hoc_penalty < 0) & (placed['∆∆G'] < -5) & (placed.MW > 250)] \
+        .sort_values('ad_hoc_penalty') \
+        [other_keepers + list(joined_cols)] \
+        .rename(columns={'∆∆G': 'dG_bind', 'ad_hoc_penalty': 'combined_score', **joined_cols})
+        .to_csv('fragmenstein_results.csv')
+```
+
+To cluster by interaction, play around with the method as there are several options,
+which may be dependent on the data, which is zero inflated so biases abound and 
+something that should be pretended to be simple will have a lot of complexity brushed under the carpet.
+Here is an example of two different approaches.
+
+The interactions are actually not really boolean, as a virtual compound may form more than one interaction,
+but this is uncommon. The interactions are also highly covariant.
+The types of interactions are not equal: a hydrophobic is worth less energetic than a salt bridge.
+
+So one can treat the data as binary (KModes) or use KMeans and pretend there is no covariance and zero inflation.
+Here is a simple multiple option snippet:
+
+```python
+import pandas as pd
+from scipy.cluster.vq import kmeans, vq
+from kmodes.kmodes import KModes
+import pandera.typing as pdt
+from collections import defaultdict
+from Bio.SeqUtils import seq1
+import enum
+
+
+class clustering_algo(enum.Enum):
+    KMEAN = 1
+    KMODE = 2
+
+
+class scaling_used(enum.Enum):
+    NONE = 0
+    CRUDE = 1
+    PROB = 2
+    FF = 3
+
+
+# rubbish scaled
+def rubbish_scale(col):
+    """
+    This is in effect inferior intermolecular LJ
+    A hydrophobic is worth half, a salt bridge 2x
+    
+    :param col: 
+    :return: 
+    """
+    if col.name[0] == 'hydroph_interaction':
+        w = 0.5
+    if col.name[0] in 'halogenbond':
+        w = 1.5
+    elif col.name[0] == 'saltbridge':
+        w = 2.0
+    else:
+        w = 1.0
+    return col * w
+
+class Ranker:
+    
+    def __init__(self):
+        self.rank = defaultdict(int)
+        
+    def __call__(self, c):
+        self.rank[c] += 1
+        return self.rank[c]
+
+def munge_data_for_clustering(analogs):
+    intxn_cols = [c for c in analogs.columns if isinstance(c, tuple)]  # assumes itxn cols are tuples
+    data_for_clustering = analogs.loc[analogs.outcome == 'acceptable'][intxn_cols].fillna(0).copy()
+    return data_for_clustering
+
+def calc_labels(data_for_clustering, scaling_mode):
+    if scaling_mode == scaling_used.PROB:
+        # probability scaled
+        tallies = data_for_clustering.sum().to_dict()
+        data_for_clustering = data_for_clustering.apply(lambda col: col / tallies[col.name], axis=0).fillna(0)
+        algo = clustering_algo.KMEAN
+    elif scaling_mode == scaling_used.CRUDE:
+        # A hydrophobic is worth half, a salt bridge 2x
+        data_for_clustering = data_for_clustering.apply(rubbish_scale, axis=0).fillna(0)
+        algo = clustering_algo.KMEAN
+    elif scaling_mode == scaling_used.FF:
+        raise NotImplemented
+    elif scaling_mode == scaling_used.NONE:
+        # no scaling so Kmode
+        algo = clustering_algo.KMODE
+    else:
+        raise ValueError
+    
+    if algo == clustering_algo.KMEAN:
+        centroid, variance = kmeans(data_for_clustering.values, k)
+        labels, _ = vq(data_for_clustering.values, centroid)
+    elif algo == clustering_algo.KMODE:
+        km = KModes(n_clusters=k, init='Huang', n_init=5, verbose=1)
+        labels = km.fit_predict(data_for_clustering)
+    else:
+        raise ValueError
+    return labels
+
+# ---------------
+k = 10  # number of clusters sought
+scaling_mode = scaling_used.PROB
+analogs: pd.DataFrame = ...
+data_for_clustering = munge_data_for_clustering(analogs)
+labels = calc_labels(data_for_clustering, scaling_mode)
+# list to series first for the correct indices:
+data_for_clustering['cluster_label']: pdt.Series[int] = labels
+analogs['cluster_label']: pdt.Series[float] = data_for_clustering.cluster_label
+analogs['cluster_label']: pdt.Series[int] = analogs['cluster_label'].fillna(-1).astype(int)
+analogs = analogs.sort_values('full_penalty').drop_duplicates('cluster').reset_index(drop=True)
+analogs['cluster_rank'] = analogs['cluster_label'].apply(Ranker())
+analogs = analogs.sort_values(['cluster_rank', 'full_penalty']).reset_index(drop=True).copy()
+```
 
 ## E-amide isomerism
 

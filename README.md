@@ -18,15 +18,18 @@ Hence why I call it a 'placement' not docking tool.
 
 ## Index
 
-* [Installation](documentation/00_installation)
-* [Theory](documentation/01_workings)
-* [Python usage](documentation/02_usage)
-* [Examples](documentation/03_examples)
-* [Command line usage](documentation/04_cmd)
-* [Limitations](documentation/05_limitations)
-* [Manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data)
-* [Paper Authors](documentation/06_authors)
-* [FAQ](documentation/07_FAQ)
+For documentation in Read-the-documents see [fragmenstein.readthedocs.io](https://fragmenstein.readthedocs.io/en/latest/).
+For GitHub documentation see:
+
+* [Installation](documentation/00_installation.md)
+* [Theory](documentation/01_workings.md)
+* [Python usage](documentation/02_usage.md)
+* [Examples](documentation/03_examples.md)
+* [Command line usage](documentation/04_cmd.md)
+* [Limitations](documentation/05_limitations.md)
+* [Manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data.md)
+* [Paper Authors](documentation/06_authors.md)
+* [FAQ](documentation/07_FAQ.md)
 
 ## Badges and notebooks
 [![Documentation Status](https://readthedocs.org/projects/fragmenstein/badge/?version=latest)](https://fragmenstein.readthedocs.io/en/latest/?badge=latest)

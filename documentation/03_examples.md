@@ -91,11 +91,8 @@ For the matched sets of derivative hits to reference hits see the [manuscript's 
 
 
 ## Config
-Victor is the main entrypoint to the module.
+Victor is the main configuration entrypoint to the module.
 
-```python
-from fragmenstein import Victor
-```
 
 ### Logging
 set logging to stdout
@@ -195,8 +192,8 @@ NB2. One thing to be vigilant for is that the ligands are in superposed/aligned 
 Fragmenstein does nothing to ensure this is true as multichain protein etc. make everything harder and
 it does not require much effort at all to fix (see Troubleshooting).
 
-## Template
-Like in a docking experiment, the template protein conformer is important
+## Template/receptor
+Like in a docking experiment, the template/receptor protein conformer is important
 even if sidechains and backbones can move.
 To minimise with Pyrosetta, it is best to minimise a ligand bond protein and remove the ligand
 afterwards.
@@ -212,7 +209,7 @@ params = Params.from_smiles_w_pdbfile(pdb_file='5BV6_clean.pdb',
                             name='35G')
 params.dump('35G.params')
 ```
-Have a gander to see all is good
+Have a gander to see all is good using NGL (for py3DMol see below):
 ```python
 import nglview
 nglview.show_rosetta(params.test())
@@ -278,6 +275,58 @@ Or individual values
 ```python
 victor.ddG
 ```
+
+## Stitched monsters and analogues-by-catalogue
+
+The stitched merger may not be a catalogue compound, hence the need to jump into catalogue.
+If home-synthesis or CRO time available, then the retrosynthesis might reveal what building blocks are problematic
+(cf. number of steps predicted in Reaxys, Manifold, AiZynthFinder, etc.).
+
+With fragments (<250 Da) a single change can alter Tanimoto scores significantly.
+Hence why I personally opt for a graph edit distance (GED) approach.
+Calculating GED is not trivial, but NextMove Software's `SmallWorld` has a method to do it.
+So I opt for that.
+
+```python
+import pandas as pd
+from fragmenstein import Laboratory
+
+mergers: pd.DataFrame = ...  # a DataFrame with the columns 'smiles', 'name', 'hits', see above
+
+results: pd.DataFrame = Laboratory.sw_search(mergers, '_manual', sw_dist=5, sw_length=50, sw_db='REAL-Database-22Q1.smi.anon')
+```
+The DB name can be retrieved dynamically:
+
+```python
+from smallworld_api import SmallWorld
+
+sw_db=SmallWorld().REAL_dataset
+```
+
+Actually, behind the scenes, this calls happens, with various safeguards and error handling:
+
+```python
+from smallworld_api import SmallWorld
+
+sws = SmallWorld()
+sws.search_many([...], db=sws.REAL_dataset, ...)
+```
+
+## Subclassing
+
+`Laboratory` uses `Victor`, but uses a class attribute `.Victor` pointing to the `Victor` class,
+when running. Likewise, `Victor` has `.Monster`. There is no `Igor` equivalent as the Igor calls by Victor 
+are far from generic.
+
+There are some empty methods aimed at easier subclassing:
+
+* `Monster.post_ff_addition_step` —called after the MMFF forcefield is added in the `Monster.mmff_minimize` method
+* `Victor.post_monster_step` -called in the `Victor._calculate_*_chem` methods after the `Monster` is stitched together
+* `Victor.post_params_step` - called in the `Victor._calculate_*_thermo` methods after the `Params` are added
+* `Victor.pre_igor_step` - called in the `Victor._calculate_*_thermo` methods before the `Igor` setup is started
+* `Victor.pose_mod_step` - called in the `Victor._calculate_*_thermo` methods after the pose in loaded, an alternative to `pose_fx`
+* `Victor.post_igor_step` - called in the `Victor._calculate_*_thermo` methods after the `Igor` minimisation is finished
+
 
 ## Troubleshooting
 
