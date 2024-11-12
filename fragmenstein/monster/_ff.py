@@ -159,10 +159,14 @@ class _MonsterFF(_MonsterUtil):
         """
         restrained = []
         atom: Chem.Atom
+        self._add_ff_amide_correction(mol, ff, ff_constraint, prevent_cis)
         for atom in conserved:
             i = atom.GetIdx()
             if atom.GetAtomicNum() == 1:
                 # let hydrogens move
+                continue
+            elif atom.HasProp('_IsAmide') and atom.GetBoolProp('_IsAmide'):
+                # amide bonds have their own constraints
                 continue
             elif fixed_mode:
                 atom.SetProp('_MMFF', 'fixed')
@@ -185,7 +189,6 @@ class _MonsterFF(_MonsterUtil):
             restrained.append(i)
         for i in fixed_idxs:  # neighborhood is frozen
             ff.AddFixedPoint(i)
-        self._add_ff_amide_correction(mol, ff, ff_constraint, prevent_cis)
         self.post_ff_addition_step(mol, ff)
         return restrained
 
@@ -214,6 +217,22 @@ class _MonsterFF(_MonsterUtil):
             print(f'angles {idx2symbol(cprime)}-{idx2symbol(calpha)}{idx2symbol(descendant)} = ',
                   round(rdMolTransforms.GetAngleDeg(conf, calpha, hetero, descendant), 1) )
 
+    def _add_torsion_constraint(self, conf, ff, idxs, forceConstant, enforce_180=False, enforce_0=False):
+        """
+        Formerly cis/trans E/Z were through around, including for hydrogens...
+        """
+        omega = rdMolTransforms.GetDihedralDeg(conf, *idxs)
+        if enforce_0 or (abs(omega) < 90 and not enforce_180): # is_cis
+            ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-5,
+                                        maxDihedralDeg=+5, forceConstant=forceConstant)
+        elif omega <= -90:  # trans and negative angle
+            # this is silly to split, but the periodicity -179º = 181º is handled weirdly...
+            ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-185,
+                                        maxDihedralDeg=-175, forceConstant=forceConstant)
+        else:  # trans and positive angle
+            ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=175,
+                                        maxDihedralDeg=185, forceConstant=forceConstant)
+
     def _add_ff_amide_correction(self, mol: Chem.Mol, ff: AllChem.ForceField, forceConstant: float, prevent_cis: bool):
         """
         The amides are normally fixed by the normalisation... but not always,
@@ -222,42 +241,55 @@ class _MonsterFF(_MonsterUtil):
         """
 
         conf = mol.GetConformer()
+        # ## mark atoms
         amidelike = Chem.MolFromSmarts('*[C!R](=[O,S,N])[N,O]*')
-        for cprime, calpha, pendant, hetero, descendant in mol.GetSubstructMatches(amidelike):
+        for idxs in mol.GetSubstructMatches(amidelike):
+            for idx in idxs:
+                mol.GetAtomWithIdx(idx).SetBoolProp('_IsAmide', True)
+        # ## cprime, calpha, pendant, hetero
+        # no descendants first
+        # add a contraint so cprime, calpha, pendant, hetero are planar.
+        # this can only have a dihedral of 180°
+        amidelike_no_desc = Chem.MolFromSmarts('*[C!R](=[O,S,N])[N,O]')
+        for cprime, calpha, pendant, hetero in mol.GetSubstructMatches(amidelike_no_desc):
+            self._add_torsion_constraint(conf, ff, idxs=(cprime, calpha, pendant, hetero),
+                                         forceConstant=forceConstant,
+                                         enforce_180=True)
+            ff.MMFFAddAngleConstraint(cprime, calpha, pendant, relative=False, minAngleDeg=110, maxAngleDeg=130,
+                                      forceConstant=forceConstant)
+            ff.MMFFAddAngleConstraint(hetero, calpha, pendant, relative=False, minAngleDeg=110, maxAngleDeg=130,
+                                      forceConstant=forceConstant)
+        # ## calpha, pendant, hetero, descendant
+        # descendant = substituent on backbone hetero
+        # descendants: this adds the trans / cis problem
+        amide_no_prime = Chem.MolFromSmarts('[C!R](=[O,S,N])N*')
+        # this time, hetero can only be N (amide, no ester) as there the substituent on an ester is free to rotate
+        for calpha, pendant, hetero, descendant in mol.GetSubstructMatches(amide_no_prime):
             n_hydrogens_hetero = sum([neigh.GetAtomicNum() == 1 for neigh in mol.GetAtomWithIdx(hetero).GetNeighbors()])
-            descendant_is_hydro = mol.GetAtomWithIdx(descendant).GetAtomicNum() == 1
-            hetero_is_oxy = mol.GetAtomWithIdx(hetero).GetAtomicNum() == 8
-            for idxs in [(cprime, calpha, pendant, hetero), (cprime, calpha, hetero, descendant)]:
-                omega = rdMolTransforms.GetDihedralDeg(conf, *idxs)
-                is_cis = abs(omega) < 90
-                if hetero_is_oxy and idxs[3] == descendant:
-                    continue  # the substituent on an ester is free to rotate
-                if hetero_is_oxy:
-                    is_cis = False  # cis ester is a no.
-                elif prevent_cis and descendant_is_hydro and n_hydrogens_hetero == 1:
-                    # secondary amide but we have hydrogen here
-                    is_cis = True  # the hydrogen is cis
-                elif prevent_cis and n_hydrogens_hetero == 1:
-                    # secondary amide, ought to be trans
-                    is_cis = False
-                else:
-                    pass
-                    # prevent_cis = False or
-                    # primary and tertiary amides = does not matter
-                if is_cis:
-                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-5,
-                                                maxDihedralDeg=+5, forceConstant=forceConstant)
-                elif omega <= -90:  # trans and negative angle (default)
-                    # the sign "should" not matter, but I think it does funny things
-                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=-185,
-                                                maxDihedralDeg=-175, forceConstant=forceConstant)
-                else:  # trans and positive angle
-                    # does this even happen?
-                    ff.MMFFAddTorsionConstraint(*idxs, relative=False, minDihedralDeg=175,
-                                                maxDihedralDeg=185, forceConstant=forceConstant)
-                for idxs in [(cprime, calpha, pendant), (calpha, hetero, descendant)]:
-                    ff.MMFFAddAngleConstraint(*idxs, relative=False, minAngleDeg=110, maxAngleDeg=130,
-                                              forceConstant=forceConstant)
+            if n_hydrogens_hetero == 2:
+                # primary amide
+                pass # do nothing
+            elif n_hydrogens_hetero == 0:
+                # there is no E/Z... but there is planarity!
+                self._add_torsion_constraint(conf, ff, idxs=(pendant, calpha, hetero, descendant),
+                                             forceConstant=forceConstant)
+            elif not prevent_cis:
+                self._add_torsion_constraint(conf, ff, idxs=(pendant, calpha, hetero, descendant),
+                                             forceConstant=forceConstant)
+            if mol.GetAtomWithIdx(descendant).GetAtomicNum() == 1: # descendant is hydro
+                # secondary amide but we have hydrogen here
+                # the hydrogen is the opposite side to the pendant
+                self._add_torsion_constraint(conf, ff, idxs=(pendant, calpha, hetero, descendant),
+                                             forceConstant=forceConstant,
+                                             enforce_180=True)
+            else:
+                self._add_torsion_constraint(conf, ff, idxs=(pendant, calpha, hetero, descendant),
+                                             forceConstant=forceConstant,
+                                             enforce_0=True)
+            ff.MMFFAddAngleConstraint(calpha, hetero, descendant, relative=False, minAngleDeg=110, maxAngleDeg=130,
+                                      forceConstant=forceConstant)
+            ff.MMFFAddAngleConstraint(pendant, hetero, descendant, relative=False, minAngleDeg=110, maxAngleDeg=130,
+                                      forceConstant=forceConstant)
 
     def _classified_ff_minimize_step(self, mol: Chem.Mol, ff: AllChem.ForceField, ff_max_iterations: int) -> Tuple[bool, float, float]:
         """
