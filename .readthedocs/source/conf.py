@@ -102,7 +102,7 @@ convert_write(os.path.join(repo_base_path, 'README.md'), 'introduction.md')
 new_files = {'discussion': [], 'notes': []}
 definitions = (('documentation', 'doc_', 'discussion'),
                ('documentation/notes', 'note_', 'notes'),
-               ('documentation/further-detail', 'extra_'),
+               ('documentation/further-detail', 'extra_', 'discussion'),
                ('documentation/monster', 'doc_', 'discussion'))
 for folder, prefix, pagename in definitions:
     for filename in os.listdir(os.path.join(repo_base_path, folder)):
