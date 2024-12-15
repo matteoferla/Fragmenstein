@@ -9,6 +9,13 @@ that is, they have to be extracted from superposed crystal structures or docked 
 If the parent hits are not in the same reference frame, the results will be rubbish and fail
 with either distance error or fail to minimise as the monster is jammed in the middle of a protein chain.
 
+The receptor/template protein has to lack a ligand in the pocket of interest unless this is expected to be there.
+For example, if the protein has ATP in the chosen reference structure,
+but the structure of the parent hit lacks this because it is displaced, then it needs to be absent
+—it will be automatically stripped unless an ion or a canonical amino acid, but is best to not take chances.
+If the ligand should be there, for example a cofactor like PLP, then it should be present in the parent hit,
+and the topology file provided (vide infra).
+
 ### Classes
 
 There are four main classes —named after characters from the Fragmenstein book and movies:
