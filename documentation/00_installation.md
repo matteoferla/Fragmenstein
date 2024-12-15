@@ -5,13 +5,20 @@
 
 ### Fragmenstein and dependencies
 
-Python 3.6 or above. Install from pipy
+Python 3.6 or above. It can be install from pipy
 
     python -m pip install fragmenstein
 
 ### Requires Pyrosetta
 
-> :warning: PyRosetta no longer runs on CentOS 7 due to old kernel headers (cf. [blog post](https://blog.matteoferla.com/2022/11/glibc-236-vs-centos-7-tale-of-failure.html)).
+PyRosetta is optional, but it is required for full operations.
+Without it the pocket sidechains are not minimised, which requires a perfect receptor/template/protein.
+
+:warning: PyRosetta no longer runs on CentOS 7 due to old kernel headers (cf. [blog post](https://blog.matteoferla.com/2022/11/glibc-236-vs-centos-7-tale-of-failure.html)).
+
+:warning: PyRosetta is not available on Windows.
+For that you need to [install Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install)
+and install PyRosetta on the Linux subsystem.
 
 #### Modern way
 
