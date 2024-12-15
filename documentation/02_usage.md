@@ -2,6 +2,13 @@ from fragmenstein import Laboratory
 
 # Pythonic usage
 
+### Prerequisites
+
+**The parent hits have to be 3D embedded in the same reference frame**,
+that is, they have to be extracted from superposed crystal structures or docked in the same receptor.
+If the parent hits are not in the same reference frame, the results will be rubbish and fail
+with either distance error or fail to minimise as the monster is jammed in the middle of a protein chain.
+
 ### Classes
 
 There are four main classes —named after characters from the Fragmenstein book and movies:

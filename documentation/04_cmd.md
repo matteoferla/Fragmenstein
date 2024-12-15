@@ -48,6 +48,8 @@ Command:
 ## Monster combine
 
 See [workings.md](01_workings.md) for details.
+As stated elsewhere, it is crucial that the parent hits need to be 3D embedded and in the same reference frame,
+namely extracted from superposed structures.
 
 Example:
 
@@ -91,6 +93,8 @@ Usage:
 
     
 See [workings.md](01_workings.md) and [victor.md](further-detail/victor.md) for details.
+
+As stated elsewhere, the template PDB (the receptor in docking parlance) needs to lack a ligand in the site of interest.
 
 Example:
 
@@ -276,7 +280,7 @@ Usage:
       -v, --verbose         verbose
 
 
-
+This does the following:
 
 * place the reference hits against themselves and gets the PLIP interactions
 * combines the hits in given combination size, while skipping blacklisted named compounds.
