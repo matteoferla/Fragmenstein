@@ -23,9 +23,9 @@ For GitHub documentation see:
 
 * [Installation](documentation/00_installation.md)
 * [Theory](documentation/01_workings.md)
-* [Python usage](documentation/02_usage.md)
+* [Python usage](documentation/02_usage.md) — ideal for coders!
 * [Examples](documentation/03_examples.md)
-* [Command line usage](documentation/04_cmd.md)
+* [Command line usage](documentation/04_cmd.md) — ideal for non-coders!
 * [Limitations](documentation/05_limitations.md)
 * [Manuscript data repository](https://github.com/matteoferla/Fragmenstein-manuscript-data.md)
 * [Paper Authors](documentation/06_authors.md)

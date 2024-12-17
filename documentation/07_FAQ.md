@@ -48,3 +48,15 @@ You might get weird errors, especially if using `Chem.RWMol` multiple times.
 If you are getting something weird do a round trip:
 
     good_mol: Chem.Mol = Chem.MolFromMolBlock(Chem.MolToMolBlock(naughty_mol))
+
+## Fragmenstein and sterically hindrance
+
+> How does Fragmenstein avoid sterically unfavourable bond vectors, such as axial CH in cyclohexane or the conserved amide NH in the Covid Moonshot isoquinolinyl amides, for structural elaboration. 
+
+In Fragmenstein the rules governing mergers prevent impossible chemistry and only marginally unfeasible chemistry, 
+majorly excess of 3-membered rings. 
+However, in the case of an atomic overlap between atoms of bulky substituents one might be ‘absorbed’ into the other resulting in either a bridged alicylic or a single substituent as there is a rule to prevent propallanes. 
+In terms of forbidden torsions, an explicitly encoded case are exocyclic secondary cis-amides: these are prevented during minimisation: were an aniline merged to a benzoic acid to form (E)-phenylbenzamide it would be forced into Z if possible or rejected. 
+
+If a user was intent on preserving a substructure, like an unsubstituted amine, they could flag the atoms with the ‘protection’ mechanism: this is used automatically for warhead/reaction-product moieties, 
+but is an RDKit property on the `Chem.Mol` object of the parent hit.
