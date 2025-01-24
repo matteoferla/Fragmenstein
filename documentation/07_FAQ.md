@@ -49,6 +49,26 @@ If you are getting something weird do a round trip:
 
     good_mol: Chem.Mol = Chem.MolFromMolBlock(Chem.MolToMolBlock(naughty_mol))
 
+## Linkers
+
+> How are linker atoms chosen?  How does the chemical rectification work?  
+
+This is covered in detail in [linking.md](further-detail/linking.md)
+
+
+
+## Wrong tautomer
+
+If a tautomeric molecule were placed with Fragmenstein in a given tautomer,
+but the binding mode best suited the other tautomer and the latter mimicked the parent hit,
+the binding mode of the latter ought to be seen, but with the former tautomer.
+It is pure conjecture as no such test cases were found in a manual search, 
+whereas the unfortunately common scenario where a user docks a carboxylic acid, yet the bound form is a carboxylate, 
+is circumvented in Fragmenstein if the parent hit behaved like the carboxylate,
+but ought to have been circumvented by better ligand prep.
+
+NB. `Laboratory().place(..., expand_isomers=True)` can expand stereoisomers, but does not expand tautomers.
+
 ## Fragmenstein and sterically hindrance
 
 > How does Fragmenstein avoid sterically unfavourable bond vectors, such as axial CH in cyclohexane or the conserved amide NH in the Covid Moonshot isoquinolinyl amides, for structural elaboration. 
@@ -60,3 +80,11 @@ In terms of forbidden torsions, an explicitly encoded case are exocyclic seconda
 
 If a user was intent on preserving a substructure, like an unsubstituted amine, they could flag the atoms with the ‘protection’ mechanism: this is used automatically for warhead/reaction-product moieties, 
 but is an RDKit property on the `Chem.Mol` object of the parent hit.
+
+## Large binding sites
+
+> How does the code behave for large binding sites?
+
+Fragmenstein fails more potential pairings or placed compounds when the cavity is restrictive, a common scenario is two adjacent perpendicular arenes. With the caveat that such cases are more suitable for scaffold hopping than merging in the first place, Fragmenstein will likely try to dearomatise one ring or both, yielding a fused aromatic-alicyclic or a full alicyclic, which generally fail the RMSD filter.
+When the region of interest is large, as is often the case for protein-protein interfaces, in a benchmarking scenario, there will be an overwhelming number of acceptable purchasable analogues, which appears as a positive. In an applied scenario, the fragment-hits are often many, but distributed heterogeneously and weak-binding: certain hypotheses/series will need to be addressed by complementary methods, such as catalogue enumeration of superstructures to join two moieties over 5Å apart, which can however be placed with Fragmenstein.
+

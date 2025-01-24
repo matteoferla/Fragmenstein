@@ -20,7 +20,7 @@ Example:
 ```bash
 fragmenstein utils minimize -t apo_protein.pdb -o minimised.pdb;
 fragmenstein utils minimize -t apo_protein.pdb -o minimised.pdb -first;  # only keep first chain
-fragmenstein utils minimize -t apo_protein.pdb -o minimised.pdb 0ed map.ccp4 -cw 10 -c 15;  # electron density map
+fragmenstein utils minimize -t apo_protein.pdb -o minimised.pdb -ed map.ccp4 -cw 10 -c 15;  # electron density map
 ```
 
 Command:
