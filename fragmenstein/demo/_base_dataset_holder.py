@@ -4,7 +4,7 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors
 from typing import List, Optional
 from types import ModuleType
-import importlib.resources as pkg_resources
+from importlib.resources import files
 import random
 
 
@@ -15,6 +15,11 @@ class BaseMolDataset:
     """
 
     dataset_package: ModuleType = '__main__'
+
+    @classmethod
+    def _package_files(cls):
+        """Return a Traversable for the dataset package."""
+        return files(cls.dataset_package)
 
     def __init__(self):
         raise NotImplementedError('Virtual method')
@@ -42,19 +47,19 @@ class BaseMolDataset:
     
     @classmethod
     def get_hit_list(cls) -> List[str]:
-        return [cls.file2mol_func(fn) for fn in pkg_resources.contents(cls.dataset_package) if '.mol' in fn]
-    
+        return [cls.file2mol_func(r.name) for r in cls._package_files().iterdir() if '.mol' in r.name]
+
     @classmethod
     def get_text(cls, filename: str) -> str:
-        return pkg_resources.read_text(cls.dataset_package, filename)
+        return cls._package_files().joinpath(filename).read_text(encoding='utf-8')
 
     @classmethod
     def get_bytes(cls, filename: str) -> bytes:
-        return pkg_resources.read_binary(cls.dataset_package, filename)
-    
+        return cls._package_files().joinpath(filename).read_bytes()
+
     @classmethod
     def exists(cls, filename: str) -> bool:
-        return pkg_resources.is_resource(cls.dataset_package, filename)
+        return cls._package_files().joinpath(filename).is_file()
 
     @classmethod
     def get_mol(cls, hit_name: Optional[str] = None) -> Chem.Mol:
@@ -128,7 +133,7 @@ def extend_doc(cls):
     """
     extra = f"""
     The module {cls.dataset_package.__name__} contains the data, but
-    not functions to retrieve them without using ``pkg_resources``.
+    not functions to retrieve them without using ``importlib.resources``.
     These are added by the class {cls.__name__} as class methods.
     Not all of the methods are implemented for all datasets.
     """

@@ -10,9 +10,8 @@ assignees: ''
 When submitting a bug report, could you let me know not only what Python and Fragmenstein versions you are using, but also that of PyRosetta! Thanks:
 
 ```python
-import pkg_resources, sys, platform
-
-get_version = lambda name: pkg_resources.get_distribution(name).version
+from importlib.metadata import version as get_version
+import sys, platform
 
 print(f'Python {sys.version}\n'+
       f'on {platform.system()} {platform.machine()}\n'+

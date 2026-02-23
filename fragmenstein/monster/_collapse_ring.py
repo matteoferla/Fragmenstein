@@ -1099,7 +1099,7 @@ class _MonsterRing(_MonsterJoinNeigh):
         d = np.nanmax(scores)
         if np.isnan(d):
             return None  # impossible but okay.
-        doomed_i = int(np.where(scores == d)[0])
+        doomed_i = int(np.where(scores == d)[0][0])
         doomed_bond = bonds[doomed_i]
         a, b = doomed_bond.GetBeginAtomIdx(), doomed_bond.GetEndAtomIdx()
         self.journal.debug(f'Removing triangle/square forming bond between {a} and {b}')
