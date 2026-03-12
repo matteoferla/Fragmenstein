@@ -32,9 +32,9 @@ __all__ = ['feijoa', 'divergent_colors']
 feijoa = '#AED882'
 
 import json
+from importlib import resources
 from typing import List, Dict
-import pkg_resources
 
-json_str = pkg_resources.resource_string(__name__, 'divergent_colors.json').decode('utf-8')
+json_str = resources.files(__package__).joinpath('divergent_colors.json').read_text(encoding='utf-8')
 
 divergent_colors:Dict[int, List[str]] = {int(k): v for k, v in json.loads(json_str).items()}
