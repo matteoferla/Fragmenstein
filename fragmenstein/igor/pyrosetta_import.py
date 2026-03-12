@@ -22,12 +22,12 @@ class AttributeFilledMock:
                   'The mock object taking its place does nothing.' + \
                   'This is bound to raise an error'
     __signature__ = None
-    __path__ = []
     __file__ = 'pyrosetta (mock)'
     __package__ = 'pyrosetta'
 
     def __init__(self, name: str = 'pyrosetta'):
         self.__name__ = name
+        self.__path__ = []  # ↓ per-instance to avoid shared mutable state
         self.__spec__ = machinery.ModuleSpec(name, None, is_package=True)
 
     def __getattr__(self, attr: str):
@@ -81,6 +81,7 @@ else:
                   category=RuntimeWarning)
     # ↓ install the finder *before* registering the root mock
     # so all future ``import pyrosetta.X.Y`` statements are intercepted
-    sys.meta_path.insert(0, _PyrosettaMockFinder())
+    if not any(isinstance(f, _PyrosettaMockFinder) for f in sys.meta_path):
+        sys.meta_path.insert(0, _PyrosettaMockFinder())
     pyrosetta = AttributeFilledMock()
     sys.modules['pyrosetta'] = pyrosetta
