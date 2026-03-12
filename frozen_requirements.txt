@@ -1,5 +1,5 @@
 # this is not read by setup. It is here solely for RTD and user interest
-requests==2.32.0
+requests==2.32.4
 # ipython  # Specifying a version causes drama in colab which is using IPython 7.x
 numpy==1.21.6  # 1.22.4 does not seem to exist for 3.7 (i.e. colab)
 scipy==1.10.0  # 1.8.1 (i.e. colab)
