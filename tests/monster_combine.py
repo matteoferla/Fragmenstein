@@ -86,6 +86,7 @@ class MonsterCombineTests(unittest.TestCase):
         x0398 = TestSet.get_mol('mac-x0398')
         monster = Monster([x0398, x0138])
         monster.combine()
-        self.assertEqual('Nc1nc2c3c(c(O)cc(N)c3n1)C(O)=N2',
-                         Chem.MolToSmiles(Chem.RemoveHs(monster.positioned_mol)),
-                         )
+        got = Chem.MolToSmiles(Chem.RemoveHs(monster.positioned_mol))
+        # ↓ round-trip through MolFromSmiles to normalise aromaticity perception
+        self.assertEqual(Chem.MolToSmiles(Chem.MolFromSmiles('Nc1nc2c3c(c(O)cc(N)c3n1)C(O)=N2')),
+                         Chem.MolToSmiles(Chem.MolFromSmiles(got)))
