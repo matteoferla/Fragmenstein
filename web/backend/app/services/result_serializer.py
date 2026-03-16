@@ -111,6 +111,8 @@ def similars_dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
         "ecfp4", "daylight", "mces",
         "tdn", "tup", "rdn", "rup", "ldn", "lup", "mut", "maj", "min", "hyb", "sub",
         "query_smiles", "alignment",
+        "tanimoto_to_merger",  # from library filtering
+        "molecular_weight", "iupac_name",  # from PubChem
     ]
 
     rows = []

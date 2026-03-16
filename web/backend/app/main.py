@@ -55,3 +55,45 @@ app.include_router(molecules.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/api/system-info")
+def system_info():
+    import os, sys, platform
+    from pathlib import Path
+
+    # Read version from shared VERSION file
+    version_file = Path(__file__).resolve().parent.parent.parent / "VERSION"
+    version = version_file.read_text().strip() if version_file.exists() else "0.0.0"
+
+    info: dict = {
+        "version": version,
+        "python": sys.version.split()[0],
+        "platform": platform.machine(),
+        "cores": os.cpu_count(),
+    }
+
+    # PyRosetta
+    try:
+        import pyrosetta
+        info["pyrosetta"] = True
+        info["pyrosetta_version"] = pyrosetta.rosetta.utility.Version.version()
+    except Exception:
+        info["pyrosetta"] = False
+
+    # RDKit
+    try:
+        from rdkit import rdBase
+        info["rdkit"] = rdBase.rdkitVersion
+    except Exception:
+        info["rdkit"] = None
+
+    # GPU (CUDA via torch)
+    try:
+        import torch
+        if torch.cuda.is_available():
+            info["gpu"] = torch.cuda.get_device_name(0)
+    except Exception:
+        pass
+
+    return info

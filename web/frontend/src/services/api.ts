@@ -31,6 +31,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// System
+export async function getSystemInfo(): Promise<Record<string, unknown>> {
+  return request("/api/system-info");
+}
+
 // Sessions
 export async function createSession(name: string = ""): Promise<SessionResponse> {
   return request("/api/sessions", {
@@ -120,6 +125,58 @@ export async function startCombine(sessionId: string, config: CombineRequest): P
 // Similars
 export async function startSimilars(sessionId: string, config: SimilarsRequest): Promise<{ job_id: string }> {
   return request(`/api/sessions/${sessionId}/similars`, {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+}
+
+// Similars — manual paste
+export async function manualSmiles(sessionId: string, smilesText: string): Promise<{ job_id: string; valid: number; invalid: number; message: string }> {
+  return request(`/api/sessions/${sessionId}/similars/manual`, {
+    method: "POST",
+    body: JSON.stringify({ smiles_text: smilesText }),
+  });
+}
+
+// Similars — CSV/Excel upload
+export async function uploadSimilars(sessionId: string, file: File): Promise<{ job_id: string; valid: number; invalid: number; message: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/similars/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Upload failed: ${body}`);
+  }
+  return res.json();
+}
+
+// Similars — upload + filter against mergers
+export async function uploadAndFilterSimilars(
+  sessionId: string,
+  file: File,
+  topN: number = 200,
+  outcomeFilter: string = "acceptable",
+): Promise<{ job_id: string; library_size: number; filtered: number; mergers_used: number; invalid: number; message: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const params = new URLSearchParams({ top_n: String(topN), outcome_filter: outcomeFilter });
+  const res = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/similars/upload-filter?${params}`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Upload failed: ${body}`);
+  }
+  return res.json();
+}
+
+// Similars — PubChem
+export async function startPubChem(sessionId: string, config: { combine_job_id: string; top_n?: number; threshold?: number; max_per_query?: number; outcome_filter?: string }): Promise<{ job_id: string }> {
+  return request(`/api/sessions/${sessionId}/similars/pubchem`, {
     method: "POST",
     body: JSON.stringify(config),
   });

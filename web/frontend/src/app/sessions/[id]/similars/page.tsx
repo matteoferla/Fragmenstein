@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { InputNumber } from "primereact/inputnumber";
+import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
+import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
+import { Checkbox } from "primereact/checkbox";
+import { TabView, TabPanel } from "primereact/tabview";
+import { Message } from "primereact/message";
 import { JobProgress } from "@/components/jobs/JobProgress";
 import { SimilarsTable, type SimilarRow } from "@/components/results/SimilarsTable";
 import { DownloadPanel } from "@/components/results/DownloadPanel";
@@ -18,34 +23,29 @@ export default function SimilarsPage() {
   const sessionId = params.id as string;
   const { combineJobId, similarsJobId, setSimilarsJobId } = useSessionStore();
 
-  const [config, setConfig] = useState({ top_n: 100, dist: 25, length: 200, db: "REAL_dataset", outcome_filter: "acceptable" });
+  const [swConfig, setSwConfig] = useState({ top_n: 100, dist: 25, length: 200, db: "REAL_dataset", outcome_filter: "acceptable" });
+  const [pcConfig, setPcConfig] = useState({ top_n: 50, threshold: 80, max_per_query: 20, outcome_filter: "acceptable" });
+  const [smilesText, setSmilesText] = useState("");
+  const [filterTopN, setFilterTopN] = useState(200);
+  const [filterOutcome, setFilterOutcome] = useState("acceptable");
+  const [useFilter, setUseFilter] = useState(true);
+  const fileUploadRef = useRef<FileUpload>(null);
+
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<SimilarRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<SimilarRow | null>(null);
-
-  const handleStart = async () => {
-    const currentCombineJobId = useSessionStore.getState().combineJobId;
-    if (!currentCombineJobId) return;
-    setRunning(true); setResults([]);
-    try {
-      const { job_id } = await api.startSimilars(sessionId, {
-        combine_job_id: currentCombineJobId,
-        ...config,
-      });
-      setSimilarsJobId(job_id);
-    } catch {
-      setRunning(false);
-    }
-  };
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [inputTab, setInputTab] = useState(0);
 
   const handleComplete = useCallback(async () => {
-    if (!similarsJobId) return;
+    const jobId = useSessionStore.getState().similarsJobId;
+    if (!jobId) return;
     try {
-      const res = await api.getJobResults(similarsJobId);
+      const res = await api.getJobResults(jobId);
       setResults(res.results as unknown as SimilarRow[]);
     } catch {}
     setRunning(false);
-  }, [similarsJobId]);
+  }, []);
 
   useEffect(() => {
     if (similarsJobId && results.length === 0) {
@@ -56,18 +56,61 @@ export default function SimilarsPage() {
     }
   }, [similarsJobId, results.length, handleComplete]);
 
-  if (!combineJobId) {
-    return (
-      <div className="max-w-4xl">
-        <div className="panel p-8 text-center">
-          <i className="pi pi-info-circle text-xl mb-3 text-amber-500" />
-          <h2 className="text-lg font-bold mb-2 text-slate-800">Combine Step Required</h2>
-          <p className="text-sm mb-4 text-slate-500">Complete the Combine step first to search for purchasable analogs.</p>
-          <Button label="Go to Combine" icon="pi pi-arrow-left" size="small" onClick={() => router.push(`/sessions/${sessionId}/combine`)} />
-        </div>
-      </div>
-    );
-  }
+  const handleSmallWorld = async () => {
+    const cjid = useSessionStore.getState().combineJobId;
+    if (!cjid) return;
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      const { job_id } = await api.startSimilars(sessionId, { combine_job_id: cjid, ...swConfig });
+      setSimilarsJobId(job_id);
+    } catch { setRunning(false); }
+  };
+
+  const handleManualPaste = async () => {
+    if (!smilesText.trim()) return;
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      const res = await api.manualSmiles(sessionId, smilesText);
+      setSimilarsJobId(res.job_id);
+      setStatusMsg(res.message);
+      await handleComplete();
+    } catch (e: unknown) {
+      setStatusMsg(e instanceof Error ? e.message : "Failed");
+      setRunning(false);
+    }
+  };
+
+  const handleFileUpload = async (e: FileUploadHandlerEvent) => {
+    if (e.files.length === 0) return;
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      let res;
+      if (useFilter && combineJobId) {
+        res = await api.uploadAndFilterSimilars(sessionId, e.files[0], filterTopN, filterOutcome);
+      } else {
+        res = await api.uploadSimilars(sessionId, e.files[0]);
+      }
+      setSimilarsJobId(res.job_id);
+      setStatusMsg(res.message);
+      fileUploadRef.current?.clear();
+      await handleComplete();
+    } catch (err: unknown) {
+      setStatusMsg(err instanceof Error ? err.message : "Upload failed");
+      setRunning(false);
+    }
+  };
+
+  const handlePubChem = async () => {
+    const cjid = useSessionStore.getState().combineJobId;
+    if (!cjid) return;
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      const { job_id } = await api.startPubChem(sessionId, { combine_job_id: cjid, ...pcConfig });
+      setSimilarsJobId(job_id);
+    } catch { setRunning(false); }
+  };
+
+  const resetResults = () => { setResults([]); setSelectedRow(null); setStatusMsg(null); };
 
   return (
     <div className="max-w-7xl">
@@ -76,130 +119,208 @@ export default function SimilarsPage() {
           <i className="pi pi-search text-sm" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Find Purchasable Analogs</h2>
-          <p className="text-xs text-slate-400">Search SmallWorld for commercially available compounds similar to your mergers</p>
+          <h2 className="text-lg font-bold text-slate-800">Find Analogs</h2>
+          <p className="text-xs text-slate-400">Search databases, paste SMILES, or upload a compound list for placement</p>
         </div>
       </div>
 
-      {/* Config */}
+      {/* Input modes */}
       {!running && results.length === 0 && (
-        <div className="panel p-6 mb-6">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">SmallWorld Search Parameters</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N Mergers to Query</label>
-              <InputNumber value={config.top_n} onValueChange={(e) => setConfig(c => ({ ...c, top_n: e.value ?? 100 }))} min={1} max={1000} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Graph Edit Distance</label>
-              <InputNumber value={config.dist} onValueChange={(e) => setConfig(c => ({ ...c, dist: e.value ?? 25 }))} min={1} max={100} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Results per Query</label>
-              <InputNumber value={config.length} onValueChange={(e) => setConfig(c => ({ ...c, length: e.value ?? 200 }))} min={1} max={1000} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Combine Outcome Filter</label>
-              <Dropdown value={config.outcome_filter} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setConfig(c => ({ ...c, outcome_filter: e.value }))} />
-            </div>
-          </div>
-          <div className="mt-6">
-            <Button label="Search SmallWorld" icon="pi pi-search" size="small" onClick={handleStart} loading={running} />
-          </div>
+        <div className="panel p-5 mb-6">
+          <TabView activeIndex={inputTab} onTabChange={(e) => setInputTab(e.index)}>
+            {/* SmallWorld */}
+            <TabPanel header="SmallWorld">
+              {!combineJobId ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-slate-400 mb-3">Complete the Combine step first to search SmallWorld.</p>
+                  <Button label="Go to Combine" icon="pi pi-arrow-left" size="small" onClick={() => router.push(`/sessions/${sessionId}/combine`)} />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N Mergers</label>
+                      <InputNumber value={swConfig.top_n} onValueChange={(e) => setSwConfig(c => ({ ...c, top_n: e.value ?? 100 }))} min={1} max={1000} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Edit Distance</label>
+                      <InputNumber value={swConfig.dist} onValueChange={(e) => setSwConfig(c => ({ ...c, dist: e.value ?? 25 }))} min={1} max={100} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Results per Query</label>
+                      <InputNumber value={swConfig.length} onValueChange={(e) => setSwConfig(c => ({ ...c, length: e.value ?? 200 }))} min={1} max={1000} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Outcome Filter</label>
+                      <Dropdown value={swConfig.outcome_filter} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setSwConfig(c => ({ ...c, outcome_filter: e.value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button label="Search SmallWorld" icon="pi pi-search" size="small" onClick={handleSmallWorld} />
+                  </div>
+                </div>
+              )}
+            </TabPanel>
+
+            {/* Paste SMILES */}
+            <TabPanel header="Paste SMILES">
+              <div className="mt-4">
+                <InputTextarea
+                  value={smilesText}
+                  onChange={(e) => setSmilesText(e.target.value)}
+                  rows={8}
+                  className="w-full font-mono text-xs"
+                  placeholder={"c1ccccc1 benzene\nCC(=O)O acetic_acid\nCCO ethanol\n\nFormat: SMILES <space/tab> name (one per line).\nName is optional."}
+                />
+                <div className="mt-3">
+                  <Button label="Load SMILES" icon="pi pi-check" size="small" onClick={handleManualPaste} disabled={!smilesText.trim()} />
+                </div>
+              </div>
+            </TabPanel>
+
+            {/* Upload File */}
+            <TabPanel header="Upload File">
+              <div className="mt-4">
+                <p className="text-xs text-slate-400 mb-3">
+                  Upload a CSV, TSV, or Excel (.xlsx) file with a <span className="font-mono font-semibold">smiles</span> column.
+                  Optional: <span className="font-mono">name</span>, <span className="font-mono">id</span>, <span className="font-mono">vendor_id</span>.
+                  Extra columns are preserved.
+                </p>
+
+                {/* Similarity filter options */}
+                {combineJobId && (
+                  <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                      <Checkbox checked={useFilter} onChange={(e) => setUseFilter(e.checked ?? true)} />
+                      <span className="text-xs font-semibold text-slate-600">Filter by similarity to mergers</span>
+                    </label>
+                    <p className="text-[10px] text-slate-400 mb-2">
+                      For large libraries (1K+ compounds): uses Morgan fingerprint Tanimoto similarity to keep only the top N most similar to your mergers.
+                    </p>
+                    {useFilter && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N to Keep</label>
+                          <InputNumber value={filterTopN} onValueChange={(e) => setFilterTopN(e.value ?? 200)} min={10} max={5000} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Merger Outcome Filter</label>
+                          <Dropdown value={filterOutcome} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setFilterOutcome(e.value)} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <FileUpload
+                  ref={fileUploadRef}
+                  mode="advanced"
+                  accept=".csv,.tsv,.xlsx"
+                  maxFileSize={200 * 1024 * 1024}
+                  customUpload
+                  uploadHandler={handleFileUpload}
+                  chooseLabel="Select File"
+                  uploadLabel={useFilter && combineJobId ? "Upload & Filter" : "Upload"}
+                  auto={false}
+                  chooseOptions={{ className: "p-button-sm" }}
+                  uploadOptions={{ className: "p-button-sm" }}
+                  cancelOptions={{ className: "p-button-sm" }}
+                  emptyTemplate={<p className="text-sm p-4 text-slate-400">Drag and drop a CSV, TSV, or Excel file here (up to 200 MB).</p>}
+                />
+              </div>
+            </TabPanel>
+
+            {/* PubChem */}
+            <TabPanel header="PubChem">
+              {!combineJobId ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-slate-400 mb-3">Complete the Combine step first to search PubChem.</p>
+                  <Button label="Go to Combine" icon="pi pi-arrow-left" size="small" onClick={() => router.push(`/sessions/${sessionId}/combine`)} />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N Mergers to Query</label>
+                      <InputNumber value={pcConfig.top_n} onValueChange={(e) => setPcConfig(c => ({ ...c, top_n: e.value ?? 50 }))} min={1} max={500} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tanimoto Threshold (%)</label>
+                      <InputNumber value={pcConfig.threshold} onValueChange={(e) => setPcConfig(c => ({ ...c, threshold: e.value ?? 80 }))} min={50} max={100} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Max Results per Query</label>
+                      <InputNumber value={pcConfig.max_per_query} onValueChange={(e) => setPcConfig(c => ({ ...c, max_per_query: e.value ?? 20 }))} min={1} max={100} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Outcome Filter</label>
+                      <Dropdown value={pcConfig.outcome_filter} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setPcConfig(c => ({ ...c, outcome_filter: e.value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button label="Search PubChem" icon="pi pi-search" size="small" onClick={handlePubChem} />
+                  </div>
+                </div>
+              )}
+            </TabPanel>
+          </TabView>
         </div>
       )}
 
-      {/* Progress */}
+      {statusMsg && <Message severity="info" text={statusMsg} className="mb-4 w-full" />}
+
       {similarsJobId && running && (
         <div className="mb-6">
-          <JobProgress
-            jobId={similarsJobId}
-            onComplete={handleComplete}
-            onCancel={() => setRunning(false)}
-            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
-          />
+          <JobProgress jobId={similarsJobId} onComplete={handleComplete} onCancel={() => setRunning(false)} onRerun={resetResults} />
         </div>
       )}
 
-      {/* Results */}
       {results.length > 0 && (
         <>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-mono text-lg font-bold text-indigo-600">{results.length}</span>
-              <span className="text-xs uppercase tracking-wider text-slate-400">purchasable analogs found</span>
+              <span className="text-xs uppercase tracking-wider text-slate-400">analogs loaded</span>
             </div>
             <div className="flex gap-2">
-              {similarsJobId && <DownloadPanel jobId={similarsJobId} />}
-              <Button label="New Search" icon="pi pi-refresh" severity="secondary" size="small" onClick={() => { setResults([]); setSelectedRow(null); }} />
+              {similarsJobId && <DownloadPanel jobId={similarsJobId} showSdf={false} />}
+              <Button label="New Search" icon="pi pi-refresh" severity="secondary" size="small" onClick={resetResults} />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-5">
-            {/* Table */}
             <div className="col-span-2">
               <SimilarsTable results={results} onRowSelect={setSelectedRow} selectedRow={selectedRow} />
             </div>
-
-            {/* Detail Panel */}
             <div>
               {selectedRow ? (
                 <div className="panel p-4 space-y-4 sticky top-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Analog Detail</h3>
-
-                  {/* 2D Structure */}
                   {selectedRow.smiles && (
                     <div className="flex justify-center bg-white rounded-lg border border-slate-200 p-2">
-                      <img
-                        src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.smiles)}&width=300&height=220`}
-                        alt={selectedRow.smiles}
-                        style={{ maxWidth: "100%", height: "auto" }}
-                      />
+                      <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.smiles)}&width=300&height=220`} alt={selectedRow.smiles} style={{ maxWidth: "100%", height: "auto" }} />
                     </div>
                   )}
-
-                  {/* Metrics */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="stat-card">
-                      <div className="stat-label">Vendor ID</div>
+                      <div className="stat-label">Name / ID</div>
                       <div className="stat-value text-sm">{selectedRow.name || "-"}</div>
                     </div>
-                    <div className="stat-card">
-                      <div className="stat-label">Topo Distance</div>
-                      <div className="stat-value text-blue-700">{selectedRow.topodist ?? "-"}</div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-label">ECFP4 Similarity</div>
-                      <div className="stat-value">{selectedRow.ecfp4?.toFixed(3) ?? "-"}</div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-label">Tanimoto</div>
-                      <div className="stat-value">{selectedRow.daylight?.toFixed(3) ?? "-"}</div>
-                    </div>
+                    {selectedRow.topodist != null && <div className="stat-card"><div className="stat-label">Topo Distance</div><div className="stat-value text-blue-700">{selectedRow.topodist}</div></div>}
+                    {selectedRow.ecfp4 != null && <div className="stat-card"><div className="stat-label">ECFP4</div><div className="stat-value">{selectedRow.ecfp4.toFixed(3)}</div></div>}
+                    {selectedRow.daylight != null && <div className="stat-card"><div className="stat-label">Tanimoto</div><div className="stat-value">{selectedRow.daylight.toFixed(3)}</div></div>}
+                    {(selectedRow as Record<string, unknown>).molecular_weight != null && <div className="stat-card"><div className="stat-label">MW</div><div className="stat-value">{String((selectedRow as Record<string, unknown>).molecular_weight)}</div></div>}
                   </div>
-
-                  {/* SMILES */}
                   <div className="stat-card">
                     <div className="stat-label">SMILES</div>
-                    <div className="text-[10px] font-mono break-all mt-1 text-slate-500">
-                      {selectedRow.smiles || "-"}
-                    </div>
+                    <div className="text-[10px] font-mono break-all mt-1 text-slate-500">{selectedRow.smiles || "-"}</div>
                   </div>
-
-                  {/* Query merger */}
                   {selectedRow.query_smiles && (
                     <div className="stat-card">
-                      <div className="stat-label">Source Merger</div>
+                      <div className="stat-label">Source Query</div>
                       <div className="flex items-center gap-2 mt-1">
-                        <img
-                          src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.query_smiles)}&width=150&height=100`}
-                          alt="query"
-                          className="rounded border border-slate-100"
-                          style={{ width: 75, height: 50, objectFit: "contain", background: "#fff" }}
-                        />
-                        <span className="text-[9px] font-mono text-slate-400 break-all">
-                          {selectedRow.query_smiles}
-                        </span>
+                        <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.query_smiles)}&width=150&height=100`} alt="query" className="rounded border border-slate-100" style={{ width: 75, height: 50, objectFit: "contain", background: "#fff" }} />
+                        <span className="text-[9px] font-mono text-slate-400 break-all">{selectedRow.query_smiles}</span>
                       </div>
                     </div>
                   )}
@@ -207,7 +328,7 @@ export default function SimilarsPage() {
               ) : (
                 <div className="panel p-8 flex flex-col items-center justify-center text-center" style={{ minHeight: "300px" }}>
                   <i className="pi pi-eye text-2xl mb-3 text-slate-300" />
-                  <p className="text-xs text-slate-400">Select an analog to view its structure and details</p>
+                  <p className="text-xs text-slate-400">Select an analog to view details</p>
                 </div>
               )}
             </div>

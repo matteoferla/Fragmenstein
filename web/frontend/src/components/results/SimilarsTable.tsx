@@ -56,6 +56,20 @@ function distBadge(row: SimilarRow) {
 }
 
 export function SimilarsTable({ results, onRowSelect, selectedRow }: SimilarsTableProps) {
+  // Detect which columns are present in the data
+  const hasCol = (col: string) => results.length > 0 && results.some(r => (r as Record<string, unknown>)[col] != null);
+
+  const hasTopodist = hasCol("topodist");
+  const hasTanimotoMerger = hasCol("tanimoto_to_merger");
+  const hasEcfp4 = hasCol("ecfp4");
+  const hasDaylight = hasCol("daylight");
+  const hasQuerySmiles = hasCol("query_smiles");
+  const hasMW = hasCol("molecular_weight");
+
+  // Pick best sort field
+  const defaultSort = hasTanimotoMerger ? "tanimoto_to_merger" : hasTopodist ? "topodist" : "name";
+  const defaultOrder = hasTanimotoMerger ? -1 : 1; // descending for similarity, ascending for distance
+
   return (
     <DataTable
       value={results}
@@ -65,86 +79,53 @@ export function SimilarsTable({ results, onRowSelect, selectedRow }: SimilarsTab
       selectionMode="single"
       selection={selectedRow}
       onSelectionChange={(e) => onRowSelect?.(e.value as SimilarRow)}
-      sortField="topodist"
-      sortOrder={1}
+      sortField={defaultSort}
+      sortOrder={defaultOrder}
       scrollable
       scrollHeight="700px"
       size="small"
       emptyMessage="No analogs found"
       filterDisplay="row"
     >
-      <Column
-        header="Structure"
-        body={structureImg}
-        style={{ minWidth: "120px", padding: "4px 8px" }}
+      <Column header="Structure" body={structureImg} style={{ minWidth: "120px", padding: "4px 8px" }} />
+      <Column field="smiles" header="SMILES" sortable filter filterPlaceholder="Search" style={{ maxWidth: "200px" }}
+        body={(r: SimilarRow) => <span className="text-[10px] font-mono truncate block text-slate-500" style={{ maxWidth: "200px" }}>{r.smiles || "-"}</span>}
       />
-      <Column
-        field="smiles"
-        header="SMILES"
-        sortable
-        filter
-        filterPlaceholder="Search"
-        style={{ maxWidth: "220px" }}
-        body={(r: SimilarRow) => (
-          <span className="text-[10px] font-mono truncate block text-slate-500" style={{ maxWidth: "220px" }}>
-            {r.smiles || "-"}
-          </span>
-        )}
+      <Column field="name" header="Name / ID" sortable filter filterPlaceholder="Search" style={{ minWidth: "110px" }}
+        body={(r: SimilarRow) => <span className="text-xs font-mono text-slate-700">{r.name || "-"}</span>}
       />
-      <Column
-        field="name"
-        header="Vendor ID"
-        sortable
-        filter
-        filterPlaceholder="Search"
-        style={{ minWidth: "120px" }}
-        body={(r: SimilarRow) => (
-          <span className="text-xs font-mono text-slate-700">{r.name || "-"}</span>
-        )}
-      />
-      <Column
-        field="topodist"
-        header="Topo Dist"
-        sortable
-        body={distBadge}
-        style={{ minWidth: "90px" }}
-      />
-      <Column
-        field="ecfp4"
-        header="ECFP4"
-        sortable
-        body={(r: SimilarRow) => numCol(r.ecfp4, 3)}
-        style={{ minWidth: "70px" }}
-      />
-      <Column
-        field="daylight"
-        header="Tanimoto"
-        sortable
-        body={(r: SimilarRow) => numCol(r.daylight, 3)}
-        style={{ minWidth: "80px" }}
-      />
-      <Column
-        field="query_smiles"
-        header="Query (Merger)"
-        style={{ maxWidth: "180px" }}
-        body={(r: SimilarRow) => {
-          if (!r.query_smiles) return <span className="text-slate-300">-</span>;
-          return (
-            <div className="flex items-center gap-2">
-              <img
-                src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(r.query_smiles)}&width=120&height=80`}
-                alt="query"
-                className="rounded border border-slate-100"
-                style={{ width: 60, height: 40, objectFit: "contain", background: "#fff" }}
-                loading="lazy"
-              />
-              <span className="text-[9px] font-mono text-slate-400 truncate" style={{ maxWidth: "100px" }}>
-                {r.query_smiles}
-              </span>
-            </div>
-          );
-        }}
-      />
+      {hasTanimotoMerger && (
+        <Column field="tanimoto_to_merger" header="Similarity" sortable style={{ minWidth: "90px" }}
+          body={(r: SimilarRow) => {
+            const v = (r as Record<string, unknown>).tanimoto_to_merger as number | null;
+            if (v == null) return <span className="text-slate-300">-</span>;
+            const pct = Math.round(v * 100);
+            const color = pct >= 70 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-slate-400";
+            return <span className={`font-mono text-xs font-bold ${color}`}>{pct}%</span>;
+          }}
+        />
+      )}
+      {hasTopodist && <Column field="topodist" header="Topo Dist" sortable body={distBadge} style={{ minWidth: "90px" }} />}
+      {hasEcfp4 && <Column field="ecfp4" header="ECFP4" sortable body={(r: SimilarRow) => numCol(r.ecfp4, 3)} style={{ minWidth: "70px" }} />}
+      {hasDaylight && <Column field="daylight" header="Tanimoto" sortable body={(r: SimilarRow) => numCol(r.daylight, 3)} style={{ minWidth: "80px" }} />}
+      {hasMW && (
+        <Column field="molecular_weight" header="MW" sortable style={{ minWidth: "70px" }}
+          body={(r: SimilarRow) => numCol((r as Record<string, unknown>).molecular_weight as number | null, 1)}
+        />
+      )}
+      {hasQuerySmiles && (
+        <Column field="query_smiles" header="Query (Merger)" style={{ maxWidth: "180px" }}
+          body={(r: SimilarRow) => {
+            if (!r.query_smiles) return <span className="text-slate-300">-</span>;
+            return (
+              <div className="flex items-center gap-2">
+                <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(r.query_smiles)}&width=120&height=80`} alt="query" className="rounded border border-slate-100" style={{ width: 60, height: 40, objectFit: "contain", background: "#fff" }} loading="lazy" />
+                <span className="text-[9px] font-mono text-slate-400 truncate" style={{ maxWidth: "100px" }}>{r.query_smiles}</span>
+              </div>
+            );
+          }}
+        />
+      )}
     </DataTable>
   );
 }

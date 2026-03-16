@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as api from "@/services/api";
 
 const NAV_ITEMS = [
   { href: "/", label: "Sessions", icon: "pi pi-th-large", exact: true },
@@ -12,10 +15,25 @@ const TOOL_ITEMS = [
   { path: "single", label: "Single Victor", icon: "pi pi-wrench", color: "text-violet-500" },
 ];
 
+interface SystemInfo {
+  version?: string;
+  python?: string;
+  platform?: string;
+  cores?: number;
+  pyrosetta?: boolean;
+  pyrosetta_version?: string;
+  rdkit?: string;
+  gpu?: string;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
 
-  // Extract session ID from path if in a session
+  useEffect(() => {
+    api.getSystemInfo().then((info) => setSysInfo(info as SystemInfo)).catch(() => {});
+  }, []);
+
   const sessionMatch = pathname.match(/\/sessions\/([^/]+)/);
   const sessionId = sessionMatch?.[1];
 
@@ -25,15 +43,13 @@ export function Sidebar() {
       <div className="p-5 border-b border-slate-100">
         <Link href="/" className="block group">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-blue-50 border border-blue-200 text-blue-600">
-              F
-            </div>
+            <Image src="/logo.png" alt="Fragmenstein" width={32} height={32} className="rounded-lg" />
             <div>
               <span className="text-base font-bold tracking-wide text-slate-800 group-hover:text-blue-700 transition-colors">
                 Fragmenstein
               </span>
               <p className="text-[10px] tracking-widest uppercase text-slate-400">
-                Drug Design Lab
+                Drug Design
               </p>
             </div>
           </div>
@@ -57,7 +73,6 @@ export function Sidebar() {
           </Link>
         ))}
 
-        {/* Tools section (only visible in a session) */}
         {sessionId && (
           <>
             <div className="pt-4 pb-1 px-3">
@@ -88,10 +103,69 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 flex items-center gap-2 border-t border-slate-100 text-slate-400">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-        <span className="text-[10px] tracking-wider uppercase">System Ready</span>
-        <span className="ml-auto text-[10px] font-mono">v0.1.0</span>
+      <div className="p-4 border-t border-slate-100 space-y-2.5">
+        {/* System status */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${sysInfo ? "bg-emerald-500" : "bg-slate-300"}`} />
+            <span className="text-[10px] tracking-wider uppercase text-slate-400">
+              {sysInfo ? "System Ready" : "Connecting..."}
+            </span>
+            <span className="ml-auto text-[10px] font-mono text-slate-400">v{sysInfo?.version || "..."}</span>
+          </div>
+          {sysInfo && (
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] font-mono text-slate-400 pl-3.5">
+              <span>PyRosetta</span>
+              <span className={sysInfo.pyrosetta ? "text-emerald-500" : "text-red-400"}>
+                {sysInfo.pyrosetta ? "Yes" : "No"}
+              </span>
+              {sysInfo.rdkit && (
+                <>
+                  <span>RDKit</span>
+                  <span>{sysInfo.rdkit}</span>
+                </>
+              )}
+              <span>CPU Cores</span>
+              <span>{sysInfo.cores}</span>
+              {sysInfo.gpu && (
+                <>
+                  <span>GPU</span>
+                  <span className="text-emerald-500 truncate">{sysInfo.gpu}</span>
+                </>
+              )}
+              {!sysInfo.gpu && (
+                <>
+                  <span>GPU</span>
+                  <span className="text-slate-300">None</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Links */}
+        <div className="grid grid-cols-2 gap-1">
+          <a href="https://github.com/matteoferla/Fragmenstein" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-[9px] text-slate-400 hover:text-slate-600 transition-colors py-1 rounded hover:bg-slate-50">
+            <i className="pi pi-github text-[10px]" />
+            <span>Core</span>
+          </a>
+          <a href="https://github.com/sidxz/Fragmenstein" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-[9px] text-slate-400 hover:text-slate-600 transition-colors py-1 rounded hover:bg-slate-50">
+            <i className="pi pi-github text-[10px]" />
+            <span>Web UI</span>
+          </a>
+          <a href="https://fragmenstein.readthedocs.io/en/latest/" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-[9px] text-slate-400 hover:text-slate-600 transition-colors py-1 rounded hover:bg-slate-50">
+            <i className="pi pi-book text-[10px]" />
+            <span>Docs</span>
+          </a>
+          <a href="https://chemrxiv.org/doi/full/10.26434/chemrxiv-2024-17w01" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-[9px] text-slate-400 hover:text-slate-600 transition-colors py-1 rounded hover:bg-slate-50">
+            <i className="pi pi-file text-[10px]" />
+            <span>Paper</span>
+          </a>
+        </div>
       </div>
     </aside>
   );

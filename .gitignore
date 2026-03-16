@@ -129,9 +129,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# Web UI runtime artifacts
-web/backend/output/
-web/backend/data/
-web/frontend/node_modules/
-web/frontend/.next/
