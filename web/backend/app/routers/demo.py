@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from rdkit import Chem
 
 from ..database import get_db
 from ..models.session import get_session, update_session

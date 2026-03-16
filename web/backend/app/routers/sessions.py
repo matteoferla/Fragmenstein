@@ -9,7 +9,6 @@ from ..models.session import (
     delete_session,
     get_session,
     list_sessions,
-    update_session,
 )
 from ..schemas.job import JobStatusResponse
 from ..schemas.session import CreateSessionRequest, SessionResponse

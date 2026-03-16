@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from ..models.job import get_job, get_jobs_for_session
+from ..models.job import get_job
 from ..schemas.job import JobStatusResponse
 from ..services import job_manager
 from ..services.result_serializer import dataframe_to_rows, get_mol_block, load_dataframe, similars_dataframe_to_rows

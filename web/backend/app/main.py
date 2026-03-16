@@ -59,7 +59,9 @@ def health():
 
 @app.get("/api/system-info")
 def system_info():
-    import os, sys, platform
+    import os
+    import sys
+    import platform
     from pathlib import Path
 
     # Read version from shared VERSION file

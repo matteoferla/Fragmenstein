@@ -2,8 +2,7 @@
 
 import json
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import Optional
 
 from ..database import get_db

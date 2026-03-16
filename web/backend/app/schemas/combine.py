@@ -1,6 +1,6 @@
 """Pydantic schemas for combine endpoints."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class CombineRequest(BaseModel):

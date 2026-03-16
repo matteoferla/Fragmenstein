@@ -96,7 +96,7 @@ async def subscribe(job_id: str) -> AsyncIterator[str]:
                     return
             except asyncio.TimeoutError:
                 # Send keepalive
-                yield f": keepalive\n\n"
+                yield ": keepalive\n\n"
     finally:
         _subscribers[job_id].remove(queue)
         if not _subscribers[job_id]:

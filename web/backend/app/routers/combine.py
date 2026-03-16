@@ -6,10 +6,9 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from ..models.session import get_session
-from ..schemas.combine import CombineRequest, CombineResultRow
+from ..schemas.combine import CombineRequest
 from ..services import job_manager
 from ..services.combine_service import run_combine
-from ..services.result_serializer import dataframe_to_rows, load_dataframe
 
 log = logging.getLogger(__name__)
 
