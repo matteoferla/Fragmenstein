@@ -2,6 +2,8 @@
 
 import { useRef, useState, useEffect } from "react";
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { Message } from "primereact/message";
 import { MolViewer3D } from "@/components/viewer/MolViewer3D";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -12,9 +14,10 @@ export function TemplateUpload() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pdbText, setPdbText] = useState<string | null>(null);
+  const [removeResidues, setRemoveResidues] = useState("HOH");
+  const [cleaning, setCleaning] = useState(false);
   const fileUploadRef = useRef<FileUpload>(null);
 
-  // Load PDB text for viewer when template is uploaded
   useEffect(() => {
     if (sessionId && session?.template_filename) {
       api.getTemplatePdb(sessionId).then(r => setPdbText(r.pdb)).catch(() => {});
@@ -33,6 +36,22 @@ export function TemplateUpload() {
       setMessage(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleClean = async () => {
+    if (!sessionId || !removeResidues.trim()) return;
+    setCleaning(true);
+    try {
+      const result = await api.cleanTemplate(sessionId, removeResidues);
+      setMessage(result.message);
+      // Reload PDB for viewer
+      const r = await api.getTemplatePdb(sessionId);
+      setPdbText(r.pdb);
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : "Clean failed");
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -72,6 +91,34 @@ export function TemplateUpload() {
         }
       />
       {message && <Message severity="info" text={message} className="mt-3 w-full" />}
+
+      {/* Template preparation: remove unwanted residues */}
+      {session?.template_filename && (
+        <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            Template Preparation
+          </div>
+          <div className="flex items-center gap-2">
+            <InputText
+              value={removeResidues}
+              onChange={(e) => setRemoveResidues(e.target.value.toUpperCase())}
+              placeholder="HOH SO4 CL"
+              className="flex-1"
+            />
+            <Button
+              label="Remove Residues"
+              icon="pi pi-filter"
+              size="small"
+              severity="secondary"
+              onClick={handleClean}
+              loading={cleaning}
+            />
+          </div>
+          <div className="text-[9px] text-slate-400 mt-1">
+            Remove waters (HOH), ions, and other unwanted residues. Space-separated 3-letter codes.
+          </div>
+        </div>
+      )}
 
       {/* 3D Protein Viewer */}
       {pdbText && (

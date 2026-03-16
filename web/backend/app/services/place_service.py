@@ -62,31 +62,37 @@ def run_place(
 def build_place_queries_from_similars(
     session_id: str,
     similars_df: pd.DataFrame,
+    use_originals: bool = True,
+    combine_result_path: str | None = None,
 ) -> pd.DataFrame:
-    """Build placement queries from SmallWorld results + session hits.
+    """Build placement queries from SmallWorld/manual results + hits.
 
-    SmallWorld results have columns: smiles, name, hitSmiles, topodist, etc.
-    We need to build: smiles, name, hits (List[Mol]) for Laboratory.place().
+    use_originals=True: use original session hits for placement (default, recommended).
+    use_originals=False: use the merger's unminimized mol as the hit template.
     """
     if similars_df.empty:
         return pd.DataFrame(columns=["smiles", "name", "hits"])
 
     hits = load_session_hits(session_id)
-    if not hits:
+    if not hits and use_originals:
         raise ValueError("No hits loaded for session")
+
+    # Load combine results for merger mols if use_originals=False
+    combine_df = None
+    if not use_originals and combine_result_path:
+        combine_df = load_dataframe(Path(combine_result_path))
 
     # SmallWorld results may have hit_mols (set by similars_service) or not
     has_hit_mols = "hit_mols" in similars_df.columns
 
     queries = []
-    seen = set()  # Deduplicate by SMILES
+    seen = set()
 
     for _, row in similars_df.iterrows():
         smiles = row.get("smiles", "")
         if not smiles or not isinstance(smiles, str) or smiles in seen:
             continue
 
-        # Validate SMILES
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             continue
@@ -96,19 +102,31 @@ def build_place_queries_from_similars(
         if not isinstance(name, str):
             name = str(name)
 
-        # Determine which hits to use for this analog
-        query_hits = hits  # default: all session hits
-        if has_hit_mols:
-            row_hits = row.get("hit_mols")
-            if isinstance(row_hits, (list, tuple)) and len(row_hits) > 0:
-                valid = [h for h in row_hits if h is not None and isinstance(h, Chem.Mol)]
-                if valid:
-                    query_hits = valid
+        if use_originals:
+            # Use original hits
+            query_hits = hits
+            if has_hit_mols:
+                row_hits = row.get("hit_mols")
+                if isinstance(row_hits, (list, tuple)) and len(row_hits) > 0:
+                    valid = [h for h in row_hits if h is not None and isinstance(h, Chem.Mol)]
+                    if valid:
+                        query_hits = valid
+        else:
+            # Use merger's unminimized mol as the hit template
+            query_hits = hits  # fallback
+            if combine_df is not None and "unminimized_mol" in combine_df.columns:
+                # Try to find the merger that this analog came from
+                query_smiles = row.get("query_smiles") or row.get("hitSmiles")
+                if query_smiles and query_smiles in combine_df.get("simple_smiles", pd.Series()).values:
+                    match = combine_df[combine_df["simple_smiles"] == query_smiles].iloc[0]
+                    merger_mol = match.get("unminimized_mol")
+                    if merger_mol is not None and isinstance(merger_mol, Chem.Mol):
+                        query_hits = [merger_mol]
 
         queries.append({"smiles": smiles, "name": name, "hits": query_hits})
 
     if not queries:
         return pd.DataFrame(columns=["smiles", "name", "hits"])
 
-    log.info(f"Built {len(queries)} placement queries from {len(similars_df)} SmallWorld results")
+    log.info(f"Built {len(queries)} placement queries (use_originals={use_originals})")
     return pd.DataFrame(queries)

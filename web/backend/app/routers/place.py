@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from ..models.job import get_job
+from ..models.job import get_job, get_jobs_for_session
 from ..models.session import get_session
 from ..schemas.place import PlaceRequest
 from ..services import job_manager
@@ -27,7 +27,20 @@ async def _run_place_task(job_id: str, session_id: str, config: PlaceRequest):
             if source_job is None or source_job.result_path is None:
                 raise ValueError("Source job not found or not completed")
             similars_df = load_dataframe(Path(source_job.result_path))
-            queries = build_place_queries_from_similars(session_id, similars_df)
+
+            # Find combine job result path for use_originals=False
+            combine_result_path = None
+            if not config.use_originals:
+                combine_jobs = [j for j in get_jobs_for_session(session_id)
+                                if j.type == "combine" and j.status == "completed" and j.result_path]
+                if combine_jobs:
+                    combine_result_path = combine_jobs[0].result_path
+
+            queries = build_place_queries_from_similars(
+                session_id, similars_df,
+                use_originals=config.use_originals,
+                combine_result_path=combine_result_path,
+            )
         else:
             raise ValueError("source_job_id is required for placement")
 

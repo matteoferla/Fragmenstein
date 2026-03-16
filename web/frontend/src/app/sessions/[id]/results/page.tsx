@@ -20,13 +20,32 @@ export default function ResultsPage() {
   const [placeResults, setPlaceResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
-    if (combineJobId) api.getJobResults(combineJobId).then((res) => setCombineResults(res.results)).catch(() => {});
-    if (placeJobId) api.getJobResults(placeJobId).then((res) => setPlaceResults(res.results)).catch(() => {});
+    if (combineJobId) {
+      api.getJobStatus(combineJobId).then((job) => {
+        if (job.status === "completed") {
+          api.getJobResults(combineJobId).then((res) => setCombineResults(res.results)).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+    if (placeJobId) {
+      api.getJobStatus(placeJobId).then((job) => {
+        if (job.status === "completed") {
+          api.getJobResults(placeJobId).then((res) => setPlaceResults(res.results)).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   }, [combineJobId, placeJobId]);
 
   useEffect(() => { setActiveJobId(combineJobId); }, [combineJobId]);
+
+  const handleTabChange = (index: number) => {
+    setActiveTab(index);
+    setSelectedRow(null);
+    setActiveJobId(index === 0 ? combineJobId : placeJobId);
+  };
 
   const renderPanel = (results: ResultRow[], jobId: string | null, emptyMsg: string) => {
     if (results.length === 0) {
@@ -78,7 +97,7 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      <TabView onTabChange={(e) => { setSelectedRow(null); setActiveJobId(e.index === 0 ? combineJobId : placeJobId); }}>
+      <TabView activeIndex={activeTab} onTabChange={(e) => handleTabChange(e.index)}>
         <TabPanel header={`Combine (${combineResults.length})`}>
           {renderPanel(combineResults, combineJobId, "No combine results available.")}
         </TabPanel>

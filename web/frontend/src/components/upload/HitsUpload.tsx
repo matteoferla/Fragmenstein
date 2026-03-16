@@ -4,6 +4,8 @@ import { useRef, useState, useEffect } from "react";
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { InputText } from "primereact/inputtext";
+import { Checkbox } from "primereact/checkbox";
 import { Message } from "primereact/message";
 import { MolViewer3D } from "@/components/viewer/MolViewer3D";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -16,6 +18,8 @@ export function HitsUpload() {
   const [message, setMessage] = useState<string | null>(null);
   const [hitMolBlocks, setHitMolBlocks] = useState<Array<{ name: string; data: string }>>([]);
   const [proteinPdb, setProteinPdb] = useState<string | null>(null);
+  const [ligandResn, setLigandResn] = useState("");
+  const [proximityBonding, setProximityBonding] = useState(true);
   const fileUploadRef = useRef<FileUpload>(null);
 
   // Load hit mol blocks + protein for 3D overlay
@@ -33,7 +37,7 @@ export function HitsUpload() {
     if (!sessionId || e.files.length === 0) return;
     setUploading(true);
     try {
-      const result = await api.uploadHits(sessionId, e.files);
+      const result = await api.uploadHits(sessionId, e.files, ligandResn || undefined, proximityBonding);
       setMessage(result.message);
       await refreshHits();
       fileUploadRef.current?.clear();
@@ -58,10 +62,35 @@ export function HitsUpload() {
           Hit Compounds (SDF/MOL/PDB)
         </h3>
       </div>
+      {/* Ligand residue name — needed when hits are in PDB format */}
+      <div className="flex items-center gap-3 mb-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+        <div className="flex-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+            PDB Ligand Residue Name
+          </label>
+          <InputText
+            value={ligandResn}
+            onChange={(e) => setLigandResn(e.target.value.toUpperCase())}
+            placeholder="e.g. LIG, UNL, DRG"
+            className="w-full"
+            maxLength={3}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox checked={proximityBonding} onChange={(e) => setProximityBonding(e.checked ?? true)} />
+            <span className="text-[10px] text-slate-500">Proximity Bonding</span>
+          </label>
+          <div className="text-[10px] text-slate-400 max-w-[200px]">
+            For PDB files: residue name extracts the ligand. Enable proximity bonding if the PDB lacks CONECT records.
+          </div>
+        </div>
+      </div>
+
       <FileUpload
         ref={fileUploadRef}
         mode="advanced"
-        accept=".sdf,.mol,.mol2,.pdb"
+        accept=".sdf,.mol,.mol2,.pdb,.smi"
         multiple
         maxFileSize={100 * 1024 * 1024}
         customUpload
@@ -74,7 +103,7 @@ export function HitsUpload() {
         cancelOptions={{ className: "p-button-sm" }}
         emptyTemplate={
           <p className="text-sm p-4 text-slate-400">
-            Drag and drop hit molecule files here. Supports SDF, MOL, MOL2, PDB.
+            Drag and drop hit molecule files here. Supports SDF, MOL, MOL2, PDB, SMI.
           </p>
         }
       />

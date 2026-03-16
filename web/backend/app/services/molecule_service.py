@@ -8,11 +8,38 @@ from rdkit import Chem
 log = logging.getLogger(__name__)
 
 
-def parse_mol_file(filepath: Path) -> list[Chem.Mol]:
+def parse_smi_file(filepath: Path) -> dict[str, str]:
+    """Parse a .smi file returning a name→SMILES mapping.
+
+    Format: SMILES<tab>NAME per line.
+    """
+    mapping = {}
+    text = filepath.read_text()
+    for line in text.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            smiles, name = parts[0].strip(), parts[-1].strip()
+            if name and smiles:
+                mapping[name] = smiles
+    return mapping
+
+
+def parse_mol_file(
+    filepath: Path,
+    ligand_resn: str | None = None,
+    proximity_bonding: bool = True,
+    smiles_map: dict[str, str] | None = None,
+) -> list[Chem.Mol]:
     """Parse a molecular file and return a list of RDKit Mol objects.
 
     Supports .sdf, .mol, .mol2, .pdb formats.
     For SDF files, may return multiple molecules.
+    For PDB files: if ligand_resn is provided, extracts only the ligand
+    residue using Victor.extract_mol (standard for crystal structure hits).
+    If not provided, reads the whole PDB as a single molecule.
     """
     suffix = filepath.suffix.lower()
     mols = []
@@ -27,9 +54,29 @@ def parse_mol_file(filepath: Path) -> list[Chem.Mol]:
         if mol is not None:
             mols.append(mol)
     elif suffix == ".pdb":
-        mol = Chem.MolFromPDBFile(str(filepath), removeHs=False)
-        if mol is not None:
-            mols.append(mol)
+        if ligand_resn:
+            # Extract ligand from crystal structure PDB using Victor
+            from fragmenstein import Victor
+            name = filepath.stem
+            # Look up SMILES for bond order correction
+            smiles = smiles_map.get(name) if smiles_map else None
+            try:
+                mol = Victor.extract_mol(
+                    name=name,
+                    filepath=str(filepath),
+                    smiles=smiles,
+                    ligand_resn=ligand_resn,
+                    proximityBonding=proximity_bonding,
+                )
+                if mol is not None:
+                    mol.SetProp("_Name", name)
+                    mols.append(mol)
+            except Exception as e:
+                log.warning(f"Failed to extract ligand '{ligand_resn}' from {filepath.name}: {e}")
+        else:
+            mol = Chem.MolFromPDBFile(str(filepath), removeHs=False)
+            if mol is not None:
+                mols.append(mol)
     else:
         raise ValueError(f"Unsupported file format: {suffix}")
 

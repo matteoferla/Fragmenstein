@@ -41,6 +41,7 @@ export interface PlaceRequest {
   timeout?: number;
   merging_mode?: string;
   run_plip?: boolean;
+  use_originals?: boolean;
   covalent_resi?: string | null;
   source_job_id?: string | null;
 }

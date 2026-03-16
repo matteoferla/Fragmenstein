@@ -104,14 +104,42 @@ def download_results(job_id: str, format: str = "csv"):
     if format == "csv":
         # Drop Mol columns for CSV export
         scalar_cols = [c for c in df.columns if not any(
-            kw in c.lower() for kw in ["mol", "hit_mols"]
-        )]
+            kw in str(c).lower() for kw in ["mol", "hit_mols", "binary"]
+        ) and not isinstance(c, tuple)]
         buf = io.StringIO()
         df[scalar_cols].to_csv(buf, index=False)
         return StreamingResponse(
             iter([buf.getvalue()]),
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={job.type}_results.csv"},
+        )
+    elif format == "sdf":
+        from rdkit import Chem
+        buf = io.StringIO()
+        mol_col = None
+        for col in ["minimized_mol", "unminimized_mol"]:
+            if col in df.columns:
+                mol_col = col
+                break
+        if mol_col is None:
+            raise HTTPException(status_code=400, detail="No molecule column for SDF export")
+        writer = Chem.SDWriter(buf)
+        for idx, row in df.iterrows():
+            mol = row.get(mol_col)
+            if mol is not None and isinstance(mol, Chem.Mol):
+                mol.SetProp("_Name", str(row.get("name", f"mol_{idx}")))
+                if "∆∆G" in row.index:
+                    val = row["∆∆G"]
+                    if val is not None and str(val) != "nan":
+                        mol.SetProp("ddG", f"{val:.3f}")
+                if "outcome" in row.index and row["outcome"]:
+                    mol.SetProp("outcome", str(row["outcome"]))
+                writer.write(mol)
+        writer.close()
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="chemical/x-mdl-sdfile",
+            headers={"Content-Disposition": f"attachment; filename={job.type}_results.sdf"},
         )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")

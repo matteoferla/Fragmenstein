@@ -65,6 +65,14 @@ export function ResultsTable({ results, onRowSelect, selectedRow }: ResultsTable
           </span>
         )}
       />
+      <Column field="const_ratio" header="Const%" sortable style={{ minWidth: "70px" }}
+        body={(r: ResultRow) => {
+          if (r.const_ratio === null || r.const_ratio === undefined) return <span className="text-slate-300">-</span>;
+          const pct = Math.round(r.const_ratio * 100);
+          const color = pct >= 50 ? "text-emerald-600" : "text-amber-600";
+          return <span className={`font-mono text-xs ${color}`}>{pct}%</span>;
+        }}
+      />
       <Column field="runtime" header="Time (s)" sortable body={(r: ResultRow) => numCol(r.runtime, 1)} style={{ minWidth: "80px" }} />
     </DataTable>
   );

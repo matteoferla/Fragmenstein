@@ -20,6 +20,7 @@ const PLACE_FIELDS = [
   { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600 },
   { key: "merging_mode", label: "Merging Mode", type: "select" as const, options: ["expansion", "full", "none", "none_permissive"] },
   { key: "covalent_resi", label: "Covalent Residue", type: "text" as const },
+  { key: "use_originals", label: "Use Original Hits", type: "checkbox" as const },
   { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const },
 ];
 
@@ -29,7 +30,7 @@ export default function PlacePage() {
   const sessionId = params.id as string;
   const { similarsJobId, placeJobId, setPlaceJobId } = useSessionStore();
 
-  const [config, setConfig] = useState<PlaceRequest>({ victor_type: "Wictor", n_cores: -1, timeout: 240, merging_mode: "expansion", run_plip: false, covalent_resi: null, source_job_id: similarsJobId });
+  const [config, setConfig] = useState<PlaceRequest>({ victor_type: "Wictor", n_cores: -1, timeout: 240, merging_mode: "expansion", run_plip: false, use_originals: true, covalent_resi: null, source_job_id: similarsJobId });
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);

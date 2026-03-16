@@ -67,10 +67,19 @@ export async function uploadTemplate(sessionId: string, file: File): Promise<{ f
   return res.json();
 }
 
-export async function uploadHits(sessionId: string, files: File[]): Promise<{ filename: string; message: string }> {
+export async function uploadHits(
+  sessionId: string,
+  files: File[],
+  ligandResn?: string,
+  proximityBonding: boolean = true,
+): Promise<{ filename: string; message: string }> {
   const formData = new FormData();
   files.forEach((f) => formData.append("files", f));
-  const res = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/hits`, {
+  const params = new URLSearchParams();
+  if (ligandResn) params.set("ligand_resn", ligandResn);
+  params.set("proximity_bonding", String(proximityBonding));
+  const url = `${API_BASE_URL}/api/sessions/${sessionId}/hits?${params.toString()}`;
+  const res = await fetch(url, {
     method: "POST",
     body: formData,
   });
@@ -84,6 +93,13 @@ export async function getHits(sessionId: string): Promise<HitsResponse> {
 
 export async function getTemplatePdb(sessionId: string): Promise<{ pdb: string }> {
   return request(`/api/sessions/${sessionId}/template/pdb`);
+}
+
+// Template cleaning
+export async function cleanTemplate(sessionId: string, removeResidues: string = "HOH"): Promise<{ message: string; removed_count: number }> {
+  return request(`/api/sessions/${sessionId}/template/clean?remove_residues=${encodeURIComponent(removeResidues)}`, {
+    method: "POST",
+  });
 }
 
 // Demo

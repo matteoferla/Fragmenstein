@@ -9,8 +9,9 @@ class PlaceRequest(BaseModel):
     timeout: int = 240
     merging_mode: str = "expansion"
     run_plip: bool = False
+    use_originals: bool = True  # True = use original hits; False = use merger mol
     covalent_resi: str | None = None
-    source_job_id: str | None = None  # combine job to source hits from
+    source_job_id: str | None = None  # combine/similars job to source queries from
 
 
 class PlaceResultRow(BaseModel):
