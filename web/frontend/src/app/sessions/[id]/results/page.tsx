@@ -7,6 +7,7 @@ import { ResultsTable } from "@/components/results/ResultsTable";
 import { OutcomeChart } from "@/components/results/OutcomeChart";
 import { ResultDetail } from "@/components/results/ResultDetail";
 import { DownloadPanel } from "@/components/results/DownloadPanel";
+import { MetricsLegend } from "@/components/results/MetricsLegend";
 import { useSessionStore } from "@/stores/sessionStore";
 import * as api from "@/services/api";
 import type { ResultRow } from "@/services/types";
@@ -66,6 +67,7 @@ export default function ResultsPage() {
           {jobId && <DownloadPanel jobId={jobId} />}
         </div>
         <OutcomeChart results={results} />
+        <MetricsLegend />
         <div className="grid grid-cols-3 gap-5 mt-5">
           <div className="col-span-2">
             <ResultsTable results={results} onRowSelect={(row) => { setSelectedRow(row); setActiveJobId(jobId); }} selectedRow={selectedRow} />
