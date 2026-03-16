@@ -57,12 +57,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   loadSession: async (id: string) => {
     set({ loading: true, error: null });
     try {
-      const session = await api.getSession(id);
-      const hitsRes = await api.getHits(id);
+      const [session, hitsRes, jobs] = await Promise.all([
+        api.getSession(id),
+        api.getHits(id),
+        api.getSessionJobs(id),
+      ]);
+
+      // Restore latest job IDs by type (jobs sorted by created_at DESC)
+      const latestJob = (type: string) => {
+        const matching = jobs.filter(j => j.type === type);
+        return matching.length > 0 ? matching[0].id : null;
+      };
+
       set({
         sessionId: id,
         session,
         hits: hitsRes.hits,
+        combineJobId: latestJob("combine"),
+        similarsJobId: latestJob("similars"),
+        placeJobId: latestJob("place"),
         loading: false,
       });
     } catch (e: unknown) {

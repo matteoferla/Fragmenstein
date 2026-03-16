@@ -7,6 +7,8 @@ class PlaceRequest(BaseModel):
     victor_type: str = "Wictor"
     n_cores: int = -1
     timeout: int = 240
+    merging_mode: str = "expansion"
+    run_plip: bool = False
     covalent_resi: str | None = None
     source_job_id: str | None = None  # combine job to source hits from
 

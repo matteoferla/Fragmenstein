@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from ..models.job import get_job, get_jobs_for_session
 from ..schemas.job import JobStatusResponse
 from ..services import job_manager
-from ..services.result_serializer import dataframe_to_rows, get_mol_block, load_dataframe
+from ..services.result_serializer import dataframe_to_rows, get_mol_block, load_dataframe, similars_dataframe_to_rows
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -58,7 +58,10 @@ def get_results(job_id: str):
         raise HTTPException(status_code=400, detail="Job not completed")
 
     df = load_dataframe(Path(job.result_path))
-    rows = dataframe_to_rows(df)
+    if job.type == "similars":
+        rows = similars_dataframe_to_rows(df)
+    else:
+        rows = dataframe_to_rows(df)
     return {"results": rows, "count": len(rows)}
 
 

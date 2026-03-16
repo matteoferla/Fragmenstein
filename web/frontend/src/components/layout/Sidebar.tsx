@@ -3,8 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+const NAV_ITEMS = [
+  { href: "/", label: "Sessions", icon: "pi pi-th-large", exact: true },
+];
+
+const TOOL_ITEMS = [
+  { path: "monster", label: "Monster", icon: "pi pi-bolt", color: "text-amber-500" },
+  { path: "single", label: "Single Victor", icon: "pi pi-wrench", color: "text-violet-500" },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+
+  // Extract session ID from path if in a session
+  const sessionMatch = pathname.match(/\/sessions\/([^/]+)/);
+  const sessionId = sessionMatch?.[1];
 
   return (
     <aside className="w-60 flex flex-col bg-white border-r border-slate-200">
@@ -29,17 +42,49 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1">
-        <Link
-          href="/"
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-            pathname === "/"
-              ? "bg-teal-50 text-teal-700 border-l-2 border-teal-500"
-              : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-          }`}
-        >
-          <i className="pi pi-th-large text-xs" />
-          Sessions
-        </Link>
+        {NAV_ITEMS.map(item => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+              (item.exact ? pathname === item.href : pathname.startsWith(item.href))
+                ? "bg-teal-50 text-teal-700 border-l-2 border-teal-500"
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <i className={`${item.icon} text-xs`} />
+            {item.label}
+          </Link>
+        ))}
+
+        {/* Tools section (only visible in a session) */}
+        {sessionId && (
+          <>
+            <div className="pt-4 pb-1 px-3">
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-300">
+                Tools
+              </span>
+            </div>
+            {TOOL_ITEMS.map(item => {
+              const href = `/sessions/${sessionId}/${item.path}`;
+              const isActive = pathname.includes(`/${item.path}`);
+              return (
+                <Link
+                  key={item.path}
+                  href={href}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    isActive
+                      ? "bg-slate-50 text-slate-700 border-l-2 border-slate-400"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <i className={`${item.icon} text-xs ${item.color}`} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* Footer */}

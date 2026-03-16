@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException
 
 from ..database import get_db
+from ..models.job import get_jobs_for_session
 from ..models.session import (
     create_session,
     delete_session,
@@ -10,6 +11,7 @@ from ..models.session import (
     list_sessions,
     update_session,
 )
+from ..schemas.job import JobStatusResponse
 from ..schemas.session import CreateSessionRequest, SessionResponse
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -49,6 +51,22 @@ def get(session_id: str):
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return _session_response(session)
+
+
+@router.get("/{session_id}/jobs", response_model=list[JobStatusResponse])
+def list_jobs(session_id: str):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    jobs = get_jobs_for_session(session_id)
+    return [
+        JobStatusResponse(
+            id=j.id, session_id=j.session_id, type=j.type, status=j.status,
+            progress=j.progress, message=j.message, error=j.error,
+            created_at=j.created_at, started_at=j.started_at, completed_at=j.completed_at,
+        )
+        for j in jobs
+    ]
 
 
 @router.delete("/{session_id}", status_code=204)

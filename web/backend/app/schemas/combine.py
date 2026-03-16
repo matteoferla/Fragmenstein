@@ -11,6 +11,8 @@ class CombineRequest(BaseModel):
     permute: bool = True
     joining_cutoff: float = 5.0
     quick_reanimation: bool = False
+    warhead_harmonisation: str = "first"
+    run_plip: bool = False
     covalent_resi: str | None = None
     hit_names: list[str] | None = None  # subset of hits to combine; None = all
 

@@ -64,6 +64,16 @@ def dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
                 d[col] = _safe_value(row[col])
         if "hit_names" in row.index:
             d["hit_names"] = _safe_value(row["hit_names"])
+        # Serialize PLIP interaction columns (tuple-keyed like ('hbond', 'LEU', 127))
+        plip = {}
+        for col in row.index:
+            if isinstance(col, tuple) and len(col) >= 2:
+                key = "plip_" + "_".join(str(c) for c in col)
+                val = _safe_value(row[col])
+                if val is not None and val != 0:
+                    plip[key] = val
+        if plip:
+            d["plip"] = plip
         rows.append(d)
     return rows
 
@@ -88,6 +98,29 @@ def get_mol_block(df: pd.DataFrame, idx: int, mol_type: str = "minimized") -> st
         return None
 
     return Chem.MolToMolBlock(mol)
+
+
+def similars_dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
+    """Convert a SmallWorld result DataFrame to JSON-safe rows."""
+    if df.empty:
+        return []
+
+    # SmallWorld columns of interest
+    SW_COLS = [
+        "smiles", "name", "hitSmiles", "topodist", "dist",
+        "ecfp4", "daylight", "mces",
+        "tdn", "tup", "rdn", "rup", "ldn", "lup", "mut", "maj", "min", "hyb", "sub",
+        "query_smiles", "alignment",
+    ]
+
+    rows = []
+    for idx, row in df.iterrows():
+        d = {"index": idx if isinstance(idx, int) else len(rows)}
+        for col in SW_COLS:
+            if col in row.index:
+                d[col] = _safe_value(row[col])
+        rows.append(d)
+    return rows
 
 
 def save_dataframe(df: pd.DataFrame, path: Path):

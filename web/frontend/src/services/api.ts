@@ -6,10 +6,16 @@ import type {
   HitsResponse,
   JobStatus,
   MolBlockResponse,
+  MonsterCombineRequest,
+  MonsterPlaceRequest,
+  MonsterResult,
   PlaceRequest,
   ResultsResponse,
   SessionResponse,
   SimilarsRequest,
+  SingleCombineRequest,
+  SinglePlaceRequest,
+  SingleResult,
   HitMolBlock,
 } from "./types";
 
@@ -45,6 +51,10 @@ export async function deleteSession(id: string): Promise<void> {
   await fetch(`${API_BASE_URL}/api/sessions/${id}`, { method: "DELETE" });
 }
 
+export async function getSessionJobs(sessionId: string): Promise<JobStatus[]> {
+  return request(`/api/sessions/${sessionId}/jobs`);
+}
+
 // Uploads
 export async function uploadTemplate(sessionId: string, file: File): Promise<{ filename: string; message: string }> {
   const formData = new FormData();
@@ -74,6 +84,13 @@ export async function getHits(sessionId: string): Promise<HitsResponse> {
 
 export async function getTemplatePdb(sessionId: string): Promise<{ pdb: string }> {
   return request(`/api/sessions/${sessionId}/template/pdb`);
+}
+
+// Demo
+export async function loadDemo(sessionId: string, dataset: string, nHits: number = 5): Promise<{ template_filename: string; hit_count: number; message: string }> {
+  return request(`/api/sessions/${sessionId}/demo/${dataset}?n_hits=${nHits}`, {
+    method: "POST",
+  });
 }
 
 // Combine
@@ -115,6 +132,24 @@ export async function getResultMol(jobId: string, idx: number, molType: string =
 
 export function getResultsDownloadUrl(jobId: string, format: string = "csv"): string {
   return `${API_BASE_URL}/api/jobs/${jobId}/results/download?format=${format}`;
+}
+
+// Monster
+export async function monsterCombine(sessionId: string, config: MonsterCombineRequest): Promise<MonsterResult> {
+  return request(`/api/sessions/${sessionId}/monster/combine`, { method: "POST", body: JSON.stringify(config) });
+}
+
+export async function monsterPlace(sessionId: string, config: MonsterPlaceRequest): Promise<MonsterResult> {
+  return request(`/api/sessions/${sessionId}/monster/place`, { method: "POST", body: JSON.stringify(config) });
+}
+
+// Single Victor
+export async function singleCombine(sessionId: string, config: SingleCombineRequest): Promise<SingleResult> {
+  return request(`/api/sessions/${sessionId}/single/combine`, { method: "POST", body: JSON.stringify(config) });
+}
+
+export async function singlePlace(sessionId: string, config: SinglePlaceRequest): Promise<SingleResult> {
+  return request(`/api/sessions/${sessionId}/single/place`, { method: "POST", body: JSON.stringify(config) });
 }
 
 // Molecules

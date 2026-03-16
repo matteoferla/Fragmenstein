@@ -38,12 +38,14 @@ async def _run_place_task(job_id: str, session_id: str, config: PlaceRequest):
             victor_type=config.victor_type,
             n_cores=config.n_cores,
             timeout=config.timeout,
+            merging_mode=config.merging_mode,
+            run_plip=config.run_plip,
             covalent_resi=config.covalent_resi,
         )
         job_manager.mark_completed(job_id, result_path=str(result_path))
     except Exception as e:
         log.exception(f"Place failed for session {session_id}")
-        job_manager.mark_failed(job_id, error=str(e))
+        job_manager.mark_failed(job_id, error=f"{type(e).__name__}: {e}" if str(e) else type(e).__name__)
 
 
 @router.post("/place")

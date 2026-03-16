@@ -11,13 +11,16 @@ import { ResultDetail } from "@/components/results/ResultDetail";
 import { DownloadPanel } from "@/components/results/DownloadPanel";
 import { useSessionStore } from "@/stores/sessionStore";
 import * as api from "@/services/api";
+import { VICTOR_TYPES } from "@/lib/constants";
 import type { PlaceRequest, ResultRow } from "@/services/types";
 
 const PLACE_FIELDS = [
-  { key: "victor_type", label: "Victor Type", type: "select" as const, options: ["Wictor", "Victor", "Quicktor"] },
+  { key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES },
   { key: "n_cores", label: "Cores (-1 = all)", type: "number" as const, min: -1, max: 64 },
   { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600 },
+  { key: "merging_mode", label: "Merging Mode", type: "select" as const, options: ["expansion", "full", "none", "none_permissive"] },
   { key: "covalent_resi", label: "Covalent Residue", type: "text" as const },
+  { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const },
 ];
 
 export default function PlacePage() {
@@ -26,7 +29,7 @@ export default function PlacePage() {
   const sessionId = params.id as string;
   const { similarsJobId, placeJobId, setPlaceJobId } = useSessionStore();
 
-  const [config, setConfig] = useState<PlaceRequest>({ victor_type: "Wictor", n_cores: -1, timeout: 240, covalent_resi: null, source_job_id: similarsJobId });
+  const [config, setConfig] = useState<PlaceRequest>({ victor_type: "Wictor", n_cores: -1, timeout: 240, merging_mode: "expansion", run_plip: false, covalent_resi: null, source_job_id: similarsJobId });
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);
@@ -34,9 +37,11 @@ export default function PlacePage() {
   useEffect(() => { if (similarsJobId) setConfig(c => ({ ...c, source_job_id: similarsJobId })); }, [similarsJobId]);
 
   const handleStart = async () => {
-    if (!config.source_job_id) return;
+    const sourceJobId = config.source_job_id || useSessionStore.getState().similarsJobId;
+    if (!sourceJobId) return;
+    const finalConfig = { ...config, source_job_id: sourceJobId };
     setRunning(true); setResults([]);
-    try { const { job_id } = await api.startPlace(sessionId, config); setPlaceJobId(job_id); }
+    try { const { job_id } = await api.startPlace(sessionId, finalConfig); setPlaceJobId(job_id); }
     catch { setRunning(false); }
   };
 

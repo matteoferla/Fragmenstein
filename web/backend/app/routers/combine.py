@@ -30,6 +30,8 @@ async def _run_combine_task(job_id: str, session_id: str, config: CombineRequest
             permute=config.permute,
             joining_cutoff=config.joining_cutoff,
             quick_reanimation=config.quick_reanimation,
+            warhead_harmonisation=config.warhead_harmonisation,
+            run_plip=config.run_plip,
             covalent_resi=config.covalent_resi,
             hit_names=config.hit_names,
         )
