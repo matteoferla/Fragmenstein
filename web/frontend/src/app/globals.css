@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ── Edison Scientific — Light Theme ──────────────────────────────── */
+
+:root {
+  --background: #f8fafb;
+  --foreground: #1a2332;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --surface-raised: #ffffff;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --accent: #0d9488;
+  --accent-light: #ccfbf1;
+  --accent-text: #0f766e;
+  --accent-2: #6366f1;
+  --accent-2-light: #e0e7ff;
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warn: #d97706;
+  --warn-light: #fef3c7;
+  --danger: #dc2626;
+
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(13, 148, 136, 0.15);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Reusable surface classes ─────────────────────────────────────── */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.stat-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.stat-card .stat-label {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.stat-card .stat-value {
+  color: var(--text);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875rem;
+  margin-top: 2px;
+}
+
+/* ── PrimeReact theme-token overrides (lara-light-teal) ───────────── */
+
+:root {
+  --surface-ground: var(--background) !important;
+  --surface-section: var(--background) !important;
+  --surface-card: var(--surface) !important;
+  --surface-overlay: var(--surface) !important;
+  --surface-border: var(--border) !important;
+  --surface-hover: var(--surface-alt) !important;
+  --maskbg: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ── Minimal PrimeReact refinements (shape / spacing only) ────────── */
+
+.p-component {
+  font-family: var(--font-sans), system-ui, sans-serif !important;
+}
+
+.p-button {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease !important;
+}
+
+.p-inputtext,
+.p-dropdown,
+.p-inputnumber-input {
+  border-radius: 6px !important;
+}
+
+.p-datatable {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-secondary) !important;
+}
+
+.p-fileupload {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.p-tag {
+  border-radius: 6px !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+}
+
+.p-progressbar {
+  border-radius: 6px !important;
+  height: 6px !important;
+}
+.p-progressbar .p-progressbar-label {
+  display: none !important;
+}
+
+.p-tabview .p-tabview-panels {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.p-message {
+  border-radius: 8px !important;
+}
+
+/* ── Utility animation ────────────────────────────────────────────── */
+
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--accent); }
+}
+.pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
