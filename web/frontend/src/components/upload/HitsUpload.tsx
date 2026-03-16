@@ -1,18 +1,33 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Message } from "primereact/message";
+import { MolViewer3D } from "@/components/viewer/MolViewer3D";
 import { useSessionStore } from "@/stores/sessionStore";
+import { API_BASE_URL } from "@/lib/constants";
 import * as api from "@/services/api";
 
 export function HitsUpload() {
   const { sessionId, hits, refreshHits } = useSessionStore();
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [hitMolBlocks, setHitMolBlocks] = useState<Array<{ name: string; data: string }>>([]);
+  const [proteinPdb, setProteinPdb] = useState<string | null>(null);
   const fileUploadRef = useRef<FileUpload>(null);
+
+  // Load hit mol blocks + protein for 3D overlay
+  useEffect(() => {
+    if (!sessionId || hits.length === 0) { setHitMolBlocks([]); return; }
+    api.getAllHitMolBlocks(sessionId)
+      .then(r => setHitMolBlocks(r.hits.map(h => ({ name: h.name, data: h.mol_block }))))
+      .catch(() => {});
+    api.getTemplatePdb(sessionId)
+      .then(r => setProteinPdb(r.pdb))
+      .catch(() => setProteinPdb(null));
+  }, [sessionId, hits.length]);
 
   const handleUpload = async (e: FileUploadHandlerEvent) => {
     if (!sessionId || e.files.length === 0) return;
@@ -29,10 +44,16 @@ export function HitsUpload() {
     }
   };
 
+  // Build 3D viewer models: protein (if available) + all hits
+  const viewerModels = [
+    ...(proteinPdb ? [{ data: proteinPdb, format: "pdb" as const }] : []),
+    ...hitMolBlocks.map(h => ({ data: h.data, format: "mol" as const })),
+  ];
+
   return (
     <div className="panel p-5">
       <div className="flex items-center gap-2 mb-3">
-        <i className="pi pi-sitemap text-xs text-teal-600" />
+        <i className="pi pi-sitemap text-xs text-blue-600" />
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Hit Compounds (SDF/MOL/PDB)
         </h3>
@@ -62,23 +83,58 @@ export function HitsUpload() {
       {hits.length > 0 && (
         <div className="mt-5">
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-mono text-sm font-bold text-teal-600">{hits.length}</span>
+            <span className="font-mono text-sm font-bold text-blue-600">{hits.length}</span>
             <span className="text-xs uppercase tracking-wider text-slate-400">hit(s) loaded</span>
           </div>
-          <DataTable value={hits} size="small" scrollable scrollHeight="300px">
-            <Column field="name" header="Name" sortable />
-            <Column field="smiles" header="SMILES" style={{ maxWidth: "300px" }}
-              body={(row) => (
-                <span className="text-xs font-mono truncate block text-slate-400" style={{ maxWidth: "300px" }}>
-                  {row.smiles || "-"}
-                </span>
-              )}
-            />
-            <Column field="num_atoms" header="Heavy Atoms" sortable
-              body={(row) => <span className="font-mono text-xs text-teal-600">{row.num_atoms}</span>}
-            />
-            <Column field="filename" header="Source File" />
-          </DataTable>
+
+          {/* 2D Structures grid */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {hits.map(h => (
+              <div key={h.name} className="bg-white rounded-lg border border-slate-200 p-2 text-center">
+                {h.smiles ? (
+                  <img
+                    src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(h.smiles)}&width=200&height=140`}
+                    alt={h.name}
+                    className="mx-auto rounded"
+                    style={{ width: "100%", height: 70, objectFit: "contain" }}
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="h-[70px] flex items-center justify-center text-slate-300 text-xs">No SMILES</div>
+                )}
+                <div className="text-[10px] font-mono text-slate-600 mt-1 truncate">{h.name}</div>
+                <div className="text-[9px] text-slate-400">{h.num_atoms} HA</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 3D overlay: protein + all hits */}
+          {viewerModels.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-semibold">
+                3D Overlay — {proteinPdb ? "Protein + " : ""}{hits.length} Hit(s)
+              </div>
+              <MolViewer3D models={viewerModels} height="300px" />
+            </div>
+          )}
+
+          {/* Table */}
+          <div className="mt-4">
+            <DataTable value={hits} size="small" scrollable scrollHeight="200px">
+              <Column field="name" header="Name" sortable />
+              <Column field="smiles" header="SMILES" style={{ maxWidth: "300px" }}
+                body={(row) => (
+                  <span className="text-xs font-mono truncate block text-slate-400" style={{ maxWidth: "300px" }}>
+                    {row.smiles || "-"}
+                  </span>
+                )}
+              />
+              <Column field="num_atoms" header="Heavy Atoms" sortable
+                body={(row) => <span className="font-mono text-xs text-blue-600">{row.num_atoms}</span>}
+              />
+              <Column field="filename" header="Source File" />
+            </DataTable>
+          </div>
         </div>
       )}
     </div>

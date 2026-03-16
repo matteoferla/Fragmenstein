@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
 import { Message } from "primereact/message";
+import { MolViewer3D } from "@/components/viewer/MolViewer3D";
 import { useSessionStore } from "@/stores/sessionStore";
 import * as api from "@/services/api";
 
@@ -10,7 +11,15 @@ export function TemplateUpload() {
   const { sessionId, session, loadSession } = useSessionStore();
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pdbText, setPdbText] = useState<string | null>(null);
   const fileUploadRef = useRef<FileUpload>(null);
+
+  // Load PDB text for viewer when template is uploaded
+  useEffect(() => {
+    if (sessionId && session?.template_filename) {
+      api.getTemplatePdb(sessionId).then(r => setPdbText(r.pdb)).catch(() => {});
+    }
+  }, [sessionId, session?.template_filename]);
 
   const handleUpload = async (e: FileUploadHandlerEvent) => {
     if (!sessionId || e.files.length === 0) return;
@@ -63,6 +72,19 @@ export function TemplateUpload() {
         }
       />
       {message && <Message severity="info" text={message} className="mt-3 w-full" />}
+
+      {/* 3D Protein Viewer */}
+      {pdbText && (
+        <div className="mt-4">
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-2 font-semibold">
+            Protein Structure Preview
+          </div>
+          <MolViewer3D
+            models={[{ data: pdbText, format: "pdb" }]}
+            height="280px"
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -53,8 +53,8 @@ export default function Home() {
       {/* New Session */}
       <div className="panel p-6 mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 rounded-md flex items-center justify-center bg-teal-50 border border-teal-200">
-            <i className="pi pi-plus text-xs text-teal-600" />
+          <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-50 border border-blue-200">
+            <i className="pi pi-plus text-xs text-blue-600" />
           </div>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             New Session
@@ -120,7 +120,7 @@ export default function Home() {
               field="hit_count"
               header="Hits"
               body={(row: SessionResponse) => (
-                <span className="font-mono text-sm text-teal-600 font-semibold">
+                <span className="font-mono text-sm text-blue-600 font-semibold">
                   {row.hit_count}
                 </span>
               )}

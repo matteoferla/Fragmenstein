@@ -166,7 +166,7 @@ export default function SimilarsPage() {
                     </div>
                     <div className="stat-card">
                       <div className="stat-label">Topo Distance</div>
-                      <div className="stat-value text-teal-700">{selectedRow.topodist ?? "-"}</div>
+                      <div className="stat-value text-blue-700">{selectedRow.topodist ?? "-"}</div>
                     </div>
                     <div className="stat-card">
                       <div className="stat-label">ECFP4 Similarity</div>

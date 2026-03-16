@@ -87,7 +87,7 @@ export default function CombinePage() {
   return (
     <div className="max-w-6xl">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-50 border border-teal-200 text-teal-600">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-600">
           <i className="pi pi-sitemap text-sm" />
         </div>
         <div>
@@ -113,7 +113,7 @@ export default function CombinePage() {
               <div className="flex flex-wrap gap-2">
                 {hits.map(h => (
                   <label key={h.name} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
-                    selectedHits.has(h.name) ? "bg-teal-50 border-teal-200 text-teal-700" : "bg-slate-50 border-slate-200 text-slate-400"
+                    selectedHits.has(h.name) ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-400"
                   }`}>
                     <Checkbox checked={selectedHits.has(h.name)} onChange={() => toggleHit(h.name)} />
                     <span className="font-mono">{h.name}</span>
@@ -150,7 +150,7 @@ export default function CombinePage() {
         <>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-lg font-bold text-teal-600">{results.length}</span>
+              <span className="font-mono text-lg font-bold text-blue-600">{results.length}</span>
               <span className="text-xs uppercase tracking-wider text-slate-400">results</span>
             </div>
             <div className="flex gap-2">

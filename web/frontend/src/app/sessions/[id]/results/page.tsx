@@ -41,7 +41,7 @@ export default function ResultsPage() {
       <>
         <div className="mb-4 flex items-center justify-between mt-4">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-lg font-bold text-teal-600">{results.length}</span>
+            <span className="font-mono text-lg font-bold text-blue-600">{results.length}</span>
             <span className="text-xs uppercase tracking-wider text-slate-400">results</span>
           </div>
           {jobId && <DownloadPanel jobId={jobId} />}
@@ -69,7 +69,7 @@ export default function ResultsPage() {
   return (
     <div className="max-w-6xl">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-50 border border-teal-200 text-teal-600">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-600">
           <i className="pi pi-chart-bar text-sm" />
         </div>
         <div>

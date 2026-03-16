@@ -41,7 +41,7 @@ export function JobProgress({ jobId, onComplete, onCancel, onRerun }: JobProgres
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {isRunning && (
-            <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
           )}
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Job Progress
@@ -77,10 +77,10 @@ export function JobProgress({ jobId, onComplete, onCancel, onRerun }: JobProgres
       <div className="mb-2">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-mono text-slate-400">
-            {Math.round(progress * 100)}%
+            Processing...
           </span>
         </div>
-        <ProgressBar value={Math.round(progress * 100)} showValue={false} />
+        <ProgressBar mode="indeterminate" style={{ height: "6px" }} />
       </div>
 
       {message && (

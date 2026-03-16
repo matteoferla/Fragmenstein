@@ -82,7 +82,7 @@ body {
   margin-top: 2px;
 }
 
-/* ── PrimeReact theme-token overrides (lara-light-teal) ───────────── */
+/* ── PrimeReact theme-token overrides (lara-light-blue) ──────────── */
 
 :root {
   --surface-ground: var(--background) !important;

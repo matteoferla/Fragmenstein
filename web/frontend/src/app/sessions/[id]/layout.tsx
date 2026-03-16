@@ -23,7 +23,7 @@ export default function SessionLayout({
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <span className="text-xs font-mono tracking-wider uppercase text-slate-400">
           Session: {session?.name || sessionId.slice(0, 8)}
         </span>

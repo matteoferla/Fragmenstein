@@ -25,11 +25,11 @@ export function Sidebar() {
       <div className="p-5 border-b border-slate-100">
         <Link href="/" className="block group">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-teal-50 border border-teal-200 text-teal-600">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-blue-50 border border-blue-200 text-blue-600">
               F
             </div>
             <div>
-              <span className="text-base font-bold tracking-wide text-slate-800 group-hover:text-teal-700 transition-colors">
+              <span className="text-base font-bold tracking-wide text-slate-800 group-hover:text-blue-700 transition-colors">
                 Fragmenstein
               </span>
               <p className="text-[10px] tracking-widest uppercase text-slate-400">
@@ -48,7 +48,7 @@ export function Sidebar() {
             href={item.href}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
               (item.exact ? pathname === item.href : pathname.startsWith(item.href))
-                ? "bg-teal-50 text-teal-700 border-l-2 border-teal-500"
+                ? "bg-blue-50 text-blue-700 border-l-2 border-blue-500"
                 : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
             }`}
           >

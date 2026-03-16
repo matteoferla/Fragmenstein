@@ -56,7 +56,7 @@ export function ResultsTable({ results, onRowSelect, selectedRow }: ResultsTable
       <Column field="comRMSD" header="comRMSD" sortable body={(r: ResultRow) => numCol(r.comRMSD)} style={{ minWidth: "90px" }} />
       <Column field="LE" header="LE" sortable body={(r: ResultRow) => numCol(r.LE, 3)} style={{ minWidth: "70px" }} />
       <Column field="N_HA" header="HA" sortable style={{ minWidth: "60px" }}
-        body={(r: ResultRow) => <span className="font-mono text-xs text-teal-600">{r.N_HA ?? "-"}</span>}
+        body={(r: ResultRow) => <span className="font-mono text-xs text-blue-600">{r.N_HA ?? "-"}</span>}
       />
       <Column field="smiles" header="SMILES" style={{ maxWidth: "200px" }}
         body={(r: ResultRow) => (

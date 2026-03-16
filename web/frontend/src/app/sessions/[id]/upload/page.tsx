@@ -32,7 +32,7 @@ export default function UploadPage() {
   return (
     <div className="max-w-4xl">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-50 border border-teal-200 text-teal-600">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 border border-blue-200 text-blue-600">
           <i className="pi pi-upload text-sm" />
         </div>
         <div>

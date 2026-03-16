@@ -87,7 +87,7 @@ export default function MonsterPage() {
           <div className="flex flex-wrap gap-2">
             {hits.map(h => (
               <label key={h.name} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
-                selectedHits.has(h.name) ? "bg-teal-50 border-teal-200 text-teal-700" : "bg-slate-50 border-slate-200 text-slate-400"
+                selectedHits.has(h.name) ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-400"
               }`}>
                 <Checkbox checked={selectedHits.has(h.name)} onChange={() => toggleHit(h.name)} />
                 <span className="font-mono">{h.name}</span>
@@ -141,7 +141,7 @@ export default function MonsterPage() {
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Heavy Atoms</div>
-                  <div className="stat-value text-teal-700">{result.num_atoms ?? "-"}</div>
+                  <div className="stat-value text-blue-700">{result.num_atoms ?? "-"}</div>
                 </div>
                 <div className="stat-card col-span-1">
                   <div className="stat-label">SMILES</div>

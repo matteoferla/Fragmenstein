@@ -48,7 +48,7 @@ export function ResultDetail({ result, jobId, sessionId }: ResultDetailProps) {
       <div className="grid grid-cols-2 gap-2">
         <div className="stat-card">
           <div className="stat-label">ddG</div>
-          <div className="stat-value text-teal-700">
+          <div className="stat-value text-blue-700">
             {result.ddG?.toFixed(2) ?? "-"} <span className="text-[10px] text-slate-400">kcal/mol</span>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function ResultDetail({ result, jobId, sessionId }: ResultDetailProps) {
         </div>
         <div className="stat-card">
           <div className="stat-label">Heavy Atoms</div>
-          <div className="stat-value text-teal-700">{result.N_HA ?? "-"}</div>
+          <div className="stat-value text-blue-700">{result.N_HA ?? "-"}</div>
         </div>
       </div>
 
