@@ -96,7 +96,14 @@ export default function PlacePage() {
       )}
 
       {placeJobId && running && (
-        <div className="mb-6"><JobProgress jobId={placeJobId} onComplete={handleComplete} /></div>
+        <div className="mb-6">
+          <JobProgress
+            jobId={placeJobId}
+            onComplete={handleComplete}
+            onCancel={() => setRunning(false)}
+            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
+          />
+        </div>
       )}
 
       {results.length > 0 && (

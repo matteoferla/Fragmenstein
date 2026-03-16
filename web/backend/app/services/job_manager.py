@@ -46,6 +46,22 @@ def mark_failed(job_id: str, error: str):
     _broadcast(job_id, {"progress": 0, "status": "failed", "message": error})
 
 
+def mark_cancelled(job_id: str):
+    update_job(
+        job_id,
+        status="cancelled",
+        message="Cancelled by user",
+        completed_at=datetime.utcnow().isoformat(),
+    )
+    _broadcast(job_id, {"progress": 0, "status": "cancelled", "message": "Cancelled by user"})
+
+
+def is_cancelled(job_id: str) -> bool:
+    """Check if a job has been cancelled (for background tasks to poll)."""
+    job = get_job(job_id)
+    return job is not None and job.status == "cancelled"
+
+
 def update_progress(job_id: str, progress: float, message: str = ""):
     update_job(job_id, progress=progress, message=message)
     _broadcast(job_id, {"progress": progress, "status": "running", "message": message})

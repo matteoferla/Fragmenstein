@@ -31,7 +31,7 @@ export function useJobProgress(jobId: string | null): UseJobProgressReturn {
         setStatus(data.status);
         setMessage(data.message);
 
-        if (data.status === "completed" || data.status === "failed") {
+        if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
           source.close();
         }
       } catch {

@@ -136,7 +136,14 @@ export default function CombinePage() {
       )}
 
       {combineJobId && running && (
-        <div className="mb-6"><JobProgress jobId={combineJobId} onComplete={handleComplete} /></div>
+        <div className="mb-6">
+          <JobProgress
+            jobId={combineJobId}
+            onComplete={handleComplete}
+            onCancel={() => setRunning(false)}
+            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
+          />
+        </div>
       )}
 
       {results.length > 0 && (

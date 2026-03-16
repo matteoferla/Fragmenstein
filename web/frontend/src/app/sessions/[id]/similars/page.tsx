@@ -111,7 +111,14 @@ export default function SimilarsPage() {
 
       {/* Progress */}
       {similarsJobId && running && (
-        <div className="mb-6"><JobProgress jobId={similarsJobId} onComplete={handleComplete} /></div>
+        <div className="mb-6">
+          <JobProgress
+            jobId={similarsJobId}
+            onComplete={handleComplete}
+            onCancel={() => setRunning(false)}
+            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
+          />
+        </div>
       )}
 
       {/* Results */}

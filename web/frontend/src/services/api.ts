@@ -122,6 +122,10 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
   return request(`/api/jobs/${jobId}`);
 }
 
+export async function cancelJob(jobId: string): Promise<{ status: string; message: string }> {
+  return request(`/api/jobs/${jobId}/cancel`, { method: "POST" });
+}
+
 export async function getJobResults(jobId: string): Promise<ResultsResponse> {
   return request(`/api/jobs/${jobId}/results`);
 }

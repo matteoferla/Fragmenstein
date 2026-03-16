@@ -33,6 +33,17 @@ def get_status(job_id: str):
     )
 
 
+@router.post("/{job_id}/cancel")
+def cancel_job(job_id: str):
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status in ("completed", "failed", "cancelled"):
+        return {"status": job.status, "message": "Job already finished"}
+    job_manager.mark_cancelled(job_id)
+    return {"status": "cancelled", "message": "Job cancelled"}
+
+
 @router.get("/{job_id}/stream")
 async def stream_progress(job_id: str):
     job = get_job(job_id)
