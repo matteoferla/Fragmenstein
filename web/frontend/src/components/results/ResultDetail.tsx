@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "primereact/button";
 import { OverlayViewer } from "@/components/viewer/OverlayViewer";
 import * as api from "@/services/api";
+import { getResultPdbUrl } from "@/services/api";
 import type { ResultRow } from "@/services/types";
 import { OUTCOME_COLORS } from "@/lib/constants";
 
@@ -44,6 +46,13 @@ export function ResultDetail({ result, jobId, sessionId }: ResultDetailProps) {
       </div>
 
       <OverlayViewer proteinPdb={proteinPdb} hitMolBlocks={hitMolBlocks} resultMolBlock={molBlock} height="350px" />
+
+      {/* Download single result PDB */}
+      <div className="flex justify-end">
+        <a href={getResultPdbUrl(jobId, result.index)} download>
+          <Button label="Download PDB" icon="pi pi-download" size="small" severity="secondary" />
+        </a>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div className="stat-card">

@@ -17,9 +17,9 @@ interface SessionState {
   createSession: (name?: string) => Promise<string>;
   loadSession: (id: string) => Promise<void>;
   refreshHits: () => Promise<void>;
-  setCombineJobId: (id: string) => void;
+  setCombineJobId: (id: string | null) => void;
   setSimilarsJobId: (id: string | null) => void;
-  setPlaceJobId: (id: string) => void;
+  setPlaceJobId: (id: string | null) => void;
   clearError: () => void;
 }
 

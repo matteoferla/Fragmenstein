@@ -209,6 +209,10 @@ export async function getResultMol(jobId: string, idx: number, molType: string =
   return request(`/api/jobs/${jobId}/results/${idx}/mol?mol_type=${molType}`);
 }
 
+export function getResultPdbUrl(jobId: string, idx: number): string {
+  return `${API_BASE_URL}/api/jobs/${jobId}/results/${idx}/pdb`;
+}
+
 export function getResultsDownloadUrl(jobId: string, format: string = "csv"): string {
   return `${API_BASE_URL}/api/jobs/${jobId}/results/download?format=${format}`;
 }

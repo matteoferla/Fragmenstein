@@ -91,6 +91,43 @@ def get_result_mol(job_id: str, idx: int, mol_type: str = "minimized"):
     return {"mol_block": mol_block}
 
 
+@router.get("/{job_id}/results/{idx}/pdb")
+def get_result_pdb(job_id: str, idx: int):
+    """Serve the holo_minimised PDB file written by Victor for a single result."""
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.result_path is None:
+        raise HTTPException(status_code=400, detail="No results available")
+
+    df = load_dataframe(Path(job.result_path))
+    if idx < 0 or idx >= len(df):
+        raise HTTPException(status_code=404, detail="Index out of range")
+
+    name = str(df.iloc[idx].get("name", ""))
+    if not name:
+        raise HTTPException(status_code=404, detail="No name for this result")
+
+    from ..services.file_manager import session_work_dir
+    search_dirs = [
+        session_work_dir(job.session_id),
+        Path("output"),
+        session_work_dir(job.session_id).parent.parent.parent / "output",
+    ]
+
+    for base in search_dirs:
+        pdb_file = base / name / f"{name}.holo_minimised.pdb"
+        if pdb_file.exists():
+            pdb_text = pdb_file.read_text()
+            return StreamingResponse(
+                iter([pdb_text]),
+                media_type="chemical/x-pdb",
+                headers={"Content-Disposition": f"attachment; filename={name}.holo_minimised.pdb"},
+            )
+
+    raise HTTPException(status_code=404, detail=f"PDB file not found for '{name}'")
+
+
 @router.get("/{job_id}/results/download")
 def download_results(job_id: str, format: str = "csv"):
     job = get_job(job_id)
@@ -140,6 +177,49 @@ def download_results(job_id: str, format: str = "csv"):
             iter([buf.getvalue()]),
             media_type="chemical/x-mdl-sdfile",
             headers={"Content-Disposition": f"attachment; filename={job.type}_results.sdf"},
+        )
+    elif format == "pdb":
+        # Collect holo PDB files written by Victor to disk
+        import zipfile
+        from ..services.file_manager import session_work_dir
+
+        work_dir = session_work_dir(job.session_id)
+        # Victor writes to: {Victor.work_path}/{name}/{name}.holo_minimised.pdb
+        # Victor.work_path is set to session_work_dir, but the subprocess runs
+        # from web/backend/ so Victor may use a relative "output" path.
+        # Check both locations.
+        search_dirs = [
+            work_dir,                                           # data/work/{session_id}/
+            Path("output"),                                     # relative output/ (Victor default)
+            work_dir.parent.parent.parent / "output",           # web/backend/output/
+        ]
+
+        zip_buf = io.BytesIO()
+        count = 0
+        with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for _, row in df.iterrows():
+                name = str(row.get("name", ""))
+                if not name:
+                    continue
+                # Search for the holo PDB file
+                for base in search_dirs:
+                    pdb_file = base / name / f"{name}.holo_minimised.pdb"
+                    if pdb_file.exists():
+                        zf.write(pdb_file, f"{name}.holo_minimised.pdb")
+                        count += 1
+                        break
+
+        if count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No PDB files found. Victor may not have written output for these results.",
+            )
+
+        zip_buf.seek(0)
+        return StreamingResponse(
+            iter([zip_buf.read()]),
+            media_type="application/zip",
+            headers={"Content-Disposition": f"attachment; filename={job.type}_results_pdb.zip"},
         )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")

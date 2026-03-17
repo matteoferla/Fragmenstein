@@ -163,7 +163,7 @@ export default function CombinePage() {
             jobId={combineJobId}
             onComplete={handleComplete}
             onCancel={() => setRunning(false)}
-            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
+            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); setCombineJobId(null); }}
           />
         </div>
       )}
@@ -177,7 +177,7 @@ export default function CombinePage() {
             </div>
             <div className="flex gap-2">
               <DownloadPanel jobId={combineJobId!} />
-              <Button label="New Run" icon="pi pi-refresh" severity="secondary" size="small" onClick={() => { setResults([]); setSelectedRow(null); }} />
+              <Button label="New Run" icon="pi pi-refresh" severity="secondary" size="small" onClick={() => { setResults([]); setSelectedRow(null); setCombineJobId(null); }} />
             </div>
           </div>
 

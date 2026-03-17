@@ -120,7 +120,7 @@ export default function PlacePage() {
             jobId={placeJobId}
             onComplete={handleComplete}
             onCancel={() => setRunning(false)}
-            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); }}
+            onRerun={() => { setRunning(false); setResults([]); setSelectedRow(null); setPlaceJobId(null); }}
           />
         </div>
       )}
