@@ -2,10 +2,13 @@
 
 import { API_BASE_URL } from "@/lib/constants";
 import type {
+  AvailableBackends,
+  ChemSpaceRequest,
   CombineRequest,
   HitsResponse,
   JobStatus,
   MolBlockResponse,
+  MolPortRequest,
   MonsterCombineRequest,
   MonsterPlaceRequest,
   MonsterResult,
@@ -182,6 +185,31 @@ export async function startPubChem(sessionId: string, config: { combine_job_id?:
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+// Similars — ChemSpace
+export async function startChemSpace(sessionId: string, config: ChemSpaceRequest): Promise<{ job_id: string }> {
+  const { combine_job_id, ...rest } = config;
+  const body = combine_job_id ? { combine_job_id, ...rest } : rest;
+  return request(`/api/sessions/${sessionId}/similars/chemspace`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// Similars — MolPort
+export async function startMolPort(sessionId: string, config: MolPortRequest): Promise<{ job_id: string }> {
+  const { combine_job_id, ...rest } = config;
+  const body = combine_job_id ? { combine_job_id, ...rest } : rest;
+  return request(`/api/sessions/${sessionId}/similars/molport`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// Config
+export async function getAvailableBackends(): Promise<AvailableBackends> {
+  return request("/api/config/available-backends");
 }
 
 // Place

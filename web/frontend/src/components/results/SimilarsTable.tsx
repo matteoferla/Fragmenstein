@@ -15,6 +15,9 @@ export interface SimilarRow {
   mces: number | null;
   query_smiles: string | null;
   alignment: string | null;
+  logP: number | null;
+  TPSA: number | null;
+  similarity_index: number | null;
   [key: string]: unknown;
 }
 
@@ -67,10 +70,13 @@ export function SimilarsTable({ results, onRowSelect, selectedRow }: SimilarsTab
   const hasDaylight = hasCol("daylight");
   const hasQuerySmiles = hasCol("query_smiles");
   const hasMW = hasCol("molecular_weight");
+  const hasLogP = hasCol("logP");
+  const hasTPSA = hasCol("TPSA");
+  const hasSimilarityIndex = hasCol("similarity_index");
 
   // Pick best sort field
-  const defaultSort = hasTanimotoMerger ? "tanimoto_to_merger" : hasTopodist ? "topodist" : "name";
-  const defaultOrder = hasTanimotoMerger ? -1 : 1; // descending for similarity, ascending for distance
+  const defaultSort = hasTanimotoMerger ? "tanimoto_to_merger" : hasSimilarityIndex ? "similarity_index" : hasTopodist ? "topodist" : "name";
+  const defaultOrder = hasTanimotoMerger || hasSimilarityIndex ? -1 : hasTopodist ? 1 : 1;
 
   return (
     <DataTable
@@ -110,9 +116,30 @@ export function SimilarsTable({ results, onRowSelect, selectedRow }: SimilarsTab
       {hasTopodist && <Column field="topodist" header="Topo Dist" sortable body={distBadge} style={{ minWidth: "90px" }} />}
       {hasEcfp4 && <Column field="ecfp4" header="ECFP4" sortable body={(r: SimilarRow) => numCol(r.ecfp4, 3)} style={{ minWidth: "70px" }} />}
       {hasDaylight && <Column field="daylight" header="Tanimoto" sortable body={(r: SimilarRow) => numCol(r.daylight, 3)} style={{ minWidth: "80px" }} />}
+      {hasSimilarityIndex && (
+        <Column field="similarity_index" header="Similarity" sortable style={{ minWidth: "90px" }}
+          body={(r: SimilarRow) => {
+            const v = r.similarity_index;
+            if (v == null) return <span className="text-slate-300">-</span>;
+            const pct = Math.round(v * 100);
+            const color = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-slate-400";
+            return <span className={`font-mono text-xs font-bold ${color}`}>{pct}%</span>;
+          }}
+        />
+      )}
       {hasMW && (
         <Column field="molecular_weight" header="MW" sortable style={{ minWidth: "70px" }}
           body={(r: SimilarRow) => numCol((r as Record<string, unknown>).molecular_weight as number | null, 1)}
+        />
+      )}
+      {hasLogP && (
+        <Column field="logP" header="logP" sortable style={{ minWidth: "70px" }}
+          body={(r: SimilarRow) => numCol(r.logP, 2)}
+        />
+      )}
+      {hasTPSA && (
+        <Column field="TPSA" header="TPSA" sortable style={{ minWidth: "70px" }}
+          body={(r: SimilarRow) => numCol(r.TPSA, 1)}
         />
       )}
       {hasQuerySmiles && (

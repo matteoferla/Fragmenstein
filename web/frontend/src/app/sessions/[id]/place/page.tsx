@@ -132,7 +132,10 @@ export default function PlacePage() {
               <span className="font-mono text-lg font-bold text-emerald-600">{results.length}</span>
               <span className="text-xs uppercase tracking-wider text-slate-400">placements</span>
             </div>
-            <DownloadPanel jobId={placeJobId!} />
+            <div className="flex gap-2">
+              <DownloadPanel jobId={placeJobId!} />
+              <Button label="Re-run" icon="pi pi-refresh" severity="secondary" size="small" onClick={() => { setRunning(false); setResults([]); setSelectedRow(null); setPlaceJobId(null); }} />
+            </div>
           </div>
           <div className="mb-5"><OutcomeChart results={results} /></div>
           <MetricsLegend />

@@ -1,4 +1,4 @@
-"""SmallWorld API wrapper for finding purchasable analogs.
+"""Similars search backends: SmallWorld, PubChem, ChemSpace, MolPort.
 
 Root cause of SSL errors: sw.docking.org runs Apache/OpenSSL 1.1.1k which has a
 broken TLS 1.3 handshake. Anaconda's OpenSSL 3.5.0 negotiates TLS 1.3 by default,
@@ -7,6 +7,7 @@ duration of the SmallWorld call.
 """
 
 import logging
+import os
 import ssl
 from contextlib import contextmanager
 from pathlib import Path
@@ -389,4 +390,142 @@ def run_pubchem_search(
     save_dataframe(results, result_path)
 
     log.info(f"PubChem search completed: {len(results)} analogs found")
+    return result_path
+
+
+def _get_merger_smiles(
+    combine_result_path: str,
+    top_n: int,
+    outcome_filter: str,
+) -> list[str]:
+    """Load and filter merger SMILES from combine results."""
+    from rdkit import Chem
+
+    combine_df = load_dataframe(Path(combine_result_path))
+
+    if outcome_filter:
+        filtered = combine_df[combine_df["outcome"] == outcome_filter]
+    else:
+        filtered = combine_df.copy()
+
+    if "∆∆G" in filtered.columns:
+        filtered = filtered.sort_values("∆∆G", na_position="last").head(top_n)
+    else:
+        filtered = filtered.head(top_n)
+
+    smiles_col = "simple_smiles" if "simple_smiles" in filtered.columns else "smiles"
+    smiles_list = filtered[smiles_col].dropna().tolist()
+
+    # Validate and canonicalize
+    clean = []
+    for smi in smiles_list:
+        mol = Chem.MolFromSmiles(smi)
+        if mol:
+            clean.append(Chem.MolToSmiles(mol))
+    return clean
+
+
+def run_chemspace_search(
+    session_id: str,
+    job_id: str,
+    combine_result_path: str,
+    top_n: int = 50,
+    categories: str = "CSSS,CSMS",
+    outcome_filter: str = "acceptable",
+) -> Path:
+    """Search ChemSpace for purchasable similar compounds."""
+    from .chemspace_client import ChemSpaceClient
+
+    api_key = os.environ.get("CHEMSPACE_API_KEY", "")
+    if not api_key:
+        raise ValueError("CHEMSPACE_API_KEY environment variable is not set")
+
+    client = ChemSpaceClient(api_key)
+    smiles_list = _get_merger_smiles(combine_result_path, top_n, outcome_filter)
+
+    if not smiles_list:
+        log.warning("No merger SMILES for ChemSpace search")
+        result_path = file_manager.results_dir(session_id, "similars") / f"results_{job_id}.pkl"
+        save_dataframe(pd.DataFrame(), result_path)
+        return result_path
+
+    log.info(f"ChemSpace: searching {len(smiles_list)} mergers, categories={categories}")
+
+    all_results = []
+    seen_smiles: set[str] = set()
+
+    for i, smi in enumerate(smiles_list):
+        log.info(f"ChemSpace: querying {i + 1}/{len(smiles_list)}: {smi[:50]}")
+        hits = client.similarity_search(smi, count=50, categories=categories)
+        for hit in hits:
+            hit_smi = hit.get("smiles", "")
+            if hit_smi and hit_smi not in seen_smiles:
+                seen_smiles.add(hit_smi)
+                all_results.append({
+                    "smiles": hit_smi,
+                    "name": hit.get("csId", ""),
+                    "query_smiles": smi,
+                    "molecular_weight": hit.get("molecular_weight"),
+                    "logP": hit.get("logP"),
+                    "TPSA": hit.get("TPSA"),
+                })
+        log.info(f"  → {len(hits)} hits ({len(all_results)} total unique)")
+
+    results = pd.DataFrame(all_results) if all_results else pd.DataFrame()
+    result_path = file_manager.results_dir(session_id, "similars") / f"results_{job_id}.pkl"
+    save_dataframe(results, result_path)
+
+    log.info(f"ChemSpace search completed: {len(results)} unique analogs found")
+    return result_path
+
+
+def run_molport_search(
+    session_id: str,
+    job_id: str,
+    combine_result_path: str,
+    top_n: int = 50,
+    threshold: float = 0.8,
+    outcome_filter: str = "acceptable",
+) -> Path:
+    """Search MolPort for purchasable similar compounds."""
+    from .molport_client import MolPortClient
+
+    api_key = os.environ.get("MOLPORT_API_KEY", "")
+    if not api_key:
+        raise ValueError("MOLPORT_API_KEY environment variable is not set")
+
+    client = MolPortClient(api_key)
+    smiles_list = _get_merger_smiles(combine_result_path, top_n, outcome_filter)
+
+    if not smiles_list:
+        log.warning("No merger SMILES for MolPort search")
+        result_path = file_manager.results_dir(session_id, "similars") / f"results_{job_id}.pkl"
+        save_dataframe(pd.DataFrame(), result_path)
+        return result_path
+
+    log.info(f"MolPort: searching {len(smiles_list)} mergers, threshold={threshold}")
+
+    all_results = []
+    seen_smiles: set[str] = set()
+
+    for i, smi in enumerate(smiles_list):
+        log.info(f"MolPort: querying {i + 1}/{len(smiles_list)}: {smi[:50]}")
+        hits = client.similarity_search(smi, threshold=threshold, max_results=100)
+        for hit in hits:
+            hit_smi = hit.get("smiles", "")
+            if hit_smi and hit_smi not in seen_smiles:
+                seen_smiles.add(hit_smi)
+                all_results.append({
+                    "smiles": hit_smi,
+                    "name": hit.get("molport_id", ""),
+                    "query_smiles": smi,
+                    "similarity_index": hit.get("similarity_index"),
+                })
+        log.info(f"  → {len(hits)} hits ({len(all_results)} total unique)")
+
+    results = pd.DataFrame(all_results) if all_results else pd.DataFrame()
+    result_path = file_manager.results_dir(session_id, "similars") / f"results_{job_id}.pkl"
+    save_dataframe(results, result_path)
+
+    log.info(f"MolPort search completed: {len(results)} unique analogs found")
     return result_path

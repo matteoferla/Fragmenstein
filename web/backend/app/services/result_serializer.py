@@ -113,6 +113,8 @@ def similars_dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
         "query_smiles", "alignment",
         "tanimoto_to_merger",  # from library filtering
         "molecular_weight", "iupac_name",  # from PubChem
+        "logP", "TPSA",  # from ChemSpace
+        "similarity_index",  # from MolPort
     ]
 
     rows = []

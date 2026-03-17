@@ -55,6 +55,25 @@ export interface SimilarsRequest {
   outcome_filter?: string;
 }
 
+export interface ChemSpaceRequest {
+  combine_job_id?: string | null;
+  top_n?: number;
+  categories?: string;
+  outcome_filter?: string;
+}
+
+export interface MolPortRequest {
+  combine_job_id?: string | null;
+  top_n?: number;
+  threshold?: number;
+  outcome_filter?: string;
+}
+
+export interface AvailableBackends {
+  chemspace: boolean;
+  molport: boolean;
+}
+
 export interface ResultRow {
   index: number;
   name: string;

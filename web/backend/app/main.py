@@ -57,6 +57,16 @@ def health():
     return {"status": "ok", "app": settings.app_name}
 
 
+@app.get("/api/config/available-backends")
+def available_backends():
+    """Return which optional search backends have API keys configured."""
+    import os
+    return {
+        "chemspace": bool(os.environ.get("CHEMSPACE_API_KEY")),
+        "molport": bool(os.environ.get("MOLPORT_API_KEY")),
+    }
+
+
 @app.get("/api/system-info")
 def system_info():
     import os

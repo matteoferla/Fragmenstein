@@ -1,4 +1,4 @@
-"""Similars endpoints — SmallWorld, manual SMILES, CSV/Excel upload, PubChem."""
+"""Similars endpoints — SmallWorld, manual SMILES, CSV/Excel upload, PubChem, ChemSpace, MolPort."""
 
 import asyncio
 import logging
@@ -14,6 +14,8 @@ from ..services.similars_service import (
     filter_library_against_mergers,
     parse_manual_smiles,
     parse_uploaded_file,
+    run_chemspace_search,
+    run_molport_search,
     run_pubchem_search,
     run_similars_search,
 )
@@ -247,4 +249,98 @@ async def start_pubchem(session_id: str, config: PubChemRequest):
         raise HTTPException(status_code=404, detail="Session not found")
     job = job_manager.start_job(session_id, "similars", config.model_dump())
     asyncio.create_task(_run_pubchem_task(job.id, session_id, config))
+    return {"job_id": job.id}
+
+
+# ── ChemSpace similarity search ────────────────────────────────────
+
+class ChemSpaceRequest(BaseModel):
+    combine_job_id: str | None = None
+    top_n: int = 50
+    categories: str = "CSSS,CSMS"
+    outcome_filter: str = "acceptable"
+
+
+async def _run_chemspace_task(job_id: str, session_id: str, config: ChemSpaceRequest):
+    job_manager.mark_running(job_id)
+    try:
+        cjid = config.combine_job_id
+        if not cjid:
+            combine_jobs = [j for j in get_jobs_for_session(session_id)
+                            if j.type == "combine" and j.status == "completed" and j.result_path]
+            if not combine_jobs:
+                raise ValueError("No completed combine job found for this session")
+            cjid = combine_jobs[0].id
+        combine_job = get_job(cjid)
+        if combine_job is None or combine_job.result_path is None:
+            raise ValueError("Combine job not found or not completed")
+        result_path = await asyncio.to_thread(
+            run_chemspace_search,
+            session_id=session_id,
+            job_id=job_id,
+            combine_result_path=combine_job.result_path,
+            top_n=config.top_n,
+            categories=config.categories,
+            outcome_filter=config.outcome_filter,
+        )
+        job_manager.mark_completed(job_id, result_path=str(result_path))
+    except Exception as e:
+        log.exception(f"ChemSpace search failed for session {session_id}")
+        job_manager.mark_failed(job_id, error=f"{type(e).__name__}: {e}")
+
+
+@router.post("/similars/chemspace")
+async def start_chemspace(session_id: str, config: ChemSpaceRequest):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    job = job_manager.start_job(session_id, "similars", config.model_dump())
+    asyncio.create_task(_run_chemspace_task(job.id, session_id, config))
+    return {"job_id": job.id}
+
+
+# ── MolPort similarity search ──────────────────────────────────────
+
+class MolPortRequest(BaseModel):
+    combine_job_id: str | None = None
+    top_n: int = 50
+    threshold: float = 0.8
+    outcome_filter: str = "acceptable"
+
+
+async def _run_molport_task(job_id: str, session_id: str, config: MolPortRequest):
+    job_manager.mark_running(job_id)
+    try:
+        cjid = config.combine_job_id
+        if not cjid:
+            combine_jobs = [j for j in get_jobs_for_session(session_id)
+                            if j.type == "combine" and j.status == "completed" and j.result_path]
+            if not combine_jobs:
+                raise ValueError("No completed combine job found for this session")
+            cjid = combine_jobs[0].id
+        combine_job = get_job(cjid)
+        if combine_job is None or combine_job.result_path is None:
+            raise ValueError("Combine job not found or not completed")
+        result_path = await asyncio.to_thread(
+            run_molport_search,
+            session_id=session_id,
+            job_id=job_id,
+            combine_result_path=combine_job.result_path,
+            top_n=config.top_n,
+            threshold=config.threshold,
+            outcome_filter=config.outcome_filter,
+        )
+        job_manager.mark_completed(job_id, result_path=str(result_path))
+    except Exception as e:
+        log.exception(f"MolPort search failed for session {session_id}")
+        job_manager.mark_failed(job_id, error=f"{type(e).__name__}: {e}")
+
+
+@router.post("/similars/molport")
+async def start_molport(session_id: str, config: MolPortRequest):
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    job = job_manager.start_job(session_id, "similars", config.model_dump())
+    asyncio.create_task(_run_molport_task(job.id, session_id, config))
     return {"job_id": job.id}

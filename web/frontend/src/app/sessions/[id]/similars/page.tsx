@@ -8,8 +8,11 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import { FileUpload, FileUploadHandlerEvent } from "primereact/fileupload";
 import { Checkbox } from "primereact/checkbox";
+import { MultiSelect } from "primereact/multiselect";
+import { Slider } from "primereact/slider";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Message } from "primereact/message";
+import { Tooltip } from "primereact/tooltip";
 import { JobProgress } from "@/components/jobs/JobProgress";
 import { SimilarsTable, type SimilarRow } from "@/components/results/SimilarsTable";
 import { DownloadPanel } from "@/components/results/DownloadPanel";
@@ -25,11 +28,14 @@ export default function SimilarsPage() {
 
   const [swConfig, setSwConfig] = useState({ top_n: 100, dist: 25, length: 200, db: "REAL_dataset", outcome_filter: "acceptable" });
   const [pcConfig, setPcConfig] = useState({ top_n: 50, threshold: 80, max_per_query: 20, outcome_filter: "acceptable" });
+  const [csConfig, setCsConfig] = useState({ top_n: 50, categories: ["CSSS", "CSMS"] as string[], outcome_filter: "acceptable" });
+  const [mpConfig, setMpConfig] = useState({ top_n: 50, threshold: 0.8, outcome_filter: "acceptable" });
   const [smilesText, setSmilesText] = useState("");
   const [filterTopN, setFilterTopN] = useState(200);
   const [filterOutcome, setFilterOutcome] = useState("acceptable");
   const [useFilter, setUseFilter] = useState(true);
   const fileUploadRef = useRef<FileUpload>(null);
+  const [backends, setBackends] = useState<{ chemspace: boolean; molport: boolean }>({ chemspace: false, molport: false });
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<SimilarRow[]>([]);
@@ -45,6 +51,10 @@ export default function SimilarsPage() {
       setResults(res.results as unknown as SimilarRow[]);
     } catch {}
     setRunning(false);
+  }, []);
+
+  useEffect(() => {
+    api.getAvailableBackends().then(setBackends).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -107,6 +117,30 @@ export default function SimilarsPage() {
     try {
       const cjid = useSessionStore.getState().combineJobId;
       const { job_id } = await api.startPubChem(sessionId, { combine_job_id: cjid, ...pcConfig });
+      setSimilarsJobId(job_id);
+    } catch (e: unknown) {
+      setStatusMsg(e instanceof Error ? e.message : "Search failed");
+      setRunning(false);
+    }
+  };
+
+  const handleChemSpace = async () => {
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      const cjid = useSessionStore.getState().combineJobId;
+      const { job_id } = await api.startChemSpace(sessionId, { combine_job_id: cjid, top_n: csConfig.top_n, categories: csConfig.categories.join(","), outcome_filter: csConfig.outcome_filter });
+      setSimilarsJobId(job_id);
+    } catch (e: unknown) {
+      setStatusMsg(e instanceof Error ? e.message : "Search failed");
+      setRunning(false);
+    }
+  };
+
+  const handleMolPort = async () => {
+    setRunning(true); setResults([]); setStatusMsg(null);
+    try {
+      const cjid = useSessionStore.getState().combineJobId;
+      const { job_id } = await api.startMolPort(sessionId, { combine_job_id: cjid, ...mpConfig });
       setSimilarsJobId(job_id);
     } catch (e: unknown) {
       setStatusMsg(e instanceof Error ? e.message : "Search failed");
@@ -267,6 +301,89 @@ export default function SimilarsPage() {
                 </div>
               )}
             </TabPanel>
+
+            {/* ChemSpace */}
+            <TabPanel header="ChemSpace" disabled={!backends.chemspace} headerClassName={!backends.chemspace ? "chemspace-disabled-tab" : ""}>
+              {!combineJobId ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-slate-400 mb-3">Complete the Combine step first to search ChemSpace.</p>
+                  <Button label="Go to Combine" icon="pi pi-arrow-left" size="small" onClick={() => router.push(`/sessions/${sessionId}/combine`)} />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <p className="text-xs text-slate-400 mb-3">
+                    Search 1.7B+ compounds from multiple vendors (Enamine, BLD, PharmaBlock, UORSY).
+                    Requires <span className="font-mono">CHEMSPACE_API_KEY</span> env var.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N Mergers to Query</label>
+                      <InputNumber value={csConfig.top_n} onValueChange={(e) => setCsConfig(c => ({ ...c, top_n: e.value ?? 50 }))} min={1} max={500} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Product Categories</label>
+                      <MultiSelect
+                        value={csConfig.categories}
+                        options={[
+                          { label: "In-stock Screening", value: "CSSS" },
+                          { label: "In-stock Building Blocks", value: "CSSB" },
+                          { label: "Make-on-demand Screening", value: "CSMS" },
+                          { label: "Make-on-demand Building Blocks", value: "CSMB" },
+                        ]}
+                        onChange={(e) => setCsConfig(c => ({ ...c, categories: e.value }))}
+                        display="chip"
+                        placeholder="Select categories"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Outcome Filter</label>
+                      <Dropdown value={csConfig.outcome_filter} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setCsConfig(c => ({ ...c, outcome_filter: e.value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button label="Search ChemSpace" icon="pi pi-search" size="small" onClick={handleChemSpace} />
+                  </div>
+                </div>
+              )}
+            </TabPanel>
+
+            {/* MolPort */}
+            <TabPanel header="MolPort" disabled={!backends.molport} headerClassName={!backends.molport ? "molport-disabled-tab" : ""}>
+              {!combineJobId ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-slate-400 mb-3">Complete the Combine step first to search MolPort.</p>
+                  <Button label="Go to Combine" icon="pi pi-arrow-left" size="small" onClick={() => router.push(`/sessions/${sessionId}/combine`)} />
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <p className="text-xs text-slate-400 mb-3">
+                    Search 8M+ in-stock compounds from aggregated chemical suppliers.
+                    Requires <span className="font-mono">MOLPORT_API_KEY</span> env var.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Top N Mergers to Query</label>
+                      <InputNumber value={mpConfig.top_n} onValueChange={(e) => setMpConfig(c => ({ ...c, top_n: e.value ?? 50 }))} min={1} max={500} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Tanimoto Threshold</label>
+                      <div className="flex items-center gap-3">
+                        <Slider value={mpConfig.threshold * 100} onChange={(e) => setMpConfig(c => ({ ...c, threshold: (e.value as number) / 100 }))} min={50} max={100} className="flex-1" />
+                        <span className="font-mono text-xs text-slate-600 w-10 text-right">{Math.round(mpConfig.threshold * 100)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Outcome Filter</label>
+                      <Dropdown value={mpConfig.outcome_filter} options={["acceptable", "deviant", "equally sized", ""].map(v => ({ label: v || "All", value: v }))} onChange={(e) => setMpConfig(c => ({ ...c, outcome_filter: e.value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button label="Search MolPort" icon="pi pi-search" size="small" onClick={handleMolPort} />
+                  </div>
+                </div>
+              )}
+            </TabPanel>
           </TabView>
         </div>
       )}
@@ -313,7 +430,10 @@ export default function SimilarsPage() {
                     {selectedRow.topodist != null && <div className="stat-card"><div className="stat-label">Topo Distance</div><div className="stat-value text-blue-700">{selectedRow.topodist}</div></div>}
                     {selectedRow.ecfp4 != null && <div className="stat-card"><div className="stat-label">ECFP4</div><div className="stat-value">{selectedRow.ecfp4.toFixed(3)}</div></div>}
                     {selectedRow.daylight != null && <div className="stat-card"><div className="stat-label">Tanimoto</div><div className="stat-value">{selectedRow.daylight.toFixed(3)}</div></div>}
+                    {selectedRow.similarity_index != null && <div className="stat-card"><div className="stat-label">Similarity</div><div className="stat-value text-emerald-600">{Math.round(selectedRow.similarity_index * 100)}%</div></div>}
                     {(selectedRow as Record<string, unknown>).molecular_weight != null && <div className="stat-card"><div className="stat-label">MW</div><div className="stat-value">{String((selectedRow as Record<string, unknown>).molecular_weight)}</div></div>}
+                    {selectedRow.logP != null && <div className="stat-card"><div className="stat-label">logP</div><div className="stat-value">{selectedRow.logP.toFixed(2)}</div></div>}
+                    {selectedRow.TPSA != null && <div className="stat-card"><div className="stat-label">TPSA</div><div className="stat-value">{selectedRow.TPSA.toFixed(1)}</div></div>}
                   </div>
                   <div className="stat-card">
                     <div className="stat-label">SMILES</div>
