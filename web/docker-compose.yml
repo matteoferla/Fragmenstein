@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FRAG_DATA_DIR=/app/data
+      - FRAG_UPLOAD_DIR=/app/data/uploads
+      - FRAG_WORK_DIR=/app/data/work
+      - FRAG_DB_PATH=/app/data/fragmenstein.db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
