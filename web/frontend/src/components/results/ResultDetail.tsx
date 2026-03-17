@@ -77,8 +77,8 @@ export function ResultDetail({ result, jobId, sessionId }: ResultDetailProps) {
         <div className="stat-card">
           <div className="stat-label">Source Hits</div>
           <div className="flex gap-1 mt-1 flex-wrap">
-            {result.hit_names.map((name) => (
-              <span key={name} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+            {result.hit_names.map((name, i) => (
+              <span key={`${name}-${i}`} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
                 {name}
               </span>
             ))}

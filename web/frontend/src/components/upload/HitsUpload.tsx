@@ -118,8 +118,8 @@ export function HitsUpload() {
 
           {/* 2D Structures grid */}
           <div className="grid grid-cols-4 gap-2 mb-4">
-            {hits.map(h => (
-              <div key={h.name} className="bg-white rounded-lg border border-slate-200 p-2 text-center">
+            {hits.map((h, i) => (
+              <div key={`${h.name}-${i}`} className="bg-white rounded-lg border border-slate-200 p-2 text-center">
                 {h.smiles ? (
                   <img
                     src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(h.smiles)}&width=200&height=140`}

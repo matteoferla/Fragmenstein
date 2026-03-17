@@ -37,9 +37,11 @@ function structureImg(row: SimilarRow) {
   );
 }
 
-function numCol(value: number | null | undefined, decimals: number = 2) {
+function numCol(value: number | string | null | undefined, decimals: number = 2) {
   if (value === null || value === undefined) return <span className="text-slate-300">-</span>;
-  return <span className="font-mono text-xs">{value.toFixed(decimals)}</span>;
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return <span className="text-slate-300">-</span>;
+  return <span className="font-mono text-xs">{num.toFixed(decimals)}</span>;
 }
 
 function distBadge(row: SimilarRow) {

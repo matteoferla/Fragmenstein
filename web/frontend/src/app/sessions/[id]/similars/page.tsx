@@ -57,13 +57,15 @@ export default function SimilarsPage() {
   }, [similarsJobId, results.length, handleComplete]);
 
   const handleSmallWorld = async () => {
-    const cjid = useSessionStore.getState().combineJobId;
-    if (!cjid) return;
     setRunning(true); setResults([]); setStatusMsg(null);
     try {
+      const cjid = useSessionStore.getState().combineJobId;
       const { job_id } = await api.startSimilars(sessionId, { combine_job_id: cjid, ...swConfig });
       setSimilarsJobId(job_id);
-    } catch { setRunning(false); }
+    } catch (e: unknown) {
+      setStatusMsg(e instanceof Error ? e.message : "Search failed");
+      setRunning(false);
+    }
   };
 
   const handleManualPaste = async () => {
@@ -101,16 +103,18 @@ export default function SimilarsPage() {
   };
 
   const handlePubChem = async () => {
-    const cjid = useSessionStore.getState().combineJobId;
-    if (!cjid) return;
     setRunning(true); setResults([]); setStatusMsg(null);
     try {
+      const cjid = useSessionStore.getState().combineJobId;
       const { job_id } = await api.startPubChem(sessionId, { combine_job_id: cjid, ...pcConfig });
       setSimilarsJobId(job_id);
-    } catch { setRunning(false); }
+    } catch (e: unknown) {
+      setStatusMsg(e instanceof Error ? e.message : "Search failed");
+      setRunning(false);
+    }
   };
 
-  const resetResults = () => { setResults([]); setSelectedRow(null); setStatusMsg(null); };
+  const resetResults = () => { setResults([]); setSelectedRow(null); setStatusMsg(null); setRunning(false); setSimilarsJobId(null); };
 
   return (
     <div className="max-w-7xl">

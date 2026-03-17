@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/sessions/{session_id}", tags=["similars"])
 # ── SmallWorld (existing) ─────────────────────────────────────────────
 
 class SimilarsRequest(BaseModel):
-    combine_job_id: str
+    combine_job_id: str | None = None
     top_n: int = 100
     dist: int = 25
     length: int = 200
@@ -37,7 +37,15 @@ class SimilarsRequest(BaseModel):
 async def _run_similars_task(job_id: str, session_id: str, config: SimilarsRequest):
     job_manager.mark_running(job_id)
     try:
-        combine_job = get_job(config.combine_job_id)
+        # Resolve combine job — from request or find latest completed
+        cjid = config.combine_job_id
+        if not cjid:
+            combine_jobs = [j for j in get_jobs_for_session(session_id)
+                            if j.type == "combine" and j.status == "completed" and j.result_path]
+            if not combine_jobs:
+                raise ValueError("No completed combine job found for this session")
+            cjid = combine_jobs[0].id
+        combine_job = get_job(cjid)
         if combine_job is None or combine_job.result_path is None:
             raise ValueError("Combine job not found or not completed")
         result_path = await asyncio.to_thread(
@@ -196,7 +204,7 @@ async def upload_and_filter(
 # ── PubChem similarity search ────────────────────────────────────────
 
 class PubChemRequest(BaseModel):
-    combine_job_id: str
+    combine_job_id: str | None = None
     top_n: int = 50
     threshold: int = 80
     max_per_query: int = 20
@@ -206,7 +214,15 @@ class PubChemRequest(BaseModel):
 async def _run_pubchem_task(job_id: str, session_id: str, config: PubChemRequest):
     job_manager.mark_running(job_id)
     try:
-        combine_job = get_job(config.combine_job_id)
+        # Resolve combine job — from request or find latest completed
+        cjid = config.combine_job_id
+        if not cjid:
+            combine_jobs = [j for j in get_jobs_for_session(session_id)
+                            if j.type == "combine" and j.status == "completed" and j.result_path]
+            if not combine_jobs:
+                raise ValueError("No completed combine job found for this session")
+            cjid = combine_jobs[0].id
+        combine_job = get_job(cjid)
         if combine_job is None or combine_job.result_path is None:
             raise ValueError("Combine job not found or not completed")
         result_path = await asyncio.to_thread(

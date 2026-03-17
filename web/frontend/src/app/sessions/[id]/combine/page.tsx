@@ -17,16 +17,37 @@ import * as api from "@/services/api";
 import type { CombineRequest, ResultRow } from "@/services/types";
 
 const COMBINE_FIELDS = [
-  { key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES },
-  { key: "combination_size", label: "Combination Size", type: "number" as const, min: 2, max: 5 },
-  { key: "n_cores", label: "Cores (-1 = all)", type: "number" as const, min: -1, max: 64 },
-  { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600 },
-  { key: "joining_cutoff", label: "Joining Cutoff (A)", type: "number" as const, min: 1, max: 20, step: 0.5 },
-  { key: "warhead_harmonisation", label: "Warhead Mode", type: "select" as const, options: ["first", "keep", "strip", "acrylamide", "chloroacetamide", "nitrile", "vinylsulfonamide", "bromoalkyne"] },
-  { key: "covalent_resi", label: "Covalent Residue", type: "text" as const },
-  { key: "permute", label: "Permute", type: "checkbox" as const },
-  { key: "quick_reanimation", label: "Quick Reanimation", type: "checkbox" as const },
-  { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const },
+  {
+    key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES,
+    optionDescs: {
+      Wictor: "RDKit-only minimization. Fast (~20s), no PyRosetta needed.",
+      Victor: "Full PyRosetta energy scoring. Slow (~60s) but most accurate.",
+      Quicktor: "Quick PyRosetta mode. Medium speed, strict MCS matching.",
+      OpenVictor: "OpenMM minimization. GPU-capable, free alternative to PyRosetta.",
+    },
+  },
+  { key: "combination_size", label: "Combination Size", type: "number" as const, min: 2, max: 5, description: "Number of fragments to merge at once. 2 = pairwise, 3 = triplets." },
+  { key: "n_cores", label: "CPU Cores", type: "number" as const, min: -1, max: 64, description: "-1 uses all available cores. Positive number = exact core count." },
+  { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600, description: "Max seconds per combination. Longer = more results but slower." },
+  { key: "joining_cutoff", label: "Joining Cutoff (A)", type: "number" as const, min: 1, max: 20, step: 0.5, description: "Max distance (Angstroms) to link disconnected fragments with a bond." },
+  {
+    key: "warhead_harmonisation", label: "Warhead Mode", type: "select" as const,
+    options: ["first", "keep", "strip", "acrylamide", "chloroacetamide", "nitrile", "vinylsulfonamide", "bromoalkyne"],
+    optionDescs: {
+      first: "Use the warhead from the first hit fragment.",
+      keep: "Keep all warheads as-is from each fragment.",
+      strip: "Remove all warheads — produce non-covalent mergers only.",
+      acrylamide: "Force acrylamide warhead on the merger.",
+      chloroacetamide: "Force chloroacetamide warhead.",
+      nitrile: "Force nitrile warhead.",
+      vinylsulfonamide: "Force vinylsulfonamide warhead.",
+      bromoalkyne: "Force bromoalkyne warhead.",
+    },
+  },
+  { key: "covalent_resi", label: "Covalent Residue", type: "text" as const, description: "PDB residue for covalent attachment, e.g. '145A'. Leave empty for non-covalent." },
+  { key: "permute", label: "Permute", type: "checkbox" as const, description: "Generate all orderings (A+B and B+A). More results but slower." },
+  { key: "quick_reanimation", label: "Quick Reanimation", type: "checkbox" as const, description: "Faster but less thorough energy minimization." },
+  { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const, description: "Run protein-ligand interaction analysis (H-bonds, hydrophobic contacts)." },
 ];
 
 export default function CombinePage() {
@@ -112,8 +133,8 @@ export default function CombinePage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {hits.map(h => (
-                  <label key={h.name} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
+                {hits.map((h, i) => (
+                  <label key={`${h.name}-${i}`} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
                     selectedHits.has(h.name) ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-400"
                   }`}>
                     <Checkbox checked={selectedHits.has(h.name)} onChange={() => toggleHit(h.name)} />

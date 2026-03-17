@@ -102,8 +102,8 @@ export default function SingleVictorPage() {
         <div className="panel p-5 mb-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Select Hits</h3>
           <div className="flex flex-wrap gap-2">
-            {hits.map(h => (
-              <label key={h.name} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
+            {hits.map((h, i) => (
+              <label key={`${h.name}-${i}`} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border cursor-pointer text-xs transition-colors ${
                 selectedHits.has(h.name) ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-slate-50 border-slate-200 text-slate-400"
               }`}>
                 <Checkbox checked={selectedHits.has(h.name)} onChange={() => toggleHit(h.name)} />

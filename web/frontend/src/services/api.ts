@@ -175,10 +175,12 @@ export async function uploadAndFilterSimilars(
 }
 
 // Similars — PubChem
-export async function startPubChem(sessionId: string, config: { combine_job_id: string; top_n?: number; threshold?: number; max_per_query?: number; outcome_filter?: string }): Promise<{ job_id: string }> {
+export async function startPubChem(sessionId: string, config: { combine_job_id?: string | null; top_n?: number; threshold?: number; max_per_query?: number; outcome_filter?: string }): Promise<{ job_id: string }> {
+  const { combine_job_id, ...rest } = config;
+  const body = combine_job_id ? { combine_job_id, ...rest } : rest;
   return request(`/api/sessions/${sessionId}/similars/pubchem`, {
     method: "POST",
-    body: JSON.stringify(config),
+    body: JSON.stringify(body),
   });
 }
 

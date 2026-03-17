@@ -336,11 +336,22 @@ def run_pubchem_search(
     all_results = []
     base_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound"
 
+    log.info(f"PubChem: searching {len(smiles_list)} SMILES, threshold={threshold}")
+
     for i, smi in enumerate(smiles_list):
-        log.info(f"PubChem: querying {i + 1}/{len(smiles_list)}")
+        if not smi or not smi.strip():
+            continue
+        # Clean SMILES: remove explicit H for PubChem compatibility
+        clean_mol = Chem.MolFromSmiles(smi)
+        if clean_mol is None:
+            log.warning(f"PubChem: invalid query SMILES '{smi}', skipping")
+            continue
+        clean_smi = Chem.MolToSmiles(clean_mol)
+
+        log.info(f"PubChem: querying {i + 1}/{len(smiles_list)}: {clean_smi[:50]}")
         try:
             url = (
-                f"{base_url}/fastsimilarity_2d/smiles/{requests.utils.quote(smi)}"
+                f"{base_url}/fastsimilarity_2d/smiles/{requests.utils.quote(clean_smi, safe='')}"
                 f"/property/CanonicalSMILES,IUPACName,MolecularWeight/JSON"
                 f"?Threshold={threshold}&MaxRecords={max_per_query}"
             )
@@ -349,23 +360,26 @@ def run_pubchem_search(
                 data = resp.json()
                 props = data.get("PropertyTable", {}).get("Properties", [])
                 for p in props:
-                    canon = p.get("CanonicalSMILES", "")
+                    canon = p.get("CanonicalSMILES") or p.get("ConnectivitySMILES") or p.get("IsomericSMILES", "")
+                    if not canon:
+                        continue
                     mol = Chem.MolFromSmiles(canon)
                     if mol is None:
                         continue
                     all_results.append({
-                        "smiles": canon,
+                        "smiles": Chem.MolToSmiles(mol),
                         "name": f"CID-{p.get('CID', '?')}",
                         "molecular_weight": p.get("MolecularWeight"),
                         "iupac_name": p.get("IUPACName", ""),
-                        "query_smiles": smi,
+                        "query_smiles": clean_smi,
                     })
+                log.info(f"  → {len(props)} hits")
             elif resp.status_code == 404:
-                pass  # no results for this query
+                log.info(f"  → 0 hits")
             else:
-                log.warning(f"PubChem returned {resp.status_code} for '{smi}'")
+                log.warning(f"PubChem returned {resp.status_code} for '{clean_smi[:40]}'")
         except Exception as e:
-            log.warning(f"PubChem search failed for '{smi}': {e}")
+            log.warning(f"PubChem search failed for '{clean_smi[:40]}': {e}")
 
         # Rate limit: PubChem allows 5 requests/second
         time.sleep(0.25)

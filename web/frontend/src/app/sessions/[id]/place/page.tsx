@@ -16,13 +16,30 @@ import { VICTOR_TYPES } from "@/lib/constants";
 import type { PlaceRequest, ResultRow } from "@/services/types";
 
 const PLACE_FIELDS = [
-  { key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES },
-  { key: "n_cores", label: "Cores (-1 = all)", type: "number" as const, min: -1, max: 64 },
-  { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600 },
-  { key: "merging_mode", label: "Merging Mode", type: "select" as const, options: ["expansion", "full", "none", "none_permissive"] },
-  { key: "covalent_resi", label: "Covalent Residue", type: "text" as const },
-  { key: "use_originals", label: "Use Original Hits", type: "checkbox" as const },
-  { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const },
+  {
+    key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES,
+    optionDescs: {
+      Wictor: "RDKit-only minimization. Fast (~20s), no PyRosetta needed.",
+      Victor: "Full PyRosetta energy scoring. Slow (~60s) but most accurate.",
+      Quicktor: "Quick PyRosetta mode. Medium speed, strict MCS matching.",
+      OpenVictor: "OpenMM minimization. GPU-capable, free alternative to PyRosetta.",
+    },
+  },
+  { key: "n_cores", label: "CPU Cores", type: "number" as const, min: -1, max: 64, description: "-1 uses all available cores." },
+  { key: "timeout", label: "Timeout (s)", type: "number" as const, min: 30, max: 3600, description: "Max seconds per placement." },
+  {
+    key: "merging_mode", label: "Merging Mode", type: "select" as const,
+    options: ["expansion", "full", "none", "none_permissive"],
+    optionDescs: {
+      expansion: "Conservative mapping. Recommended default for most cases.",
+      full: "Full scaffold merge then map. Better for highly overlapping hits.",
+      none: "Map each hit independently. Slower but better for multi-hit placement.",
+      none_permissive: "Like 'none' but allows partial matches. Most flexible.",
+    },
+  },
+  { key: "covalent_resi", label: "Covalent Residue", type: "text" as const, description: "e.g. '145A'. Leave empty for non-covalent targets." },
+  { key: "use_originals", label: "Use Original Hits", type: "checkbox" as const, description: "Use original fragment hits as placement template. Disable to use merger molecule instead." },
+  { key: "run_plip", label: "PLIP Analysis", type: "checkbox" as const, description: "Run protein-ligand interaction profiling." },
 ];
 
 export default function PlacePage() {

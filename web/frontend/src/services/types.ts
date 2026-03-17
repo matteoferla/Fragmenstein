@@ -47,7 +47,7 @@ export interface PlaceRequest {
 }
 
 export interface SimilarsRequest {
-  combine_job_id: string;
+  combine_job_id?: string | null;
   top_n?: number;
   dist?: number;
   length?: number;
