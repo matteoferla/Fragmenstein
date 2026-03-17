@@ -1,6 +1,10 @@
 # Fragmenstein Web UI
 
-A browser-based interface for the [Fragmenstein](https://github.com/matteoferla/Fragmenstein) fragment-based drug design pipeline.
+A browser-based interface for the [Fragmenstein](https://github.com/matteoferla/Fragmenstein).
+
+![Sessions Page](docs/images/sessions-page.png)
+
+![Combine Page](docs/images/combine-page.png)
 
 ## Quick Start
 
