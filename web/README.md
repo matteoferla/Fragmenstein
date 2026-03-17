@@ -11,12 +11,11 @@ cd web
 
 Then open **http://localhost:3000** in your browser.
 
-That's it. The script will:
+The script will:
 - Check that Python and Node.js are installed
 - Install any missing dependencies automatically
 - Start the backend (port 8000) and frontend (port 3000)
-- Print the URL when ready
-
+- 
 Press **Ctrl+C** to stop.
 
 ## What You Can Do
@@ -40,10 +39,6 @@ Press **Ctrl+C** to stop.
 | `BACKEND_PORT` | 8000 | Backend API port |
 | `FRONTEND_PORT` | 3000 | Frontend UI port |
 | `FRAG_DATA_DIR` | `./data` | Data storage directory |
+| `CHEMSPACE_API_KEY` | — | Optional. Enables ChemSpace analog search |
+| `MOLPORT_API_KEY` | — | Optional. Enables MolPort analog search |
 
-## Links
-
-- [Fragmenstein Documentation](https://fragmenstein.readthedocs.io/)
-- [Fragmenstein Paper](https://chemrxiv.org/doi/full/10.26434/chemrxiv-2024-17w01)
-- [Core Repository](https://github.com/matteoferla/Fragmenstein)
-- [Web UI Repository](https://github.com/sidxz/Fragmenstein)

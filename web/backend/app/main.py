@@ -92,6 +92,7 @@ def system_info():
         info["pyrosetta_version"] = pyrosetta.rosetta.utility.Version.version()
     except Exception:
         info["pyrosetta"] = False
+    info["default_victor_type"] = "Victor" if info.get("pyrosetta") else "Wictor"
 
     # RDKit
     try:

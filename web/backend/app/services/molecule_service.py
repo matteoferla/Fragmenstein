@@ -55,24 +55,34 @@ def parse_mol_file(
             mols.append(mol)
     elif suffix == ".pdb":
         if ligand_resn:
-            # Extract ligand from crystal structure PDB using Victor
+            # Extract each ligand instance separately from the PDB.
+            # A single PDB may contain multiple fragment copies (different
+            # residue numbers or chains). We split them so each becomes its
+            # own hit molecule for Fragmenstein.
             from fragmenstein import Victor
-            name = filepath.stem
-            # Look up SMILES for bond order correction
-            smiles = smiles_map.get(name) if smiles_map else None
-            try:
-                mol = Victor.extract_mol(
-                    name=name,
-                    filepath=str(filepath),
-                    smiles=smiles,
-                    ligand_resn=ligand_resn,
-                    proximityBonding=proximity_bonding,
-                )
-                if mol is not None:
-                    mol.SetProp("_Name", name)
-                    mols.append(mol)
-            except Exception as e:
-                log.warning(f"Failed to extract ligand '{ligand_resn}' from {filepath.name}: {e}")
+            pdb_text = filepath.read_text()
+            instances = _find_ligand_instances(pdb_text, ligand_resn)
+            base_name = filepath.stem
+
+            for chain, resi_num in instances:
+                instance_block = _extract_instance_pdb(pdb_text, ligand_resn, chain, resi_num)
+                inst_name = f"{base_name}_{chain}_{resi_num}" if len(instances) > 1 else base_name
+                smiles = smiles_map.get(inst_name) if smiles_map else None
+                if smiles is None and smiles_map:
+                    smiles = smiles_map.get(base_name)
+                try:
+                    mol = Victor.extract_mol(
+                        name=inst_name,
+                        block=instance_block,
+                        smiles=smiles,
+                        ligand_resn=ligand_resn,
+                        proximityBonding=proximity_bonding,
+                    )
+                    if mol is not None:
+                        mol.SetProp("_Name", inst_name)
+                        mols.append(mol)
+                except Exception as e:
+                    log.warning(f"Failed to extract ligand '{ligand_resn}' instance {chain}/{resi_num} from {filepath.name}: {e}")
         else:
             mol = Chem.MolFromPDBFile(str(filepath), removeHs=False)
             if mol is not None:
@@ -105,6 +115,42 @@ def mol_name(mol: Chem.Mol) -> str:
 def mol_num_heavy_atoms(mol: Chem.Mol) -> int:
     """Count heavy (non-hydrogen) atoms."""
     return mol.GetNumHeavyAtoms()
+
+
+def _find_ligand_instances(pdb_text: str, ligand_resn: str) -> list[tuple[str, int]]:
+    """Find distinct (chain, residue_number) pairs for a given residue name in a PDB."""
+    seen: set[tuple[str, int]] = set()
+    for line in pdb_text.splitlines():
+        if not line.startswith(("ATOM", "HETATM")):
+            continue
+        resname = line[17:20].strip()
+        if resname != ligand_resn:
+            continue
+        chain = line[21].strip() or "A"
+        try:
+            resi_num = int(line[22:26].strip())
+        except ValueError:
+            continue
+        seen.add((chain, resi_num))
+    return sorted(seen)
+
+
+def _extract_instance_pdb(pdb_text: str, ligand_resn: str, chain: str, resi_num: int) -> str:
+    """Extract a PDB block containing only the protein + one specific ligand instance."""
+    lines = []
+    for line in pdb_text.splitlines():
+        if line.startswith(("ATOM", "HETATM")):
+            resname = line[17:20].strip()
+            if resname == ligand_resn:
+                line_chain = line[21].strip() or "A"
+                try:
+                    line_resi = int(line[22:26].strip())
+                except ValueError:
+                    continue
+                if line_chain != chain or line_resi != resi_num:
+                    continue
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def mol_info(mol: Chem.Mol) -> dict:

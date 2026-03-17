@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
-import { ConfigForm } from "@/components/common/ConfigForm";
+import { ConfigForm, type ConfigField } from "@/components/common/ConfigForm";
 import { JobProgress } from "@/components/jobs/JobProgress";
 import { ResultsTable } from "@/components/results/ResultsTable";
 import { OutcomeChart } from "@/components/results/OutcomeChart";
@@ -15,7 +15,7 @@ import * as api from "@/services/api";
 import { VICTOR_TYPES } from "@/lib/constants";
 import type { PlaceRequest, ResultRow } from "@/services/types";
 
-const PLACE_FIELDS = [
+const PLACE_FIELDS: ConfigField[] = [
   {
     key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES,
     optionDescs: {
@@ -50,6 +50,15 @@ export default function PlacePage() {
 
   const [config, setConfig] = useState<PlaceRequest>({ victor_type: "Wictor", n_cores: -1, timeout: 240, merging_mode: "expansion", run_plip: false, use_originals: true, covalent_resi: null, source_job_id: similarsJobId });
   const [running, setRunning] = useState(false);
+
+  // Set default Victor type based on PyRosetta availability
+  useEffect(() => {
+    api.getSystemInfo().then((info) => {
+      if (info.default_victor_type) {
+        setConfig(prev => ({ ...prev, victor_type: info.default_victor_type as string }));
+      }
+    }).catch(() => {});
+  }, []);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);
 

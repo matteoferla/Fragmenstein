@@ -35,6 +35,16 @@ export interface CombineRequest {
   hit_names?: string[] | null;
 }
 
+export interface TemplatePrepRequest {
+  parameterize?: boolean;
+  minimize?: boolean;
+  center_resi?: number | null;
+  center_chain?: string;
+  neighborhood_radius?: number;
+  cycles?: number;
+  remove_residues?: string[];
+}
+
 export interface PlaceRequest {
   victor_type?: string;
   n_cores?: number;

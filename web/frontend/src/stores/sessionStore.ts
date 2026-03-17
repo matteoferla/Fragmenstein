@@ -95,8 +95,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
   },
 
-  setCombineJobId: (id: string) => set({ combineJobId: id }),
-  setSimilarsJobId: (id: string) => set({ similarsJobId: id }),
-  setPlaceJobId: (id: string) => set({ placeJobId: id }),
+  setCombineJobId: (id: string | null) => set({ combineJobId: id }),
+  setSimilarsJobId: (id: string | null) => set({ similarsJobId: id }),
+  setPlaceJobId: (id: string | null) => set({ placeJobId: id }),
   clearError: () => set({ error: null }),
 }));

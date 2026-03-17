@@ -2,7 +2,7 @@
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { API_BASE_URL } from "@/lib/constants";
+import { SmilesImage } from "@/components/viewer/SmilesImage";
 
 export interface SimilarRow {
   index: number;
@@ -30,13 +30,7 @@ interface SimilarsTableProps {
 function structureImg(row: SimilarRow) {
   if (!row.smiles) return <span className="text-slate-300">-</span>;
   return (
-    <img
-      src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(row.smiles)}&width=200&height=140`}
-      alt={row.smiles}
-      className="rounded border border-slate-200"
-      style={{ width: 100, height: 70, objectFit: "contain", background: "#fff" }}
-      loading="lazy"
-    />
+    <SmilesImage smiles={row.smiles} width={200} height={140} className="rounded border border-slate-200" style={{ width: 100, height: 70, objectFit: "contain", background: "#fff" }} />
   );
 }
 
@@ -148,7 +142,7 @@ export function SimilarsTable({ results, onRowSelect, selectedRow }: SimilarsTab
             if (!r.query_smiles) return <span className="text-slate-300">-</span>;
             return (
               <div className="flex items-center gap-2">
-                <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(r.query_smiles)}&width=120&height=80`} alt="query" className="rounded border border-slate-100" style={{ width: 60, height: 40, objectFit: "contain", background: "#fff" }} loading="lazy" />
+                <SmilesImage smiles={r.query_smiles} width={120} height={80} className="rounded border border-slate-100" style={{ width: 60, height: 40, objectFit: "contain", background: "#fff" }} />
                 <span className="text-[9px] font-mono text-slate-400 truncate" style={{ maxWidth: "100px" }}>{r.query_smiles}</span>
               </div>
             );

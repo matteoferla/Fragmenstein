@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
-import { ConfigForm } from "@/components/common/ConfigForm";
+import { ConfigForm, type ConfigField } from "@/components/common/ConfigForm";
 import { JobProgress } from "@/components/jobs/JobProgress";
 import { ResultsTable } from "@/components/results/ResultsTable";
 import { OutcomeChart } from "@/components/results/OutcomeChart";
@@ -16,7 +16,7 @@ import { VICTOR_TYPES } from "@/lib/constants";
 import * as api from "@/services/api";
 import type { CombineRequest, ResultRow } from "@/services/types";
 
-const COMBINE_FIELDS = [
+const COMBINE_FIELDS: ConfigField[] = [
   {
     key: "victor_type", label: "Victor Type", type: "select" as const, options: VICTOR_TYPES,
     optionDescs: {
@@ -63,6 +63,15 @@ export default function CombinePage() {
     run_plip: false, covalent_resi: null, hit_names: null,
   });
   const [running, setRunning] = useState(false);
+
+  // Set default Victor type based on PyRosetta availability
+  useEffect(() => {
+    api.getSystemInfo().then((info) => {
+      if (info.default_victor_type) {
+        setConfig(prev => ({ ...prev, victor_type: info.default_victor_type as string }));
+      }
+    }).catch(() => {});
+  }, []);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);
   const [selectedHits, setSelectedHits] = useState<Set<string>>(new Set());

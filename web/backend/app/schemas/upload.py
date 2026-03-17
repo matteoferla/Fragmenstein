@@ -23,3 +23,13 @@ class HitInfo(BaseModel):
 class HitsResponse(BaseModel):
     hits: list[HitInfo]
     count: int
+
+
+class TemplatePrepRequest(BaseModel):
+    parameterize: bool = True
+    minimize: bool = False
+    center_resi: int | None = None
+    center_chain: str = "A"
+    neighborhood_radius: float = 8.0
+    cycles: int = 3
+    remove_residues: list[str] = []

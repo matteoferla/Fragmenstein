@@ -17,7 +17,7 @@ import { JobProgress } from "@/components/jobs/JobProgress";
 import { SimilarsTable, type SimilarRow } from "@/components/results/SimilarsTable";
 import { DownloadPanel } from "@/components/results/DownloadPanel";
 import { useSessionStore } from "@/stores/sessionStore";
-import { API_BASE_URL } from "@/lib/constants";
+import { SmilesImage } from "@/components/viewer/SmilesImage";
 import * as api from "@/services/api";
 
 export default function SimilarsPage() {
@@ -49,7 +49,7 @@ export default function SimilarsPage() {
     try {
       const res = await api.getJobResults(jobId);
       setResults(res.results as unknown as SimilarRow[]);
-    } catch {}
+    } catch { setStatusMsg("Failed to load results"); }
     setRunning(false);
   }, []);
 
@@ -419,7 +419,7 @@ export default function SimilarsPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Analog Detail</h3>
                   {selectedRow.smiles && (
                     <div className="flex justify-center bg-white rounded-lg border border-slate-200 p-2">
-                      <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.smiles)}&width=300&height=220`} alt={selectedRow.smiles} style={{ maxWidth: "100%", height: "auto" }} />
+                      <SmilesImage smiles={selectedRow.smiles} width={300} height={220} style={{ maxWidth: "100%", height: "auto" }} />
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
@@ -443,7 +443,7 @@ export default function SimilarsPage() {
                     <div className="stat-card">
                       <div className="stat-label">Source Query</div>
                       <div className="flex items-center gap-2 mt-1">
-                        <img src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(selectedRow.query_smiles)}&width=150&height=100`} alt="query" className="rounded border border-slate-100" style={{ width: 75, height: 50, objectFit: "contain", background: "#fff" }} />
+                        <SmilesImage smiles={selectedRow.query_smiles} width={150} height={100} className="rounded border border-slate-100" style={{ width: 75, height: 50, objectFit: "contain", background: "#fff" }} />
                         <span className="text-[9px] font-mono text-slate-400 break-all">{selectedRow.query_smiles}</span>
                       </div>
                     </div>

@@ -1,12 +1,17 @@
 """File upload endpoints for template PDB and hit molecules."""
 
+import asyncio
+import logging
+
 from fastapi import APIRouter, HTTPException, UploadFile
 
 from ..database import get_db
 from ..models.session import get_session, update_session
-from ..schemas.upload import HitInfo, HitsResponse, UploadResponse
-from ..services import file_manager
+from ..schemas.upload import HitInfo, HitsResponse, TemplatePrepRequest, UploadResponse
+from ..services import file_manager, job_manager
 from ..services.molecule_service import mol_info, mol_to_molblock, parse_mol_file, parse_smi_file
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sessions/{session_id}", tags=["upload"])
 
@@ -88,7 +93,7 @@ async def upload_hits(
                 db.execute(
                     "INSERT INTO hits (session_id, name, filename, smiles, num_atoms, mol_block) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    (session_id, info["name"], file.filename, info["smiles"], info["num_atoms"], mol_block),
+                    (session_id, info["name"], filename, info["smiles"], info["num_atoms"], mol_block),
                 )
                 total_mols += 1
 
@@ -171,3 +176,45 @@ def get_template_pdb(session_id: str):
     if session.template_pdb is None:
         raise HTTPException(status_code=404, detail="No template uploaded")
     return {"pdb": session.template_pdb}
+
+
+async def _run_prepare_task(job_id: str, session_id: str, config: TemplatePrepRequest):
+    """Background task that runs template preparation."""
+    job_manager.mark_running(job_id)
+    try:
+        from ..services.template_prep_service import run_template_prepare
+
+        summary = await asyncio.to_thread(
+            run_template_prepare,
+            session_id=session_id,
+            parameterize=config.parameterize,
+            minimize=config.minimize,
+            center_resi=config.center_resi,
+            center_chain=config.center_chain,
+            neighborhood_radius=config.neighborhood_radius,
+            cycles=config.cycles,
+            remove_residues=config.remove_residues,
+        )
+        job_manager.mark_completed(job_id, result_path=summary)
+    except Exception as e:
+        log.exception(f"Template preparation failed for session {session_id}")
+        job_manager.mark_failed(job_id, error=str(e))
+
+
+@router.post("/template/prepare")
+async def prepare_template(session_id: str, config: TemplatePrepRequest):
+    """Prepare template using PyRosetta: parameterize, minimize, remove residues."""
+    session = get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.template_pdb is None:
+        raise HTTPException(status_code=400, detail="Upload a template first")
+
+    try:
+        import pyrosetta  # noqa: F401
+    except ImportError:
+        raise HTTPException(status_code=400, detail="PyRosetta is not installed")
+
+    job = job_manager.start_job(session_id, "template_prepare", config.model_dump())
+    asyncio.create_task(_run_prepare_task(job.id, session_id, config))
+    return {"job_id": job.id}

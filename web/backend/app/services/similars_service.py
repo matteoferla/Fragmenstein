@@ -1,15 +1,7 @@
-"""Similars search backends: SmallWorld, PubChem, ChemSpace, MolPort.
-
-Root cause of SSL errors: sw.docking.org runs Apache/OpenSSL 1.1.1k which has a
-broken TLS 1.3 handshake. Anaconda's OpenSSL 3.5.0 negotiates TLS 1.3 by default,
-causing UNEXPECTED_EOF_WHILE_READING. Fix: cap ssl.SSLContext to TLS 1.2 for the
-duration of the SmallWorld call.
-"""
+"""Similars search backends: SmallWorld, PubChem, ChemSpace, MolPort."""
 
 import logging
 import os
-import ssl
-from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -19,47 +11,6 @@ from .result_serializer import load_dataframe, save_dataframe
 
 log = logging.getLogger(__name__)
 
-
-@contextmanager
-def _tls12_only():
-    """Temporarily cap all new SSLContext instances to TLS 1.2.
-
-    sw.docking.org's OpenSSL 1.1.1k breaks on TLS 1.3 handshakes with newer
-    clients. This context manager patches ssl.create_default_context so any
-    SSL context created (by requests/urllib3/smallworld_api) is capped at
-    TLS 1.2, then restores the original after the block completes.
-    """
-    # Patch create_default_context (used by urllib3 internally)
-    original_create = ssl.create_default_context
-
-    def patched_create(*args, **kwargs):
-        ctx = original_create(*args, **kwargs)
-        ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-        return ctx
-
-    ssl.create_default_context = patched_create
-
-    # Also patch urllib3's context creator directly
-    try:
-        from urllib3.util.ssl_ import create_urllib3_context as _orig_u3
-        import urllib3.util.ssl_
-
-        def patched_u3(*args, **kwargs):
-            ctx = _orig_u3(*args, **kwargs)
-            ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-            return ctx
-
-        urllib3.util.ssl_.create_urllib3_context = patched_u3
-        _has_u3 = True
-    except ImportError:
-        _has_u3 = False
-
-    try:
-        yield
-    finally:
-        ssl.create_default_context = original_create
-        if _has_u3:
-            urllib3.util.ssl_.create_urllib3_context = _orig_u3
 
 
 def run_similars_search(
@@ -98,20 +49,14 @@ def run_similars_search(
     smiles_col = "simple_smiles" if "simple_smiles" in filtered.columns else "smiles"
     smiles_list = filtered[smiles_col].dropna().tolist()
 
-    # Run SmallWorld search with TLS 1.2 (sw.docking.org breaks on TLS 1.3)
-    with _tls12_only():
-        from smallworld_api import SmallWorld
+    from . import smallworld_client
 
-        sws = SmallWorld()
-        sw_db = getattr(sws, db, sws.REAL_dataset)
-
-        results = sws.search_many(
-            smiles_list,
-            dist=dist,
-            length=length,
-            db=sw_db,
-            tolerated_exceptions=Exception,
-        )
+    results = smallworld_client.search_many(
+        smiles_list,
+        db=db,
+        dist=dist,
+        length=length,
+    )
 
     # Map back to original hit molecules
     if "hit_mols" in filtered.columns:

@@ -17,6 +17,7 @@ import type {
   SessionResponse,
   SimilarsRequest,
   SingleCombineRequest,
+  TemplatePrepRequest,
   SinglePlaceRequest,
   SingleResult,
   HitMolBlock,
@@ -107,6 +108,14 @@ export async function getTemplatePdb(sessionId: string): Promise<{ pdb: string }
 export async function cleanTemplate(sessionId: string, removeResidues: string = "HOH"): Promise<{ message: string; removed_count: number }> {
   return request(`/api/sessions/${sessionId}/template/clean?remove_residues=${encodeURIComponent(removeResidues)}`, {
     method: "POST",
+  });
+}
+
+// Template preparation (PyRosetta)
+export async function prepareTemplate(sessionId: string, config: TemplatePrepRequest): Promise<{ job_id: string }> {
+  return request(`/api/sessions/${sessionId}/template/prepare`, {
+    method: "POST",
+    body: JSON.stringify(config),
   });
 }
 

@@ -6,7 +6,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Checkbox } from "primereact/checkbox";
 import { VICTOR_TYPES } from "@/lib/constants";
 
-interface ConfigField {
+export interface ConfigField {
   key: string;
   label: string;
   type: "text" | "number" | "select" | "checkbox";

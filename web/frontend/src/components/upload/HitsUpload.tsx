@@ -8,8 +8,9 @@ import { InputText } from "primereact/inputtext";
 import { Checkbox } from "primereact/checkbox";
 import { Message } from "primereact/message";
 import { MolViewer3D } from "@/components/viewer/MolViewer3D";
+import { SmilesImage } from "@/components/viewer/SmilesImage";
 import { useSessionStore } from "@/stores/sessionStore";
-import { API_BASE_URL } from "@/lib/constants";
+
 import * as api from "@/services/api";
 
 export function HitsUpload() {
@@ -121,13 +122,7 @@ export function HitsUpload() {
             {hits.map((h, i) => (
               <div key={`${h.name}-${i}`} className="bg-white rounded-lg border border-slate-200 p-2 text-center">
                 {h.smiles ? (
-                  <img
-                    src={`${API_BASE_URL}/api/depict?smiles=${encodeURIComponent(h.smiles)}&width=200&height=140`}
-                    alt={h.name}
-                    className="mx-auto rounded"
-                    style={{ width: "100%", height: 70, objectFit: "contain" }}
-                    loading="lazy"
-                  />
+                  <SmilesImage smiles={h.smiles} width={200} height={140} className="mx-auto rounded" style={{ width: "100%", height: 70, objectFit: "contain" }} />
                 ) : (
                   <div className="h-[70px] flex items-center justify-center text-slate-300 text-xs">No SMILES</div>
                 )}
