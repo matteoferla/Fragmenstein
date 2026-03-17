@@ -66,6 +66,10 @@ Example of multiple applications: [![](https://img.shields.io/youtube/views/kieD
 
 ![Ox](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/University_of_Oxford.svg/320px-University_of_Oxford.svg.png)
 
+## Web UI
+
+A browser-based interface is available for interactive use. See [web/README.md](web/README.md) for setup instructions.
+
 ## See Also
 
 * ChemRXiv preprint — https://chemrxiv.org/engage/chemrxiv/article-details/65d751ab9138d23161b7ea38

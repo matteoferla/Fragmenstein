@@ -1,0 +1,10 @@
+# Backend runtime artifacts
+backend/output/
+backend/data/
+backend/**/__pycache__/
+*.pyc
+*.db
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.next/
