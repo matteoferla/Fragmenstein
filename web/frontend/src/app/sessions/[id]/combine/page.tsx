@@ -79,6 +79,7 @@ export default function CombinePage() {
   // Initialize hit selection from session hits
   useEffect(() => {
     if (hits.length > 0 && selectedHits.size === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedHits(new Set(hits.map(h => h.name)));
     }
   }, [hits, selectedHits.size]);

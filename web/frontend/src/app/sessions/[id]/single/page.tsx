@@ -29,6 +29,7 @@ export default function SingleVictorPage() {
 
   useEffect(() => {
     if (hits.length > 0 && selectedHits.size === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedHits(new Set(hits.slice(0, 2).map(h => h.name)));
     }
   }, [hits, selectedHits.size]);
@@ -40,6 +41,7 @@ export default function SingleVictorPage() {
   // Load hit mol blocks for selected hits
   useEffect(() => {
     const names = Array.from(selectedHits);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (names.length === 0) { setHitMolBlocks([]); return; }
     Promise.all(names.map(n => api.getHitMolBlock(sessionId, n).then(r => ({ name: n, data: r.mol_block })).catch(() => null)))
       .then(results => setHitMolBlocks(results.filter(Boolean) as Array<{ name: string; data: string }>));

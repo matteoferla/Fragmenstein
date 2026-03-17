@@ -12,7 +12,6 @@ import { MultiSelect } from "primereact/multiselect";
 import { Slider } from "primereact/slider";
 import { TabView, TabPanel } from "primereact/tabview";
 import { Message } from "primereact/message";
-import { Tooltip } from "primereact/tooltip";
 import { JobProgress } from "@/components/jobs/JobProgress";
 import { SimilarsTable, type SimilarRow } from "@/components/results/SimilarsTable";
 import { DownloadPanel } from "@/components/results/DownloadPanel";

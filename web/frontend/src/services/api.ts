@@ -32,7 +32,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const body = await res.text();
     throw new Error(`API error ${res.status}: ${body}`);
   }
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 // System

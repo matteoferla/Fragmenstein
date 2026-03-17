@@ -62,6 +62,7 @@ export default function PlacePage() {
   const [results, setResults] = useState<ResultRow[]>([]);
   const [selectedRow, setSelectedRow] = useState<ResultRow | null>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (similarsJobId) setConfig(c => ({ ...c, source_job_id: similarsJobId })); }, [similarsJobId]);
 
   const handleStart = async () => {

@@ -15,7 +15,7 @@ import * as api from "@/services/api";
 
 export function HitsUpload() {
   const { sessionId, hits, refreshHits } = useSessionStore();
-  const [uploading, setUploading] = useState(false);
+  const [, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [hitMolBlocks, setHitMolBlocks] = useState<Array<{ name: string; data: string }>>([]);
   const [proteinPdb, setProteinPdb] = useState<string | null>(null);
@@ -86,6 +86,10 @@ export function HitsUpload() {
             For PDB files: residue name extracts the ligand. Enable proximity bonding if the PDB lacks CONECT records.
           </div>
         </div>
+      </div>
+      <div className="text-[10px] text-slate-400 mb-3 px-1">
+        <i className="pi pi-info-circle mr-1" />
+        For PDB hits, you can also include a <strong>.smi</strong> file (tab-separated SMILES and name) to correct bond orders during ligand extraction.
       </div>
 
       <FileUpload

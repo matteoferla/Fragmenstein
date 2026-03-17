@@ -14,7 +14,7 @@ interface JobProgressProps {
 }
 
 export function JobProgress({ jobId, onComplete, onCancel, onRerun }: JobProgressProps) {
-  const { progress, status, message, isComplete, isFailed } =
+  const { status, message, isComplete, isFailed } =
     useJobProgress(jobId);
 
   if (isComplete && onComplete) {

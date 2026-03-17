@@ -1,6 +1,6 @@
 /** SSE EventSource hook for job progress. */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/lib/constants";
 import type { JobProgressEvent } from "@/services/types";
 

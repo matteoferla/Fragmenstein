@@ -14,7 +14,7 @@ import * as api from "@/services/api";
 
 export function TemplateUpload() {
   const { sessionId, session, loadSession } = useSessionStore();
-  const [uploading, setUploading] = useState(false);
+  const [, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pdbText, setPdbText] = useState<string | null>(null);
   const [removeResidues, setRemoveResidues] = useState("HOH");
