@@ -27,7 +27,16 @@ check_cmd() {
 }
 
 OK=true
-check_cmd python "Install Python 3.10+" || OK=false
+# ↓ prefer python3 but fall back to python
+PYTHON=""
+if command -v python3 &>/dev/null; then
+  PYTHON=python3
+elif command -v python &>/dev/null; then
+  PYTHON=python
+else
+  echo "  ✗ python not found. Install Python 3.10+"
+  OK=false
+fi
 check_cmd node "Install Node.js 18+" || OK=false
 check_cmd npm "Comes with Node.js" || OK=false
 
@@ -46,7 +55,7 @@ if [ ! -d "$DIR/frontend/node_modules" ]; then
 fi
 
 # Check Python deps
-python -c "import fastapi, uvicorn, rdkit" 2>/dev/null || {
+$PYTHON -c "import fastapi, uvicorn, rdkit" 2>/dev/null || {
   echo "  Installing backend dependencies..."
   if command -v uv &>/dev/null; then
     uv pip install --system -r "$DIR/backend/requirements.txt" --quiet
@@ -62,7 +71,7 @@ BACKEND_PORT=${BACKEND_PORT:-8000}
 FRONTEND_PORT=${FRONTEND_PORT:-3000}
 
 echo "  Starting backend on port ${BACKEND_PORT}..."
-(cd "$DIR/backend" && python -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload) &
+(cd "$DIR/backend" && $PYTHON -m uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload) &
 BACKEND_PID=$!
 
 echo "  Starting frontend on port ${FRONTEND_PORT}..."
