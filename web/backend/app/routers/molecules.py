@@ -13,17 +13,23 @@ router = APIRouter(tags=["molecules"])
 
 @router.get("/api/depict")
 def depict_smiles(smiles: str, width: int = 250, height: int = 180):
-    """Render a SMILES string as an SVG 2D structure depiction."""
+    """Render a SMILES string as a PNG 2D structure depiction."""
+    width = min(width, 1024)
+    height = min(height, 1024)
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise HTTPException(status_code=400, detail="Invalid SMILES")
     svg = Draw.MolToImage(mol, size=(width, height))
     import io
+
     buf = io.BytesIO()
     svg.save(buf, format="PNG")
     buf.seek(0)
-    return Response(content=buf.read(), media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=86400"})
+    return Response(
+        content=buf.read(),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/api/sessions/{session_id}/hits/{hit_name}/mol")
@@ -57,6 +63,4 @@ def get_all_hit_molblocks(session_id: str):
             (session_id,),
         ).fetchall()
 
-    return {
-        "hits": [{"name": r["name"], "mol_block": r["mol_block"]} for r in rows]
-    }
+    return {"hits": [{"name": r["name"], "mol_block": r["mol_block"]} for r in rows]}

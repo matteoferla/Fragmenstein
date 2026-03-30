@@ -8,7 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import init_db
-from .routers import combine, demo, jobs, molecules, monster, place, sessions, similars, single_victor, upload
+from .routers import (
+    combine,
+    demo,
+    jobs,
+    molecules,
+    monster,
+    place,
+    sessions,
+    similars,
+    single_victor,
+    upload,
+)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -61,6 +72,7 @@ def health():
 def available_backends():
     """Return which optional search backends have API keys configured."""
     import os
+
     return {
         "chemspace": bool(os.environ.get("CHEMSPACE_API_KEY")),
         "molport": bool(os.environ.get("MOLPORT_API_KEY")),
@@ -69,44 +81,20 @@ def available_backends():
 
 @app.get("/api/system-info")
 def system_info():
-    import os
-    import sys
-    import platform
+    """Return minimal capability info for the frontend — no version details."""
     from pathlib import Path
 
-    # Read version from shared VERSION file
     version_file = Path(__file__).resolve().parent.parent.parent / "VERSION"
     version = version_file.read_text().strip() if version_file.exists() else "0.0.0"
-
-    info: dict = {
-        "version": version,
-        "python": sys.version.split()[0],
-        "platform": platform.machine(),
-        "cores": os.cpu_count(),
-    }
-
-    # PyRosetta
+    has_pyrosetta = False
     try:
-        import pyrosetta
-        info["pyrosetta"] = True
-        info["pyrosetta_version"] = pyrosetta.rosetta.utility.Version.version()
-    except Exception:
-        info["pyrosetta"] = False
-    info["default_victor_type"] = "Victor" if info.get("pyrosetta") else "Wictor"
+        import pyrosetta  # noqa: F401
 
-    # RDKit
-    try:
-        from rdkit import rdBase
-        info["rdkit"] = rdBase.rdkitVersion
-    except Exception:
-        info["rdkit"] = None
-
-    # GPU (CUDA via torch)
-    try:
-        import torch
-        if torch.cuda.is_available():
-            info["gpu"] = torch.cuda.get_device_name(0)
+        has_pyrosetta = True
     except Exception:
         pass
-
-    return info
+    return {
+        "version": version,
+        "pyrosetta": has_pyrosetta,
+        "default_victor_type": "Victor" if has_pyrosetta else "Wictor",
+    }

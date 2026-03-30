@@ -39,8 +39,18 @@ def results_dir(session_id: str, job_type: str) -> Path:
     return d
 
 
-def save_upload(session_id: str, filename: str, content: bytes, subdir: str = "") -> Path:
+def _sanitise_filename(filename: str) -> str:
+    """Strip directory components to prevent path traversal."""
+    return Path(filename).name
+
+
+def save_upload(
+    session_id: str, filename: str, content: bytes, subdir: str = ""
+) -> Path:
     """Save an uploaded file and return its path."""
+    filename = _sanitise_filename(filename)
+    if not filename:
+        raise ValueError("Empty filename after sanitisation")
     if subdir:
         dest = session_dir(session_id) / subdir
         dest.mkdir(parents=True, exist_ok=True)

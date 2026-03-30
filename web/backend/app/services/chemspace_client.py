@@ -28,7 +28,10 @@ class ChemSpaceClient:
     def _ensure_token(self):
         """Get or refresh the access token (thread-safe)."""
         with self._lock:
-            if self._token and time.time() < self._token_expires_at - _TOKEN_REFRESH_MARGIN:
+            if (
+                self._token
+                and time.time() < self._token_expires_at - _TOKEN_REFRESH_MARGIN
+            ):
                 return
             resp = requests.get(
                 f"{self.BASE_URL}/auth/token",
@@ -57,6 +60,7 @@ class ChemSpaceClient:
         count: int = 50,
         categories: str = "CSSS,CSMS",
         ship_to_country: str = "US",
+        _retries: int = 3,
     ) -> list[dict]:
         """Search ChemSpace for similar compounds.
 
@@ -82,16 +86,21 @@ class ChemSpaceClient:
                 timeout=30,
             )
 
-            if resp.status_code == 429:
-                log.warning("ChemSpace: rate limited, waiting 5s")
+            if resp.status_code == 429 and _retries > 0:
+                log.warning(
+                    "ChemSpace: rate limited, waiting 5s (%d retries left)", _retries
+                )
                 time.sleep(5)
-                return self.similarity_search(smiles, count, categories, ship_to_country)
+                return self.similarity_search(
+                    smiles, count, categories, ship_to_country, _retries=_retries - 1
+                )
 
-            if resp.status_code == 401:
-                # Token expired, refresh and retry once
+            if resp.status_code == 401 and _retries > 0:
                 self._token = None
                 self._ensure_token()
-                return self.similarity_search(smiles, count, categories, ship_to_country)
+                return self.similarity_search(
+                    smiles, count, categories, ship_to_country, _retries=_retries - 1
+                )
 
             if resp.status_code == 400:
                 log.warning(f"ChemSpace: invalid SMILES '{smiles[:40]}', skipping")
@@ -103,13 +112,15 @@ class ChemSpaceClient:
 
             results = []
             for item in items:
-                results.append({
-                    "csId": item.get("csId", ""),
-                    "smiles": item.get("SMILES", ""),
-                    "molecular_weight": item.get("MW"),
-                    "logP": item.get("logP"),
-                    "TPSA": item.get("TPSA"),
-                })
+                results.append(
+                    {
+                        "csId": item.get("csId", ""),
+                        "smiles": item.get("SMILES", ""),
+                        "molecular_weight": item.get("MW"),
+                        "logP": item.get("logP"),
+                        "TPSA": item.get("TPSA"),
+                    }
+                )
             return results
 
         except requests.exceptions.Timeout:

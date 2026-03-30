@@ -1,7 +1,7 @@
 """Serialize Fragmenstein DataFrames to JSON-safe dicts."""
 
 import math
-import pickle  # Required: RDKit Mol objects are not JSON-serializable; only used for internal persistence of backend-generated results
+import pickle  # ↓ legacy read-only: new files use parquet + sidecar SDF
 from pathlib import Path
 
 import pandas as pd
@@ -17,11 +17,24 @@ COLUMN_MAP = {
 
 # Scalar columns to include in table view
 TABLE_COLUMNS = [
-    "name", "smiles", "simple_smiles", "error", "mode",
-    "ddG", "dG_bound", "dG_unbound",
-    "comRMSD", "N_constrained_atoms", "N_unconstrained_atoms",
-    "runtime", "LE", "outcome",
-    "percent_hybrid", "largest_ring", "N_HA", "N_rotatable_bonds",
+    "name",
+    "smiles",
+    "simple_smiles",
+    "error",
+    "mode",
+    "ddG",
+    "dG_bound",
+    "dG_unbound",
+    "comRMSD",
+    "N_constrained_atoms",
+    "N_unconstrained_atoms",
+    "runtime",
+    "LE",
+    "outcome",
+    "percent_hybrid",
+    "largest_ring",
+    "N_HA",
+    "N_rotatable_bonds",
     "const_ratio",
 ]
 
@@ -46,6 +59,7 @@ def dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
 
     # Extract hit_names from hit_mols if present
     if "hit_mols" in renamed.columns and "hit_names" not in renamed.columns:
+
         def _get_hit_names(mols):
             if not isinstance(mols, (list, tuple)):
                 return []
@@ -54,6 +68,7 @@ def dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
                 if m is not None and m.HasProp("_Name"):
                     names.append(m.GetProp("_Name"))
             return names
+
         renamed["hit_names"] = renamed["hit_mols"].apply(_get_hit_names)
 
     rows = []
@@ -78,7 +93,9 @@ def dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def get_mol_block(df: pd.DataFrame, idx: int, mol_type: str = "minimized") -> str | None:
+def get_mol_block(
+    df: pd.DataFrame, idx: int, mol_type: str = "minimized"
+) -> str | None:
     """Get MolBlock for a specific result row."""
     col = f"{mol_type}_mol" if mol_type != "mol" else "mol"
     if col not in df.columns:
@@ -107,13 +124,32 @@ def similars_dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
 
     # SmallWorld columns of interest
     SW_COLS = [
-        "smiles", "name", "hitSmiles", "topodist", "dist",
-        "ecfp4", "daylight", "mces",
-        "tdn", "tup", "rdn", "rup", "ldn", "lup", "mut", "maj", "min", "hyb", "sub",
-        "query_smiles", "alignment",
+        "smiles",
+        "name",
+        "hitSmiles",
+        "topodist",
+        "dist",
+        "ecfp4",
+        "daylight",
+        "mces",
+        "tdn",
+        "tup",
+        "rdn",
+        "rup",
+        "ldn",
+        "lup",
+        "mut",
+        "maj",
+        "min",
+        "hyb",
+        "sub",
+        "query_smiles",
+        "alignment",
         "tanimoto_to_merger",  # from library filtering
-        "molecular_weight", "iupac_name",  # from PubChem
-        "logP", "TPSA",  # from ChemSpace
+        "molecular_weight",
+        "iupac_name",  # from PubChem
+        "logP",
+        "TPSA",  # from ChemSpace
         "similarity_index",  # from MolPort
     ]
 
@@ -127,22 +163,86 @@ def similars_dataframe_to_rows(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def save_dataframe(df: pd.DataFrame, path: Path):
-    """Persist a DataFrame (with Mol objects) to disk.
+def _mol_columns(df: pd.DataFrame) -> list[str]:
+    """Return column names that contain RDKit Mol objects."""
+    mol_cols = []
+    for col in df.columns:
+        if (
+            isinstance(col, str)
+            and df[col].apply(lambda v: isinstance(v, Chem.Mol)).any()
+        ):
+            mol_cols.append(col)
+    return mol_cols
 
-    Uses pickle because RDKit Mol objects cannot be serialized to JSON.
-    Only used for internal persistence of backend-generated results.
-    """
+
+def save_dataframe(df: pd.DataFrame, path: Path):
+    """Persist a DataFrame to disk as parquet + sidecar SDF for Mol columns."""
+    path = path.with_suffix(".parquet")
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "wb") as f:
-        pickle.dump(df, f)
+    mol_cols = _mol_columns(df)
+    # ↓ write Mol columns as a sidecar SDF keyed by row index + column
+    sdf_path = path.with_suffix(".mols.sdf")
+    if mol_cols:
+        writer = Chem.SDWriter(str(sdf_path))
+        for idx, row in df.iterrows():
+            for col in mol_cols:
+                mol = row[col]
+                if mol is not None and isinstance(mol, Chem.Mol):
+                    mol.SetProp("_row_idx", str(idx))
+                    mol.SetProp("_col", col)
+                    writer.write(mol)
+        writer.close()
+    # ↓ drop Mol columns before saving parquet (not serialisable)
+    scalar_df = df.drop(columns=mol_cols, errors="ignore")
+    # ↓ also drop tuple-keyed columns (PLIP) — parquet can't handle them
+    tuple_cols = [c for c in scalar_df.columns if isinstance(c, tuple)]
+    if tuple_cols:
+        plip_df = scalar_df[tuple_cols].copy()
+        plip_df.columns = [
+            "__plip__" + "__".join(str(x) for x in c) for c in tuple_cols
+        ]
+        scalar_df = scalar_df.drop(columns=tuple_cols)
+        scalar_df = pd.concat([scalar_df, plip_df], axis=1)
+    scalar_df.to_parquet(path, index=True)
+    return path
 
 
 def load_dataframe(path: Path) -> pd.DataFrame:
-    """Load a persisted DataFrame.
-
-    Uses pickle because RDKit Mol objects cannot be serialized to JSON.
-    Only loads files generated by this application's save_dataframe().
-    """
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    """Load a persisted DataFrame, reading parquet or falling back to legacy pickle."""
+    parquet_path = path.with_suffix(".parquet") if path.suffix != ".parquet" else path
+    if parquet_path.exists():
+        df = pd.read_parquet(parquet_path)
+        # ↓ restore tuple-keyed PLIP columns
+        plip_cols = [
+            c for c in df.columns if isinstance(c, str) and c.startswith("__plip__")
+        ]
+        if plip_cols:
+            for col in plip_cols:
+                parts = col[len("__plip__") :].split("__")
+                # ↓ try to restore original tuple key (str, str, int)
+                restored = []
+                for p in parts:
+                    try:
+                        restored.append(int(p))
+                    except ValueError:
+                        restored.append(p)
+                df[tuple(restored)] = df[col]
+            df = df.drop(columns=plip_cols)
+        # ↓ restore Mol columns from sidecar SDF
+        sdf_path = parquet_path.with_suffix(".mols.sdf")
+        if sdf_path.exists():
+            suppl = Chem.SDMolSupplier(str(sdf_path))
+            for mol in suppl:
+                if mol is None:
+                    continue
+                row_idx = int(mol.GetProp("_row_idx"))
+                col = mol.GetProp("_col")
+                if col not in df.columns:
+                    df[col] = None
+                df.at[row_idx, col] = mol
+        return df
+    # ↓ legacy pickle fallback for files saved before this change
+    if path.exists():
+        with open(path, "rb") as f:
+            return pickle.load(f)  # noqa: S301
+    raise FileNotFoundError(f"No results file at {path} or {parquet_path}")

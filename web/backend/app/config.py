@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_name: str = "Fragmenstein Web UI"
-    debug: bool = True
+    debug: bool = False
 
     # Paths
     data_dir: Path = Path(os.environ.get("FRAG_DATA_DIR", "./data"))
