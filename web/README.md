@@ -19,7 +19,7 @@ The script will:
 - Check that Python and Node.js are installed
 - Install any missing dependencies automatically
 - Start the backend (port 8000) and frontend (port 3000)
-- 
+
 Press **Ctrl+C** to stop.
 
 ## What You Can Do

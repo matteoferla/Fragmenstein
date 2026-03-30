@@ -1,5 +1,3 @@
-from fragmenstein.laboratory.validator import hits_check
-
 # Fragmenstein
 
 ## Stitched molecules
@@ -10,8 +8,8 @@ Fragmenstein can perform two different tasks:
 * **Combine** hits (merging and linking) based on their atomic overlap
 * **Place** a given followup molecule based on one or more parent hits
 
-NB. Whereas docking uses pre-generates comformers and finds the best pose that best matches the parent (if set-up to do so),
-Fragmenstein creates a monstrous comformer from the parent(s) and then minimises it, optionally in the protein.
+NB. Whereas docking uses pre-generated conformers and finds the best pose that best matches the parent (if set-up to do so),
+Fragmenstein creates a monstrous conformer from the parent(s) and then minimises it, optionally in the protein.
 Hence why I call it a 'placement' not docking tool.
 
 ![overview](images/overview.png)
@@ -91,7 +89,7 @@ A browser-based interface is available for interactive use. See [web/README.md](
 * Fragmenstein combine route does not check if a compound is purchasable. Above NextMove Software SmallWorld is used
   ([SmallWorld hosted by John Irwin](sw.docking.org)) to find the top N analogues,
   via [an API](https://github.com/matteoferla/Python_SmallWorld_API).
-* In [Arthorian Quest](https://github.com/matteoferla/Arthorian-Quest), a parent combound is coverted with ease into an ambiguous SMARTS pattern, 
+* In [Arthorian Quest](https://github.com/matteoferla/Arthorian-Quest), a parent compound is converted with ease into an ambiguous SMARTS pattern, 
   catalogue compounds are searched with NextMove Software's Arthor ([hosted by John Irwin](arthor.docking.org)) and then placed with Fragmenstein.
 * Steph Wills's [fragment network merges repo](https://github.com/stephwills/fragment_network_merges)
     enumerates superstructures of two parent hits from catalogue and places them with Fragmenstein.
