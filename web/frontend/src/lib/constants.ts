@@ -2,7 +2,7 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 /** Available Victor backend types. */
-export const VICTOR_TYPES = ["Wictor", "Victor"] as const;
+export const VICTOR_TYPES: string[] = ["Wictor", "Victor"];
 
 /** Pipeline step definitions for the step indicator. */
 export const STEP_LABELS = [
